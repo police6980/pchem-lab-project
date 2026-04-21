@@ -61,6 +61,10 @@ class Particle {
         if (this.y < top) this.y = top;
         else if (this.y > bottom) this.y = bottom;
 
+        if (collision) {
+            collision.x = this.x;
+            collision.y = this.y;
+        }
         return collision;
     }
 }
@@ -217,6 +221,10 @@ class ParticleSystem {
 
     getPistonCollisionCount() {
         return this.lastPistonCollisions.length;
+    }
+
+    getLastPistonCollisions() {
+        return this.lastPistonCollisions;
     }
 
     getTotalMomentumTransfer() {
