@@ -23,22 +23,22 @@ document.addEventListener("DOMContentLoaded", async () => {
         console.warn("Real sensor not implemented yet");
     }
 
-    let lastTime = performance.now();
     let pistonHitsAccumulator = 0;
-    function tick(now) {
-        const dt = Math.min((now - lastTime) / 1000, DT_CAP);
-        lastTime = now;
+    createRenderer(box, system, (dt) => {
         system.update(dt);
         box.update(dt, params.volume_tau_seconds);
         pistonHitsAccumulator += system.getPistonCollisionCount();
-        requestAnimationFrame(tick);
-    }
-    requestAnimationFrame(tick);
+    });
 
     setInterval(() => {
         const hitsPer5s = pistonHitsAccumulator;
         const hitsPerSec = hitsPer5s / 5;
         pistonHitsAccumulator = 0;
+
+        const frames = getAndResetFrameCount();
+        const fps = frames / 5;
+        const overlapTotal = system.getAndResetOverlapPairCount();
+        const overlapAvg = frames > 0 ? overlapTotal / frames : 0;
 
         const avgSpeed = system.getAverageSpeed();
         const initialSpeed = system.getInitialAverageSpeed();
@@ -49,7 +49,9 @@ document.addEventListener("DOMContentLoaded", async () => {
             `Avg speed: ${avgSpeed.toFixed(1)} (×${speedRel.toFixed(2)}), ` +
             `Box width: ${box.width.toFixed(0)} (×${widthRel.toFixed(2)}), ` +
             `Particles: ${particleCount}, ` +
-            `Piston hits (last 5s): ${hitsPer5s} (≈${hitsPerSec.toFixed(0)}/s)`
+            `Piston hits (last 5s): ${hitsPer5s} (≈${hitsPerSec.toFixed(0)}/s), ` +
+            `FPS: ${fps.toFixed(1)}, ` +
+            `Overlap pairs (avg): ${overlapAvg.toFixed(1)} /frame`
         );
     }, 5000);
 });

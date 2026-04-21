@@ -6,6 +6,9 @@ const BOX_INITIAL_WIDTH = 400;
 const BOX_INITIAL_HEIGHT = 300;
 const DEFAULT_SPEED_SCALE = 120;
 const DT_CAP = 0.05;
+// Tuned with particle_count=300 so steady-state overlap stays under ~15 pairs/frame.
+// Overlap scales ~ N^2 * r^2, so both knobs move together when retuning density.
+const PARTICLE_RADIUS = 2.5;
 
 function boxMullerStandardNormal() {
     const u1 = Math.random() || 1e-9;
@@ -14,20 +17,24 @@ function boxMullerStandardNormal() {
 }
 
 class Particle {
-    constructor(x, y, vx, vy) {
+    constructor(x, y, vx, vy, radius = PARTICLE_RADIUS) {
         this.x = x;
         this.y = y;
         this.vx = vx;
         this.vy = vy;
         this.mass = 1.0;
+        this.radius = radius;
     }
 
     update(dt, box) {
         this.x += this.vx * dt;
         this.y += this.vy * dt;
 
-        const right = box.x + box.width;
-        const bottom = box.y + box.height;
+        const r = this.radius;
+        const left = box.x + r;
+        const right = box.x + box.width - r;
+        const top = box.y + r;
+        const bottom = box.y + box.height - r;
 
         let collision = null;
         const speed = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
@@ -35,13 +42,13 @@ class Particle {
         // Only trigger a collision if the particle is both outside the wall
         // AND moving into it. The velocity-direction check prevents spurious
         // collisions when the box shrinks faster than the particle can move.
-        if (this.x < box.x && this.vx < 0) {
+        if (this.x < left && this.vx < 0) {
             collision = { isPiston: false, momentumTransfer: 2 * this.mass * Math.abs(this.vx), speed };
             this.vx = -this.vx;
         } else if (this.x > right && this.vx > 0) {
             collision = { isPiston: true, momentumTransfer: 2 * this.mass * Math.abs(this.vx), speed };
             this.vx = -this.vx;
-        } else if (this.y < box.y && this.vy < 0) {
+        } else if (this.y < top && this.vy < 0) {
             collision = { isPiston: false, momentumTransfer: 2 * this.mass * Math.abs(this.vy), speed };
             this.vy = -this.vy;
         } else if (this.y > bottom && this.vy > 0) {
@@ -49,9 +56,9 @@ class Particle {
             this.vy = -this.vy;
         }
 
-        if (this.x < box.x) this.x = box.x;
+        if (this.x < left) this.x = left;
         else if (this.x > right) this.x = right;
-        if (this.y < box.y) this.y = box.y;
+        if (this.y < top) this.y = top;
         else if (this.y > bottom) this.y = bottom;
 
         return collision;
@@ -86,18 +93,27 @@ class Box {
 }
 
 class ParticleSystem {
-    constructor(particleCount, box, initialSpeedScale = DEFAULT_SPEED_SCALE) {
+    constructor(particleCount, box, initialSpeedScale = DEFAULT_SPEED_SCALE, particleRadius = PARTICLE_RADIUS) {
         this.box = box;
         this.particles = [];
         for (let i = 0; i < particleCount; i++) {
-            const x = box.x + Math.random() * box.width;
-            const y = box.y + Math.random() * box.height;
+            const x = box.x + particleRadius + Math.random() * (box.width - 2 * particleRadius);
+            const y = box.y + particleRadius + Math.random() * (box.height - 2 * particleRadius);
             const vx = boxMullerStandardNormal() * initialSpeedScale;
             const vy = boxMullerStandardNormal() * initialSpeedScale;
-            this.particles.push(new Particle(x, y, vx, vy));
+            this.particles.push(new Particle(x, y, vx, vy, particleRadius));
         }
-        this._initialAvgSpeed = this.getAverageSpeed();
         this.lastPistonCollisions = [];
+        this._overlapPairCount = 0;
+
+        // Random placement may leave pairs overlapping. Resolve them before
+        // physics starts. Cap iterations so a stuck cluster can't hang boot.
+        for (let i = 0; i < 10; i++) {
+            if (this._resolveParticleCollisions() === 0) break;
+        }
+        this._overlapPairCount = 0;
+
+        this._initialAvgSpeed = this.getAverageSpeed();
     }
 
     update(dt) {
@@ -109,6 +125,62 @@ class ParticleSystem {
                 this.lastPistonCollisions.push(col);
             }
         }
+        this._overlapPairCount += this._resolveParticleCollisions();
+    }
+
+    _resolveParticleCollisions() {
+        const particles = this.particles;
+        const n = particles.length;
+        let pairCount = 0;
+
+        for (let i = 0; i < n; i++) {
+            const p1 = particles[i];
+            for (let j = i + 1; j < n; j++) {
+                const p2 = particles[j];
+                const dx = p2.x - p1.x;
+                const dy = p2.y - p1.y;
+                const rSum = p1.radius + p2.radius;
+                const distSq = dx * dx + dy * dy;
+                if (distSq >= rSum * rSum) continue;
+
+                pairCount++;
+
+                const dist = Math.sqrt(distSq);
+                let nx, ny;
+                if (dist < 1e-9) {
+                    nx = 1; ny = 0;
+                } else {
+                    nx = dx / dist;
+                    ny = dy / dist;
+                }
+
+                const half = (rSum - dist) * 0.5;
+                p1.x -= nx * half;
+                p1.y -= ny * half;
+                p2.x += nx * half;
+                p2.y += ny * half;
+
+                const vRelX = p1.vx - p2.vx;
+                const vRelY = p1.vy - p2.vy;
+                const vn = vRelX * nx + vRelY * ny;
+                if (vn <= 0) continue;
+
+                const impulseX = vn * nx;
+                const impulseY = vn * ny;
+                p1.vx -= impulseX;
+                p1.vy -= impulseY;
+                p2.vx += impulseX;
+                p2.vy += impulseY;
+            }
+        }
+
+        return pairCount;
+    }
+
+    getAndResetOverlapPairCount() {
+        const count = this._overlapPairCount;
+        this._overlapPairCount = 0;
+        return count;
     }
 
     getAverageSpeed() {

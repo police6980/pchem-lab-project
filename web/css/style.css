@@ -1,5 +1,16 @@
 /* Boyle's law experiment - layout and styling */
 
+body {
+    margin: 0;
+    padding-top: 60px;
+    background: #f5f5f5;
+}
+
+canvas {
+    display: block;
+    margin: 20px auto;
+}
+
 #dev-pressure-slider {
     position: fixed;
     top: 10px;

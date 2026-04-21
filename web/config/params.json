@@ -1,5 +1,5 @@
 {
-    "particle_count": 350,
+    "particle_count": 300,
     "velocity_tau_seconds": 0.05,
     "volume_tau_seconds": 0.5,
     "pressure_smooth_window_sec": 0.3,
