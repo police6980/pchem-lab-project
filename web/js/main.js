@@ -24,7 +24,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     let pistonHitsAccumulator = 0;
-    createRenderer(box, system, (dt) => {
+    createRenderer(box, system, params, (dt) => {
         system.update(dt);
         box.update(dt, params.volume_tau_seconds);
         pistonHitsAccumulator += system.getPistonCollisionCount();

@@ -11,11 +11,16 @@ function getAndResetFrameCount() {
     return count;
 }
 
-function createRenderer(box, particleSystem, updateFn) {
+function createRenderer(box, particleSystem, params, updateFn) {
+    // Fixed at start-up, never retuned. Distribution shift (e.g. heating) then
+    // reads as visible color change instead of silent rescaling.
+    const vMaxColor = particleSystem.getInitialAverageSpeed() * params.v_max_color_factor;
+
     const sketch = (p) => {
         p.setup = () => {
             p.createCanvas(CANVAS_WIDTH, CANVAS_HEIGHT);
-            p.background(250);
+            p.colorMode(p.HSB, 360, 100, 100, 255);
+            p.background(0, 0, 98);
         };
 
         p.draw = () => {
@@ -23,10 +28,10 @@ function createRenderer(box, particleSystem, updateFn) {
             updateFn(dt);
             frameCounter++;
 
-            p.background(250);
+            p.background(0, 0, 98);
 
             p.noFill();
-            p.stroke(80, 80, 80);
+            p.stroke(0, 0, 31);
             p.strokeWeight(1);
             p.rect(box.x, box.y, box.width, box.height);
 
@@ -37,10 +42,15 @@ function createRenderer(box, particleSystem, updateFn) {
             );
 
             p.noStroke();
-            p.fill(120, 120, 120);
             const particles = particleSystem.getParticles();
             for (const particle of particles) {
-                p.circle(particle.x, particle.y, 6);
+                const speed = Math.sqrt(particle.vx * particle.vx + particle.vy * particle.vy);
+                const ratio = Math.min(speed / vMaxColor, 1.0);
+                const hue = 240 - 240 * ratio;
+                const sat = 40 + 60 * ratio;
+                const bri = 70 + 30 * ratio;
+                p.fill(hue, sat, bri);
+                p.circle(particle.x, particle.y, particle.radius * 2);
             }
         };
     };
