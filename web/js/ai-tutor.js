@@ -1,5 +1,5 @@
 // AI tutor conversation state and message rendering.
-// Part 3: empty initial state, dummy AI responses.
+// Part 3.5: reflection textareas removed; tabs gated by datapoint count (>=3).
 // Real Anthropic API integration lands in Part 4.
 
 // === State ===
@@ -57,17 +57,12 @@ function renderConversation(questionId) {
                 '<small style="color:#999">예: "왜 입자 색깔이 다른가요?"<br>' +
                 '"온도가 더 높으면 어떻게 되나요?"</small>';
         } else {
-            const textarea = document.getElementById(`analysis-q${questionId}`);
-            const answer = textarea ? textarea.value.trim() : "";
-            const preview = answer.length > 120 ? answer.slice(0, 120) + "..." : answer;
             emptyEl.innerHTML =
-                `<p>Q${questionId}에 작성한 답변으로 AI와 대화를 시작합니다.</p>` +
-                `<div class="answer-preview">${escapeHtml(preview)}</div>` +
-                `<button class="btn-start-dialogue" data-q="${questionId}">답변으로 대화 시작</button>`;
-            const startBtn = emptyEl.querySelector(".btn-start-dialogue");
-            if (startBtn) {
-                startBtn.addEventListener("click", () => startDialogueWithAnswer(questionId));
-            }
+                '<div class="prompt-question">' +
+                `<strong>Q${questionId}</strong>에 대한 생각을 아래 입력창에 작성하세요.<br>` +
+                'AI 튜터가 함께 깊이 있게 탐구합니다.' +
+                '</div>' +
+                `<div class="question-full">${QUESTION_TEXT[questionId] || ""}</div>`;
         }
         return;
     }
@@ -104,14 +99,13 @@ function createMessageElement(msg) {
 }
 
 // === Tab availability + disabled hint ===
-function updateTabAvailability() {
+function updateTabAvailability(datapointCount) {
+    const count = typeof datapointCount === "number" ? datapointCount : 0;
+    const hasEnoughData = count >= 3;
     [1, 2, 3].forEach(q => {
-        const textarea = document.getElementById(`analysis-q${q}`);
         const tabBtn = document.querySelector(`.ai-sidebar .tab-btn[data-q="${q}"]`);
         if (!tabBtn) return;
-        const hasAnswer = textarea && textarea.value.trim().length >= 10;
-        tabBtn.setAttribute("aria-disabled", String(!hasAnswer));
-        tabBtn.classList.toggle("has-answer", hasAnswer);
+        tabBtn.setAttribute("aria-disabled", String(!hasEnoughData));
     });
     const freeBtn = document.querySelector('.ai-sidebar .tab-btn[data-q="free"]');
     if (freeBtn) freeBtn.setAttribute("aria-disabled", "false");
@@ -125,30 +119,12 @@ function showTabDisabledToast(q) {
 
     const msg = document.createElement("div");
     msg.className = "tab-disabled-hint";
-    msg.textContent = `왼쪽에서 Q${q} 답변을 10자 이상 작성하세요`;
+    msg.textContent = "측정점을 3개 이상 기록한 뒤 사용할 수 있습니다";
     tabsEl.after(msg);
     setTimeout(() => msg.remove(), 2500);
 }
 
-// === Dialogue (dummy responses; real API in Part 4) ===
-async function startDialogueWithAnswer(questionId) {
-    const textarea = document.getElementById(`analysis-q${questionId}`);
-    if (!textarea) return;
-    const answer = textarea.value.trim();
-    if (!answer) return;
-
-    aiConversations[questionId].messages.push({
-        role: "user",
-        content: answer,
-        timestamp: Date.now(),
-    });
-    renderConversation(questionId);
-
-    await fakeApiDelay();
-    generateDummyAiResponse(questionId, answer);
-    renderConversation(questionId);
-}
-
+// === Dummy responses (real API in Part 4) ===
 function fakeApiDelay() {
     return new Promise(r => setTimeout(r, 1500));
 }
@@ -171,6 +147,13 @@ function generateDummyAiResponse(questionId, userMsg) {
     });
 }
 
+function resetAllConversations() {
+    ["1", "2", "3", "free"].forEach(q => {
+        aiConversations[q] = { messages: [], tokensIn: 0, tokensOut: 0 };
+    });
+    renderConversation(activeQuestion);
+}
+
 async function sendMessage() {
     const input = document.getElementById("message-input");
     const btn = document.getElementById("btn-send-message");
@@ -179,11 +162,6 @@ async function sendMessage() {
     if (!content) return;
 
     const qid = activeQuestion;
-
-    if (qid !== "free" && aiConversations[qid].messages.length === 0) {
-        alert("먼저 '답변으로 대화 시작' 버튼을 눌러주세요.");
-        return;
-    }
 
     aiConversations[qid].messages.push({
         role: "user",
@@ -219,7 +197,7 @@ function updateInputAvailability() {
     if (!hasApiKey) {
         input.placeholder = "먼저 설정에서 API 키를 입력하세요";
     } else if (!tabReady) {
-        input.placeholder = "왼쪽에서 답변을 먼저 작성하세요";
+        input.placeholder = "측정점 3개를 기록한 뒤 사용할 수 있습니다";
     } else {
         input.placeholder = "메시지 입력 (Enter 전송, Shift+Enter 줄바꿈)";
     }
@@ -274,22 +252,12 @@ document.addEventListener("DOMContentLoaded", () => {
                 switchToQuestion("free");
                 return;
             }
-            const textarea = document.getElementById(`analysis-q${q}`);
-            const hasAnswer = textarea && textarea.value.trim().length >= 10;
-            if (!hasAnswer) {
+            if (btn.getAttribute("aria-disabled") === "true") {
                 showTabDisabledToast(q);
                 return;
             }
             switchToQuestion(q);
         });
-    });
-
-    // Reflection textareas are created by createAnalysisPanel later in the
-    // DOMContentLoaded queue; event delegation handles them regardless.
-    document.addEventListener("input", (e) => {
-        if (e.target && /^analysis-q[123]$/.test(e.target.id)) {
-            updateTabAvailability();
-        }
     });
 
     const messageInput = document.getElementById("message-input");
@@ -305,5 +273,9 @@ document.addEventListener("DOMContentLoaded", () => {
         sendBtn.addEventListener("click", sendMessage);
     }
 
+    // main.js createAnalysisPanel runs asynchronously after a fetch; setting
+    // initial tab state here avoids a brief flash where Q1-Q3 look enabled
+    // before refresh() updates them with the real datapoint count.
+    updateTabAvailability(0);
     switchToQuestion("free");
 });

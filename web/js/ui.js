@@ -713,21 +713,6 @@ function createAnalysisPanel({
             <p class="verdict" id="analysis-verdict">—</p>
             <div id="pv-bars-canvas-wrap"></div>
         </div>
-        <div class="analysis-reflection">
-            <h3>💭 성찰</h3>
-            <div class="question">
-                <label for="analysis-q1">Q1. 측정점마다 P·V 값이 거의 일정하게 나왔습니다. 이런 관계가 성립하는 이유를 기체 입자의 움직임으로 설명해보세요.</label>
-                <textarea id="analysis-q1" rows="3" placeholder="예: 부피가 줄어들면 입자들이..."></textarea>
-            </div>
-            <div class="question">
-                <label for="analysis-q2">Q2. 만약 압력을 400 kPa까지 올려 측정하면 부피는 어떻게 될지 예측해보세요. 이런 극단적 조건에서도 같은 규칙이 성립할까요? 그 이유는?</label>
-                <textarea id="analysis-q2" rows="3" placeholder="예: P·V = 일정이 항상 성립한다면..."></textarea>
-            </div>
-            <div class="question">
-                <label for="analysis-q3">Q3. 다음 실험에서 바꿔보고 싶은 조건이 있다면 무엇인가요?</label>
-                <textarea id="analysis-q3" rows="3" placeholder="예: 온도를 바꿔서, 다른 기체로 바꿔서..."></textarea>
-            </div>
-        </div>
         <div class="analysis-export">
             <button id="btn-export-analysis">분석 보고서 저장</button>
         </div>
@@ -754,7 +739,6 @@ function createAnalysisPanel({
     let apiKey = null;
     let totalInputTokens = 0;
     let totalOutputTokens = 0;
-    const feedbackStore = {};
 
     const LEVEL_GUIDES = {
         middle: "중학교 2-3학년 영재학급 학생. 기본 분자 운동론은 알지만 깊은 통계역학은 모름. 친근한 톤, 어려운 용어 설명 동반.",
@@ -884,6 +868,9 @@ function createAnalysisPanel({
 
     function refresh() {
         const data = getDatapoints();
+        if (typeof updateTabAvailability === "function") {
+            updateTabAvailability(data.length);
+        }
         if (data.length < MIN_DATAPOINTS) {
             section.classList.add("hidden");
             return;
@@ -934,13 +921,6 @@ function createAnalysisPanel({
         if (!pricing) return 0;
         const usd = (inputTokens * pricing.inputPerMTok + outputTokens * pricing.outputPerMTok) / 1e6;
         return Math.round(usd * USD_TO_KRW);
-    }
-
-    function modelLabel(model) {
-        return ({
-            "claude-sonnet-4-6": "Sonnet",
-            "claude-opus-4-7": "Opus",
-        })[model] || model;
     }
 
     function updateUsageDisplay() {
@@ -1026,22 +1006,6 @@ function createAnalysisPanel({
         if (typeof updateInputAvailability === "function") updateInputAvailability();
     }
 
-    function renderMarkdown(text) {
-        // HTML escape first (XSS safety), then apply minimal markdown.
-        const escaped = text
-            .replace(/&/g, "&amp;")
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;");
-        const paragraphs = escaped.split(/\n\n+/);
-        return paragraphs.map(p => {
-            const inline = p
-                .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
-                .replace(/(?<!\*)\*([^*]+)\*(?!\*)/g, "<em>$1</em>")
-                .replace(/\n/g, "<br>");
-            return `<p>${inline}</p>`;
-        }).join("");
-    }
-
     function buildDataContext() {
         const data = getDatapoints();
         const mean = data.reduce((s, d) => s + d.PV, 0) / data.length;
@@ -1116,10 +1080,6 @@ ${answer}
         const sessionIso = sessionStart ? new Date(sessionStart).toISOString() : "";
         const nowIso = new Date().toISOString();
 
-        const q1 = document.getElementById("analysis-q1").value;
-        const q2 = document.getElementById("analysis-q2").value;
-        const q3 = document.getElementById("analysis-q3").value;
-
         const lines = [];
         lines.push("# 보일 법칙 실험 분석 보고서");
         lines.push(`# 저장 시각: ${nowIso}`);
@@ -1160,26 +1120,31 @@ ${answer}
         });
         lines.push("");
 
-        lines.push("# == 학생 성찰 ==");
-        lines.push("질문,답변");
-        lines.push(`${csvEscape("Q1. 측정점마다 P·V 값이 거의 일정하게 나왔습니다. 이런 관계가 성립하는 이유를 기체 입자의 움직임으로 설명해보세요.")},${csvEscape(q1)}`);
-        lines.push(`${csvEscape("Q2. 만약 압력을 400 kPa까지 올려 측정하면 부피는 어떻게 될지 예측해보세요. 이런 극단적 조건에서도 같은 규칙이 성립할까요? 그 이유는?")},${csvEscape(q2)}`);
-        lines.push(`${csvEscape("Q3. 다음 실험에서 바꿔보고 싶은 조건이 있다면 무엇인가요?")},${csvEscape(q3)}`);
-
-        const feedbackEntries = Object.entries(feedbackStore)
-            .sort(([a], [b]) => Number(a) - Number(b));
-        if (feedbackEntries.length > 0) {
-            lines.push("");
-            lines.push("# == AI 튜터 피드백 ==");
-            lines.push("질문번호,모델,입력토큰,출력토큰,피드백내용");
-            feedbackEntries.forEach(([qNum, fb]) => {
-                lines.push([
-                    `Q${qNum}`,
-                    fb.model,
-                    fb.inputTokens,
-                    fb.outputTokens,
-                    csvEscape(fb.text),
-                ].join(","));
+        const hasAnyConversation = ["1", "2", "3", "free"].some(
+            q => aiConversations[q] && aiConversations[q].messages.length > 0
+        );
+        if (hasAnyConversation) {
+            lines.push("# == AI 튜터 대화 ==");
+            lines.push("주제,순번,역할,내용,모델,토큰입력,토큰출력");
+            ["1", "2", "3", "free"].forEach(q => {
+                const conv = aiConversations[q];
+                if (!conv || !conv.messages.length) return;
+                const topic = q === "free" ? "자유" : `Q${q}`;
+                conv.messages.forEach((msg, i) => {
+                    const isAssistant = msg.role === "assistant";
+                    const model = isAssistant ? (msg.model || "") : "";
+                    const tIn   = isAssistant ? (msg.tokensIn ?? "") : "";
+                    const tOut  = isAssistant ? (msg.tokensOut ?? "") : "";
+                    lines.push([
+                        topic,
+                        i + 1,
+                        msg.role,
+                        csvEscape(msg.content),
+                        model,
+                        tIn,
+                        tOut,
+                    ].join(","));
+                });
             });
         }
 
@@ -1221,14 +1186,9 @@ ${answer}
 
     loadAISettings();
     updateUsageDisplay();
-    if (typeof updateTabAvailability === "function") updateTabAvailability();
 
     function clear() {
-        ["analysis-q1", "analysis-q2", "analysis-q3"].forEach(id => {
-            const el = document.getElementById(id);
-            if (el) el.value = "";
-        });
-        if (typeof updateTabAvailability === "function") updateTabAvailability();
+        if (typeof resetAllConversations === "function") resetAllConversations();
         refresh();
     }
 

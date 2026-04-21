@@ -356,31 +356,20 @@ body {
     to { opacity: 1; }
 }
 
-/* === Sidebar: Q1-Q3 empty state (answer preview + start button) === */
-.ai-sidebar .answer-preview {
-    margin: 12px 0;
-    padding: 10px;
+/* === Sidebar: Q1-Q3 empty state (prompt + question box) === */
+.ai-sidebar .prompt-question {
+    margin-bottom: 12px;
+    color: #444;
+}
+.ai-sidebar .question-full {
+    padding: 12px;
     background: #f5f3ff;
     border-left: 3px solid #6b46c1;
-    font-size: 0.85em;
-    color: #4c1d95;
-    text-align: left;
     border-radius: 4px;
-    white-space: pre-wrap;
-    word-break: break-word;
-}
-.ai-sidebar .btn-start-dialogue {
-    padding: 8px 16px;
-    background: #6b46c1;
-    color: white;
-    border: none;
-    border-radius: 6px;
-    cursor: pointer;
-    font-size: 0.9em;
-    transition: background 0.15s;
-}
-.ai-sidebar .btn-start-dialogue:hover {
-    background: #5b3aa5;
+    font-size: 0.85em;
+    text-align: left;
+    color: #4c1d95;
+    line-height: 1.5;
 }
 
 /* === Sidebar: message input area === */
