@@ -115,7 +115,9 @@ function renderConversation(questionId) {
 
 function createMessageElement(msg) {
     const wrap = document.createElement("div");
-    wrap.className = `message ${msg.role === "user" ? "user-message" : "ai-message"}`;
+    const roleCls = msg.role === "user" ? "user-message" : "ai-message";
+    const errorCls = msg.isError ? " is-error" : "";
+    wrap.className = `message ${roleCls}${errorCls}`;
 
     const avatar = msg.role === "user" ? "👤" : "🤖";
     const bodyHtml = msg.role === "user"
@@ -164,9 +166,38 @@ function showTabDisabledToast(q) {
 
 function resetAllConversations() {
     ["1", "2", "3", "free"].forEach(q => {
-        aiConversations[q] = { messages: [], tokensIn: 0, tokensOut: 0 };
+        aiConversations[q] = {
+            messages: [], tokensIn: 0, tokensOut: 0, contextSnapshot: null,
+        };
     });
     renderConversation(activeQuestion);
+}
+
+// === Typing indicator ===
+function showTypingIndicator() {
+    const listEl = document.getElementById("messages-list");
+    if (!listEl) return;
+    if (listEl.querySelector(".typing-indicator")) return;
+
+    const wrap = document.createElement("div");
+    wrap.className = "message ai-message typing-indicator";
+    wrap.innerHTML = `
+        <div class="avatar">🤖</div>
+        <div class="content">
+            <div class="bubble typing-dots"><span></span><span></span><span></span></div>
+        </div>
+    `;
+    listEl.appendChild(wrap);
+    listEl.style.display = "flex";
+    const empty = document.getElementById("conversation-empty");
+    if (empty) empty.style.display = "none";
+    const scroll = document.getElementById("conversation-scroll");
+    if (scroll) scroll.scrollTop = scroll.scrollHeight;
+}
+
+function hideTypingIndicator() {
+    const el = document.querySelector(".typing-indicator");
+    if (el) el.remove();
 }
 
 async function sendMessage() {
@@ -210,8 +241,10 @@ async function sendMessage() {
     const level        = window.PchemTutor.getLevel();
     const systemPrompt = window.PchemTutor.buildSystemPrompt(level, qid);
 
+    showTypingIndicator();
     try {
         const result = await callAnthropicAPI(apiMessages, systemPrompt);
+        hideTypingIndicator();
 
         conv.messages.push({
             role: "assistant",
@@ -226,9 +259,23 @@ async function sendMessage() {
         window.PchemTutor.addTokens(result.inputTokens, result.outputTokens);
 
     } catch (e) {
-        const msg = e.type === "no_key"
-            ? "API 키가 설정되지 않았습니다. 설정 패널을 확인하세요."
-            : `오류가 발생했습니다. (${e.status ?? "네트워크 오류"}) 잠시 후 다시 시도해주세요.`;
+        hideTypingIndicator();
+        let msg;
+        if (e.type === "no_key") {
+            msg = "⚠️ API 키가 설정되지 않았습니다. 오른쪽 상단 설정 패널을 확인하세요.";
+        } else if (e.type === "api_error") {
+            if (e.status === 401) {
+                msg = "⚠️ API 키가 유효하지 않습니다. 설정 패널에서 키를 다시 확인하세요.";
+            } else if (e.status === 429) {
+                msg = "⚠️ 요청이 너무 많습니다. 잠시 후 다시 시도해주세요. (Rate limit)";
+            } else if (e.status === 529) {
+                msg = "⚠️ 서버가 일시적으로 과부하 상태입니다. 1~2분 후 다시 시도해주세요.";
+            } else {
+                msg = `⚠️ 오류가 발생했습니다. (HTTP ${e.status}) 잠시 후 다시 시도해주세요.`;
+            }
+        } else {
+            msg = "⚠️ 네트워크 오류가 발생했습니다. 인터넷 연결을 확인하세요.";
+        }
         conv.messages.push({
             role: "assistant",
             content: msg,
