@@ -1,0 +1,15 @@
+{
+    "particle_count": 350,
+    "velocity_tau_seconds": 0.05,
+    "volume_tau_seconds": 0.5,
+    "pressure_smooth_window_sec": 0.3,
+    "temperature_smooth_window_sec": 2.0,
+    "collision_smooth_window_sec": 1.0,
+    "flash_duration_sec": 0.12,
+    "flash_initial_alpha": 120,
+    "v_max_color_factor": 1.5,
+    "initial_pressure_kPa": 101.3,
+    "initial_volume_mL": 30.0,
+    "initial_temperature_K": 298.0,
+    "piston_face": "right"
+}

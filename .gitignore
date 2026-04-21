@@ -18,3 +18,4 @@ build/
 # 실험 데이터 (실물 센서 생기면)
 *.csv
 data/
+data-logs/*.csv
