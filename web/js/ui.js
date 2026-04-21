@@ -14,14 +14,14 @@ function createDevPressureSlider(onChange) {
     const input = document.createElement("input");
     input.type = "range";
     input.id = "dev-pressure-range";
-    input.min = "70";
+    input.min = "81";
     input.max = "230";
     input.step = "0.1";
     input.value = "101.3";
 
     const rangeHint = document.createElement("div");
     rangeHint.className = "range-hint";
-    rangeHint.textContent = "70 ~ 230 kPa";
+    rangeHint.textContent = "81 ~ 230 kPa";
 
     sliderWrap.appendChild(input);
     sliderWrap.appendChild(rangeHint);
@@ -118,6 +118,7 @@ function createMeasurementPanel({ getP, getGasWidth, pixelsToML }) {
             <span class="reading-unit">mL</span>
         </span>
         <button id="btn-record">기록</button>
+        <span id="btn-record-hint" class="record-hint">값 안정화 중…</span>
     `;
     document.getElementById("section-controls").appendChild(readingBlock);
 
@@ -169,6 +170,48 @@ function createMeasurementPanel({ getP, getGasWidth, pixelsToML }) {
     // auto-track, so an accidental focus-then-click-away won't overwrite the
     // student's value.
     vInput.addEventListener("input", () => { studentEdited = true; });
+
+    // === Stabilization detection ===
+    const STABILIZATION_WINDOW = 20;          // 50ms × 20 = 1s
+    const STABILIZATION_THRESHOLD = 0.005;    // 0.5%
+    const pHistory = [];
+    const widthHistory = [];
+    let isStabilized = false;
+
+    const sliderInput = document.getElementById("dev-pressure-range");
+    if (sliderInput) {
+        sliderInput.addEventListener("input", () => {
+            pHistory.length = 0;
+            widthHistory.length = 0;
+            isStabilized = false;
+        });
+    }
+
+    function pushSampleHistory() {
+        pHistory.push(getP());
+        widthHistory.push(getGasWidth());
+        if (pHistory.length > STABILIZATION_WINDOW) pHistory.shift();
+        if (widthHistory.length > STABILIZATION_WINDOW) widthHistory.shift();
+    }
+
+    function checkStabilized() {
+        if (pHistory.length < STABILIZATION_WINDOW) return false;
+        const pNow = pHistory[pHistory.length - 1];
+        const pThen = pHistory[0];
+        const wNow = widthHistory[widthHistory.length - 1];
+        const wThen = widthHistory[0];
+        if (pNow === 0 || wNow === 0) return false;
+        const pRel = Math.abs(pNow - pThen) / pNow;
+        const wRel = Math.abs(wNow - wThen) / wNow;
+        return pRel < STABILIZATION_THRESHOLD && wRel < STABILIZATION_THRESHOLD;
+    }
+
+    function updateRecordButtonState() {
+        const btn = document.getElementById("btn-record");
+        const hint = document.getElementById("btn-record-hint");
+        btn.disabled = !isStabilized;
+        hint.style.display = isStabilized ? "none" : "inline";
+    }
 
     // === PV scatter plot ===
     const PV_CANVAS_WIDTH = 380;
@@ -350,9 +393,23 @@ function createMeasurementPanel({ getP, getGasWidth, pixelsToML }) {
     }
 
     document.getElementById("btn-record").addEventListener("click", () => {
-        const P = getP();
-        const V = parseFloat(vInput.value);
+        if (!isStabilized) return;
+
+        // P: 1-second moving average. Smoothes sensor noise + guarantees the
+        // pressure reading matches what the simulation settled on.
+        const P = pHistory.reduce((s, v) => s + v, 0) / pHistory.length;
+
+        // V: student override wins; otherwise average the piston position
+        // (box.width) over the same window for phase consistency with P.
+        let V;
+        if (studentEdited) {
+            V = parseFloat(vInput.value);
+        } else {
+            const avgWidth = widthHistory.reduce((s, v) => s + v, 0) / widthHistory.length;
+            V = pixelsToML(avgWidth);
+        }
         if (!isFinite(V)) return;
+
         datapoints.push({ id: nextPointId++, P, V, PV: P * V, timestamp: Date.now() });
         renderTable();
         renderSummary();
@@ -377,7 +434,68 @@ function createMeasurementPanel({ getP, getGasWidth, pixelsToML }) {
         if (!studentEdited) {
             vInput.value = pixelsToML(getGasWidth()).toFixed(1);
         }
+        pushSampleHistory();
+        isStabilized = checkStabilized();
+        updateRecordButtonState();
     }, 50);
+
+    // === Dev helper: PV accuracy regression test ===
+    // window.runPVAccuracyTest() from the browser console.
+    async function runPVAccuracyTest() {
+        const slider = document.getElementById("dev-pressure-range");
+        const btn = document.getElementById("btn-record");
+        if (!slider || !btn) {
+            console.error("[PV test] Slider or record button not found");
+            return;
+        }
+
+        const testPressures = [81, 100, 130, 160, 190, 220];
+        const testIds = [];
+        const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+        console.log(`[PV test] Starting. Test pressures: ${testPressures.join(", ")} kPa`);
+
+        for (const p of testPressures) {
+            slider.value = String(p);
+            slider.dispatchEvent(new Event("input"));
+
+            const t0 = Date.now();
+            while (btn.disabled && (Date.now() - t0) < 10000) {
+                await sleep(100);
+            }
+            if (btn.disabled) {
+                console.error(`[PV test] Stabilization timeout at ${p} kPa`);
+                return;
+            }
+
+            const beforeLen = datapoints.length;
+            btn.click();
+            await sleep(60);
+            if (datapoints.length !== beforeLen + 1) {
+                console.error(`[PV test] Record failed at ${p} kPa`);
+                return;
+            }
+            const last = datapoints[datapoints.length - 1];
+            testIds.push(last.id);
+            console.log(
+                `[PV test] slider=${p} kPa → ` +
+                `P=${last.P.toFixed(2)}, V=${last.V.toFixed(2)}, PV=${last.PV.toFixed(1)}`
+            );
+        }
+
+        const testData = datapoints.filter(d => testIds.includes(d.id));
+        const meanPV = testData.reduce((s, d) => s + d.PV, 0) / testData.length;
+        const maxDevPct = Math.max(...testData.map(d => Math.abs(d.PV - meanPV))) / meanPV * 100;
+
+        console.log(`[PV test] Mean PV = ${meanPV.toFixed(1)} · max deviation = ${maxDevPct.toFixed(2)}%`);
+        if (maxDevPct > 2) {
+            console.error(`[PV test] FAIL — deviation exceeds 2% threshold`);
+        } else {
+            console.log(`[PV test] PASS — within 2%`);
+        }
+    }
+
+    window.runPVAccuracyTest = runPVAccuracyTest;
 
     return panel;
 }

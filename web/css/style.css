@@ -136,6 +136,21 @@ body {
     background: #eaeaea;
 }
 
+#current-reading-block #btn-record:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+#current-reading-block #btn-record:disabled:hover {
+    background: #f5f5f5;
+}
+
+#current-reading-block .record-hint {
+    font-size: 11px;
+    color: #999;
+    margin-left: 4px;
+}
+
 /* Section 2: Simulation canvas */
 #section-canvas {
     display: flex;
