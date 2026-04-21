@@ -59,7 +59,7 @@
 
 ## 시뮬레이션 내부 상태 (JSON)
 
-시뮬레이션 상태를 덤프하거나 LLM에 전달할 때 쓰는 포맷.
+시뮬레이션 상태를 덤프하거나 AI 튜터 컨텍스트로 전송할 때 쓰는 포맷. **현 v1 코드에서는 직접 사용처 없음** — Phase 2-B(AI 튜터 실 API 연동)에서 `buildDataContext()` 기반으로 실제 전송 시 활용 예정.
 
 ### 보일 법칙
 
@@ -74,7 +74,7 @@
   "state": {
     "volume_mL": 40.0,
     "volume_input_by": "student",
-    "particle_count": 250,
+    "particle_count": 300,
     "box_width_px": 200,
     "box_height_px": 150
   },
@@ -103,7 +103,7 @@
   "state": {
     "volume_current_mL": 63.5,
     "volume_target_mL": 64.2,
-    "particle_count": 250,
+    "particle_count": 300,
     "mean_speed_ratio": 1.043,
     "convergence_progress": 0.92
   },
@@ -205,6 +205,74 @@ timestamp_ms,P_kPa,V_mL,box_width_px,mean_speed_px_per_s,piston_collisions_per_s
 - 초과 시 가장 오래된 행부터 `shift`, 콘솔에 1회 경고.
 - 경고 플래그는 `[전체 삭제]`에서 함께 리셋.
 
+### 분석 보고서 CSV (Part 3.5 확정)
+
+측정점이 3개 이상일 때 `#section-analysis`의 **[분석 보고서 저장]** 버튼으로 단일 파일 다운로드. `buildAnalysisCSV()`가 생성. 단일 CSV 안에 **주석 헤더(`# == ... ==`)로 분리된 다중 섹션** 구조.
+
+**파일명**:
+```
+boyle_analysis_<YYYY-MM-DD>_<HH-MM-SS>.csv
+```
+
+**전체 구조**:
+```
+# 보일 법칙 실험 분석 보고서
+# 저장 시각: <ISO>
+# 세션 시작: <ISO>
+
+# == 실험 조건 ==
+항목,값
+온도_섭씨,<값>
+온도_켈빈,<값>
+기준_압력_kPa,101.3
+기준_부피_mL,50.0
+
+# == 요약 통계 ==
+항목,값
+측정점_개수,<N>
+평균_PV,<값>
+최대_편차_퍼센트,<값>
+기록_소요_시간_초,<값>
+법칙_검증_판정,<문자열>
+
+# == 측정점 ==
+번호,압력_kPa,부피_mL,P·V,편차_퍼센트,기록시각_ms,온도_K
+<측정점 행들>
+
+# == AI 튜터 대화 ==            ← 대화가 1개 이상 있을 때만 포함
+주제,순번,역할,내용,모델,토큰입력,토큰출력
+<대화 메시지 행들>
+```
+
+**§ "AI 튜터 대화" 필드 정의**:
+
+| 필드 | 타입 | 설명 |
+|---|---|---|
+| `주제` | 문자열 | `"Q1"` · `"Q2"` · `"Q3"` · `"자유"` |
+| `순번` | 정수 | 해당 주제 내 메시지 순서 (1부터) |
+| `역할` | 문자열 | `"user"` (학생) · `"assistant"` (AI) |
+| `내용` | 문자열 | 메시지 본문 (CSV 이스케이프 적용 — 쌍따옴표·쉼표·줄바꿈 포함 시 `"..."` 인용) |
+| `모델` | 문자열 | assistant 메시지에만 값 (예: `claude-sonnet-4-6`, `dummy-mode`). user 메시지는 공란 |
+| `토큰입력` | 정수 | assistant 메시지만 |
+| `토큰출력` | 정수 | assistant 메시지만 |
+
+출력 순서: Q1 → Q2 → Q3 → 자유. 각 주제 안에서는 메시지 순서(시간순).
+
+**예시**:
+```
+# == AI 튜터 대화 ==
+주제,순번,역할,내용,모델,토큰입력,토큰출력
+Q1,1,user,"부피가 줄면 입자들이 벽에 부딪히는 횟수가 많아져서...",,,
+Q1,2,assistant,"**좋은 관찰이에요.** 한 걸음 더 들어가볼까요?...",claude-sonnet-4-6,280,195
+자유,1,user,"입자 색깔이 왜 다른가요?",,,
+자유,2,assistant,"속도를 HSB로 매핑했어요...",claude-sonnet-4-6,215,180
+```
+
+**주의**:
+- 현재(Part 3.5)는 AI 응답이 `dummy-mode` 모델의 더미. **실 Anthropic 응답은 Phase 2-B 완료 후부터 포함됨**
+- 대화 히스토리는 sessionStorage가 아닌 **메모리 내 `aiConversations`에만 존재** — 페이지 새로고침 시 손실
+- `[전체 삭제]` / 온도 변경 시 `resetAllConversations()`로 일괄 초기화 (CSV로 저장하지 않은 대화는 사라짐)
+
 ### 샤를·산염기 CSV (v1.1 이후)
 
 샤를 법칙과 산염기 실험도 동일한 두-파일 스킴을 따른다. 각 실험 구현 시 이 문서에 해당 실험의 측정점/연속 로그 헤더를 추가한다.
@@ -214,13 +282,15 @@ timestamp_ms,P_kPa,V_mL,box_width_px,mean_speed_px_per_s,piston_collisions_per_s
 - **샤를 연속 세션 로그**: `timestamp_ms, T_K, V_mL, box_width_px, mean_speed_px_per_s, wall_collisions_per_s, stabilized`
 - **산염기 측정점 로그**: `번호, pH, 부피_mL, 기록시각_ms, 세션시작시각_iso` (또는 pKa 관련 파생값 추가)
 
-### 이벤트 로그 / LLM 대화 로그 (v2)
+### AI 튜터 대화 로그 (Part 3.5 부분 구현)
 
-LLM 튜터 도입 시:
-- `events_<YYYY-MM-DD>_<HH-MM-SS>.csv`: 단계 전환, 튜터 개입, 학생 입력 등 이벤트
-- `chat_<YYYY-MM-DD>_<HH-MM-SS>.json`: LLM 턴별 대화 내역
+**상태**: 대화 UI 및 CSV 저장 형식은 Part 3.5에서 구현됨. 대화는 위 **§분석 보고서 CSV** 의 `# == AI 튜터 대화 ==` 섹션으로 통합 저장된다 — 별도 `chat_*.json` 파일을 만들지 않는다. 실제 Anthropic API 호출 교체는 Phase 2-B 예정.
 
-v2 설계 시 상세 정의.
+### 이벤트 로그 (v2, 미구현)
+
+Phase 6 교사 대시보드 도입 시:
+- `events_<YYYY-MM-DD>_<HH-MM-SS>.csv`: 단계 전환, 튜터 개입, 학생 입력 등 이벤트 타임라인
+- 포맷은 해당 Phase 설계 시 확정
 
 ---
 
@@ -290,7 +360,14 @@ v2 설계 시 상세 정의.
 
 ---
 
-## 미결정 사항
+## 확정 / 미결정
 
-- LLM API 요청/응답 포맷: `07-llm-tutor.md` (추후)
+**확정 (Part 3.5):**
+- AI 제공자: **Anthropic Claude** (BYOK 패턴, 브라우저 직접 호출, `anthropic-dangerous-direct-browser-access` 헤더)
+- API 키 저장: **sessionStorage** (`pchem_api_key`) — 메모리·탭 스코프, 탭 종료 시 소실
+- 대화 저장 방식: 메모리 내 `aiConversations` 객체(4 세션), CSV는 분석 보고서에 통합
+
+**미결정:**
+- AI API 요청/응답 상세 포맷: Phase 2-B에서 확정, 추후 `docs/07-ai-tutor.md`에서 상세 명세 예정
 - 산염기 실험 센서 데이터: 산염기 설계 완료 시 추가
+- 교사 대시보드 이벤트 로그 포맷: Phase 6
