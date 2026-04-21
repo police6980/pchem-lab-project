@@ -92,16 +92,28 @@ function updateInfoPanel(data) {
             formatValueWithUnit(data.pressure_kPa, 1, "kPa");
     }
     if (data.avgSpeed !== undefined) {
-        document.getElementById("info-speed").innerHTML =
-            formatValueWithUnit(data.avgSpeed, 0, "px/s");
+        if (data.avgSpeedTheory !== undefined) {
+            document.getElementById("info-speed").innerHTML =
+                `${data.avgSpeed.toFixed(0)} <span class="info-unit">px/s</span>` +
+                ` <span class="info-unit">(이론 ~${data.avgSpeedTheory.toFixed(0)})</span>`;
+        } else {
+            document.getElementById("info-speed").innerHTML =
+                formatValueWithUnit(data.avgSpeed, 0, "px/s");
+        }
     }
     if (data.hitsPerSec !== undefined) {
         document.getElementById("info-hits").innerHTML =
             formatValueWithUnit(data.hitsPerSec, 0, "회/초");
     }
     if (data.kineticEnergy !== undefined) {
-        document.getElementById("info-kinetic").innerHTML =
-            formatValueWithUnit(data.kineticEnergy, 0, "a.u.");
+        if (data.kineticEnergyTheory !== undefined) {
+            document.getElementById("info-kinetic").innerHTML =
+                `${data.kineticEnergy.toLocaleString("en-US", { maximumFractionDigits: 0 })} <span class="info-unit">a.u.</span>` +
+                ` <span class="info-unit">(이론 ~${data.kineticEnergyTheory.toLocaleString("en-US", { maximumFractionDigits: 0 })})</span>`;
+        } else {
+            document.getElementById("info-kinetic").innerHTML =
+                formatValueWithUnit(data.kineticEnergy, 0, "a.u.");
+        }
     }
 }
 

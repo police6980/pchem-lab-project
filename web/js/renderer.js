@@ -76,6 +76,9 @@ function createRenderer(box, particleSystem, params, updateFn) {
 
     // Time-averaged raw bins. Warms up from the first frame onward.
     let smoothedBins = null;
+    let previousTempBins = null;
+    let showGhostHist = true;
+    let showMBCurve = true;
 
     function drawBins(p, bins, options) {
         const binW = HIST_W / bins.length;
@@ -114,6 +117,60 @@ function createRenderer(box, particleSystem, params, updateFn) {
         }
     }
 
+    function drawGhostBins(p, bins) {
+        // Previous-temperature distribution as a semi-transparent outline on
+        // top of the current bars. Full polyline so dips are also visible.
+        p.noFill();
+        p.stroke(0, 0, 40, 130);
+        p.strokeWeight(1.5);
+        p.beginShape();
+        const binW = HIST_W / bins.length;
+        for (let i = 0; i < bins.length; i++) {
+            const barH = initialMaxCount > 0
+                ? Math.min(bins[i].count / initialMaxCount, 1) * HIST_H
+                : 0;
+            const cx = HIST_X + (i + 0.5) * binW;
+            const cy = HIST_Y + HIST_H - barH;
+            p.vertex(cx, cy);
+        }
+        p.endShape();
+    }
+
+    function drawTheoryCurve(p, totalCount) {
+        const rms = particleSystem.getAverageSpeed();
+        if (rms < 1) return;
+        const sigma = rms / Math.sqrt(2);         // 2D M-B mode parameter
+        const binCount = HIST_BIN_COUNT;
+        const binW_speed = vMaxColor / binCount;
+
+        const densities = [];
+        let rawSum = 0;
+        for (let i = 0; i < binCount; i++) {
+            const v = (i + 0.5) * binW_speed;
+            const d = v * Math.exp(-(v * v) / (2 * sigma * sigma));
+            densities.push(d);
+            rawSum += d;
+        }
+        if (rawSum < 1e-9) return;
+        const scale = totalCount / rawSum;
+
+        p.noFill();
+        p.stroke(0, 0, 20);
+        p.strokeWeight(1.5);
+        p.beginShape();
+        const binW = HIST_W / binCount;
+        for (let i = 0; i < binCount; i++) {
+            const count = densities[i] * scale;
+            const barH = initialMaxCount > 0
+                ? Math.min(count / initialMaxCount, 1) * HIST_H
+                : 0;
+            const cx = HIST_X + (i + 0.5) * binW;
+            const cy = HIST_Y + HIST_H - barH;
+            p.vertex(cx, cy);
+        }
+        p.endShape();
+    }
+
     function drawHistogram(p, currentBins) {
         p.noFill();
         p.stroke(0, 0, 85);
@@ -122,10 +179,15 @@ function createRenderer(box, particleSystem, params, updateFn) {
 
         drawBins(p, currentBins, { isReference: false });
 
-        // Initial-distribution reference outline. Hidden in Boyle (isothermal,
-        // distribution never shifts), but restore when Charles lands — the
-        // outline is where the rightward shift becomes legible.
-        // drawBins(p, initialBins, { isReference: true });
+        if (showGhostHist && previousTempBins) {
+            drawGhostBins(p, previousTempBins);
+        }
+
+        if (showMBCurve) {
+            let total = 0;
+            for (const b of currentBins) total += b.count;
+            drawTheoryCurve(p, total);
+        }
     }
 
     class Flash {
@@ -252,5 +314,31 @@ function createRenderer(box, particleSystem, params, updateFn) {
     };
 
     new p5(simSketch, document.getElementById("section-canvas"));
-    new p5(histSketch, document.getElementById("histogram-area"));
+
+    // Inject histogram toggle bar BEFORE appending p5 canvas so toggles sit on top.
+    const histArea = document.getElementById("histogram-area");
+    const toggleBar = document.createElement("div");
+    toggleBar.className = "hist-toggles";
+    toggleBar.innerHTML = `
+        <label><input type="checkbox" id="hist-toggle-ghost" checked> 이전 온도 분포</label>
+        <label><input type="checkbox" id="hist-toggle-theory" checked> 이론 곡선 (맥스웰-볼츠만)</label>
+    `;
+    histArea.appendChild(toggleBar);
+
+    document.getElementById("hist-toggle-ghost").addEventListener("change", (e) => {
+        showGhostHist = e.target.checked;
+    });
+    document.getElementById("hist-toggle-theory").addEventListener("change", (e) => {
+        showMBCurve = e.target.checked;
+    });
+
+    new p5(histSketch, histArea);
+
+    return {
+        snapshotHistogramForGhost: () => {
+            if (smoothedBins) {
+                previousTempBins = smoothedBins.map(b => ({ ...b }));
+            }
+        },
+    };
 }

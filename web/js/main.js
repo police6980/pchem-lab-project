@@ -5,6 +5,9 @@ const USE_MOCK_SENSOR = true;
 const REFERENCE_TEMP_K = 298.15;
 const REFERENCE_V_ML = 50;
 const REFERENCE_P_KPA = 101.3;
+const REFERENCE_RMS = DEFAULT_SPEED_SCALE * Math.sqrt(2);   // 2D M-B RMS at REFERENCE_TEMP_K
+const REFERENCE_KE = 0.5 * REFERENCE_RMS * REFERENCE_RMS;
+const TRANSITION_TAU = 0.3;
 
 document.addEventListener("DOMContentLoaded", async () => {
     const params = await fetch("config/params.json").then(r => r.json());
@@ -21,6 +24,16 @@ document.addEventListener("DOMContentLoaded", async () => {
     const recomputeV0Current = () => {
         V0_current = V0_REFERENCE_AREA * currentTempKelvin() / REFERENCE_TEMP_K;
     };
+    const theoreticalSpeed = () =>
+        REFERENCE_RMS * Math.sqrt(currentTempKelvin() / REFERENCE_TEMP_K);
+    const theoreticalKE = () =>
+        REFERENCE_KE * (currentTempKelvin() / REFERENCE_TEMP_K);
+
+    // Velocity transition state (Step 3 of T-change smoothing).
+    let targetSpeedRatio = 1;
+    let currentSpeedRatio = 1;
+    let lastAppliedRatio = 1;
+    let transitionStartTime = null;
     const setSessionStart = () => {
         if (sessionStartMs === null) sessionStartMs = Date.now();
     };
@@ -48,20 +61,37 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     let pistonHitsAccumulator = 0;
-    createRenderer(box, system, params, (dt) => {
+    const renderer = createRenderer(box, system, params, (dt) => {
         system.update(dt);
         box.update(dt, params.volume_tau_seconds);
         system.clampParticlesIntoBox();
         const tickHits = system.getPistonCollisionCount();
         pistonHitsAccumulator += tickHits;
         continuousHitsAccumulator += tickHits;
+
+        if (transitionStartTime !== null) {
+            currentSpeedRatio += (targetSpeedRatio - currentSpeedRatio) * (dt / TRANSITION_TAU);
+
+            const elapsed = (performance.now() - transitionStartTime) / 1000;
+            const relError = Math.abs(targetSpeedRatio - currentSpeedRatio) / targetSpeedRatio;
+            if (elapsed > 10 || relError < 0.001) {
+                currentSpeedRatio = targetSpeedRatio;
+                transitionStartTime = null;
+            }
+
+            const frameRatio = currentSpeedRatio / lastAppliedRatio;
+            system.scaleVelocities(frameRatio);
+            lastAppliedRatio = currentSpeedRatio;
+        }
     });
 
     createInfoPanel();
     updateInfoPanel({
         temp_K: currentTempKelvin(),
         avgSpeed: system.getAverageSpeed(),
+        avgSpeedTheory: theoreticalSpeed(),
         kineticEnergy: system.getAverageKineticEnergy(),
+        kineticEnergyTheory: theoreticalKE(),
     });
 
     const pixelsToML = (gasWidth) =>
@@ -134,12 +164,25 @@ document.addEventListener("DOMContentLoaded", async () => {
         getMeasurementCount: () => measApi.getMeasurementCount(),
         getContinuousBufferSize: () => continuousBuffer.length,
         onCommit: (newCelsius) => {
+            // Snap any in-flight transition so oldTempK reflects the real state.
+            if (transitionStartTime !== null) {
+                const frameRatio = targetSpeedRatio / lastAppliedRatio;
+                system.scaleVelocities(frameRatio);
+                transitionStartTime = null;
+            }
+
             const oldTempK = currentTempKelvin();
             currentTempCelsius = newCelsius;
             const newTempK = currentTempKelvin();
 
-            const ratio = Math.sqrt(newTempK / oldTempK);
-            system.scaleVelocities(ratio);
+            // Freeze the current histogram as ghost overlay before velocities shift.
+            renderer.snapshotHistogramForGhost();
+
+            // Smooth velocity transition toward new T (1s-ish).
+            targetSpeedRatio = Math.sqrt(newTempK / oldTempK);
+            currentSpeedRatio = 1;
+            lastAppliedRatio = 1;
+            transitionStartTime = performance.now();
 
             recomputeV0Current();
             box.setTargetFromPressure(smoothedP, P0, V0_current);
@@ -155,7 +198,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     setInterval(() => {
         updateInfoPanel({
             avgSpeed: system.getAverageSpeed(),
+            avgSpeedTheory: theoreticalSpeed(),
             kineticEnergy: system.getAverageKineticEnergy(),
+            kineticEnergyTheory: theoreticalKE(),
         });
     }, 1000);
 
