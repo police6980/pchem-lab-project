@@ -162,29 +162,6 @@ function showTabDisabledToast(q) {
     setTimeout(() => msg.remove(), 2500);
 }
 
-// === Dummy responses (real API in Part 4) ===
-function fakeApiDelay() {
-    return new Promise(r => setTimeout(r, 1500));
-}
-
-function generateDummyAiResponse(questionId, userMsg) {
-    const responses = {
-        1: "학생님의 답변에서 **입자 운동**에 주목한 점이 좋네요. 한 걸음 더 들어가볼까요? 부피가 줄어들면 입자가 벽에 부딪히는 '횟수'가 변할까요, '강도'가 변할까요, 아니면 둘 다일까요?",
-        2: "흥미로운 예측이에요. 그런데 실제 기체는 이상기체와 다르게 행동할 수 있습니다. 400 kPa에서 입자들이 서로 아주 가까워진다면, 입자 사이의 힘이 무시 가능할까요?",
-        3: "좋은 제안이에요. 그 조건을 바꾸면 이번 실험에서 관찰한 관계가 어떻게 달라질지 먼저 예측해볼 수 있을까요?",
-        free: "질문 감사해요. 이것에 대한 답은... (더미 응답입니다. Part 4에서 실제 API 연동 시 교체됩니다.)",
-    };
-
-    aiConversations[questionId].messages.push({
-        role: "assistant",
-        content: responses[questionId] || responses.free,
-        timestamp: Date.now(),
-        tokensIn: 200,
-        tokensOut: 150,
-        model: "dummy-mode",
-    });
-}
-
 function resetAllConversations() {
     ["1", "2", "3", "free"].forEach(q => {
         aiConversations[q] = { messages: [], tokensIn: 0, tokensOut: 0 };
@@ -194,16 +171,30 @@ function resetAllConversations() {
 
 async function sendMessage() {
     const input = document.getElementById("message-input");
-    const btn = document.getElementById("btn-send-message");
+    const btn   = document.getElementById("btn-send-message");
     if (!input) return;
     const content = input.value.trim();
     if (!content) return;
 
     const qid = activeQuestion;
+    const conv = aiConversations[qid];
+    const isFirstTurn  = conv.messages.length === 0;
+    const isStructured = qid !== "free";
 
-    aiConversations[qid].messages.push({
+    // 첫 턴 Q1/Q2/Q3: 실험 데이터 스냅샷 + buildUserPrompt 감싸기.
+    // display용(content)와 API 전송용(apiContent)을 분리해 학생은 날것 답변만 보고,
+    // API에는 컨텍스트가 포함된 전체 프롬프트를 전송한다.
+    let apiContent = content;
+    if (isFirstTurn && isStructured) {
+        const ctx = window.PchemTutor.buildDataContext();
+        conv.contextSnapshot = ctx;
+        apiContent = window.PchemTutor.buildUserPrompt(qid, content, ctx);
+    }
+
+    conv.messages.push({
         role: "user",
         content,
+        apiContent,
         timestamp: Date.now(),
     });
     input.value = "";
@@ -211,8 +202,41 @@ async function sendMessage() {
     renderConversation(qid);
     updateInputAvailability();
 
-    await fakeApiDelay();
-    generateDummyAiResponse(qid, content);
+    const apiMessages = conv.messages.map(msg => ({
+        role: msg.role,
+        content: msg.apiContent ?? msg.content,
+    }));
+
+    const level        = window.PchemTutor.getLevel();
+    const systemPrompt = window.PchemTutor.buildSystemPrompt(level, qid);
+
+    try {
+        const result = await callAnthropicAPI(apiMessages, systemPrompt);
+
+        conv.messages.push({
+            role: "assistant",
+            content: result.content,
+            timestamp: Date.now(),
+            tokensIn:  result.inputTokens,
+            tokensOut: result.outputTokens,
+            model:     result.model,
+        });
+        conv.tokensIn  += result.inputTokens;
+        conv.tokensOut += result.outputTokens;
+        window.PchemTutor.addTokens(result.inputTokens, result.outputTokens);
+
+    } catch (e) {
+        const msg = e.type === "no_key"
+            ? "API 키가 설정되지 않았습니다. 설정 패널을 확인하세요."
+            : `오류가 발생했습니다. (${e.status ?? "네트워크 오류"}) 잠시 후 다시 시도해주세요.`;
+        conv.messages.push({
+            role: "assistant",
+            content: msg,
+            timestamp: Date.now(),
+            isError: true,
+        });
+    }
+
     renderConversation(qid);
     updateInputAvailability();
 }
