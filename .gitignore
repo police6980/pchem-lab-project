@@ -1,0 +1,42 @@
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# 빌드 산출물
+dist/
+build/
+out/
+
+# 실험 데이터 로그 (로컬 전용)
+data-logs/*
+!data-logs/.gitkeep
+
+# 환경 변수 (API 키 등 민감 정보)
+.env
+.env.local
+.env.*.local
+
+# OS 시스템 파일
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# 에디터 설정
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# 아두이노 빌드 파일
+firmware/**/build/
+firmware/**/*.hex
+firmware/**/*.bin
+firmware/**/*.elf
+
+# 임시 파일
+*.tmp
+*.bak
+*.log
