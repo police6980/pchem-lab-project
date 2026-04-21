@@ -718,20 +718,14 @@ function createAnalysisPanel({
             <div class="question">
                 <label for="analysis-q1">Q1. 측정점마다 P·V 값이 거의 일정하게 나왔습니다. 이런 관계가 성립하는 이유를 기체 입자의 움직임으로 설명해보세요.</label>
                 <textarea id="analysis-q1" rows="3" placeholder="예: 부피가 줄어들면 입자들이..."></textarea>
-                <button class="btn-ai-feedback" data-question="1" disabled>🤖 Q1 AI 피드백 받기</button>
-                <div class="feedback-container" data-question="1"></div>
             </div>
             <div class="question">
                 <label for="analysis-q2">Q2. 만약 압력을 400 kPa까지 올려 측정하면 부피는 어떻게 될지 예측해보세요. 이런 극단적 조건에서도 같은 규칙이 성립할까요? 그 이유는?</label>
                 <textarea id="analysis-q2" rows="3" placeholder="예: P·V = 일정이 항상 성립한다면..."></textarea>
-                <button class="btn-ai-feedback" data-question="2" disabled>🤖 Q2 AI 피드백 받기</button>
-                <div class="feedback-container" data-question="2"></div>
             </div>
             <div class="question">
                 <label for="analysis-q3">Q3. 다음 실험에서 바꿔보고 싶은 조건이 있다면 무엇인가요?</label>
                 <textarea id="analysis-q3" rows="3" placeholder="예: 온도를 바꿔서, 다른 기체로 바꿔서..."></textarea>
-                <button class="btn-ai-feedback" data-question="3" disabled>🤖 Q3 AI 피드백 받기</button>
-                <div class="feedback-container" data-question="3"></div>
             </div>
         </div>
         <div class="analysis-export">
@@ -1016,7 +1010,7 @@ function createAnalysisPanel({
             keyInput.value = maskKey(rawValue);
             keyInput.dataset.masked = "true";
             showKeyStatus("success", "✓ 검증됨");
-            updateFeedbackButtonStates();
+            if (typeof updateInputAvailability === "function") updateInputAvailability();
         } catch (err) {
             showKeyStatus("error", `✗ ${formatApiError(0, err.message)}`);
         }
@@ -1029,7 +1023,7 @@ function createAnalysisPanel({
         keyInput.value = "";
         delete keyInput.dataset.masked;
         showKeyStatus("", "");
-        updateFeedbackButtonStates();
+        if (typeof updateInputAvailability === "function") updateInputAvailability();
     }
 
     function renderMarkdown(text) {
@@ -1046,30 +1040,6 @@ function createAnalysisPanel({
                 .replace(/\n/g, "<br>");
             return `<p>${inline}</p>`;
         }).join("");
-    }
-
-    function showFeedbackCard(container, questionNum, text, model, usage) {
-        const cost = computeCost(model, usage.input_tokens, usage.output_tokens);
-        container.innerHTML = `
-            <div class="feedback-card">
-                <div class="feedback-header">
-                    <span class="feedback-badge">🤖 AI 튜터</span>
-                    <button class="btn-feedback-delete" data-question="${questionNum}">삭제</button>
-                </div>
-                <div class="feedback-body">${renderMarkdown(text)}</div>
-                <div class="feedback-meta">
-                    ${modelLabel(model)} · 입력 ${usage.input_tokens} 토큰 · 출력 ${usage.output_tokens} 토큰 · 약 ${cost}원
-                </div>
-            </div>
-        `;
-        container.querySelector(".btn-feedback-delete").addEventListener("click", () => {
-            delete feedbackStore[questionNum];
-            container.innerHTML = "";
-        });
-    }
-
-    function showFeedbackError(container, status, message) {
-        container.innerHTML = `<div class="feedback-error">⚠ ${formatApiError(status, message)}</div>`;
     }
 
     function buildDataContext() {
@@ -1130,93 +1100,6 @@ ${QUESTION_TEXT[questionNum]}
 ${answer}
 
 위 학생 답변에 대해 영재 교육 튜터로서 피드백해주세요.`;
-    }
-
-    async function requestFeedback(questionNum) {
-        if (!apiKey) return;
-        const textarea = document.getElementById(`analysis-q${questionNum}`);
-        const answer = textarea.value.trim();
-        if (answer.length < 10) return;
-
-        const btn = document.querySelector(`.btn-ai-feedback[data-question="${questionNum}"]`);
-        const container = document.querySelector(`.feedback-container[data-question="${questionNum}"]`);
-        const originalText = btn.textContent;
-
-        btn.disabled = true;
-        btn.textContent = "🤖 피드백 생성 중…";
-
-        const level = document.getElementById("ai-student-level").value;
-        const model = document.getElementById("ai-model").value;
-        const ctx = buildDataContext();
-
-        try {
-            const resp = await fetch("https://api.anthropic.com/v1/messages", {
-                method: "POST",
-                headers: {
-                    "x-api-key": apiKey,
-                    "anthropic-version": "2023-06-01",
-                    "content-type": "application/json",
-                    "anthropic-dangerous-direct-browser-access": "true",
-                },
-                body: JSON.stringify({
-                    model: model,
-                    max_tokens: 600,
-                    system: buildSystemPrompt(level, questionNum),
-                    messages: [{
-                        role: "user",
-                        content: buildUserPrompt(questionNum, answer, ctx),
-                    }],
-                }),
-            });
-
-            if (!resp.ok) {
-                const data = await resp.json().catch(() => ({}));
-                const msg = (data.error && data.error.message) || resp.statusText;
-                showFeedbackError(container, resp.status, msg);
-                return;
-            }
-
-            const result = await resp.json();
-            const feedbackText = (result.content && result.content[0] && result.content[0].text) || "";
-            const usage = result.usage || { input_tokens: 0, output_tokens: 0 };
-
-            showFeedbackCard(container, questionNum, feedbackText, model, usage);
-
-            feedbackStore[questionNum] = {
-                text: feedbackText,
-                model: model,
-                inputTokens: usage.input_tokens,
-                outputTokens: usage.output_tokens,
-            };
-
-            totalInputTokens += usage.input_tokens;
-            totalOutputTokens += usage.output_tokens;
-            updateUsageDisplay();
-        } catch (err) {
-            showFeedbackError(container, 0, err.message);
-        } finally {
-            btn.textContent = originalText;
-            updateFeedbackButtonStates();
-        }
-    }
-
-    function updateFeedbackButtonStates() {
-        const keyOk = !!apiKey;
-        document.querySelectorAll(".btn-ai-feedback").forEach(btn => {
-            const qNum = btn.dataset.question;
-            const textarea = document.getElementById(`analysis-q${qNum}`);
-            const answerLen = textarea.value.trim().length;
-            if (!keyOk) {
-                btn.disabled = true;
-                btn.title = "상단에서 API 키를 설정하세요";
-            } else if (answerLen < 10) {
-                btn.disabled = true;
-                btn.title = "답변을 10자 이상 작성해주세요";
-            } else {
-                btn.disabled = false;
-                btn.title = "";
-            }
-        });
     }
 
     function buildAnalysisCSV() {
@@ -1336,25 +1219,16 @@ ${answer}
         updateUsageDisplay();
     });
 
-    document.querySelectorAll(".btn-ai-feedback").forEach(btn => {
-        btn.addEventListener("click", () => requestFeedback(Number(btn.dataset.question)));
-    });
-    ["analysis-q1", "analysis-q2", "analysis-q3"].forEach(id => {
-        document.getElementById(id).addEventListener("input", updateFeedbackButtonStates);
-    });
-
     loadAISettings();
     updateUsageDisplay();
-    updateFeedbackButtonStates();
+    if (typeof updateTabAvailability === "function") updateTabAvailability();
 
     function clear() {
         ["analysis-q1", "analysis-q2", "analysis-q3"].forEach(id => {
             const el = document.getElementById(id);
             if (el) el.value = "";
         });
-        Object.keys(feedbackStore).forEach(k => delete feedbackStore[k]);
-        document.querySelectorAll(".feedback-container").forEach(c => c.innerHTML = "");
-        updateFeedbackButtonStates();
+        if (typeof updateTabAvailability === "function") updateTabAvailability();
         refresh();
     }
 

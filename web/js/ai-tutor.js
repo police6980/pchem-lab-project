@@ -1,6 +1,6 @@
 // AI tutor conversation state and message rendering.
-// (Part 2 of sidebar redesign — dummy data for visual verification;
-//  real API calls land in Part 3.)
+// Part 3: empty initial state, dummy AI responses.
+// Real Anthropic API integration lands in Part 4.
 
 // === State ===
 const aiConversations = {
@@ -10,54 +10,13 @@ const aiConversations = {
     free: { messages: [], tokensIn: 0, tokensOut: 0 },
 };
 
-let activeQuestion = "1";
+let activeQuestion = "free";
 
 const QUESTION_TEXT = {
     1: "측정점마다 P·V 값이 거의 일정하게 나왔습니다. 이런 관계가 성립하는 이유를 기체 입자의 움직임으로 설명해보세요.",
     2: "만약 압력을 400 kPa까지 올려 측정하면 부피는 어떻게 될지 예측해보세요. 이런 극단적 조건에서도 같은 규칙이 성립할까요? 그 이유는?",
     3: "다음 실험에서 바꿔보고 싶은 조건이 있다면 무엇인가요?",
 };
-
-// === Dummy data (removed in Part 3) ===
-function seedDummyMessages() {
-    const now = Date.now();
-    aiConversations[1].messages = [
-        {
-            role: "user",
-            content: "부피가 줄어들면 입자들이 벽에 부딪히는 횟수가 많아져서 압력이 높아지는 것 같다.",
-            timestamp: now - 60000,
-        },
-        {
-            role: "assistant",
-            content: "**좋은 관찰이에요.** 부피가 줄어들면 같은 수의 입자가 더 좁은 공간에 갇히니, 벽에 부딪히는 횟수가 늘어나는 것은 맞습니다.\n\n그런데 한 발 더 들어가 볼까요? 부피가 절반이 되면 단순히 충돌 '횟수'만 2배가 될까요? 아니면 충돌의 '강도' 같은 다른 요소도 관련이 있을까요?",
-            timestamp: now - 30000,
-            tokensIn: 280,
-            tokensOut: 195,
-            model: "claude-sonnet-4-6",
-        },
-        {
-            role: "user",
-            content: "속도가 더 빨라지지는 않을 것 같아요. 온도가 일정하니까.",
-            timestamp: now - 10000,
-        },
-    ];
-    aiConversations.free.messages = [
-        {
-            role: "user",
-            content: "시뮬레이션 입자들은 왜 HSB 색깔이 다르게 보여요?",
-            timestamp: now - 120000,
-        },
-        {
-            role: "assistant",
-            content: "**좋은 관찰입니다.** 입자들의 색깔은 각 입자의 **속도**를 나타내요. 느린 입자는 파란색·보라색, 빠른 입자는 주황·빨강으로 표시됩니다.\n\n이건 맥스웰-볼츠만 분포를 시각적으로 보여주는 방법이에요. 같은 온도의 기체라도 입자들은 서로 다른 속도를 가지거든요.\n\n히스토그램 바의 색깔과 입자 색깔이 같은 규칙을 쓴다는 걸 확인해보세요.",
-            timestamp: now - 100000,
-            tokensIn: 215,
-            tokensOut: 180,
-            model: "claude-sonnet-4-6",
-        },
-    ];
-    // Q2, Q3 은 초기값 그대로 (빈 배열) — 빈 상태 시각 검증용
-}
 
 // === HTML safety + minimal markdown ===
 function escapeHtml(text) {
@@ -94,13 +53,21 @@ function renderConversation(questionId) {
         if (questionId === "free") {
             emptyEl.innerHTML =
                 '실험하다 궁금한 게 생겼나요?<br>' +
-                '자유롭게 질문해보세요.<br><br>' +
+                '아래 입력창에 자유롭게 질문해보세요.<br><br>' +
                 '<small style="color:#999">예: "왜 입자 색깔이 다른가요?"<br>' +
                 '"온도가 더 높으면 어떻게 되나요?"</small>';
         } else {
+            const textarea = document.getElementById(`analysis-q${questionId}`);
+            const answer = textarea ? textarea.value.trim() : "";
+            const preview = answer.length > 120 ? answer.slice(0, 120) + "..." : answer;
             emptyEl.innerHTML =
-                '아직 대화가 없습니다.<br>' +
-                '왼쪽에서 [대화 시작]을 눌러주세요.';
+                `<p>Q${questionId}에 작성한 답변으로 AI와 대화를 시작합니다.</p>` +
+                `<div class="answer-preview">${escapeHtml(preview)}</div>` +
+                `<button class="btn-start-dialogue" data-q="${questionId}">답변으로 대화 시작</button>`;
+            const startBtn = emptyEl.querySelector(".btn-start-dialogue");
+            if (startBtn) {
+                startBtn.addEventListener("click", () => startDialogueWithAnswer(questionId));
+            }
         }
         return;
     }
@@ -136,6 +103,128 @@ function createMessageElement(msg) {
     return wrap;
 }
 
+// === Tab availability + disabled hint ===
+function updateTabAvailability() {
+    [1, 2, 3].forEach(q => {
+        const textarea = document.getElementById(`analysis-q${q}`);
+        const tabBtn = document.querySelector(`.ai-sidebar .tab-btn[data-q="${q}"]`);
+        if (!tabBtn) return;
+        const hasAnswer = textarea && textarea.value.trim().length >= 10;
+        tabBtn.setAttribute("aria-disabled", String(!hasAnswer));
+        tabBtn.classList.toggle("has-answer", hasAnswer);
+    });
+    const freeBtn = document.querySelector('.ai-sidebar .tab-btn[data-q="free"]');
+    if (freeBtn) freeBtn.setAttribute("aria-disabled", "false");
+    updateInputAvailability();
+}
+
+function showTabDisabledToast(q) {
+    const tabsEl = document.querySelector(".ai-sidebar .question-tabs");
+    if (!tabsEl) return;
+    document.querySelectorAll(".tab-disabled-hint").forEach(el => el.remove());
+
+    const msg = document.createElement("div");
+    msg.className = "tab-disabled-hint";
+    msg.textContent = `왼쪽에서 Q${q} 답변을 10자 이상 작성하세요`;
+    tabsEl.after(msg);
+    setTimeout(() => msg.remove(), 2500);
+}
+
+// === Dialogue (dummy responses; real API in Part 4) ===
+async function startDialogueWithAnswer(questionId) {
+    const textarea = document.getElementById(`analysis-q${questionId}`);
+    if (!textarea) return;
+    const answer = textarea.value.trim();
+    if (!answer) return;
+
+    aiConversations[questionId].messages.push({
+        role: "user",
+        content: answer,
+        timestamp: Date.now(),
+    });
+    renderConversation(questionId);
+
+    await fakeApiDelay();
+    generateDummyAiResponse(questionId, answer);
+    renderConversation(questionId);
+}
+
+function fakeApiDelay() {
+    return new Promise(r => setTimeout(r, 1500));
+}
+
+function generateDummyAiResponse(questionId, userMsg) {
+    const responses = {
+        1: "학생님의 답변에서 **입자 운동**에 주목한 점이 좋네요. 한 걸음 더 들어가볼까요? 부피가 줄어들면 입자가 벽에 부딪히는 '횟수'가 변할까요, '강도'가 변할까요, 아니면 둘 다일까요?",
+        2: "흥미로운 예측이에요. 그런데 실제 기체는 이상기체와 다르게 행동할 수 있습니다. 400 kPa에서 입자들이 서로 아주 가까워진다면, 입자 사이의 힘이 무시 가능할까요?",
+        3: "좋은 제안이에요. 그 조건을 바꾸면 이번 실험에서 관찰한 관계가 어떻게 달라질지 먼저 예측해볼 수 있을까요?",
+        free: "질문 감사해요. 이것에 대한 답은... (더미 응답입니다. Part 4에서 실제 API 연동 시 교체됩니다.)",
+    };
+
+    aiConversations[questionId].messages.push({
+        role: "assistant",
+        content: responses[questionId] || responses.free,
+        timestamp: Date.now(),
+        tokensIn: 200,
+        tokensOut: 150,
+        model: "dummy-mode",
+    });
+}
+
+async function sendMessage() {
+    const input = document.getElementById("message-input");
+    const btn = document.getElementById("btn-send-message");
+    if (!input) return;
+    const content = input.value.trim();
+    if (!content) return;
+
+    const qid = activeQuestion;
+
+    if (qid !== "free" && aiConversations[qid].messages.length === 0) {
+        alert("먼저 '답변으로 대화 시작' 버튼을 눌러주세요.");
+        return;
+    }
+
+    aiConversations[qid].messages.push({
+        role: "user",
+        content,
+        timestamp: Date.now(),
+    });
+    input.value = "";
+    if (btn) btn.disabled = true;
+    renderConversation(qid);
+    updateInputAvailability();
+
+    await fakeApiDelay();
+    generateDummyAiResponse(qid, content);
+    renderConversation(qid);
+    updateInputAvailability();
+}
+
+function updateInputAvailability() {
+    const input = document.getElementById("message-input");
+    const btn = document.getElementById("btn-send-message");
+    if (!input || !btn) return;
+
+    const hasApiKey = Boolean(sessionStorage.getItem("pchem_api_key"));
+    const currentTab = document.querySelector(
+        `.ai-sidebar .tab-btn[data-q="${activeQuestion}"]`
+    );
+    const tabReady = currentTab && currentTab.getAttribute("aria-disabled") !== "true";
+
+    const enabled = hasApiKey && tabReady;
+    input.disabled = !enabled;
+    btn.disabled = !enabled || !input.value.trim();
+
+    if (!hasApiKey) {
+        input.placeholder = "먼저 설정에서 API 키를 입력하세요";
+    } else if (!tabReady) {
+        input.placeholder = "왼쪽에서 답변을 먼저 작성하세요";
+    } else {
+        input.placeholder = "메시지 입력 (Enter 전송, Shift+Enter 줄바꿈)";
+    }
+}
+
 // === Tab switching ===
 function switchToQuestion(questionId) {
     activeQuestion = questionId;
@@ -160,6 +249,7 @@ function switchToQuestion(questionId) {
     }
 
     renderConversation(questionId);
+    updateInputAvailability();
 }
 
 // === Init ===
@@ -179,10 +269,41 @@ document.addEventListener("DOMContentLoaded", () => {
     document.querySelectorAll(".ai-sidebar .tab-btn").forEach(btn => {
         btn.addEventListener("click", () => {
             const q = btn.dataset.q;
-            if (q) switchToQuestion(q);
+            if (!q) return;
+            if (q === "free") {
+                switchToQuestion("free");
+                return;
+            }
+            const textarea = document.getElementById(`analysis-q${q}`);
+            const hasAnswer = textarea && textarea.value.trim().length >= 10;
+            if (!hasAnswer) {
+                showTabDisabledToast(q);
+                return;
+            }
+            switchToQuestion(q);
         });
     });
 
-    seedDummyMessages();   // Part 3에서 제거
-    switchToQuestion("1");
+    // Reflection textareas are created by createAnalysisPanel later in the
+    // DOMContentLoaded queue; event delegation handles them regardless.
+    document.addEventListener("input", (e) => {
+        if (e.target && /^analysis-q[123]$/.test(e.target.id)) {
+            updateTabAvailability();
+        }
+    });
+
+    const messageInput = document.getElementById("message-input");
+    const sendBtn = document.getElementById("btn-send-message");
+    if (messageInput && sendBtn) {
+        messageInput.addEventListener("input", updateInputAvailability);
+        messageInput.addEventListener("keydown", (e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+        sendBtn.addEventListener("click", sendMessage);
+    }
+
+    switchToQuestion("free");
 });

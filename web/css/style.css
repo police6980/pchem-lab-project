@@ -334,6 +334,105 @@ body {
     color: #333;
 }
 
+/* === Sidebar: disabled tabs + hint toast === */
+.ai-sidebar .tab-btn[aria-disabled="true"] {
+    color: #ccc;
+    cursor: not-allowed;
+}
+.ai-sidebar .tab-btn[aria-disabled="true"]:hover {
+    background: transparent;
+}
+.ai-sidebar .tab-disabled-hint {
+    padding: 6px 12px;
+    background: #fee2e2;
+    color: #991b1b;
+    font-size: 0.8em;
+    border-bottom: 1px solid #fca5a5;
+    animation: fadeIn 0.2s;
+    flex-shrink: 0;
+}
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+/* === Sidebar: Q1-Q3 empty state (answer preview + start button) === */
+.ai-sidebar .answer-preview {
+    margin: 12px 0;
+    padding: 10px;
+    background: #f5f3ff;
+    border-left: 3px solid #6b46c1;
+    font-size: 0.85em;
+    color: #4c1d95;
+    text-align: left;
+    border-radius: 4px;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+.ai-sidebar .btn-start-dialogue {
+    padding: 8px 16px;
+    background: #6b46c1;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.9em;
+    transition: background 0.15s;
+}
+.ai-sidebar .btn-start-dialogue:hover {
+    background: #5b3aa5;
+}
+
+/* === Sidebar: message input area === */
+.ai-sidebar .message-input-area {
+    display: flex;
+    gap: 6px;
+    padding: 10px;
+    border-top: 1px solid #e0e0e0;
+    background: white;
+    flex-shrink: 0;
+}
+.ai-sidebar .message-input-area textarea {
+    flex: 1;
+    min-width: 0;
+    resize: none;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    padding: 8px 10px;
+    font-size: 0.9em;
+    font-family: inherit;
+    outline: none;
+    transition: border-color 0.15s;
+    box-sizing: border-box;
+}
+.ai-sidebar .message-input-area textarea:focus {
+    border-color: #6b46c1;
+}
+.ai-sidebar .message-input-area textarea:disabled {
+    background: #f5f5f5;
+    color: #999;
+}
+.ai-sidebar #btn-send-message {
+    width: 36px;
+    height: 36px;
+    align-self: flex-end;
+    flex-shrink: 0;
+    background: #6b46c1;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    font-size: 1.1em;
+    cursor: pointer;
+    transition: background 0.15s, opacity 0.15s;
+}
+.ai-sidebar #btn-send-message:hover:not(:disabled) {
+    background: #5b3aa5;
+}
+.ai-sidebar #btn-send-message:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
+
 body.sidebar-collapsed #ai-sidebar {
     display: none;
 }
