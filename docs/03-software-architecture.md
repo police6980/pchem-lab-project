@@ -1,6 +1,6 @@
 # 03. 소프트웨어 아키텍처
 
-**문서 목적**: 웹 애플리케이션의 모듈 구성, 역할 분담, 데이터 흐름, 기술 스택을 정의한다. 현재 MVP 구현 현황과 v1.1+ 로드맵을 명확히 구분한다.
+**문서 목적**: 웹 애플리케이션의 모듈 구성, 역할 분담, 데이터 흐름, 기술 스택을 정의한다. 현재 Part 3.5 구현 현황과 이후 Phase 계획을 구분한다.
 
 ---
 
@@ -9,8 +9,9 @@
 ### 1.1 현재 MVP 범위
 
 - **단일 페이지 보일 법칙 전용** 웹 앱 (HTML + Vanilla JS + CSS + p5.js CDN)
-- **Mock 센서 기반 완전 시뮬레이션** (실 ESP32 통신 미구현)
+- **Mock 센서 기반 완전 시뮬레이션** (실 ESP32 통신은 Phase 3 예정)
 - **브라우저**: Chrome / Edge (Web Serial API 필요 시; 현 MVP엔 불필요)
+- **AI 튜터**: UI·구조 완성, 실제 Anthropic API 호출은 **Phase 2-B에서 교체 예정** (현재는 더미 응답)
 
 ### 1.2 구조 도식
 
@@ -25,21 +26,24 @@
   ├─ 렌더러 (renderer.js)
   │    └─ p5 인스턴스 2개 (시뮬 + 히스토그램)
   ├─ UI + 측정 (ui.js)
-  │    └─ 슬라이더 / 온도 / 측정 / PV 산점도 / 분석
+  │    └─ 슬라이더 / 온도 / 측정 / PV 산점도 / 분석 / BYOK 설정
+  ├─ AI 튜터 (ai-tutor.js)                     ← Part 3.5에서 추가
+  │    └─ 대화 상태·탭·메시지 렌더·입력창·더미 응답
   ├─ 로거 (logger.js)
   │    └─ CSV 유틸 + 다운로드
   └─ 오케스트레이션 (main.js)
        └─ 부팅, 상태 공유, 콜백 배선
 ```
 
-### 1.3 v1.1 이후 확장 방향
+### 1.3 이후 Phase 계획
 
-샤를·산염기로 확장될 때 도입 예정:
-- **실험 선택 화면** 루트 페이지에 카드형 진입점
-- **공통 엔진 모듈 분리**: `web/js/engine/` 폴더로 Particle·Box·ParticleSystem 이동, 실험별 특수 로직(`experiments/boyle/`, `experiments/charles/`)과 분리
-- **LLM 튜터 모듈** (v2): 실시간 상태 JSON → API → 응답 UI
+자세한 로드맵은 `docs/06-project-status.md` §4 참조. 요약:
+- **Phase 2-B** (진행 중): ai-tutor.js 더미 응답 → Anthropic Messages API 실호출 교체
+- **Phase 3**: ESP32 실센서 + Web Serial (MockSensorSource 교체)
+- **Phase 5**: 샤를 법칙 확장. 현재 플랫 폴더 → `experiments/` 분리 검토
+- **Phase 4/6**: 비교 UX, 교사 도구
 
-MVP 단계에선 **플랫 폴더 구조 + 보일 전용**으로 단순성 우선.
+MVP 단계에선 **플랫 폴더 + 보일 전용**으로 단순성 우선.
 
 ---
 
@@ -50,7 +54,7 @@ MVP 단계에선 **플랫 폴더 구조 + 보일 전용**으로 단순성 우선
 ```
 pchem-lab-project/
 ├── web/
-│   ├── index.html              // 섹션 5개 DOM 선언
+│   ├── index.html              // 섹션 5개 + 사이드바 DOM 선언
 │   ├── config/
 │   │   └── params.json         // 튜닝 가능 수치 단일 파일
 │   ├── css/
@@ -60,18 +64,24 @@ pchem-lab-project/
 │       ├── renderer.js         // p5.js 드로잉 (2개 인스턴스)
 │       ├── serial.js           // 센서 소스 추상화 (MockSensorSource)
 │       ├── logger.js           // CSV 유틸
-│       ├── ui.js               // DOM UI 함수 모음
+│       ├── ai-tutor.js         // AI 튜터 대화 UI (Part 3.5)
+│       ├── ui.js               // DOM UI 함수 모음 + BYOK 설정
 │       └── main.js             // 부팅 + 오케스트레이션
-├── firmware/                    // (미구현)
+├── firmware/                    // (Phase 3)
 └── docs/                        // 설계 문서
 ```
 
 스크립트 로드 순서 (`index.html`, `defer`):
 ```
-p5.js (CDN) → simulation.js → renderer.js → serial.js → logger.js → ui.js → main.js
+p5.js (CDN) → simulation.js → renderer.js → serial.js →
+logger.js → ai-tutor.js → ui.js → main.js
 ```
 
-모듈 시스템 없음 (`<script>` 기반). 각 파일의 최상위 `const` / `function`은 전역 네임스페이스에 노출.
+`ai-tutor.js`는 **`ui.js`보다 앞**에 로드되어야 한다 — `ui.js`의 `buildAnalysisCSV`가 전역 `aiConversations`를 읽고, `createAnalysisPanel.clear()`가 전역 `resetAllConversations()`를 호출하기 때문.
+
+모듈 시스템 없음 (`<script>` 기반). 각 파일의 최상위 `const`/`function`은 전역 네임스페이스에 노출.
+
+`index.html`에는 별도로 **사이드바 접기 토글만 담당하는 inline `<script>`** (4줄) 가 `<body>` 내부에 있음. Phase 2-B에서 `ai-tutor.js`로 이관 예정.
 
 ### 2.2 파일별 역할과 주요 심볼
 
@@ -102,8 +112,8 @@ p5.js (CDN) → simulation.js → renderer.js → serial.js → logger.js → ui
 **상수** (모듈 최상위):
 - `SIM_CANVAS_WIDTH/HEIGHT` (900 / 360)
 - `HIST_CANVAS_WIDTH/HEIGHT` (560 / 260)
-- `CYLINDER_LEFT/TOP/BOTTOM/RIGHT` (40 / 55 / 305 / 810) — `BOX_INITIAL_*` 상수 기반
-- `HIST_BIN_COUNT` (40), `HIST_TIME_ALPHA` (0.03), `HIST_X/Y/W/H` (히스토그램 내부 배치)
+- `CYLINDER_LEFT/TOP/BOTTOM/RIGHT` — `BOX_INITIAL_*` 상수 기반
+- `HIST_BIN_COUNT` (40), `HIST_TIME_ALPHA` (0.03)
 
 **공개 함수**:
 - `createRenderer(box, particleSystem, params, updateFn)` → `{ snapshotHistogramForGhost() }`
@@ -114,7 +124,7 @@ p5.js (CDN) → simulation.js → renderer.js → serial.js → logger.js → ui
 
 **내부 (클로저)**:
 - 시뮬 p5 `draw()`: `updateFn(dt)` 호출 후 실린더/피스톤/입자/섬광 드로잉
-- 히스토그램 p5 `draw()`: 시간 EMA → 공간 평활 → drawHistogram (막대 + ghost polyline + 이론 M-B)
+- 히스토그램 p5 `draw()`: 시간 EMA → 공간 평활 → 막대 + ghost polyline + 이론 M-B
 - `Flash` 클래스 — 충돌 섬광 수명 관리 (운동량 비례 크기, 입자 색 상속)
 
 #### `serial.js` — 센서 소스 추상화
@@ -126,8 +136,7 @@ p5.js (CDN) → simulation.js → renderer.js → serial.js → logger.js → ui
   - 20Hz (`setInterval 50ms`)로 `{ sensor, value, unit, timestamp }` emit
   - `setPressure(v)` — 슬라이더에서 값 업데이트
 
-**미구현**:
-- `WebSerialSensorSource` (실 센서 연결, v1.1 계획)
+**미구현** (Phase 3): `WebSerialSensorSource` — 실 센서 연결, MockSensorSource 대체
 
 #### `logger.js` — CSV 유틸
 
@@ -139,7 +148,42 @@ p5.js (CDN) → simulation.js → renderer.js → serial.js → logger.js → ui
 
 모든 출력에 BOM(`﻿`) 접두 → 엑셀 한글 호환.
 
-#### `ui.js` — DOM UI
+#### `ai-tutor.js` — AI 튜터 대화 UI (Part 3.5)
+
+**모듈 상수 / 상태** (전역):
+- `aiConversations` — `{ 1, 2, 3, free }` 각각 `{ messages[], tokensIn, tokensOut }`
+- `activeQuestion` — 현재 활성 탭 id (문자열 `"1"/"2"/"3"/"free"`, 초기 `"free"`)
+- `QUESTION_TEXT` — Q1·Q2·Q3 전체 질문 문자열
+
+**유틸 함수**:
+- `escapeHtml(text)` — XSS 방지용 기본 이스케이프
+- `renderMinimalMarkdown(text)` — `**bold**`, `*italic*`, 단락 `\n\n`, 줄바꿈 `\n→<br>`
+
+**렌더링**:
+- `renderConversation(questionId)` — 빈 상태(자유는 예시 안내, Q1~Q3는 질문 프롬프트 박스) + 메시지 말풍선 리스트 + auto-scroll
+- `createMessageElement(msg)` — user/assistant 버블 DOM (아바타·bubble·meta)
+
+**탭 제어**:
+- `updateTabAvailability(datapointCount)` — count ≥ 3 이면 Q1~Q3 `aria-disabled="false"`. 자유 탭은 상시 활성. 끝에 `updateInputAvailability()` 호출
+- `showTabDisabledToast(q)` — 탭과 컨텍스트 사이에 2.5 초 빨간 안내 삽입("측정점을 3개 이상 기록한 뒤 사용할 수 있습니다")
+- `switchToQuestion(questionId)` — 탭 active 토글 + 컨텍스트 라벨/스니펫/class 갱신 + `renderConversation` + `updateInputAvailability`
+
+**대화 + 입력창** (현재는 더미, Phase 2-B에서 실 API로 교체):
+- `sendMessage()` — `activeQuestion`에 user 메시지 push → 렌더 → 1.5 s 대기 → 더미 AI 응답 push → 렌더. 중복 전송 방지 (버튼 disabled)
+- `fakeApiDelay()` — 1.5 s `Promise` (Phase 2-B 제거 예정)
+- `generateDummyAiResponse(questionId, userMsg)` — 질문별 canned 응답 4종 (Phase 2-B 제거 예정)
+- `updateInputAvailability()` — API 키 + 현재 탭 활성 상태에 따라 input/btn disabled, placeholder 분기 ("먼저 설정에서…" / "측정점 3개를 기록한…" / 기본)
+- `resetAllConversations()` — 4개 세션 전부 비우고 현재 탭 재렌더
+
+**Init** (DOMContentLoaded):
+- `#btn-toggle-settings` 클릭 → `#ai-settings-panel.open` 토글. API 키 없으면 초기 펼침
+- 탭 click → aria-disabled 체크 → 비활성이면 toast, 활성이면 `switchToQuestion`
+- `#message-input` input/keydown(Enter·Shift+Enter) / `#btn-send-message` click wiring
+- `updateTabAvailability(0)` → `switchToQuestion("free")` 초기화 (main.js fetch 대기 중 탭 깜빡임 방지)
+
+**주의**: `ai-tutor.js`는 textarea 기반 성찰 입력(Part 3 이전)에 의존하지 않는다. Part 3.5에서 왼쪽 textarea를 제거하고 사이드바 입력창 단일 진입점으로 통합됐다.
+
+#### `ui.js` — DOM UI + BYOK 설정
 
 **공개 함수** (각각 독립 UI 단위):
 - `createDevPressureSlider(onChange)` → `HTMLElement`
@@ -150,14 +194,30 @@ p5.js (CDN) → simulation.js → renderer.js → serial.js → logger.js → ui
   - 온도 프리셋(0/25/50/77°C) + 커스텀 입력 + 피드백. `control-row-temperature`에 append
 - `createMeasurementPanel({ ... })` → `{ getStabilized, getMeasurementCount, getDatapoints, clearMeasurements }`
   - 현재값 블록(`control-row-actuators`) + 측정 패널(`section-measurements`) + PV 산점도 p5
-  - 안정화 감지, 1초 이동평균 기록, CSV 버튼 2종
+  - 안정화 감지, 1 초 이동평균 기록, CSV 버튼 2종
 - `createAnalysisPanel({ ... })` → `{ refresh, clear }`
-  - 요약 + verdict + PV 막대 p5 + 성찰 3문항 + 분석 CSV 버튼 (`section-analysis`)
+  - 요약 + verdict + PV 막대 p5 + [분석 보고서 저장] 버튼 (`section-analysis`)
+  - **성찰 textarea는 Part 3.5에서 제거** — 성찰은 사이드바 탭으로 이관
+
+**BYOK 설정 함수** (`createAnalysisPanel` 클로저 내부):
+- `loadAISettings()` — sessionStorage 3개 키 복원
+- `verifyKey()` — Anthropic `/v1/messages` 호출로 키 검증, `pchem_api_key` 저장
+- `clearKey()` — 메모리·sessionStorage 키 삭제
+- `maskKey(key)` / `showKeyStatus(cls, text)` / `formatApiError(status, msg)`
+- `computeCost(model, tokensIn, tokensOut)` — `MODEL_PRICING` 기반 원화 환산
+- `updateUsageDisplay()` — `#tokens-used`·`#cost-estimate` 텍스트 갱신
+- `buildSystemPrompt(level, questionNum)` / `buildUserPrompt(...)` / `buildDataContext()` — **Phase 2-B에서 사용 예정** (현재 호출자 없음)
+- `buildAnalysisCSV()` — 전역 `aiConversations` 읽어 "AI 튜터 대화" 섹션 포함한 분석 보고서 CSV 생성
+
+**주요 상수** (`createAnalysisPanel` 내부):
+- `MODEL_PRICING` — `claude-sonnet-4-6` $3/$15, `claude-opus-4-7` $5/$25 per MTok
+- `USD_TO_KRW = 1400`
+- `LEVEL_GUIDES` / `QUESTION_FOCUS` / `QUESTION_TEXT` — 프롬프트 빌더 참조용 (`ai-tutor.js`의 `QUESTION_TEXT`와 중복 — Phase 2-B에서 통합 정리 예정)
 
 #### `main.js` — 부팅 + 오케스트레이션
 
-- **모듈 상수**: `REFERENCE_TEMP_K/V_ML/P_KPA/RMS/KE`, `TRANSITION_TAU`, `CONTINUOUS_MAX_ROWS/SAMPLE_INTERVAL_MS`, `USE_MOCK_SENSOR` 플래그
-- **부팅 흐름** (DOMContentLoaded 내부): params.json fetch → Box/ParticleSystem 생성 → MockSensor + slider → createRenderer → createInfoPanel → createMeasurementPanel → 250ms 연속 로그 setInterval → createAnalysisPanel → createTemperatureControl → 1s/5s setInterval
+- **모듈 상수**: `REFERENCE_TEMP_K/V_ML/P_KPA/RMS/KE`, `TRANSITION_TAU` (0.3), `CONTINUOUS_MAX_ROWS` (10000), `CONTINUOUS_SAMPLE_INTERVAL_MS` (250), `USE_MOCK_SENSOR` 플래그
+- **부팅 흐름** (async DOMContentLoaded 내부): `params.json` fetch → Box/ParticleSystem 생성 → MockSensor + slider → `createRenderer` → `createInfoPanel` → `createMeasurementPanel` → 250 ms 연속 로그 `setInterval` → `createAnalysisPanel` → `createTemperatureControl` → 1 s/5 s `setInterval`
 - **상태 변수** (DOMContentLoaded 클로저): `smoothedP`, `sessionStartMs`, `currentTempCelsius`, `V0_REFERENCE_AREA`, `V0_current`, `continuousBuffer`, 전이 애니메이션 4변수, `pistonHitsAccumulator`, `continuousHitsAccumulator`, `analysisApi`
 
 ---
@@ -167,51 +227,55 @@ p5.js (CDN) → simulation.js → renderer.js → serial.js → logger.js → ui
 ### 3.1 부팅 시퀀스
 
 ```
-1. HTML 로드 → 섹션 5개 DOM 선언됨 (빈 상태)
+1. HTML 로드 → <main> 섹션 5개 + <aside> 사이드바 DOM 선언됨
 2. defer 스크립트 순차 실행 → 모듈 최상위 상수·클래스 정의
-3. main.js DOMContentLoaded 핸들러:
-   a. params.json fetch
-   b. Box + ParticleSystem 생성 (300 실입자 + 2700 유령 초기화)
-   c. MockSensorSource 생성 + createDevPressureSlider
-   d. sensor.onData 콜백 등록 (smoothedP EWMA + box.setTargetFromPressure + updateInfoPanel 압력)
-   e. sensor.start() — 20Hz 타이머 시작
-   f. createRenderer — 시뮬 + 히스토그램 p5 인스턴스
-   g. createInfoPanel + 초기 updateInfoPanel (실측 온도·압력, 시뮬 속도·KE 포함 이론값 병기)
-   h. createMeasurementPanel (measApi 반환)
-   i. 250ms 연속 로그 setInterval 설치
-   j. createAnalysisPanel (analysisApi 반환, 초기 hidden)
-   k. createTemperatureControl
-   l. 1s setInterval (속도·KE 패널 갱신)
-   m. 5s setInterval (진단 로그 + 피스톤 hits 집계)
+3. DOMContentLoaded 발생:
+   a. ai-tutor.js 리스너 먼저 (등록 순):
+      - 설정 패널 토글 wiring + 초기 펼침 (키 없을 때)
+      - 탭 click wiring, 입력창 wiring
+      - updateTabAvailability(0) → switchToQuestion("free")
+        (데이터 로드 전이므로 탭은 회색 상태로 시작)
+   b. main.js async 리스너:
+      - await params.json fetch
+      - Box + ParticleSystem 생성 (300 실입자 + 2700 유령)
+      - MockSensorSource + createDevPressureSlider
+      - sensor.onData 콜백 + sensor.start() (20 Hz)
+      - createRenderer
+      - createInfoPanel + 초기 updateInfoPanel
+      - createMeasurementPanel (measApi)
+      - 250 ms 연속 로그 setInterval
+      - createAnalysisPanel → 내부 refresh() → updateTabAvailability(data.length)
+      - createTemperatureControl
+      - 1 s/5 s setInterval
 ```
 
-### 3.2 실시간 프레임 사이클 (60Hz, 시뮬 p5 `draw()`)
+### 3.2 실시간 프레임 사이클 (60 Hz, 시뮬 p5 `draw()`)
 
 ```
-1. dt = p.deltaTime / 1000, cap 0.05s
+1. dt = p.deltaTime / 1000, cap 0.05 s
 2. updateFn(dt) [main.js 제공]:
-   a. system.update(dt)                                  // 입자 이동·벽 충돌·입자 간 충돌
-   b. box.update(dt, volume_tau_seconds)                 // 박스 폭 지수 수렴
-   c. system.clampParticlesIntoBox()                     // 피스톤 통과 입자 수습
+   a. system.update(dt)                    // 입자 이동·벽 충돌·입자 간 충돌
+   b. box.update(dt, volume_tau_seconds)   // 박스 폭 지수 수렴
+   c. system.clampParticlesIntoBox()       // 피스톤 통과 입자 수습
    d. pistonHitsAccumulator += tickHits
       continuousHitsAccumulator += tickHits
    e. 전이 중이면 currentSpeedRatio 갱신 + system.scaleVelocities
-3. frameCounter++                                         // FPS 측정
+3. frameCounter++                           // FPS 측정
 4. 충돌 섬광 spawn → update → filter
-5. 배경 → 해칭 → 실린더 벽 → 피스톤(헤드/로드/손잡이) → 입자 HSB → 섬광 드로잉
+5. 배경 → 해칭 → 실린더 벽 → 피스톤 → 입자 HSB → 섬광 드로잉
 ```
 
-히스토그램 p5 `draw()`는 독립 60Hz로 돌며 `particleSystem.getVelocityHistogram` 읽기만 (상태 변경 없음).
+히스토그램 p5 `draw()`는 독립 60 Hz로 돌며 `particleSystem.getVelocityHistogram` 읽기만 (상태 변경 없음).
 
 ### 3.3 이벤트 기반 주기
 
 | 주기 | 소스 | 동작 |
 |---|---|---|
-| 20Hz (50ms) | Mock 센서 `onData` | smoothedP EWMA + box target + info panel 압력 표시 |
-| 20Hz (50ms) | 측정 패널 `setInterval` | currentP 표시, V 자동 추종, 안정화 감지, 기록 버튼 상태 |
-| 4Hz (250ms) | 연속 로그 setInterval | 상태 스냅샷 → continuousBuffer |
-| 1Hz (1s) | 패널 업데이트 setInterval | 속도·KE 실측 + 이론값 표시 |
-| 0.2Hz (5s) | 진단 로그 setInterval | 콘솔 FPS·hits/s·overlap + 피스톤 hits 정보 패널 |
+| 20 Hz (50 ms) | Mock 센서 `onData` | smoothedP EWMA + box target + info panel 압력 표시 |
+| 20 Hz (50 ms) | 측정 패널 `setInterval` | currentP 표시, V 자동 추종, 안정화 감지, 기록 버튼 상태 |
+| 4 Hz (250 ms) | 연속 로그 setInterval | 상태 스냅샷 → continuousBuffer |
+| 1 Hz (1 s) | 패널 업데이트 setInterval | 속도·KE 실측 + 이론값 표시 |
+| 0.2 Hz (5 s) | 진단 로그 setInterval | 콘솔 FPS·hits/s·overlap + 피스톤 hits 정보 패널 |
 
 ### 3.4 측정 사이클 (학생 조작)
 
@@ -219,14 +283,17 @@ p5.js (CDN) → simulation.js → renderer.js → serial.js → logger.js → ui
 1. 슬라이더 조작 → MockSensor.setPressure → onData → smoothedP + box target 변화
    동시에: setSessionStart() 첫 호출 → sessionStartMs 고정
    동시에: 슬라이더 input 이벤트 → pHistory/widthHistory 버퍼 비움 → isStabilized=false
-2. ≈3~4초 대기 → 버퍼 재충전 + 수렴 → isStabilized=true → [기록] 버튼 활성
+2. ≈3~4 초 대기 → 버퍼 재충전 + 수렴 → isStabilized=true → [기록] 버튼 활성
 3. 학생 [기록] 클릭:
    a. P = mean(pHistory), V = (학생 편집 없으면) pixelsToML(mean(widthHistory))
    b. datapoints.push({ id, P, V, PV, timestamp, tempK })
-   c. renderTable / renderSummary / redrawPVPlot / updateExportButtonState
+   c. renderTable / renderSummary / redrawPVPlot
    d. onDataChange → analysisApi.refresh
-   e. datapoints >= 3이면 #section-analysis 가시화
+   e. refresh 진입부에서 updateTabAvailability(data.length)
+      → datapoints >= 3 이면 사이드바 Q1~Q3 탭 활성화
+   f. datapoints >= 3 이면 #section-analysis 가시화
 4. 필요 시 CSV 다운로드: 측정점 / 연속 로그 / 분석 보고서 3종
+   (분석 보고서는 aiConversations 전체를 "AI 튜터 대화" 섹션에 포함)
 ```
 
 ### 3.5 온도 변경 사이클 (학생 조작)
@@ -245,24 +312,63 @@ p5.js (CDN) → simulation.js → renderer.js → serial.js → logger.js → ui
    f. updateInfoPanel({ temp_K })
    g. measApi.clearMeasurements() — 표·PV 산점도 비우기
    h. continuousBuffer.length = 0, sessionStartMs = null
-   i. analysisApi.clear() — 분석 + 성찰 textarea 초기화
-4. 다음 60Hz 프레임부터 currentSpeedRatio → targetSpeedRatio 수렴 (0.3s tau, ~1.5s)
-5. 박스 폭도 0.5s tau로 수렴 (속도 + V_baseline 모두 이동)
+   i. analysisApi.clear() → resetAllConversations() + refresh()
+      → aiConversations 4개 세션 전부 초기화, 탭 다시 회색
+4. 다음 60 Hz 프레임부터 currentSpeedRatio → targetSpeedRatio 수렴 (0.3 s tau, ~1.5 s)
+5. 박스 폭도 0.5 s tau로 수렴 (속도 + V_baseline 모두 이동)
+```
+
+### 3.6 AI 대화 사이클 (학생 조작)
+
+```
+1. 측정점 3개 이상 기록 후 Q1/Q2/Q3 탭 활성 (또는 자유 탭은 상시)
+2. 학생이 탭 클릭 → switchToQuestion → 빈 상태 안내 렌더
+3. 입력창에 메시지 작성 + Enter (Shift 없이)
+4. sendMessage:
+   a. aiConversations[qid].messages.push({ role:"user", content, timestamp })
+   b. renderConversation → 학생 말풍선 추가
+   c. fakeApiDelay 1.5 s (Phase 2-B에서 실 API fetch로 교체)
+   d. generateDummyAiResponse → assistant 말풍선 push
+   e. renderConversation → AI 응답 표시
+   f. 전송 버튼 재활성화
+5. 대화 계속 or 다른 탭 전환 (세션별 독립 유지)
 ```
 
 ---
 
-## 4. UI 구조 (4+1 섹션 레이아웃)
+## 4. UI 구조 (좌우 2분할 레이아웃)
 
-`#main-container` 내부에 5개 section 연직 배치:
+### 4.1 최상위 레이아웃
+
+`<body>`는 flexbox 2분할: `main-area` (flex:1) + `ai-sidebar` (380 px sticky).
 
 ```
-<main-container>
-  <section id="section-controls">               // 섹션 1 - 상단 컨트롤
-    <div class="control-row-temperature"> ... </div>
+<body flex gap:16 padding:16>
+  <main id="main-container" class="main-area">   ← 좌: 5 섹션
+    <section id="section-controls"> ... </section>
+    <section id="section-canvas"> ... </section>
+    <section id="section-visuals"> ... </section>
+    <section id="section-measurements"> ... </section>
+    <section id="section-analysis" class="hidden"> ... </section>
+  </main>
+  <script> /* btn-ai-collapse 토글 inline (4줄) */ </script>
+  <aside id="ai-sidebar" class="ai-sidebar">     ← 우: 380 px sticky
+    ... (§4.3)
+  </aside>
+</body>
+```
+
+`body.sidebar-collapsed #ai-sidebar { display: none }` — 접기 상태.
+
+### 4.2 메인 영역 섹션
+
+```
+<main id="main-container" class="main-area">
+  <section id="section-controls">              // 섹션 1 - 상단 컨트롤
+    <div class="control-row-temperature"> 온도 프리셋·커스텀·현재값 </div>
     <div class="control-row-actuators">
-      <div id="dev-pressure-slider">...</div>
-      <div id="current-reading-block">P값 V값 [기록] [안정화 힌트]</div>
+      <div id="dev-pressure-slider"> 슬라이더·레이블·값 </div>
+      <div id="current-reading-block"> P·V·[기록]·안정화 힌트 </div>
     </div>
   </section>
 
@@ -282,7 +388,6 @@ p5.js (CDN) → simulation.js → renderer.js → serial.js → logger.js → ui
 
   <section id="section-measurements">           // 섹션 4 - flex row
     <div id="measurement-panel">                //   좌: 표 + 요약 + CSV 버튼
-      <div class="section-head">...</div>
       <table id="datapoints-table">...</table>
       <div id="measurement-summary">...</div>
     </div>
@@ -292,23 +397,82 @@ p5.js (CDN) → simulation.js → renderer.js → serial.js → logger.js → ui
     </div>
   </section>
 
-  <section id="section-analysis" class="hidden"> // 섹션 5 - 조건부 가시
-    요약 + verdict + PV 막대 canvas + 성찰 3 textarea + [분석 보고서 저장]
+  <section id="section-analysis" class="hidden">  // 섹션 5 - 조건부 가시
+    이번 세션 요약 + 보일 법칙 검증 verdict +
+    PV 막대 canvas + [분석 보고서 저장] 버튼
   </section>
-</main-container>
+</main>
 ```
 
-`.hidden { display: none }` — 분석 섹션만 `datapoints.length >= 3`일 때 토글.
+`.hidden { display: none }` — 분석 섹션은 `datapoints.length >= 3` 일 때만 가시. Part 3.5부터 **성찰 textarea는 완전 제거**됨 (사이드바 대화로 통합).
 
-### 4.1 레이아웃 shift 방지
+### 4.3 AI 사이드바 (Part 3.5)
 
-- **슬라이더 고정 폭 420px** + 안정화 힌트 `visibility` 토글 (display 아님) + 힌트 공간 예약 120px
-- 모든 수치 표시에 `min-width` + `text-align: right` 적용
-- 상세는 `04-simulation-physics.md` §9 참고
+```
+<aside id="ai-sidebar" class="ai-sidebar">                  // 380 px sticky
+  <header class="sidebar-header">
+    <h2>🤖 AI 튜터</h2>
+    <div class="header-actions">
+      <button id="btn-toggle-settings">⚙</button>
+      <button id="btn-ai-collapse">×</button>
+    </div>
+  </header>
+
+  <div id="ai-settings-panel" class="settings-panel">       // 접이식 (max-height 트랜지션)
+    <div class="key-section">
+      <input id="ai-api-key" type="password">
+      <button id="btn-verify-key">저장 및 검증</button>
+      <button id="btn-clear-key">키 삭제</button>
+      <span id="key-status"></span>
+    </div>
+    <div class="options-row">
+      <select id="ai-student-level">middle/high/univ</select>
+      <select id="ai-model">sonnet/opus</select>
+    </div>
+    <div class="warning-banner"> API 키 안내 </div>
+    <div class="usage-display">
+      <span id="tokens-used">0</span> 토큰 / <span id="cost-estimate">0</span>원
+    </div>
+  </div>
+
+  <div class="sidebar-body">                                // flex column, flex:1
+    <nav class="question-tabs">
+      Q1 | Q2 | Q3 | 💬 자유                               // aria-disabled 로 gating
+    </nav>
+    <div class="question-context" id="question-context">
+      <small>현재 대화 주제:</small>
+      <p class="question-snippet" id="question-snippet"></p>
+    </div>
+    <div class="conversation-scroll" id="conversation-scroll">  // overflow-y: auto
+      <div class="empty-state" id="conversation-empty">...</div>
+      <div class="messages-list" id="messages-list">
+        <!-- 동적 .message.user-message / .ai-message 버블 -->
+      </div>
+    </div>
+  </div>
+
+  <div class="message-input-area">                          // flex-shrink: 0
+    <textarea id="message-input" rows="2" disabled></textarea>
+    <button id="btn-send-message" disabled>↑</button>
+  </div>
+</aside>
+```
+
+- 탭 4개: Q1/Q2/Q3는 `datapoints.length >= 3` 일 때 활성 (`aria-disabled="false"`), 자유는 상시
+- 비활성 탭 클릭 시 2.5 초 안내 toast (`.tab-disabled-hint`) 탭 바로 아래 삽입
+- 입력창 활성 조건: API 키 존재 + 현재 탭 활성
+- 설정 패널 초기 상태: API 키 없으면 자동 펼침 (`.open`), 있으면 접힘
+
+### 4.4 레이아웃 shift 방지
+
+- **슬라이더 고정 폭 420 px** + 안정화 힌트 `visibility` 토글 + 힌트 공간 예약 120 px
+- 모든 수치 표시에 `min-width` + `text-align: right`
+- 사이드바 `flex-shrink: 0` — 창 너비 변해도 380 px 고정
+- 상세는 `04-simulation-physics.md` §9 참조
 
 ---
 
-## 5. 기술 스택 결정
+## 5. 기술 스택
 
 ### 5.1 확정된 기술
 
@@ -318,12 +482,12 @@ p5.js (CDN) → simulation.js → renderer.js → serial.js → logger.js → ui
 | UI | HTML + CSS + Vanilla JS | 프레임워크 오버헤드 없음, `<script defer>`로 로드 |
 | 설정 | `params.json` 단일 파일 | MVP 규모에 계층 분리 불필요 |
 | 데이터 | 메모리 내 배열 + 브라우저 CSV 다운로드 | 프라이버시·설치 무부담 |
-| 펌웨어 | Arduino C++ (계획, v1.1) | 표준, SEN0257 레퍼런스 풍부 |
+| AI 튜터 | Anthropic Claude API (BYOK) | 브라우저 직접 호출, `anthropic-dangerous-direct-browser-access` 헤더, sessionStorage 키 |
+| 펌웨어 | Arduino C++ (Phase 3) | 표준, SEN0257 레퍼런스 풍부 |
 
 ### 5.2 미정 / 유보
 
-- **Web Serial API 통신**: v1.1 실 센서 연결 시 MockSensorSource 교체
-- **LLM 제공자**: Claude vs GPT 등. v2 LLM 튜터 설계 시 결정
+- **Web Serial API 통신**: Phase 3에서 MockSensorSource 교체
 - **빌드 도구**: 현재 없음 (pure JS, 모듈 미사용). 타입 검사·번들링 필요성 생기면 도입 고려
 
 ---
@@ -332,16 +496,21 @@ p5.js (CDN) → simulation.js → renderer.js → serial.js → logger.js → ui
 
 ```
 main.js
- ├─→ simulation.js   (Box, ParticleSystem, DEFAULT_SPEED_SCALE 등)
+ ├─→ simulation.js   (Box, ParticleSystem, DEFAULT_SPEED_SCALE, BOX_INITIAL_* 등)
  ├─→ renderer.js     (createRenderer, getAndResetFrameCount)
  ├─→ serial.js       (MockSensorSource)
- ├─→ logger.js       (간접: ui.js 경유)
+ ├─→ logger.js       (downloadCSV, formatTimestampForFilename — 연속 로그 CSV)
  └─→ ui.js           (createDevPressureSlider, createInfoPanel, updateInfoPanel,
                       createMeasurementPanel, createTemperatureControl, createAnalysisPanel)
 
 ui.js
  ├─→ logger.js       (downloadCSV, downloadRawCSV, csvEscape, formatTimestampForFilename)
+ ├─→ ai-tutor.js     (aiConversations [read], updateTabAvailability,
+                      updateInputAvailability, resetAllConversations — 모두 typeof 가드)
  └─→ main.js 상수    (REFERENCE_P_KPA, REFERENCE_V_ML — 크로스 모듈)
+
+ai-tutor.js
+ └─→ (독립) simulation/renderer/serial/logger 비의존. DOM만 조작.
 
 renderer.js
  └─→ simulation.js   (BOX_INITIAL_*, BOX_MAX_WIDTH)
@@ -349,39 +518,55 @@ renderer.js
 simulation.js / serial.js / logger.js — 독립 (상호 참조 없음)
 ```
 
-**크로스 모듈 상수 참조**: `<script>` 전역 네임스페이스. `defer` 로드 순서상 ui.js가 main.js보다 먼저 파싱되지만, `createAnalysisPanel` 호출 시점엔 main.js의 상수가 이미 정의돼 안전.
+**`ui.js → ai-tutor.js` 역방향 호출 지점** (모두 `typeof === "function"` 가드):
+- `createAnalysisPanel.refresh()` 진입부 → `updateTabAvailability(data.length)`
+- `createAnalysisPanel.clear()` → `resetAllConversations()`
+- `verifyKey()` 성공 / `clearKey()` → `updateInputAvailability()`
+- `buildAnalysisCSV()` → 전역 `aiConversations` 직접 읽기 (가드 없음, 항상 존재 가정)
+
+가드 덕분에 `ai-tutor.js` 로드 실패 시에도 측정·분석 코어 기능은 동작.
+
+**크로스 모듈 상수 참조**: `<script>` 전역 네임스페이스. `defer` 로드 순서로 선언·호출 시점 보장됨 (ai-tutor.js → ui.js → main.js).
 
 ---
 
-## 7. 미구현 / v1.1+ / v2 계획
+## 7. Phase별 로드맵 (아키텍처 관점)
 
-### 7.1 v1.1 — 보일 실물 통합
+자세한 Phase 계획은 `docs/06-project-status.md` §3~§4 참조.
 
-- [ ] ESP32 펌웨어 (SEN0257 압력 센서, 20Hz JSON 스트림)
-- [ ] `WebSerialSensorSource` 구현 (`serial.js`) — MockSensorSource 대체
-- [ ] hello 핸드셰이크: `{ type: "hello", device: "boyle_v1" }`
-- [ ] `USE_MOCK_SENSOR` 플래그 off → 실 센서 모드
-- [ ] 센서 캘리브레이션 UI (개별 오프셋 보정)
+### 7.1 Phase 2-B — AI 튜터 실 API 연동 (진행 중)
 
-### 7.2 v1.2 — 샤를 법칙
+- `ai-tutor.js`: `fakeApiDelay` + `generateDummyAiResponse` 제거 → Anthropic `/v1/messages` `fetch`
+- 대화 히스토리 전체를 `messages` 배열로 누적 전송 (multi-turn)
+- 타이핑 인디케이터, 에러 처리 (401/429/529/0), 토큰/비용 누적 표시, 비용 경고 배너, [세션 초기화] 버튼
+- `ui.js`의 `buildSystemPrompt`/`buildUserPrompt`/`buildDataContext` 활용 (또는 `ai-tutor.js`로 이관)
+- `QUESTION_TEXT` 중복(ai-tutor.js + ui.js) 통합 정리
+- `index.html` inline `<script>` (사이드바 접기 토글) → `ai-tutor.js`로 이관 고려
 
-- [ ] 샤를 전용 장비 (에어챔버 + DS18B20 온도 센서)
-- [ ] **실험 선택 화면** (루트 페이지)
-- [ ] 폴더 구조 재편:
-  - `web/js/engine/` (공통 Particle·Box·ParticleSystem)
+### 7.2 Phase 3 — 보일 실물 통합
+
+- ESP32 펌웨어 (SEN0257, 20 Hz JSON 스트림, hello 핸드셰이크 `{ type, device }`)
+- `WebSerialSensorSource` 구현 — `serial.js`에 `SensorSource` 서브클래스 추가
+- `USE_MOCK_SENSOR` 플래그 off → 실센서 모드
+- 캘리브레이션 UI (영점·2점 보정), 연결 관리 UI (포트 선택·재연결·실패 안내)
+
+### 7.3 Phase 4 — 비교 UX
+
+- Mock ↔ 실센서 병행 표시 (전환 토글)
+- **반데르발스 편차 교육 활용** (v1 탄성 충돌 부산물로 이미 +16 % 재현됨 — `06` §7 참조)
+- 이상기체 vs 실제 기체 비교 그래프
+
+### 7.4 Phase 5 — 다른 법칙
+
+- 샤를 법칙 — 별도 장비 (`02-hardware-charles.md`)
+- **실험 선택 화면** 루트 페이지
+- **폴더 구조 재편**:
+  - `web/js/engine/` — 공통 Particle·Box·ParticleSystem
   - `web/js/experiments/boyle/` + `experiments/charles/`
-  - 공통 UI 컴포넌트 (`web/js/ui/common/`)
-- [ ] `experiments.json` 분리 (보일·샤를별 기본값·상수)
+  - 공통 UI 컴포넌트 `web/js/ui/common/`
+  - `experiments.json` — 실험별 기본값·상수 분리
 
-### 7.3 v2 — 산염기 + LLM
+### 7.5 Phase 6 — 교사 도구
 
-- [ ] 산염기 장비 (pH 센서)
-- [ ] 이온화 시각화 규칙 (강산/약산)
-- [ ] **LLM 튜터 모듈**:
-  - 호출 트리거 (학생 질문 + 이벤트 기반)
-  - 상태 컨텍스트 JSON 스키마 (`05-data-format.md` 참고)
-  - 프롬프트 설계 (`07-llm-tutor.md` 신설)
-  - 응답 UI (채팅창)
-  - API 제공자 결정
-- [ ] **이벤트 로그** (`events_*.csv`) + **대화 로그** (`chat_*.json`)
-- [ ] **반데르발스 편차 교육 활용** (고밀도 구간 명시적 표시)
+- 학생 활동 모니터링 대시보드
+- 다중 사용자 지원 (서버·DB 필요, 아키텍처 변화 수반)
