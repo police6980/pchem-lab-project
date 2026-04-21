@@ -43,7 +43,7 @@ body {
     align-items: center;
     gap: 12px;
     color: #333;
-    flex: 1;
+    flex: 0 0 420px;
 }
 
 #dev-pressure-slider label {
@@ -149,6 +149,10 @@ body {
     font-size: 11px;
     color: #999;
     margin-left: 4px;
+    width: 120px;
+    display: inline-block;
+    white-space: nowrap;
+    overflow: hidden;
 }
 
 /* Section 2: Simulation canvas */

@@ -218,7 +218,7 @@ function createMeasurementPanel({
         const btn = document.getElementById("btn-record");
         const hint = document.getElementById("btn-record-hint");
         btn.disabled = !isStabilized;
-        hint.style.display = isStabilized ? "none" : "inline";
+        hint.style.visibility = isStabilized ? "hidden" : "visible";
     }
 
     // === PV scatter plot ===
