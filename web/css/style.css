@@ -111,3 +111,147 @@ body {
     font-weight: 400;
     margin-left: 3px;
 }
+
+#measurement-panel {
+    margin-top: 20px;
+    padding: 20px 24px;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    font-family: system-ui, sans-serif;
+    color: #333;
+    font-size: 13px;
+}
+
+#measurement-panel .current-reading {
+    display: flex;
+    gap: 24px;
+    align-items: baseline;
+    margin-bottom: 14px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid #eaeaea;
+}
+
+#measurement-panel .current-reading .title {
+    color: #888;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+#measurement-panel .reading-group {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 6px;
+}
+
+#measurement-panel .reading-label {
+    color: #666;
+}
+
+#measurement-panel .reading-value {
+    font-family: ui-monospace, "SF Mono", Consolas, monospace;
+    color: #222;
+    min-width: 60px;
+    text-align: right;
+}
+
+#measurement-panel .reading-input {
+    font-family: ui-monospace, "SF Mono", Consolas, monospace;
+    font-size: 13px;
+    width: 70px;
+    padding: 4px 6px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    text-align: right;
+}
+
+#measurement-panel .reading-unit {
+    color: #888;
+    font-size: 11px;
+}
+
+#measurement-panel .record-controls {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 14px;
+}
+
+#measurement-panel button {
+    padding: 6px 14px;
+    font-size: 13px;
+    background: #f5f5f5;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    cursor: pointer;
+    color: #333;
+    font-family: inherit;
+}
+
+#measurement-panel button:hover {
+    background: #eaeaea;
+}
+
+#measurement-panel table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 12px;
+}
+
+#measurement-panel th {
+    text-align: left;
+    padding: 6px 8px;
+    border-bottom: 1px solid #e5e5e5;
+    color: #888;
+    font-weight: 600;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+#measurement-panel th.num-col, #measurement-panel td.num {
+    text-align: right;
+}
+
+#measurement-panel td {
+    padding: 5px 8px;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+#measurement-panel td.num {
+    font-family: ui-monospace, "SF Mono", Consolas, monospace;
+}
+
+#measurement-panel td.pv {
+    background: #fbf9ec;
+    font-weight: 500;
+}
+
+#measurement-panel .btn-delete {
+    padding: 2px 8px;
+    background: transparent;
+    border: none;
+    color: #999;
+    cursor: pointer;
+    font-size: 14px;
+    line-height: 1;
+}
+
+#measurement-panel .btn-delete:hover {
+    color: #c04040;
+    background: transparent;
+}
+
+#measurement-panel .summary {
+    padding: 10px 14px;
+    background: #f8f8f8;
+    border-radius: 4px;
+    color: #555;
+}
+
+#measurement-panel .summary strong {
+    color: #222;
+    font-family: ui-monospace, "SF Mono", Consolas, monospace;
+    font-weight: 500;
+    margin: 0 2px;
+}

@@ -12,5 +12,7 @@
     "initial_pressure_kPa": 101.3,
     "initial_volume_mL": 30.0,
     "initial_temperature_K": 298.0,
-    "piston_face": "right"
+    "piston_face": "right",
+    "baseline_gas_width_px": 600,
+    "baseline_volume_mL": 50
 }

@@ -39,6 +39,15 @@ document.addEventListener("DOMContentLoaded", async () => {
         kineticEnergy: system.getAverageKineticEnergy(),
     });
 
+    const pixelsToML = (gasWidth) =>
+        (gasWidth / params.baseline_gas_width_px) * params.baseline_volume_mL;
+
+    createMeasurementPanel({
+        getP: () => smoothedP,
+        getGasWidth: () => box.width,
+        pixelsToML,
+    });
+
     setInterval(() => {
         updateInfoPanel({
             avgSpeed: system.getAverageSpeed(),
