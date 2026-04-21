@@ -144,6 +144,17 @@ function createMeasurementPanel({ getP, getGasWidth, pixelsToML }) {
     `;
     document.getElementById("section-measurements").appendChild(panel);
 
+    const plotArea = document.createElement("div");
+    plotArea.id = "pv-plot-area";
+    plotArea.innerHTML = `
+        <div class="plot-toggles">
+            <label><input type="checkbox" id="toggle-connect-line"> 연결선</label>
+            <label><input type="checkbox" id="toggle-theory-curve" disabled> 이론 곡선 (P·V = 일정)</label>
+        </div>
+        <div id="pv-plot-canvas-wrap"></div>
+    `;
+    document.getElementById("section-measurements").appendChild(plotArea);
+
     const vInput = document.getElementById("current-v");
     const currentPEl = document.getElementById("current-p");
     const tbody = document.getElementById("datapoints-tbody");
@@ -158,6 +169,151 @@ function createMeasurementPanel({ getP, getGasWidth, pixelsToML }) {
     // auto-track, so an accidental focus-then-click-away won't overwrite the
     // student's value.
     vInput.addEventListener("input", () => { studentEdited = true; });
+
+    // === PV scatter plot ===
+    const PV_CANVAS_WIDTH = 380;
+    const PV_CANVAS_HEIGHT = 280;
+    const PV_MARGIN_LEFT = 48;
+    const PV_MARGIN_RIGHT = 16;
+    const PV_MARGIN_TOP = 16;
+    const PV_MARGIN_BOTTOM = 36;
+    const PV_X_MIN = 0;
+    const PV_X_MAX = 60;
+    const PV_Y_MIN = 60;
+    const PV_Y_MAX = 250;
+    const PV_INNER_LEFT = PV_MARGIN_LEFT;
+    const PV_INNER_RIGHT = PV_CANVAS_WIDTH - PV_MARGIN_RIGHT;
+    const PV_INNER_TOP = PV_MARGIN_TOP;
+    const PV_INNER_BOTTOM = PV_CANVAS_HEIGHT - PV_MARGIN_BOTTOM;
+
+    const pvX = (V) => PV_INNER_LEFT + (V - PV_X_MIN) / (PV_X_MAX - PV_X_MIN) * (PV_INNER_RIGHT - PV_INNER_LEFT);
+    const pvY = (P) => PV_INNER_BOTTOM - (P - PV_Y_MIN) / (PV_Y_MAX - PV_Y_MIN) * (PV_INNER_BOTTOM - PV_INNER_TOP);
+
+    let showConnectLine = false;
+    let showTheoryCurve = false;
+
+    const pvSketch = (p) => {
+        p.setup = () => {
+            p.createCanvas(PV_CANVAS_WIDTH, PV_CANVAS_HEIGHT);
+            p.noLoop();
+        };
+        p.draw = () => {
+            p.background(253);
+
+            p.stroke(230);
+            p.strokeWeight(1);
+            for (let v = 10; v <= 60; v += 10) {
+                p.line(pvX(v), pvY(PV_Y_MIN), pvX(v), pvY(PV_Y_MAX));
+            }
+            for (let q = 100; q <= 250; q += 50) {
+                p.line(pvX(PV_X_MIN), pvY(q), pvX(PV_X_MAX), pvY(q));
+            }
+
+            p.stroke(80);
+            p.strokeWeight(1);
+            p.line(pvX(PV_X_MIN), pvY(PV_Y_MIN), pvX(PV_X_MIN), pvY(PV_Y_MAX));
+            p.line(pvX(PV_X_MIN), pvY(PV_Y_MIN), pvX(PV_X_MAX), pvY(PV_Y_MIN));
+
+            p.noStroke();
+            p.fill(120);
+            p.textSize(10);
+            p.textAlign(p.CENTER, p.TOP);
+            for (let v = 0; v <= 60; v += 10) p.text(v, pvX(v), pvY(PV_Y_MIN) + 4);
+            p.textAlign(p.RIGHT, p.CENTER);
+            for (let q = 100; q <= 250; q += 50) p.text(q, pvX(PV_X_MIN) - 5, pvY(q));
+
+            p.fill(80);
+            p.textSize(11);
+            p.textAlign(p.CENTER, p.CENTER);
+            p.text("V (mL)", (pvX(PV_X_MIN) + pvX(PV_X_MAX)) / 2, PV_CANVAS_HEIGHT - 14);
+            p.push();
+            p.translate(14, (pvY(PV_Y_MIN) + pvY(PV_Y_MAX)) / 2);
+            p.rotate(-Math.PI / 2);
+            p.text("P (kPa)", 0, 0);
+            p.pop();
+
+            if (datapoints.length === 0) {
+                p.fill(160);
+                p.textSize(12);
+                p.textAlign(p.CENTER, p.CENTER);
+                p.text("[기록] 버튼을 눌러\n측정점을 추가하세요",
+                    (pvX(PV_X_MIN) + pvX(PV_X_MAX)) / 2,
+                    (pvY(PV_Y_MIN) + pvY(PV_Y_MAX)) / 2);
+                return;
+            }
+
+            if (showTheoryCurve && datapoints.length >= 2) {
+                const k = datapoints.reduce((s, d) => s + d.P * d.V, 0) / datapoints.length;
+                p.noFill();
+                p.stroke(230, 100, 60, 150);
+                p.strokeWeight(1);
+                let inShape = false;
+                for (let V = 0.5; V <= 60; V += 0.5) {
+                    const P = k / V;
+                    const inRange = P >= PV_Y_MIN && P <= PV_Y_MAX;
+                    if (inRange) {
+                        if (!inShape) { p.beginShape(); inShape = true; }
+                        p.vertex(pvX(V), pvY(P));
+                    } else if (inShape) {
+                        p.endShape();
+                        inShape = false;
+                    }
+                }
+                if (inShape) p.endShape();
+            }
+
+            if (showConnectLine && datapoints.length >= 2) {
+                const sorted = [...datapoints].sort((a, b) => a.V - b.V);
+                p.noFill();
+                p.stroke(100);
+                p.strokeWeight(1.5);
+                p.beginShape();
+                for (const d of sorted) p.vertex(pvX(d.V), pvY(d.P));
+                p.endShape();
+            }
+
+            p.textSize(9);
+            for (const d of datapoints) {
+                if (d.V < PV_X_MIN || d.V > PV_X_MAX) continue;
+                if (d.P < PV_Y_MIN || d.P > PV_Y_MAX) continue;
+                const px = pvX(d.V);
+                const py = pvY(d.P);
+                p.strokeWeight(1.5);
+                p.stroke(40, 80, 180);
+                p.fill(150, 190, 240);
+                p.circle(px, py, 10);
+                p.noStroke();
+                p.fill(60);
+                p.textAlign(p.LEFT, p.BOTTOM);
+                p.text(d.id, px + 7, py - 5);
+            }
+        };
+    };
+
+    const pvP5Instance = new p5(pvSketch, document.getElementById("pv-plot-canvas-wrap"));
+
+    function redrawPVPlot() {
+        const cb = document.getElementById("toggle-theory-curve");
+        if (datapoints.length < 2) {
+            cb.disabled = true;
+            if (cb.checked) { cb.checked = false; showTheoryCurve = false; }
+        } else {
+            cb.disabled = false;
+        }
+        pvP5Instance.redraw();
+    }
+
+    document.getElementById("toggle-connect-line").addEventListener("change", (e) => {
+        showConnectLine = e.target.checked;
+        redrawPVPlot();
+    });
+    document.getElementById("toggle-theory-curve").addEventListener("change", (e) => {
+        showTheoryCurve = e.target.checked;
+        redrawPVPlot();
+    });
+
+    // Initial draw so the empty state message is visible before any event.
+    redrawPVPlot();
 
     function renderTable() {
         tbody.innerHTML = datapoints.map(d => `
@@ -175,6 +331,7 @@ function createMeasurementPanel({ getP, getGasWidth, pixelsToML }) {
                 datapoints = datapoints.filter(d => d.id !== id);
                 renderTable();
                 renderSummary();
+                redrawPVPlot();
             });
         });
     }
@@ -199,6 +356,7 @@ function createMeasurementPanel({ getP, getGasWidth, pixelsToML }) {
         datapoints.push({ id: nextPointId++, P, V, PV: P * V, timestamp: Date.now() });
         renderTable();
         renderSummary();
+        redrawPVPlot();
         studentEdited = false;
     });
 
@@ -208,6 +366,7 @@ function createMeasurementPanel({ getP, getGasWidth, pixelsToML }) {
         datapoints = [];
         renderTable();
         renderSummary();
+        redrawPVPlot();
     });
 
     vInput.value = pixelsToML(getGasWidth()).toFixed(1);
