@@ -1,5 +1,6 @@
 {
     "particle_count": 300,
+    "ghost_count": 2700,
     "velocity_tau_seconds": 0.05,
     "volume_tau_seconds": 0.5,
     "pressure_smooth_window_sec": 0.3,
@@ -7,7 +8,7 @@
     "collision_smooth_window_sec": 1.0,
     "flash_duration_sec": 0.12,
     "flash_initial_alpha": 120,
-    "v_max_color_factor": 1.5,
+    "v_max_color_factor": 2.0,
     "initial_pressure_kPa": 101.3,
     "initial_volume_mL": 30.0,
     "initial_temperature_K": 298.0,

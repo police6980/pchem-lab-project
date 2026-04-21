@@ -6,7 +6,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const params = await fetch("config/params.json").then(r => r.json());
 
     const box = new Box(BOX_INITIAL_X, BOX_INITIAL_Y, BOX_INITIAL_WIDTH, BOX_INITIAL_HEIGHT);
-    const system = new ParticleSystem(params.particle_count, box, DEFAULT_SPEED_SCALE);
+    const system = new ParticleSystem(params.particle_count, box, DEFAULT_SPEED_SCALE, params.ghost_count);
     const V0 = box.getArea();
     const P0 = params.initial_pressure_kPa;
     let smoothedP = P0;

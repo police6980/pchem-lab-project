@@ -69,6 +69,35 @@ class Particle {
     }
 }
 
+class GhostParticle {
+    constructor(x, y, vx, vy) {
+        this.x = x;
+        this.y = y;
+        this.vx = vx;
+        this.vy = vy;
+    }
+
+    update(dt, box) {
+        this.x += this.vx * dt;
+        this.y += this.vy * dt;
+
+        if (this.x < box.x && this.vx < 0) {
+            this.vx = -this.vx;
+            this.x = box.x;
+        } else if (this.x > box.x + box.width && this.vx > 0) {
+            this.vx = -this.vx;
+            this.x = box.x + box.width;
+        }
+        if (this.y < box.y && this.vy < 0) {
+            this.vy = -this.vy;
+            this.y = box.y;
+        } else if (this.y > box.y + box.height && this.vy > 0) {
+            this.vy = -this.vy;
+            this.y = box.y + box.height;
+        }
+    }
+}
+
 class Box {
     constructor(x, y, width, height) {
         this.x = x;
@@ -97,7 +126,7 @@ class Box {
 }
 
 class ParticleSystem {
-    constructor(particleCount, box, initialSpeedScale = DEFAULT_SPEED_SCALE, particleRadius = PARTICLE_RADIUS) {
+    constructor(particleCount, box, initialSpeedScale = DEFAULT_SPEED_SCALE, ghostCount = 2700, particleRadius = PARTICLE_RADIUS) {
         this.box = box;
         this.particles = [];
         for (let i = 0; i < particleCount; i++) {
@@ -107,6 +136,19 @@ class ParticleSystem {
             const vy = boxMullerStandardNormal() * initialSpeedScale;
             this.particles.push(new Particle(x, y, vx, vy, particleRadius));
         }
+
+        // Statistics-only pool. Same Maxwell-Boltzmann draw as real particles,
+        // no radius, no inter-particle collisions, never rendered. Boosts the
+        // histogram sample count without visual clutter.
+        this.ghosts = [];
+        for (let i = 0; i < ghostCount; i++) {
+            const x = box.x + Math.random() * box.width;
+            const y = box.y + Math.random() * box.height;
+            const vx = boxMullerStandardNormal() * initialSpeedScale;
+            const vy = boxMullerStandardNormal() * initialSpeedScale;
+            this.ghosts.push(new GhostParticle(x, y, vx, vy));
+        }
+
         this.lastPistonCollisions = [];
         this._overlapPairCount = 0;
 
@@ -117,7 +159,13 @@ class ParticleSystem {
         }
         this._overlapPairCount = 0;
 
-        this._initialAvgSpeed = this.getAverageSpeed();
+        // Tighter RMS estimate: average across particles + ghosts (3000 samples)
+        // instead of 300. Anchors the renderer's color scale near the true M-B.
+        let sumSq = 0;
+        const total = this.particles.length + this.ghosts.length;
+        for (const p of this.particles) sumSq += p.vx * p.vx + p.vy * p.vy;
+        for (const g of this.ghosts) sumSq += g.vx * g.vx + g.vy * g.vy;
+        this._initialAvgSpeed = total > 0 ? Math.sqrt(sumSq / total) : 0;
     }
 
     update(dt) {
@@ -130,6 +178,10 @@ class ParticleSystem {
             }
         }
         this._overlapPairCount += this._resolveParticleCollisions();
+
+        for (const g of this.ghosts) {
+            g.update(dt, this.box);
+        }
     }
 
     _resolveParticleCollisions() {
@@ -210,11 +262,13 @@ class ParticleSystem {
                 count: 0
             });
         }
-        for (const p of this.particles) {
-            const speed = Math.sqrt(p.vx * p.vx + p.vy * p.vy);
-            if (speed >= maxSpeed) continue;
-            const idx = Math.floor(speed / binWidth);
-            if (idx >= 0 && idx < binCount) bins[idx].count++;
+        for (const source of [this.particles, this.ghosts]) {
+            for (const p of source) {
+                const speed = Math.sqrt(p.vx * p.vx + p.vy * p.vy);
+                if (speed >= maxSpeed) continue;
+                const idx = Math.floor(speed / binWidth);
+                if (idx >= 0 && idx < binCount) bins[idx].count++;
+            }
         }
         return bins;
     }
