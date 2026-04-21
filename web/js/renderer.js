@@ -3,6 +3,12 @@
 const CANVAS_WIDTH = 1000;
 const CANVAS_HEIGHT = 750;
 
+// Fixed cylinder shell — the piston moves within these bounds, walls never do.
+const CYLINDER_LEFT = BOX_INITIAL_X;
+const CYLINDER_TOP = BOX_INITIAL_Y;
+const CYLINDER_BOTTOM = BOX_INITIAL_Y + BOX_INITIAL_HEIGHT;
+const CYLINDER_RIGHT = BOX_INITIAL_X + BOX_MAX_WIDTH + 10;
+
 const HIST_BIN_COUNT = 40;
 const HIST_X = 50;
 const HIST_Y = 450;
@@ -169,41 +175,38 @@ function createRenderer(box, particleSystem, params, updateFn) {
 
             p.background(0, 0, 98);
 
-            const boxLeft = box.x;
-            const boxRight = box.x + box.width;
-            const boxTop = box.y;
-            const boxBottom = box.y + box.height;
-            const midY = (boxTop + boxBottom) / 2;
+            const pistonX = box.x + box.width;
+            const midY = (CYLINDER_TOP + CYLINDER_BOTTOM) / 2;
 
             const HATCH_W = 18;
             const HATCH_STEP = 10;
             p.stroke(0, 0, 55);
             p.strokeWeight(1);
-            for (let y = boxTop + 4; y < boxBottom - HATCH_W + 4; y += HATCH_STEP) {
-                p.line(boxLeft, y, boxLeft - HATCH_W, y + HATCH_W);
+            for (let y = CYLINDER_TOP + 4; y < CYLINDER_BOTTOM - HATCH_W + 4; y += HATCH_STEP) {
+                p.line(CYLINDER_LEFT, y, CYLINDER_LEFT - HATCH_W, y + HATCH_W);
             }
 
             p.stroke(0, 0, 31);
             p.strokeWeight(1);
-            p.line(boxLeft, boxTop, boxRight, boxTop);
-            p.line(boxLeft, boxBottom, boxRight, boxBottom);
+            p.line(CYLINDER_LEFT, CYLINDER_TOP, CYLINDER_RIGHT, CYLINDER_TOP);
+            p.line(CYLINDER_LEFT, CYLINDER_BOTTOM, CYLINDER_RIGHT, CYLINDER_BOTTOM);
 
             p.strokeWeight(4);
-            p.line(boxLeft, boxTop, boxLeft, boxBottom);
+            p.line(CYLINDER_LEFT, CYLINDER_TOP, CYLINDER_LEFT, CYLINDER_BOTTOM);
 
             p.noStroke();
             p.fill(0, 0, 48);
-            p.rect(boxRight, boxTop, 12, boxBottom - boxTop);
+            p.rect(pistonX, CYLINDER_TOP, 12, CYLINDER_BOTTOM - CYLINDER_TOP);
 
             p.fill(0, 0, 62);
             const rodLen = 70;
             const rodH = 14;
-            p.rect(boxRight + 12, midY - rodH / 2, rodLen, rodH);
+            p.rect(pistonX + 12, midY - rodH / 2, rodLen, rodH);
 
             p.fill(0, 0, 42);
             const handleW = 6;
             const handleH = 32;
-            p.rect(boxRight + 12 + rodLen, midY - handleH / 2, handleW, handleH);
+            p.rect(pistonX + 12 + rodLen, midY - handleH / 2, handleW, handleH);
 
             p.noStroke();
             const particles = particleSystem.getParticles();

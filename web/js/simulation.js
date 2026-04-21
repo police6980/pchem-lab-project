@@ -9,6 +9,8 @@ const DT_CAP = 0.05;
 // Tuned with particle_count=300 so steady-state overlap stays under ~15 pairs/frame.
 // Overlap scales ~ N^2 * r^2, so both knobs move together when retuning density.
 const PARTICLE_RADIUS = 2.5;
+const BOX_MIN_WIDTH = 200;
+const BOX_MAX_WIDTH = 760;
 
 function boxMullerStandardNormal() {
     const u1 = Math.random() || 1e-9;
@@ -122,12 +124,9 @@ class Box {
     setTargetFromPressure(currentP, P0, V0) {
         const targetArea = P0 * V0 / currentP;
         let targetWidth = targetArea / this.height;
-        // Layout guard: keep the box clear of the histogram panel on the right
-        // and avoid degenerate narrowness on the left. Realistic slider range
-        // (60-180 kPa) rarely hits these caps; extreme pulls still saturate.
-        const MIN_WIDTH = 200;
-        const MAX_WIDTH = 760;
-        targetWidth = Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, targetWidth));
+        // Layout guard: renderer's CYLINDER_RIGHT is computed from BOX_MAX_WIDTH,
+        // so this cap is what keeps the piston travel inside the cylinder shell.
+        targetWidth = Math.max(BOX_MIN_WIDTH, Math.min(BOX_MAX_WIDTH, targetWidth));
         this.targetWidth = targetWidth;
     }
 }
