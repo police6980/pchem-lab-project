@@ -8,6 +8,9 @@ function createDevPressureSlider(onChange) {
     label.textContent = "[DEV MODE] 압력:";
     label.htmlFor = "dev-pressure-range";
 
+    const sliderWrap = document.createElement("div");
+    sliderWrap.className = "slider-wrap";
+
     const input = document.createElement("input");
     input.type = "range";
     input.id = "dev-pressure-range";
@@ -15,6 +18,13 @@ function createDevPressureSlider(onChange) {
     input.max = "230";
     input.step = "0.1";
     input.value = "101.3";
+
+    const rangeHint = document.createElement("div");
+    rangeHint.className = "range-hint";
+    rangeHint.textContent = "70 ~ 230 kPa";
+
+    sliderWrap.appendChild(input);
+    sliderWrap.appendChild(rangeHint);
 
     const valueDisplay = document.createElement("span");
     valueDisplay.className = "dev-pressure-value";
@@ -27,9 +37,9 @@ function createDevPressureSlider(onChange) {
     });
 
     container.appendChild(label);
-    container.appendChild(input);
+    container.appendChild(sliderWrap);
     container.appendChild(valueDisplay);
-    document.body.prepend(container);
+    document.getElementById("section-controls").appendChild(container);
 
     return container;
 }
@@ -57,7 +67,7 @@ function createInfoPanel() {
 
     panel.appendChild(measured);
     panel.appendChild(simulated);
-    document.getElementById("main-container").appendChild(panel);
+    document.getElementById("info-panel-area").appendChild(panel);
 
     return panel;
 }
@@ -94,24 +104,28 @@ function updateInfoPanel(data) {
 }
 
 function createMeasurementPanel({ getP, getGasWidth, pixelsToML }) {
+    const readingBlock = document.createElement("div");
+    readingBlock.id = "current-reading-block";
+    readingBlock.innerHTML = `
+        <span class="reading-group">
+            <span class="reading-label">P</span>
+            <span id="current-p" class="reading-value">—</span>
+            <span class="reading-unit">kPa</span>
+        </span>
+        <span class="reading-group">
+            <span class="reading-label">V</span>
+            <input id="current-v" class="reading-input" type="number" step="0.1">
+            <span class="reading-unit">mL</span>
+        </span>
+        <button id="btn-record">기록</button>
+    `;
+    document.getElementById("section-controls").appendChild(readingBlock);
+
     const panel = document.createElement("div");
     panel.id = "measurement-panel";
     panel.innerHTML = `
-        <div class="current-reading">
-            <span class="title">현재 측정값</span>
-            <span class="reading-group">
-                <span class="reading-label">P</span>
-                <span id="current-p" class="reading-value">—</span>
-                <span class="reading-unit">kPa</span>
-            </span>
-            <span class="reading-group">
-                <span class="reading-label">V</span>
-                <input id="current-v" class="reading-input" type="number" step="0.1">
-                <span class="reading-unit">mL</span>
-            </span>
-        </div>
-        <div class="record-controls">
-            <button id="btn-record">기록</button>
+        <div class="section-head">
+            <span class="section-title">측정 기록</span>
             <button id="btn-clear-all">전체 삭제</button>
         </div>
         <table id="datapoints-table">
@@ -128,7 +142,7 @@ function createMeasurementPanel({ getP, getGasWidth, pixelsToML }) {
         </table>
         <div id="measurement-summary" class="summary">측정점을 2개 이상 기록하세요</div>
     `;
-    document.getElementById("main-container").appendChild(panel);
+    document.getElementById("section-measurements").appendChild(panel);
 
     const vInput = document.getElementById("current-v");
     const currentPEl = document.getElementById("current-p");

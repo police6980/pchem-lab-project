@@ -1,7 +1,7 @@
 // Particle system, box geometry, physics update loop
 
-const BOX_INITIAL_X = 120;
-const BOX_INITIAL_Y = 50;
+const BOX_INITIAL_X = 40;
+const BOX_INITIAL_Y = 55;
 const BOX_INITIAL_WIDTH = 600;
 const BOX_INITIAL_HEIGHT = 250;
 const DEFAULT_SPEED_SCALE = 120;

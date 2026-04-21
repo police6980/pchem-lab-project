@@ -1,7 +1,9 @@
 // p5.js drawing - particles, flashes, histogram, HSB color mapping
 
-const CANVAS_WIDTH = 1000;
-const CANVAS_HEIGHT = 750;
+const SIM_CANVAS_WIDTH = 900;
+const SIM_CANVAS_HEIGHT = 360;
+const HIST_CANVAS_WIDTH = 560;
+const HIST_CANVAS_HEIGHT = 260;
 
 // Fixed cylinder shell — the piston moves within these bounds, walls never do.
 const CYLINDER_LEFT = BOX_INITIAL_X;
@@ -10,8 +12,8 @@ const CYLINDER_BOTTOM = BOX_INITIAL_Y + BOX_INITIAL_HEIGHT;
 const CYLINDER_RIGHT = BOX_INITIAL_X + BOX_MAX_WIDTH + 10;
 
 const HIST_BIN_COUNT = 40;
-const HIST_X = 50;
-const HIST_Y = 450;
+const HIST_X = 5;
+const HIST_Y = 5;
 const HIST_W = 550;
 const HIST_H = 250;
 const HIST_TIME_ALPHA = 0.03;
@@ -154,9 +156,9 @@ function createRenderer(box, particleSystem, params, updateFn) {
         }
     }
 
-    const sketch = (p) => {
+    const simSketch = (p) => {
         p.setup = () => {
-            p.createCanvas(CANVAS_WIDTH, CANVAS_HEIGHT);
+            p.createCanvas(SIM_CANVAS_WIDTH, SIM_CANVAS_HEIGHT);
             p.colorMode(p.HSB, 360, 100, 100, 255);
             p.background(0, 0, 98);
         };
@@ -221,7 +223,17 @@ function createRenderer(box, particleSystem, params, updateFn) {
             }
 
             for (const f of flashes) f.draw(p);
+        };
+    };
 
+    const histSketch = (p) => {
+        p.setup = () => {
+            p.createCanvas(HIST_CANVAS_WIDTH, HIST_CANVAS_HEIGHT);
+            p.colorMode(p.HSB, 360, 100, 100, 255);
+            p.background(0, 0, 98);
+        };
+
+        p.draw = () => {
             const rawBins = particleSystem.getVelocityHistogram(HIST_BIN_COUNT, vMaxColor);
             if (smoothedBins === null) {
                 smoothedBins = rawBins.map(b => ({ ...b }));
@@ -233,9 +245,12 @@ function createRenderer(box, particleSystem, params, updateFn) {
                 }
             }
             const displayBins = spatialSmooth(smoothedBins);
+
+            p.background(0, 0, 98);
             drawHistogram(p, displayBins);
         };
     };
 
-    return new p5(sketch, document.getElementById("main-container"));
+    new p5(simSketch, document.getElementById("section-canvas"));
+    new p5(histSketch, document.getElementById("histogram-area"));
 }
