@@ -39,7 +39,7 @@ function createDevPressureSlider(onChange) {
     container.appendChild(label);
     container.appendChild(sliderWrap);
     container.appendChild(valueDisplay);
-    document.getElementById("section-controls").appendChild(container);
+    document.querySelector(".control-row-actuators").appendChild(container);
 
     return container;
 }
@@ -82,8 +82,10 @@ function formatValueWithUnit(value, digits, unit) {
 
 function updateInfoPanel(data) {
     if (data.temp_K !== undefined) {
+        const celsius = (data.temp_K - 273.15).toFixed(0);
         document.getElementById("info-temp").innerHTML =
-            formatValueWithUnit(data.temp_K, 0, "K");
+            `${data.temp_K.toFixed(0)} <span class="info-unit">K</span>` +
+            ` <span class="info-unit">(${celsius}°C)</span>`;
     }
     if (data.pressure_kPa !== undefined) {
         document.getElementById("info-pressure").innerHTML =
@@ -106,6 +108,7 @@ function updateInfoPanel(data) {
 function createMeasurementPanel({
     getP, getGasWidth, pixelsToML,
     setSessionStart, getSessionStart,
+    getCurrentTempKelvin,
     exportContinuousCSV, getContinuousBufferSize, clearContinuousBuffer, resetSession,
 }) {
     const readingBlock = document.createElement("div");
@@ -124,7 +127,7 @@ function createMeasurementPanel({
         <button id="btn-record">기록</button>
         <span id="btn-record-hint" class="record-hint">값 안정화 중…</span>
     `;
-    document.getElementById("section-controls").appendChild(readingBlock);
+    document.querySelector(".control-row-actuators").appendChild(readingBlock);
 
     const panel = document.createElement("div");
     panel.id = "measurement-panel";
@@ -420,7 +423,12 @@ function createMeasurementPanel({
         }
         if (!isFinite(V)) return;
 
-        datapoints.push({ id: nextPointId++, P, V, PV: P * V, timestamp: Date.now() });
+        datapoints.push({
+            id: nextPointId++,
+            P, V, PV: P * V,
+            timestamp: Date.now(),
+            tempK: getCurrentTempKelvin(),
+        });
         renderTable();
         renderSummary();
         redrawPVPlot();
@@ -457,7 +465,7 @@ function createMeasurementPanel({
         if (datapoints.length === 0) return;
         const sessionStart = getSessionStart();
         const sessionIso = sessionStart !== null ? new Date(sessionStart).toISOString() : "";
-        const headers = ["번호", "압력_kPa", "부피_mL", "P·V", "기록시각_ms", "세션시작시각_iso"];
+        const headers = ["번호", "압력_kPa", "부피_mL", "P·V", "기록시각_ms", "세션시작시각_iso", "온도_K"];
         const rows = datapoints.map(d => [
             d.id,
             d.P.toFixed(1),
@@ -465,6 +473,7 @@ function createMeasurementPanel({
             d.PV.toFixed(1),
             sessionStart !== null ? (d.timestamp - sessionStart) : "",
             sessionIso,
+            d.tempK.toFixed(2),
         ]);
         const filename = `boyle_measurements_${formatTimestampForFilename(new Date())}.csv`;
         downloadCSV(filename, headers, rows);
@@ -547,5 +556,116 @@ function createMeasurementPanel({
 
     return {
         getStabilized: () => isStabilized,
+        getMeasurementCount: () => datapoints.length,
+        clearMeasurements: () => {
+            datapoints = [];
+            renderTable();
+            renderSummary();
+            redrawPVPlot();
+            updateExportButtonState();
+        },
     };
+}
+
+function createTemperatureControl({
+    getCurrentCelsius, getMeasurementCount, getContinuousBufferSize, onCommit,
+}) {
+    const container = document.createElement("div");
+    container.id = "temperature-control";
+    container.innerHTML = `
+        <span class="temp-label">온도:</span>
+        <div class="temp-presets">
+            <button data-celsius="0">0°C</button>
+            <button data-celsius="25">25°C</button>
+            <button data-celsius="50">50°C</button>
+            <button data-celsius="77">77°C</button>
+        </div>
+        <div class="temp-custom">
+            <input type="number" id="temp-custom-input" min="0" max="77" step="1" placeholder="°C">
+            <button id="btn-temp-set" disabled>설정</button>
+        </div>
+        <span class="temp-current">현재: <strong id="temp-current-celsius">—</strong>°C / <strong id="temp-current-kelvin">—</strong>K</span>
+        <span class="temp-feedback" id="temp-feedback"></span>
+    `;
+    document.querySelector(".control-row-temperature").appendChild(container);
+
+    const customInput = document.getElementById("temp-custom-input");
+    const setBtn = document.getElementById("btn-temp-set");
+    const currCelEl = document.getElementById("temp-current-celsius");
+    const currKelEl = document.getElementById("temp-current-kelvin");
+    const feedbackEl = document.getElementById("temp-feedback");
+    const presetBtns = container.querySelectorAll(".temp-presets button");
+
+    function refreshCurrentDisplay() {
+        const c = getCurrentCelsius();
+        currCelEl.textContent = c.toFixed(0);
+        currKelEl.textContent = (c + 273.15).toFixed(0);
+        presetBtns.forEach(btn => {
+            const preset = parseFloat(btn.dataset.celsius);
+            btn.classList.toggle("active", Math.abs(preset - c) < 0.5);
+        });
+    }
+
+    function validateCustom() {
+        const val = parseFloat(customInput.value);
+        const empty = customInput.value === "";
+        const valid = !isNaN(val) && val >= 0 && val <= 77;
+        customInput.classList.toggle("invalid", !empty && !valid);
+        setBtn.disabled = !valid;
+        return valid ? val : null;
+    }
+
+    let feedbackTimer = null;
+    function showFeedback(celsius) {
+        const k = celsius + 273.15;
+        feedbackEl.textContent = `온도 설정: ${celsius.toFixed(0)}°C (${k.toFixed(0)}K)`;
+        feedbackEl.classList.add("visible");
+        clearTimeout(feedbackTimer);
+        feedbackTimer = setTimeout(() => feedbackEl.classList.remove("visible"), 2000);
+    }
+
+    function requestChange(newCelsius) {
+        const current = getCurrentCelsius();
+        if (Math.abs(newCelsius - current) < 0.1) return;
+
+        const mCount = getMeasurementCount();
+        const contSize = getContinuousBufferSize();
+        const hasData = mCount > 0 || contSize > 0;
+
+        if (hasData) {
+            const msg =
+                `온도를 ${current.toFixed(0)}°C에서 ${newCelsius.toFixed(0)}°C로 변경합니다.\n` +
+                `기존 측정점 ${mCount}개와 세션 로그가 삭제됩니다.\n` +
+                `이미 저장한 CSV 파일은 영향 없습니다.\n계속하시겠습니까?`;
+            if (!window.confirm(msg)) return;
+        }
+
+        onCommit(newCelsius);
+        refreshCurrentDisplay();
+        showFeedback(newCelsius);
+    }
+
+    presetBtns.forEach(btn => {
+        btn.addEventListener("click", () => {
+            requestChange(parseFloat(btn.dataset.celsius));
+        });
+    });
+
+    customInput.addEventListener("input", validateCustom);
+    customInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+            const val = validateCustom();
+            if (val !== null) setBtn.click();
+        }
+    });
+
+    setBtn.addEventListener("click", () => {
+        const val = validateCustom();
+        if (val === null) return;
+        requestChange(val);
+        customInput.value = "";
+        validateCustom();
+    });
+
+    refreshCurrentDisplay();
 }

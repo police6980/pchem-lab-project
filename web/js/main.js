@@ -2,15 +2,25 @@
 
 const USE_MOCK_SENSOR = true;
 
+const REFERENCE_TEMP_K = 298.15;
+const REFERENCE_V_ML = 50;
+const REFERENCE_P_KPA = 101.3;
+
 document.addEventListener("DOMContentLoaded", async () => {
     const params = await fetch("config/params.json").then(r => r.json());
 
     const box = new Box(BOX_INITIAL_X, BOX_INITIAL_Y, BOX_INITIAL_WIDTH, BOX_INITIAL_HEIGHT);
     const system = new ParticleSystem(params.particle_count, box, DEFAULT_SPEED_SCALE, params.ghost_count);
-    const V0 = box.getArea();
+    const V0_REFERENCE_AREA = box.getArea();
+    let V0_current = V0_REFERENCE_AREA;
     const P0 = params.initial_pressure_kPa;
     let smoothedP = P0;
     let sessionStartMs = null;
+    let currentTempCelsius = 25;
+    const currentTempKelvin = () => currentTempCelsius + 273.15;
+    const recomputeV0Current = () => {
+        V0_current = V0_REFERENCE_AREA * currentTempKelvin() / REFERENCE_TEMP_K;
+    };
     const setSessionStart = () => {
         if (sessionStartMs === null) sessionStartMs = Date.now();
     };
@@ -29,7 +39,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
         sensor.onData(data => {
             smoothedP += (data.value - smoothedP) * 0.1;
-            box.setTargetFromPressure(smoothedP, P0, V0);
+            box.setTargetFromPressure(smoothedP, P0, V0_current);
             updateInfoPanel({ pressure_kPa: smoothedP });
         });
         sensor.start();
@@ -49,7 +59,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     createInfoPanel();
     updateInfoPanel({
-        temp_K: params.initial_temperature_K,
+        temp_K: currentTempKelvin(),
         avgSpeed: system.getAverageSpeed(),
         kineticEnergy: system.getAverageKineticEnergy(),
     });
@@ -63,11 +73,13 @@ document.addEventListener("DOMContentLoaded", async () => {
         pixelsToML,
         setSessionStart,
         getSessionStart: () => sessionStartMs,
+        getCurrentTempKelvin: currentTempKelvin,
         exportContinuousCSV: () => {
             if (continuousBuffer.length === 0) return;
             const headers = [
                 "timestamp_ms", "P_kPa", "V_mL", "box_width_px",
                 "mean_speed_px_per_s", "piston_collisions_per_s", "stabilized",
+                "temperature_K",
             ];
             const rows = continuousBuffer.map(r => [
                 r.timestamp_ms,
@@ -77,6 +89,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 r.mean_speed_px_per_s.toFixed(1),
                 r.piston_collisions_per_s.toFixed(1),
                 r.stabilized,
+                r.temperature_K.toFixed(2),
             ]);
             const filename = `boyle_continuous_${formatTimestampForFilename(new Date())}.csv`;
             downloadCSV(filename, headers, rows);
@@ -103,6 +116,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             mean_speed_px_per_s: system.getAverageSpeed(),
             piston_collisions_per_s: hitsPerSec,
             stabilized: measApi.getStabilized(),
+            temperature_K: currentTempKelvin(),
         };
 
         if (continuousBuffer.length >= CONTINUOUS_MAX_ROWS) {
@@ -114,6 +128,29 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
         continuousBuffer.push(row);
     }, CONTINUOUS_SAMPLE_INTERVAL_MS);
+
+    createTemperatureControl({
+        getCurrentCelsius: () => currentTempCelsius,
+        getMeasurementCount: () => measApi.getMeasurementCount(),
+        getContinuousBufferSize: () => continuousBuffer.length,
+        onCommit: (newCelsius) => {
+            const oldTempK = currentTempKelvin();
+            currentTempCelsius = newCelsius;
+            const newTempK = currentTempKelvin();
+
+            const ratio = Math.sqrt(newTempK / oldTempK);
+            system.scaleVelocities(ratio);
+
+            recomputeV0Current();
+            box.setTargetFromPressure(smoothedP, P0, V0_current);
+
+            updateInfoPanel({ temp_K: newTempK });
+            measApi.clearMeasurements();
+            continuousBuffer.length = 0;
+            continuousOverflowWarned = false;
+            sessionStartMs = null;
+        },
+    });
 
     setInterval(() => {
         updateInfoPanel({

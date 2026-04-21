@@ -292,6 +292,17 @@ class ParticleSystem {
         return Math.sqrt(sumSq / this.particles.length);
     }
 
+    scaleVelocities(ratio) {
+        for (const p of this.particles) {
+            p.vx *= ratio;
+            p.vy *= ratio;
+        }
+        for (const g of this.ghosts) {
+            g.vx *= ratio;
+            g.vy *= ratio;
+        }
+    }
+
     getAverageKineticEnergy() {
         if (this.particles.length === 0) return 0;
         let sumSq = 0;

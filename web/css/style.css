@@ -28,12 +28,19 @@ body {
 /* Section 1: Controls */
 #section-controls {
     display: flex;
-    align-items: center;
-    gap: 24px;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
     padding: 14px 20px;
     background: white;
     border-radius: 8px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+#section-controls .control-row {
+    display: flex;
+    align-items: center;
+    gap: 24px;
 }
 
 #dev-pressure-slider {
@@ -408,4 +415,101 @@ body {
     #section-measurements {
         flex-direction: column;
     }
+}
+
+#temperature-control {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-family: system-ui, sans-serif;
+    font-size: 14px;
+    color: #333;
+    flex: 1;
+}
+
+#temperature-control .temp-label {
+    color: #666;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+#temperature-control .temp-presets {
+    display: flex;
+    gap: 6px;
+}
+
+#temperature-control .temp-presets button,
+#temperature-control .temp-custom button {
+    padding: 4px 10px;
+    font-size: 13px;
+    background: #f5f5f5;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    cursor: pointer;
+    color: #333;
+    font-family: inherit;
+}
+
+#temperature-control .temp-presets button {
+    min-width: 48px;
+}
+
+#temperature-control .temp-presets button:hover,
+#temperature-control .temp-custom button:hover {
+    background: #eaeaea;
+}
+
+#temperature-control .temp-presets button.active {
+    background: #e8f0ff;
+    border-color: #6090d0;
+    color: #2050c0;
+}
+
+#temperature-control .temp-custom {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+}
+
+#temperature-control .temp-custom input {
+    font-family: ui-monospace, "SF Mono", Consolas, monospace;
+    font-size: 13px;
+    width: 80px;
+    padding: 4px 6px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    text-align: right;
+}
+
+#temperature-control .temp-custom input.invalid {
+    border-color: #d04040;
+}
+
+#temperature-control .temp-custom button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+#temperature-control .temp-current {
+    font-size: 13px;
+    color: #666;
+    min-width: 120px;
+    text-align: right;
+}
+
+#temperature-control .temp-current strong {
+    font-family: ui-monospace, "SF Mono", Consolas, monospace;
+    color: #222;
+    font-weight: 500;
+}
+
+#temperature-control .temp-feedback {
+    font-size: 12px;
+    color: #2050c0;
+    min-width: 180px;
+    visibility: hidden;
+}
+
+#temperature-control .temp-feedback.visible {
+    visibility: visible;
 }
