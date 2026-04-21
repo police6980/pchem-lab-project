@@ -6,9 +6,15 @@ body {
     background: #f5f5f5;
 }
 
-canvas {
-    display: block;
+#main-container {
+    position: relative;
+    width: 1000px;
     margin: 20px auto;
+}
+
+#main-container canvas {
+    display: block;
+    margin: 0;
 }
 
 #dev-pressure-slider {
@@ -46,4 +52,62 @@ canvas {
     color: #222;
     min-width: 80px;
     text-align: right;
+}
+
+#info-panel {
+    position: absolute;
+    top: 450px;
+    right: 0;
+    width: 280px;
+    height: 250px;
+    padding: 20px;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    font-family: system-ui, sans-serif;
+    color: #333;
+    box-sizing: border-box;
+    overflow: hidden;
+}
+
+#info-panel .info-section + .info-section {
+    margin-top: 14px;
+}
+
+#info-panel .info-section-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: #888;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 8px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid #e5e5e5;
+}
+
+#info-panel .info-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding: 4px 0;
+    font-size: 14px;
+}
+
+#info-panel .info-label {
+    color: #666;
+}
+
+#info-panel .info-value {
+    font-family: ui-monospace, "SF Mono", Consolas, monospace;
+    color: #222;
+    font-weight: 500;
+    min-width: 90px;
+    text-align: right;
+}
+
+#info-panel .info-unit {
+    color: #888;
+    font-size: 11px;
+    font-weight: 400;
+    margin-left: 3px;
 }

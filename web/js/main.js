@@ -17,6 +17,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         sensor.onData(data => {
             smoothedP += (data.value - smoothedP) * 0.1;
             box.setTargetFromPressure(smoothedP, P0, V0);
+            updateInfoPanel({ pressure_kPa: smoothedP });
         });
         sensor.start();
     } else {
@@ -27,13 +28,30 @@ document.addEventListener("DOMContentLoaded", async () => {
     createRenderer(box, system, params, (dt) => {
         system.update(dt);
         box.update(dt, params.volume_tau_seconds);
+        system.clampParticlesIntoBox();
         pistonHitsAccumulator += system.getPistonCollisionCount();
     });
+
+    createInfoPanel();
+    updateInfoPanel({
+        temp_K: params.initial_temperature_K,
+        avgSpeed: system.getAverageSpeed(),
+        kineticEnergy: system.getAverageKineticEnergy(),
+    });
+
+    setInterval(() => {
+        updateInfoPanel({
+            avgSpeed: system.getAverageSpeed(),
+            kineticEnergy: system.getAverageKineticEnergy(),
+        });
+    }, 1000);
 
     setInterval(() => {
         const hitsPer5s = pistonHitsAccumulator;
         const hitsPerSec = hitsPer5s / 5;
         pistonHitsAccumulator = 0;
+
+        updateInfoPanel({ hitsPerSec });
 
         const frames = getAndResetFrameCount();
         const fps = frames / 5;

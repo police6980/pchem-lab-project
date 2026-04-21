@@ -1,13 +1,13 @@
 // p5.js drawing - particles, flashes, histogram, HSB color mapping
 
-const CANVAS_WIDTH = 1100;
-const CANVAS_HEIGHT = 500;
+const CANVAS_WIDTH = 1000;
+const CANVAS_HEIGHT = 750;
 
 const HIST_BIN_COUNT = 40;
-const HIST_X = 600;
-const HIST_Y = 100;
-const HIST_W = 400;
-const HIST_H = 300;
+const HIST_X = 50;
+const HIST_Y = 450;
+const HIST_W = 550;
+const HIST_H = 250;
 const HIST_TIME_ALPHA = 0.03;
 
 // 5-point [0.1, 0.2, 0.4, 0.2, 0.1] kernel for interior bins.
@@ -209,5 +209,5 @@ function createRenderer(box, particleSystem, params, updateFn) {
         };
     };
 
-    return new p5(sketch, document.body);
+    return new p5(sketch, document.getElementById("main-container"));
 }

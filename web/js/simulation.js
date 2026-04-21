@@ -1,9 +1,9 @@
 // Particle system, box geometry, physics update loop
 
-const BOX_INITIAL_X = 100;
-const BOX_INITIAL_Y = 100;
-const BOX_INITIAL_WIDTH = 400;
-const BOX_INITIAL_HEIGHT = 300;
+const BOX_INITIAL_X = 250;
+const BOX_INITIAL_Y = 50;
+const BOX_INITIAL_WIDTH = 500;
+const BOX_INITIAL_HEIGHT = 350;
 const DEFAULT_SPEED_SCALE = 120;
 const DT_CAP = 0.05;
 // Tuned with particle_count=300 so steady-state overlap stays under ~15 pairs/frame.
@@ -105,10 +105,15 @@ class Box {
         this.width = width;
         this.height = height;
         this.targetWidth = width;
+        // Lock in the horizontal center from the initial placement. Keeps
+        // the box centered on screen as it expands/shrinks — piston-like
+        // motion on both sides rather than one anchored edge.
+        this._centerX = x + width / 2;
     }
 
     update(dt, volumeTauSec) {
         this.width += (this.targetWidth - this.width) * (dt / volumeTauSec);
+        this.x = this._centerX - this.width / 2;
     }
 
     getPistonLength() {
@@ -121,7 +126,14 @@ class Box {
 
     setTargetFromPressure(currentP, P0, V0) {
         const targetArea = P0 * V0 / currentP;
-        this.targetWidth = targetArea / this.height;
+        let targetWidth = targetArea / this.height;
+        // Layout guard: keep the box clear of the histogram panel on the right
+        // and avoid degenerate narrowness on the left. Realistic slider range
+        // (60-180 kPa) rarely hits these caps; extreme pulls still saturate.
+        const MIN_WIDTH = 150;
+        const MAX_WIDTH = 750;
+        targetWidth = Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, targetWidth));
+        this.targetWidth = targetWidth;
     }
 }
 
@@ -181,6 +193,44 @@ class ParticleSystem {
 
         for (const g of this.ghosts) {
             g.update(dt, this.box);
+        }
+    }
+
+    // Called after Box.update shrinks the box. The per-tick wall logic only
+    // reflects particles that are outside AND moving further out; a particle
+    // left stranded outside a newly-shrunk piston while moving inward would
+    // otherwise cross the box again unhindered. This pass rescues them.
+    clampParticlesIntoBox() {
+        const r = PARTICLE_RADIUS;
+        const left = this.box.x;
+        const right = this.box.x + this.box.width;
+        const top = this.box.y;
+        const bottom = this.box.y + this.box.height;
+
+        for (const p of this.particles) {
+            if (p.x - r < left) {
+                p.x = left + r;
+                if (p.vx < 0) p.vx = -p.vx;
+            }
+            if (p.x + r > right) {
+                p.x = right - r;
+                if (p.vx > 0) p.vx = -p.vx;
+            }
+            if (p.y - r < top) {
+                p.y = top + r;
+                if (p.vy < 0) p.vy = -p.vy;
+            }
+            if (p.y + r > bottom) {
+                p.y = bottom - r;
+                if (p.vy > 0) p.vy = -p.vy;
+            }
+        }
+
+        for (const g of this.ghosts) {
+            if (g.x < left) { g.x = left; if (g.vx < 0) g.vx = -g.vx; }
+            if (g.x > right) { g.x = right; if (g.vx > 0) g.vx = -g.vx; }
+            if (g.y < top) { g.y = top; if (g.vy < 0) g.vy = -g.vy; }
+            if (g.y > bottom) { g.y = bottom; if (g.vy > 0) g.vy = -g.vy; }
         }
     }
 
@@ -246,6 +296,16 @@ class ParticleSystem {
             sumSq += p.vx * p.vx + p.vy * p.vy;
         }
         return Math.sqrt(sumSq / this.particles.length);
+    }
+
+    getAverageKineticEnergy() {
+        if (this.particles.length === 0) return 0;
+        let sumSq = 0;
+        for (const p of this.particles) {
+            sumSq += p.vx * p.vx + p.vy * p.vy;
+        }
+        const avgVSq = sumSq / this.particles.length;
+        return 0.5 * 1.0 * avgVSq;
     }
 
     getInitialAverageSpeed() {
