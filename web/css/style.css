@@ -64,15 +64,146 @@ body {
 }
 .ai-sidebar .sidebar-body {
     flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+/* === Sidebar: tabs === */
+.ai-sidebar .question-tabs {
+    display: flex;
+    border-bottom: 1px solid #e0e0e0;
+    flex-shrink: 0;
+}
+.ai-sidebar .tab-btn {
+    flex: 1;
+    padding: 10px;
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    cursor: pointer;
+    font-weight: 500;
+    color: #666;
+    transition: color 0.15s, background 0.15s, border-color 0.15s;
+}
+.ai-sidebar .tab-btn:hover {
+    background: #f0f0f0;
+}
+.ai-sidebar .tab-btn.active {
+    color: #6b46c1;
+    border-bottom-color: #6b46c1;
+}
+
+/* === Sidebar: question context preview === */
+.ai-sidebar .question-context {
+    padding: 10px 16px;
+    background: #f5f3ff;
+    border-bottom: 1px solid #e0e0e0;
+    flex-shrink: 0;
+}
+.ai-sidebar .question-context small {
+    color: #888;
+    display: block;
+    margin-bottom: 4px;
+}
+.ai-sidebar .question-snippet {
+    margin: 0;
+    font-size: 0.85em;
+    line-height: 1.4;
+    color: #333;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+/* === Sidebar: conversation scroll area === */
+.ai-sidebar .conversation-scroll {
+    flex: 1;
     overflow-y: auto;
-    padding: 16px;
+    padding: 12px;
+    min-height: 0;
 }
 .ai-sidebar .empty-state {
-    color: #888;
     text-align: center;
-    padding: 32px 16px;
-    margin: 0;
+    color: #888;
+    padding: 40px 20px;
     font-size: 0.9em;
+    line-height: 1.6;
+    margin: 0;
+}
+.ai-sidebar .messages-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+/* === Sidebar: message bubbles === */
+.ai-sidebar .message {
+    display: flex;
+    gap: 8px;
+    max-width: 85%;
+}
+.ai-sidebar .message .avatar {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    flex-shrink: 0;
+}
+.ai-sidebar .message .content {
+    flex: 1;
+    min-width: 0;
+}
+.ai-sidebar .message .bubble {
+    padding: 8px 12px;
+    border-radius: 12px;
+    line-height: 1.5;
+    font-size: 0.9em;
+    word-break: break-word;
+}
+.ai-sidebar .message .bubble p {
+    margin: 0 0 0.5em 0;
+}
+.ai-sidebar .message .bubble p:last-child {
+    margin-bottom: 0;
+}
+.ai-sidebar .message .bubble strong {
+    font-weight: 600;
+}
+.ai-sidebar .message-meta {
+    font-size: 0.7em;
+    color: #999;
+    margin-top: 4px;
+}
+
+.ai-sidebar .user-message {
+    align-self: flex-end;
+    flex-direction: row-reverse;
+}
+.ai-sidebar .user-message .avatar {
+    background: #e0e7ff;
+    color: #4338ca;
+}
+.ai-sidebar .user-message .bubble {
+    background: #6b46c1;
+    color: white;
+}
+
+.ai-sidebar .ai-message {
+    align-self: flex-start;
+}
+.ai-sidebar .ai-message .avatar {
+    background: #f3f4f6;
+    color: #4b5563;
+}
+.ai-sidebar .ai-message .bubble {
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    color: #1f2937;
 }
 
 body.sidebar-collapsed #ai-sidebar {
