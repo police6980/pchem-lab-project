@@ -716,20 +716,20 @@ function createAnalysisPanel({
         <div class="analysis-reflection">
             <h3>💭 성찰</h3>
             <div class="question">
-                <label for="analysis-q1">Q1. 이번 실험에서 발견한 규칙은 무엇인가요?</label>
-                <textarea id="analysis-q1" rows="3" placeholder="예: 압력과 부피가 반비례한다..."></textarea>
+                <label for="analysis-q1">Q1. 측정점마다 P·V 값이 거의 일정하게 나왔습니다. 이런 관계가 성립하는 이유를 기체 입자의 움직임으로 설명해보세요.</label>
+                <textarea id="analysis-q1" rows="3" placeholder="예: 부피가 줄어들면 입자들이..."></textarea>
                 <button class="btn-ai-feedback" data-question="1" disabled>🤖 Q1 AI 피드백 받기</button>
                 <div class="feedback-container" data-question="1"></div>
             </div>
             <div class="question">
-                <label for="analysis-q2">Q2. 측정점마다 P·V 값이 완전히 같지 않은 이유는 무엇이라고 생각하나요?</label>
-                <textarea id="analysis-q2" rows="3" placeholder="예: 안정화 대기가 부족했거나..."></textarea>
+                <label for="analysis-q2">Q2. 만약 압력을 400 kPa까지 올려 측정하면 부피는 어떻게 될지 예측해보세요. 이런 극단적 조건에서도 같은 규칙이 성립할까요? 그 이유는?</label>
+                <textarea id="analysis-q2" rows="3" placeholder="예: P·V = 일정이 항상 성립한다면..."></textarea>
                 <button class="btn-ai-feedback" data-question="2" disabled>🤖 Q2 AI 피드백 받기</button>
                 <div class="feedback-container" data-question="2"></div>
             </div>
             <div class="question">
                 <label for="analysis-q3">Q3. 다음 실험에서 바꿔보고 싶은 조건이 있다면 무엇인가요?</label>
-                <textarea id="analysis-q3" rows="3" placeholder="예: 온도를 바꿔 해보고 싶다..."></textarea>
+                <textarea id="analysis-q3" rows="3" placeholder="예: 온도를 바꿔서, 다른 기체로 바꿔서..."></textarea>
                 <button class="btn-ai-feedback" data-question="3" disabled>🤖 Q3 AI 피드백 받기</button>
                 <div class="feedback-container" data-question="3"></div>
             </div>
@@ -1315,8 +1315,8 @@ ${answer}
 
         lines.push("# == 학생 성찰 ==");
         lines.push("질문,답변");
-        lines.push(`${csvEscape("Q1. 이번 실험에서 발견한 규칙은 무엇인가요?")},${csvEscape(q1)}`);
-        lines.push(`${csvEscape("Q2. 측정점마다 P·V 값이 완전히 같지 않은 이유는 무엇이라고 생각하나요?")},${csvEscape(q2)}`);
+        lines.push(`${csvEscape("Q1. 측정점마다 P·V 값이 거의 일정하게 나왔습니다. 이런 관계가 성립하는 이유를 기체 입자의 움직임으로 설명해보세요.")},${csvEscape(q1)}`);
+        lines.push(`${csvEscape("Q2. 만약 압력을 400 kPa까지 올려 측정하면 부피는 어떻게 될지 예측해보세요. 이런 극단적 조건에서도 같은 규칙이 성립할까요? 그 이유는?")},${csvEscape(q2)}`);
         lines.push(`${csvEscape("Q3. 다음 실험에서 바꿔보고 싶은 조건이 있다면 무엇인가요?")},${csvEscape(q3)}`);
 
         const feedbackEntries = Object.entries(feedbackStore)
