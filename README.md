@@ -27,6 +27,24 @@
 - Arduino IDE 또는 PlatformIO (펌웨어 개발용)
 - Chrome/Edge 브라우저 (Web Serial API 필요)
 
+## 로컬 개발 실행 방법
+
+실물 ESP32가 없어도 Mock 센서로 웹 앱 전체를 구동할 수 있다.
+
+1. PowerShell에서 프로젝트의 `web/` 폴더로 이동:
+   ```powershell
+   cd web
+   python -m http.server 8000
+   ```
+2. 브라우저(Chrome/Edge)에서 `http://localhost:8000` 접속.
+3. 개발자 도구(F12) → **Console** 탭을 열어 센서 JSON 메시지가 20Hz로 찍히는지 확인.
+   ```
+   { sensor: "pressure", value: 101.32, unit: "kPa", timestamp: 1234.5 }
+   ```
+4. 화면 좌상단의 `[DEV MODE] 압력:` 슬라이더를 움직이면 Console에 찍히는 값이 즉시 따라오는지 확인.
+
+센서 소스는 `web/js/main.js`의 `USE_MOCK_SENSOR` 플래그로 전환된다. 실물 ESP32 연결 단계가 되면 이 플래그를 `false`로 바꾸고 실제 Web Serial 소스를 붙인다.
+
 ## 실험 구성
 
 ### 기체 법칙 실험

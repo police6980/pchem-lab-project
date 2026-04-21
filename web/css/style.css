@@ -1,1 +1,38 @@
 /* Boyle's law experiment - layout and styling */
+
+#dev-pressure-slider {
+    position: fixed;
+    top: 10px;
+    left: 10px;
+    background: white;
+    padding: 12px 16px;
+    border-radius: 6px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    font-family: system-ui, sans-serif;
+    font-size: 14px;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: #333;
+}
+
+#dev-pressure-slider label {
+    color: #666;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+#dev-pressure-slider input[type="range"] {
+    width: 200px;
+    accent-color: #888;
+    cursor: pointer;
+}
+
+#dev-pressure-slider .dev-pressure-value {
+    font-family: ui-monospace, "SF Mono", Consolas, monospace;
+    font-size: 13px;
+    color: #222;
+    min-width: 80px;
+    text-align: right;
+}
