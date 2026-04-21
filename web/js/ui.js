@@ -734,42 +734,6 @@ function createAnalysisPanel({
                 <div class="feedback-container" data-question="3"></div>
             </div>
         </div>
-        <div id="ai-tutor-settings" class="ai-settings-panel">
-            <h3>🤖 AI 피드백 설정</h3>
-            <div class="key-section">
-                <label>Anthropic API 키
-                    <input type="password" id="ai-api-key" placeholder="sk-ant-api03-..." autocomplete="off">
-                </label>
-                <button id="btn-verify-key">키 저장 및 검증</button>
-                <button id="btn-clear-key">키 삭제</button>
-                <span id="key-status"></span>
-            </div>
-            <div class="options-row">
-                <label>학생 수준
-                    <select id="ai-student-level">
-                        <option value="middle">중학생 영재</option>
-                        <option value="high" selected>고등학생 영재</option>
-                        <option value="univ">대학 신입생</option>
-                    </select>
-                </label>
-                <label>모델
-                    <select id="ai-model">
-                        <option value="claude-sonnet-4-6" selected>깊은 피드백 (Sonnet)</option>
-                        <option value="claude-opus-4-7">최고 품질 (Opus)</option>
-                    </select>
-                </label>
-            </div>
-            <div class="warning-banner">
-                ⚠ API 키는 이 탭에만 저장되며 탭을 닫으면 자동으로 사라집니다.
-                공용 컴퓨터에서 사용 후에는 [키 삭제]를 눌러주세요.
-                <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">API 키 발급 방법 →</a>
-            </div>
-            <div class="usage-display">
-                이번 세션 사용량:
-                <span id="tokens-used">0</span> 토큰
-                (약 <span id="cost-estimate">0</span>원)
-            </div>
-        </div>
         <div class="analysis-export">
             <button id="btn-export-analysis">분석 보고서 저장</button>
         </div>

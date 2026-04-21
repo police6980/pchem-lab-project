@@ -206,6 +206,134 @@ body {
     color: #1f2937;
 }
 
+/* === Sidebar: free tab accent === */
+.ai-sidebar .tab-btn-free {
+    border-left: 1px solid #e0e0e0;
+}
+.ai-sidebar .tab-btn-free.active {
+    color: #0891b2;
+    border-bottom-color: #0891b2;
+}
+.ai-sidebar .question-context.context-free {
+    background: #ecfeff;
+}
+.ai-sidebar .question-context.context-free small {
+    color: #0e7490;
+}
+
+/* === Sidebar: header action buttons === */
+.ai-sidebar .header-actions {
+    display: flex;
+    gap: 4px;
+}
+.ai-sidebar .icon-btn {
+    background: transparent;
+    border: none;
+    font-size: 1.1em;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 4px;
+    color: #666;
+    transition: background 0.15s, color 0.15s;
+}
+.ai-sidebar .icon-btn:hover {
+    background: #f0f0f0;
+    color: #333;
+}
+
+/* === Sidebar: settings panel (collapsible) === */
+.ai-sidebar .settings-panel {
+    overflow: hidden;
+    transition: max-height 0.3s ease, padding 0.3s ease;
+    max-height: 0;
+    padding: 0 16px;
+    background: #fafafa;
+    border-bottom: 1px solid #e0e0e0;
+    flex-shrink: 0;
+}
+.ai-sidebar .settings-panel.open {
+    max-height: 500px;
+    padding: 16px;
+}
+.ai-sidebar .settings-panel .key-section {
+    margin-bottom: 12px;
+}
+.ai-sidebar .settings-panel label {
+    display: block;
+    font-size: 0.85em;
+    color: #666;
+    margin-bottom: 4px;
+}
+.ai-sidebar .settings-panel input,
+.ai-sidebar .settings-panel select {
+    width: 100%;
+    padding: 6px 8px;
+    font-size: 0.9em;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    box-sizing: border-box;
+}
+.ai-sidebar .settings-panel .key-actions {
+    display: flex;
+    gap: 6px;
+    margin-top: 6px;
+}
+.ai-sidebar .settings-panel .key-actions button {
+    flex: 1;
+    padding: 6px;
+    font-size: 0.85em;
+    cursor: pointer;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    background: white;
+}
+.ai-sidebar .settings-panel #btn-clear-key {
+    color: #dc2626;
+    border-color: #fca5a5;
+}
+.ai-sidebar .settings-panel #key-status {
+    display: block;
+    margin-top: 6px;
+    font-size: 0.8em;
+    min-height: 1em;
+}
+.ai-sidebar .settings-panel #key-status.success,
+.ai-sidebar .settings-panel #key-status.saved { color: #059669; }
+.ai-sidebar .settings-panel #key-status.error { color: #dc2626; }
+.ai-sidebar .settings-panel #key-status.verifying { color: #805020; }
+.ai-sidebar .settings-panel .options-row {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 12px;
+}
+.ai-sidebar .settings-panel .options-row label {
+    flex: 1;
+}
+.ai-sidebar .settings-panel .warning-banner {
+    padding: 8px 10px;
+    background: #fef3c7;
+    border: 1px solid #fbbf24;
+    border-radius: 6px;
+    font-size: 0.75em;
+    color: #78350f;
+    line-height: 1.5;
+    margin-bottom: 12px;
+}
+.ai-sidebar .settings-panel .warning-banner a {
+    color: #78350f;
+    font-weight: 500;
+}
+.ai-sidebar .settings-panel .usage-display {
+    font-size: 0.8em;
+    color: #555;
+    padding-top: 8px;
+    border-top: 1px solid #e0e0e0;
+}
+.ai-sidebar .settings-panel .usage-display span {
+    font-weight: 600;
+    color: #333;
+}
+
 body.sidebar-collapsed #ai-sidebar {
     display: none;
 }
