@@ -929,6 +929,7 @@ function createAnalysisPanel({
         const model = document.getElementById("ai-model").value;
         const cost = computeCost(model, totalInputTokens, totalOutputTokens);
         document.getElementById("cost-estimate").textContent = cost;
+        if (typeof triggerCostWarning === "function") triggerCostWarning(cost);
     }
 
     function formatApiError(status, message) {

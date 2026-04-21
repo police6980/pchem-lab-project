@@ -164,6 +164,40 @@ function showTabDisabledToast(q) {
     setTimeout(() => msg.remove(), 2500);
 }
 
+// === Cost warning banner ===
+// 한 임계값당 1회만 노출. 페이지 재로드 시 초기화됨.
+const _costWarningShown = { 100: false, 500: false };
+
+function triggerCostWarning(krw) {
+    const thresholds = [
+        { krw: 500, cls: "cost-warn-red",    msg: "⚠️ 누적 비용이 500원을 넘었습니다. API 사용량을 확인하세요." },
+        { krw: 100, cls: "cost-warn-orange", msg: "💡 누적 비용이 100원을 넘었습니다." },
+    ];
+    for (const t of thresholds) {
+        if (krw >= t.krw && !_costWarningShown[t.krw]) {
+            _costWarningShown[t.krw] = true;
+            showCostBanner(t.msg, t.cls);
+            break;
+        }
+    }
+}
+
+function showCostBanner(msg, cls) {
+    const old = document.getElementById("cost-warning-banner");
+    if (old) old.remove();
+
+    const banner = document.createElement("div");
+    banner.id = "cost-warning-banner";
+    banner.className = `cost-warning-banner ${cls}`;
+    banner.innerHTML = `
+        <span>${msg}</span>
+        <button type="button" aria-label="닫기">✕</button>
+    `;
+    banner.querySelector("button").addEventListener("click", () => banner.remove());
+    const sidebar = document.querySelector(".ai-sidebar");
+    if (sidebar) sidebar.prepend(banner);
+}
+
 function resetAllConversations() {
     ["1", "2", "3", "free"].forEach(q => {
         aiConversations[q] = {

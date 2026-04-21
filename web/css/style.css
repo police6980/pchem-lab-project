@@ -237,6 +237,29 @@ body {
     color: #a00;
 }
 
+/* === Sidebar: cost warning banner === */
+.cost-warning-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    font-size: 0.85rem;
+    border-radius: 4px;
+    margin: 6px 8px 0;
+    gap: 8px;
+}
+.cost-warning-banner button {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 0.9rem;
+    opacity: 0.6;
+    flex-shrink: 0;
+}
+.cost-warning-banner button:hover { opacity: 1; }
+.cost-warn-orange { background: #fff3cd; color: #856404; border: 1px solid #ffc107; }
+.cost-warn-red    { background: #f8d7da; color: #842029; border: 1px solid #e55; }
+
 /* === Sidebar: free tab accent === */
 .ai-sidebar .tab-btn-free {
     border-left: 1px solid #e0e0e0;
