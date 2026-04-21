@@ -122,6 +122,7 @@ function createMeasurementPanel({
     setSessionStart, getSessionStart,
     getCurrentTempKelvin,
     exportContinuousCSV, getContinuousBufferSize, clearContinuousBuffer, resetSession,
+    onDataChange, onResetAll,
 }) {
     const readingBlock = document.createElement("div");
     readingBlock.id = "current-reading-block";
@@ -399,6 +400,7 @@ function createMeasurementPanel({
                 renderSummary();
                 redrawPVPlot();
                 updateExportButtonState();
+                onDataChange && onDataChange();
             });
         });
     }
@@ -445,6 +447,7 @@ function createMeasurementPanel({
         renderSummary();
         redrawPVPlot();
         updateExportButtonState();
+        onDataChange && onDataChange();
         studentEdited = false;
     });
 
@@ -460,6 +463,8 @@ function createMeasurementPanel({
         renderSummary();
         redrawPVPlot();
         updateExportButtonState();
+        onDataChange && onDataChange();
+        onResetAll && onResetAll();
     });
 
     const exportMeasBtn = document.getElementById("btn-export-measurements");
@@ -569,12 +574,14 @@ function createMeasurementPanel({
     return {
         getStabilized: () => isStabilized,
         getMeasurementCount: () => datapoints.length,
+        getDatapoints: () => datapoints.slice(),
         clearMeasurements: () => {
             datapoints = [];
             renderTable();
             renderSummary();
             redrawPVPlot();
             updateExportButtonState();
+            onDataChange && onDataChange();
         },
     };
 }
@@ -680,4 +687,282 @@ function createTemperatureControl({
     });
 
     refreshCurrentDisplay();
+}
+
+function createAnalysisPanel({
+    getDatapoints,
+    getCurrentTempCelsius,
+    getCurrentTempKelvin,
+    getSessionStart,
+}) {
+    const section = document.getElementById("section-analysis");
+    section.innerHTML = `
+        <h2>📊 실험 분석</h2>
+        <div class="analysis-summary">
+            <h3>이번 세션 요약</h3>
+            <dl>
+                <dt>온도</dt>           <dd><span id="analysis-temp">—</span></dd>
+                <dt>측정점 개수</dt>      <dd><span id="analysis-count">—</span></dd>
+                <dt>평균 P·V</dt>         <dd><span id="analysis-meanpv">—</span></dd>
+                <dt>최대 편차</dt>        <dd><span id="analysis-maxdev">—</span></dd>
+                <dt>기록 소요 시간</dt>    <dd><span id="analysis-duration">—</span></dd>
+            </dl>
+        </div>
+        <div class="analysis-verification">
+            <h3>🔬 보일 법칙 검증</h3>
+            <p class="verdict" id="analysis-verdict">—</p>
+            <div id="pv-bars-canvas-wrap"></div>
+        </div>
+        <div class="analysis-reflection">
+            <h3>💭 성찰</h3>
+            <div class="question">
+                <label for="analysis-q1">Q1. 이번 실험에서 발견한 규칙은 무엇인가요?</label>
+                <textarea id="analysis-q1" rows="3" placeholder="예: 압력과 부피가 반비례한다..."></textarea>
+            </div>
+            <div class="question">
+                <label for="analysis-q2">Q2. 측정점마다 P·V 값이 완전히 같지 않은 이유는 무엇이라고 생각하나요?</label>
+                <textarea id="analysis-q2" rows="3" placeholder="예: 안정화 대기가 부족했거나..."></textarea>
+            </div>
+            <div class="question">
+                <label for="analysis-q3">Q3. 다음 실험에서 바꿔보고 싶은 조건이 있다면 무엇인가요?</label>
+                <textarea id="analysis-q3" rows="3" placeholder="예: 온도를 바꿔 해보고 싶다..."></textarea>
+            </div>
+        </div>
+        <div class="analysis-export">
+            <button id="btn-export-analysis">분석 보고서 저장</button>
+        </div>
+    `;
+
+    const MIN_DATAPOINTS = 3;
+    const PV_BARS_WIDTH = 400;
+    const PV_BARS_HEIGHT = 180;
+    const PV_BARS_PAD = { left: 40, right: 10, top: 20, bottom: 30 };
+
+    function formatDuration(ms) {
+        const totalSec = Math.floor(ms / 1000);
+        if (totalSec < 60) return `${totalSec}초`;
+        const minutes = Math.floor(totalSec / 60);
+        const secs = totalSec % 60;
+        return `${minutes}분 ${secs}초`;
+    }
+
+    function computeVerdict(maxDevPct) {
+        if (maxDevPct <= 2) {
+            return { cls: "good", text: `✓ 보일 법칙 성립 (편차 ${maxDevPct.toFixed(1)}%, 훌륭한 측정)` };
+        } else if (maxDevPct <= 5) {
+            return { cls: "good", text: `✓ 보일 법칙 성립 (편차 ${maxDevPct.toFixed(1)}%, 적절한 측정)` };
+        } else if (maxDevPct <= 10) {
+            return { cls: "warn", text: `△ 부분적으로 성립 (편차 ${maxDevPct.toFixed(1)}%, 일부 측정점 재검토 필요)` };
+        } else {
+            return { cls: "bad", text: `✗ 편차 큼 (편차 ${maxDevPct.toFixed(1)}%, 안정화 대기 후 재측정 권장)` };
+        }
+    }
+
+    const pvBarsSketch = (p) => {
+        p.setup = () => {
+            p.createCanvas(PV_BARS_WIDTH, PV_BARS_HEIGHT);
+            p.textFont("system-ui");
+            p.noLoop();
+        };
+
+        p.draw = () => {
+            p.background(255);
+            const data = getDatapoints();
+            if (data.length < MIN_DATAPOINTS) return;
+
+            const innerLeft = PV_BARS_PAD.left;
+            const innerRight = p.width - PV_BARS_PAD.right;
+            const innerTop = PV_BARS_PAD.top;
+            const innerBottom = p.height - PV_BARS_PAD.bottom;
+
+            const mean = data.reduce((s, d) => s + d.PV, 0) / data.length;
+            const maxAbsDev = Math.max(...data.map(d => Math.abs(d.PV - mean)));
+            const span = Math.max(maxAbsDev * 1.2, mean * 0.01);
+            const yMin = mean - span;
+            const yMax = mean + span;
+
+            const yToPx = (v) =>
+                innerBottom - (v - yMin) / (yMax - yMin) * (innerBottom - innerTop);
+
+            p.stroke(120);
+            p.strokeWeight(1);
+            p.line(innerLeft, innerTop, innerLeft, innerBottom);
+            p.line(innerLeft, innerBottom, innerRight, innerBottom);
+
+            p.noStroke();
+            p.fill(120);
+            p.textSize(9);
+            p.textAlign(p.RIGHT, p.CENTER);
+            [yMin, mean, yMax].forEach(v => {
+                p.text(v.toFixed(0), innerLeft - 4, yToPx(v));
+            });
+
+            const meanY = yToPx(mean);
+            p.stroke(170);
+            p.strokeWeight(1);
+            p.drawingContext.setLineDash([4, 3]);
+            p.line(innerLeft, meanY, innerRight, meanY);
+            p.drawingContext.setLineDash([]);
+            p.noStroke();
+            p.fill(130);
+            p.textSize(9);
+            p.textAlign(p.LEFT, p.BOTTOM);
+            p.text(`평균 ${mean.toFixed(1)}`, innerLeft + 4, meanY - 2);
+
+            const slotWidth = (innerRight - innerLeft) / data.length;
+            const barWidth = slotWidth * 0.7;
+
+            data.forEach((d, i) => {
+                const devPct = mean > 0 ? Math.abs(d.PV - mean) / mean * 100 : 0;
+                let fill;
+                if (devPct <= 2) fill = [76, 175, 80];
+                else if (devPct <= 5) fill = [255, 152, 0];
+                else fill = [231, 76, 60];
+
+                const barX = innerLeft + i * slotWidth + (slotWidth - barWidth) / 2;
+                const valueY = yToPx(d.PV);
+
+                p.noStroke();
+                p.fill(fill[0], fill[1], fill[2]);
+                p.rect(barX, valueY, barWidth, innerBottom - valueY);
+
+                p.fill(80);
+                p.textAlign(p.CENTER, p.BOTTOM);
+                p.textSize(9);
+                p.text(d.PV.toFixed(0), barX + barWidth / 2, valueY - 2);
+
+                p.fill(130);
+                p.textAlign(p.CENTER, p.TOP);
+                p.text(d.id, barX + barWidth / 2, innerBottom + 4);
+            });
+
+            p.fill(100);
+            p.textAlign(p.CENTER, p.TOP);
+            p.textSize(10);
+            p.text("측정점 번호", (innerLeft + innerRight) / 2, innerBottom + 16);
+        };
+    };
+
+    const pvBarsP5 = new p5(pvBarsSketch,
+        document.getElementById("pv-bars-canvas-wrap"));
+
+    function refresh() {
+        const data = getDatapoints();
+        if (data.length < MIN_DATAPOINTS) {
+            section.classList.add("hidden");
+            return;
+        }
+        section.classList.remove("hidden");
+
+        const meanPV = data.reduce((s, d) => s + d.PV, 0) / data.length;
+        const maxDevPct = Math.max(...data.map(d => Math.abs(d.PV - meanPV))) / meanPV * 100;
+        const durationMs = data[data.length - 1].timestamp - data[0].timestamp;
+
+        const celsius = getCurrentTempCelsius();
+        const kelvin = getCurrentTempKelvin();
+
+        document.getElementById("analysis-temp").textContent =
+            `${celsius.toFixed(0)}°C (${kelvin.toFixed(0)} K)`;
+        document.getElementById("analysis-count").textContent = `${data.length}개`;
+        document.getElementById("analysis-meanpv").textContent =
+            `${meanPV.toFixed(1)} kPa·mL`;
+        document.getElementById("analysis-maxdev").textContent =
+            `±${maxDevPct.toFixed(1)}%`;
+        document.getElementById("analysis-duration").textContent =
+            formatDuration(durationMs);
+
+        const verdictEl = document.getElementById("analysis-verdict");
+        verdictEl.classList.remove("good", "warn", "bad");
+        const { cls, text } = computeVerdict(maxDevPct);
+        verdictEl.classList.add(cls);
+        verdictEl.textContent = text;
+
+        pvBarsP5.redraw();
+    }
+
+    function buildAnalysisCSV() {
+        const data = getDatapoints();
+        if (data.length === 0) return null;
+
+        const celsius = getCurrentTempCelsius();
+        const kelvin = getCurrentTempKelvin();
+        const mean = data.reduce((s, d) => s + d.PV, 0) / data.length;
+        const maxDevPct = Math.max(...data.map(d => Math.abs(d.PV - mean))) / mean * 100;
+        const durationMs = data[data.length - 1].timestamp - data[0].timestamp;
+        const { text: verdict } = computeVerdict(maxDevPct);
+        const sessionStart = getSessionStart();
+        const sessionIso = sessionStart ? new Date(sessionStart).toISOString() : "";
+        const nowIso = new Date().toISOString();
+
+        const q1 = document.getElementById("analysis-q1").value;
+        const q2 = document.getElementById("analysis-q2").value;
+        const q3 = document.getElementById("analysis-q3").value;
+
+        const lines = [];
+        lines.push("# 보일 법칙 실험 분석 보고서");
+        lines.push(`# 저장 시각: ${nowIso}`);
+        lines.push(`# 세션 시작: ${sessionIso}`);
+        lines.push("");
+
+        lines.push("# == 실험 조건 ==");
+        lines.push("항목,값");
+        lines.push(`온도_섭씨,${celsius.toFixed(1)}`);
+        lines.push(`온도_켈빈,${kelvin.toFixed(2)}`);
+        lines.push(`기준_압력_kPa,${REFERENCE_P_KPA.toFixed(1)}`);
+        lines.push(`기준_부피_mL,${REFERENCE_V_ML.toFixed(1)}`);
+        lines.push("");
+
+        lines.push("# == 요약 통계 ==");
+        lines.push("항목,값");
+        lines.push(`측정점_개수,${data.length}`);
+        lines.push(`평균_PV,${mean.toFixed(1)}`);
+        lines.push(`최대_편차_퍼센트,${maxDevPct.toFixed(2)}`);
+        lines.push(`기록_소요_시간_초,${Math.floor(durationMs / 1000)}`);
+        lines.push(`법칙_검증_판정,${csvEscape(verdict)}`);
+        lines.push("");
+
+        lines.push("# == 측정점 ==");
+        lines.push("번호,압력_kPa,부피_mL,P·V,편차_퍼센트,기록시각_ms,온도_K");
+        data.forEach(d => {
+            const dev = mean > 0 ? (d.PV - mean) / mean * 100 : 0;
+            const elapsedMs = sessionStart ? (d.timestamp - sessionStart) : "";
+            lines.push([
+                d.id,
+                d.P.toFixed(1),
+                d.V.toFixed(1),
+                d.PV.toFixed(1),
+                dev.toFixed(3),
+                elapsedMs,
+                d.tempK.toFixed(2),
+            ].join(","));
+        });
+        lines.push("");
+
+        lines.push("# == 학생 성찰 ==");
+        lines.push("질문,답변");
+        lines.push(`${csvEscape("Q1. 이번 실험에서 발견한 규칙은 무엇인가요?")},${csvEscape(q1)}`);
+        lines.push(`${csvEscape("Q2. 측정점마다 P·V 값이 완전히 같지 않은 이유는 무엇이라고 생각하나요?")},${csvEscape(q2)}`);
+        lines.push(`${csvEscape("Q3. 다음 실험에서 바꿔보고 싶은 조건이 있다면 무엇인가요?")},${csvEscape(q3)}`);
+
+        return lines.join("\n");
+    }
+
+    document.getElementById("btn-export-analysis").addEventListener("click", () => {
+        const content = buildAnalysisCSV();
+        if (content === null) return;
+        const filename = `boyle_analysis_${formatTimestampForFilename(new Date())}.csv`;
+        downloadRawCSV(filename, content);
+    });
+
+    function clear() {
+        ["analysis-q1", "analysis-q2", "analysis-q3"].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.value = "";
+        });
+        refresh();
+    }
+
+    refresh();
+
+    return { refresh, clear };
 }

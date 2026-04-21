@@ -97,6 +97,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     const pixelsToML = (gasWidth) =>
         (gasWidth / params.baseline_gas_width_px) * params.baseline_volume_mL;
 
+    let analysisApi = null;
+
     const measApi = createMeasurementPanel({
         getP: () => smoothedP,
         getGasWidth: () => box.width,
@@ -104,6 +106,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         setSessionStart,
         getSessionStart: () => sessionStartMs,
         getCurrentTempKelvin: currentTempKelvin,
+        onDataChange: () => { if (analysisApi) analysisApi.refresh(); },
+        onResetAll: () => { if (analysisApi) analysisApi.clear(); },
         exportContinuousCSV: () => {
             if (continuousBuffer.length === 0) return;
             const headers = [
@@ -159,6 +163,13 @@ document.addEventListener("DOMContentLoaded", async () => {
         continuousBuffer.push(row);
     }, CONTINUOUS_SAMPLE_INTERVAL_MS);
 
+    analysisApi = createAnalysisPanel({
+        getDatapoints: () => measApi.getDatapoints(),
+        getCurrentTempCelsius: () => currentTempCelsius,
+        getCurrentTempKelvin: currentTempKelvin,
+        getSessionStart: () => sessionStartMs,
+    });
+
     createTemperatureControl({
         getCurrentCelsius: () => currentTempCelsius,
         getMeasurementCount: () => measApi.getMeasurementCount(),
@@ -192,6 +203,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             continuousBuffer.length = 0;
             continuousOverflowWarned = false;
             sessionStartMs = null;
+            analysisApi.clear();
         },
     });
 
