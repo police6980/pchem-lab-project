@@ -2,14 +2,17 @@
 
 body {
     margin: 0;
-    padding: 0;
+    padding: 16px;
     background: #f5f5f5;
     font-family: system-ui, sans-serif;
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
 }
 
 #main-container {
-    max-width: 1080px;
-    margin: 20px auto;
+    flex: 1;
+    min-width: 0;
     padding: 0 20px;
 }
 
@@ -19,6 +22,61 @@ body {
 
 #main-container > section:last-child {
     margin-bottom: 0;
+}
+
+/* === AI sidebar === */
+.ai-sidebar {
+    flex-basis: 380px;
+    flex-shrink: 0;
+    border: 1px solid #d0d0d0;
+    border-radius: 8px;
+    height: calc(100vh - 32px);
+    position: sticky;
+    top: 16px;
+    display: flex;
+    flex-direction: column;
+    background: #fafafa;
+    box-sizing: border-box;
+}
+.ai-sidebar .sidebar-header {
+    padding: 12px 16px;
+    border-bottom: 1px solid #e0e0e0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-shrink: 0;
+}
+.ai-sidebar .sidebar-header h2 {
+    margin: 0;
+    font-size: 1.1em;
+}
+.ai-sidebar .sidebar-header #btn-ai-collapse {
+    background: transparent;
+    border: none;
+    font-size: 1.4em;
+    line-height: 1;
+    cursor: pointer;
+    color: #666;
+    padding: 2px 8px;
+}
+.ai-sidebar .sidebar-header #btn-ai-collapse:hover {
+    color: #000;
+}
+.ai-sidebar .sidebar-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+}
+.ai-sidebar .empty-state {
+    color: #888;
+    text-align: center;
+    padding: 32px 16px;
+    margin: 0;
+    font-size: 0.9em;
+}
+
+body.sidebar-collapsed #ai-sidebar {
+    display: none;
 }
 
 #main-container canvas {

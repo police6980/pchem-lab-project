@@ -14,7 +14,7 @@
     <script src="js/main.js" defer></script>
 </head>
 <body>
-    <div id="main-container">
+    <main id="main-container" class="main-area">
         <section id="section-controls">
             <div class="control-row control-row-temperature"></div>
             <div class="control-row control-row-actuators"></div>
@@ -26,6 +26,22 @@
         </section>
         <section id="section-measurements"></section>
         <section id="section-analysis" class="hidden"></section>
-    </div>
+    </main>
+    <script>
+      document.addEventListener("DOMContentLoaded", () => {
+        document.getElementById("btn-ai-collapse")?.addEventListener("click", () => {
+          document.body.classList.toggle("sidebar-collapsed");
+        });
+      });
+    </script>
+    <aside id="ai-sidebar" class="ai-sidebar">
+        <header class="sidebar-header">
+            <h2>🤖 AI 튜터</h2>
+            <button id="btn-ai-collapse" title="접기" aria-label="사이드바 접기">×</button>
+        </header>
+        <div class="sidebar-body">
+            <p class="empty-state">왼쪽 성찰 영역에서 [대화 시작]을 눌러주세요</p>
+        </div>
+    </aside>
 </body>
 </html>
