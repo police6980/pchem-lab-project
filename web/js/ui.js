@@ -103,7 +103,11 @@ function updateInfoPanel(data) {
     }
 }
 
-function createMeasurementPanel({ getP, getGasWidth, pixelsToML }) {
+function createMeasurementPanel({
+    getP, getGasWidth, pixelsToML,
+    setSessionStart, getSessionStart,
+    exportContinuousCSV, getContinuousBufferSize, clearContinuousBuffer, resetSession,
+}) {
     const readingBlock = document.createElement("div");
     readingBlock.id = "current-reading-block";
     readingBlock.innerHTML = `
@@ -127,7 +131,11 @@ function createMeasurementPanel({ getP, getGasWidth, pixelsToML }) {
     panel.innerHTML = `
         <div class="section-head">
             <span class="section-title">측정 기록</span>
-            <button id="btn-clear-all">전체 삭제</button>
+            <div class="section-actions">
+                <button id="btn-export-measurements" disabled title="측정점을 먼저 기록하세요">측정점 CSV 저장</button>
+                <button id="btn-export-continuous" disabled title="세션 시작 후 이용 가능">연속 로그 CSV 저장</button>
+                <button id="btn-clear-all">전체 삭제</button>
+            </div>
         </div>
         <table id="datapoints-table">
             <thead>
@@ -375,6 +383,7 @@ function createMeasurementPanel({ getP, getGasWidth, pixelsToML }) {
                 renderTable();
                 renderSummary();
                 redrawPVPlot();
+                updateExportButtonState();
             });
         });
     }
@@ -394,6 +403,7 @@ function createMeasurementPanel({ getP, getGasWidth, pixelsToML }) {
 
     document.getElementById("btn-record").addEventListener("click", () => {
         if (!isStabilized) return;
+        setSessionStart();
 
         // P: 1-second moving average. Smoothes sensor noise + guarantees the
         // pressure reading matches what the simulation settled on.
@@ -414,17 +424,54 @@ function createMeasurementPanel({ getP, getGasWidth, pixelsToML }) {
         renderTable();
         renderSummary();
         redrawPVPlot();
+        updateExportButtonState();
         studentEdited = false;
     });
 
     document.getElementById("btn-clear-all").addEventListener("click", () => {
-        if (datapoints.length === 0) return;
-        if (!window.confirm("측정점을 전부 삭제할까요?")) return;
+        const datapointsEmpty = datapoints.length === 0;
+        const continuousEmpty = getContinuousBufferSize() === 0;
+        if (datapointsEmpty && continuousEmpty) return;
+        if (!window.confirm("측정점과 세션 로그를 모두 삭제합니다. 이미 다운로드한 파일은 영향 없습니다. 계속?")) return;
         datapoints = [];
+        clearContinuousBuffer();
+        resetSession();
         renderTable();
         renderSummary();
         redrawPVPlot();
+        updateExportButtonState();
     });
+
+    const exportMeasBtn = document.getElementById("btn-export-measurements");
+    const exportContBtn = document.getElementById("btn-export-continuous");
+
+    function updateExportButtonState() {
+        exportMeasBtn.disabled = datapoints.length === 0;
+        exportMeasBtn.title = datapoints.length === 0 ? "측정점을 먼저 기록하세요" : "";
+        const contSize = getContinuousBufferSize();
+        exportContBtn.disabled = contSize === 0;
+        exportContBtn.title = contSize === 0 ? "세션 시작 후 이용 가능" : "";
+    }
+
+    function exportMeasurementsCSV() {
+        if (datapoints.length === 0) return;
+        const sessionStart = getSessionStart();
+        const sessionIso = sessionStart !== null ? new Date(sessionStart).toISOString() : "";
+        const headers = ["번호", "압력_kPa", "부피_mL", "P·V", "기록시각_ms", "세션시작시각_iso"];
+        const rows = datapoints.map(d => [
+            d.id,
+            d.P.toFixed(1),
+            d.V.toFixed(1),
+            d.PV.toFixed(1),
+            sessionStart !== null ? (d.timestamp - sessionStart) : "",
+            sessionIso,
+        ]);
+        const filename = `boyle_measurements_${formatTimestampForFilename(new Date())}.csv`;
+        downloadCSV(filename, headers, rows);
+    }
+
+    exportMeasBtn.addEventListener("click", exportMeasurementsCSV);
+    exportContBtn.addEventListener("click", exportContinuousCSV);
 
     vInput.value = pixelsToML(getGasWidth()).toFixed(1);
     currentPEl.textContent = getP().toFixed(1);
@@ -437,6 +484,7 @@ function createMeasurementPanel({ getP, getGasWidth, pixelsToML }) {
         pushSampleHistory();
         isStabilized = checkStabilized();
         updateRecordButtonState();
+        updateExportButtonState();
     }, 50);
 
     // === Dev helper: PV accuracy regression test ===
@@ -497,5 +545,7 @@ function createMeasurementPanel({ getP, getGasWidth, pixelsToML }) {
 
     window.runPVAccuracyTest = runPVAccuracyTest;
 
-    return panel;
+    return {
+        getStabilized: () => isStabilized,
+    };
 }

@@ -278,7 +278,13 @@ body {
     letter-spacing: 0.5px;
 }
 
-#measurement-panel #btn-clear-all {
+#measurement-panel .section-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+#measurement-panel .section-actions button {
     padding: 6px 14px;
     font-size: 12px;
     background: #f5f5f5;
@@ -289,8 +295,17 @@ body {
     font-family: inherit;
 }
 
-#measurement-panel #btn-clear-all:hover {
+#measurement-panel .section-actions button:hover {
     background: #eaeaea;
+}
+
+#measurement-panel .section-actions button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+#measurement-panel .section-actions button:disabled:hover {
+    background: #f5f5f5;
 }
 
 #measurement-panel table {

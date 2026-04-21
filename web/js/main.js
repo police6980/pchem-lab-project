@@ -10,10 +10,23 @@ document.addEventListener("DOMContentLoaded", async () => {
     const V0 = box.getArea();
     const P0 = params.initial_pressure_kPa;
     let smoothedP = P0;
+    let sessionStartMs = null;
+    const setSessionStart = () => {
+        if (sessionStartMs === null) sessionStartMs = Date.now();
+    };
+
+    const continuousBuffer = [];
+    const CONTINUOUS_MAX_ROWS = 10000;
+    const CONTINUOUS_SAMPLE_INTERVAL_MS = 250;
+    let continuousHitsAccumulator = 0;
+    let continuousOverflowWarned = false;
 
     if (USE_MOCK_SENSOR) {
         const sensor = new MockSensorSource(params.initial_pressure_kPa);
-        createDevPressureSlider(v => sensor.setPressure(v));
+        createDevPressureSlider(v => {
+            setSessionStart();
+            sensor.setPressure(v);
+        });
         sensor.onData(data => {
             smoothedP += (data.value - smoothedP) * 0.1;
             box.setTargetFromPressure(smoothedP, P0, V0);
@@ -29,7 +42,9 @@ document.addEventListener("DOMContentLoaded", async () => {
         system.update(dt);
         box.update(dt, params.volume_tau_seconds);
         system.clampParticlesIntoBox();
-        pistonHitsAccumulator += system.getPistonCollisionCount();
+        const tickHits = system.getPistonCollisionCount();
+        pistonHitsAccumulator += tickHits;
+        continuousHitsAccumulator += tickHits;
     });
 
     createInfoPanel();
@@ -42,11 +57,63 @@ document.addEventListener("DOMContentLoaded", async () => {
     const pixelsToML = (gasWidth) =>
         (gasWidth / params.baseline_gas_width_px) * params.baseline_volume_mL;
 
-    createMeasurementPanel({
+    const measApi = createMeasurementPanel({
         getP: () => smoothedP,
         getGasWidth: () => box.width,
         pixelsToML,
+        setSessionStart,
+        getSessionStart: () => sessionStartMs,
+        exportContinuousCSV: () => {
+            if (continuousBuffer.length === 0) return;
+            const headers = [
+                "timestamp_ms", "P_kPa", "V_mL", "box_width_px",
+                "mean_speed_px_per_s", "piston_collisions_per_s", "stabilized",
+            ];
+            const rows = continuousBuffer.map(r => [
+                r.timestamp_ms,
+                r.P_kPa.toFixed(2),
+                r.V_mL.toFixed(2),
+                r.box_width_px.toFixed(1),
+                r.mean_speed_px_per_s.toFixed(1),
+                r.piston_collisions_per_s.toFixed(1),
+                r.stabilized,
+            ]);
+            const filename = `boyle_continuous_${formatTimestampForFilename(new Date())}.csv`;
+            downloadCSV(filename, headers, rows);
+        },
+        getContinuousBufferSize: () => continuousBuffer.length,
+        clearContinuousBuffer: () => {
+            continuousBuffer.length = 0;
+            continuousOverflowWarned = false;
+        },
+        resetSession: () => { sessionStartMs = null; },
     });
+
+    setInterval(() => {
+        if (sessionStartMs === null) return;
+
+        const hitsPerSec = continuousHitsAccumulator / (CONTINUOUS_SAMPLE_INTERVAL_MS / 1000);
+        continuousHitsAccumulator = 0;
+
+        const row = {
+            timestamp_ms: Date.now() - sessionStartMs,
+            P_kPa: smoothedP,
+            V_mL: pixelsToML(box.width),
+            box_width_px: box.width,
+            mean_speed_px_per_s: system.getAverageSpeed(),
+            piston_collisions_per_s: hitsPerSec,
+            stabilized: measApi.getStabilized(),
+        };
+
+        if (continuousBuffer.length >= CONTINUOUS_MAX_ROWS) {
+            continuousBuffer.shift();
+            if (!continuousOverflowWarned) {
+                console.warn("[Continuous log] Buffer full (10000 rows). Dropping oldest samples.");
+                continuousOverflowWarned = true;
+            }
+        }
+        continuousBuffer.push(row);
+    }, CONTINUOUS_SAMPLE_INTERVAL_MS);
 
     setInterval(() => {
         updateInfoPanel({
