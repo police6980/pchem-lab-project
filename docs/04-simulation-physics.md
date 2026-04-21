@@ -256,7 +256,7 @@ V_mL = box.width / baseline_gas_width_px × baseline_volume_mL
 7. `box.setTargetFromPressure(smoothedP, P0, V0_current)` — 박스 target 갱신
 8. `updateInfoPanel({ temp_K })` 온도 표시 갱신
 9. `measApi.clearMeasurements()`, `continuousBuffer.length = 0`, `sessionStartMs = null`
-10. `analysisApi.clear()` — 분석 섹션 + 성찰 초기화
+10. `analysisApi.clear()` — 분석 섹션 초기화 + 사이드바 대화(`aiConversations` 4개 세션) `resetAllConversations()`로 일괄 리셋
 
 ### 7.3 속도 전이 애니메이션 (매 프레임 updateFn)
 
@@ -418,7 +418,13 @@ V_recorded = mean(widthHistory) → pixelsToML
 
 `datapoints.length >= 3`일 때 `#section-analysis` 가시 (`.hidden` 제거). 2개 이하로 줄면 숨김.
 
-`[전체 삭제]` / 온도 변경 시엔 성찰 textarea도 함께 초기화 (`analysisApi.clear()`).
+`[전체 삭제]` / 온도 변경 시엔 사이드바 AI 튜터 대화(4개 세션)도 함께 초기화 (`analysisApi.clear()` → `resetAllConversations()`). 성찰 textarea는 Part 3.5에서 제거되어 더 이상 존재하지 않음.
+
+### 9.7 AI 튜터 사이드바 연계
+
+측정점 누적과 분석 결과는 우측 AI 튜터 사이드바(구조·UI 상세는 `docs/03-software-architecture.md` §4.3 참조)와 연동된다. `datapoints.length >= 3` 시점부터 사이드바의 성찰 탭 Q1/Q2/Q3이 활성화되며(자유 탭은 상시), 학생은 대화를 통해 관찰 결과를 언어화하는 탐구 단계로 진입한다.
+
+물리 관점에서 중요한 것은 **측정 사이클의 귀환점**이 여기서 끝난다는 점 — 시뮬레이터·센서·측정 UI가 정량 데이터를 완성하고, 그 데이터가 대화의 컨텍스트로 이어진다. 따라서 `aiConversations`는 측정 세션의 논리적 연장이며, 세션 초기화(전체 삭제·온도 변경) 시 함께 리셋되는 것이 일관적이다.
 
 ---
 
