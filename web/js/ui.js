@@ -1202,6 +1202,7 @@ ${answer}
         getLevel:  () => sessionStorage.getItem(SESSION_KEY_LEVEL) || "high",
         USD_TO_KRW,
         MODEL_PRICING,
+        QUESTION_TEXT,
         buildSystemPrompt,
         buildUserPrompt,
         buildDataContext,

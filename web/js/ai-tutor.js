@@ -50,11 +50,9 @@ const aiConversations = {
 
 let activeQuestion = "free";
 
-const QUESTION_TEXT = {
-    1: "측정점마다 P·V 값이 거의 일정하게 나왔습니다. 이런 관계가 성립하는 이유를 기체 입자의 움직임으로 설명해보세요.",
-    2: "만약 압력을 400 kPa까지 올려 측정하면 부피는 어떻게 될지 예측해보세요. 이런 극단적 조건에서도 같은 규칙이 성립할까요? 그 이유는?",
-    3: "다음 실험에서 바꿔보고 싶은 조건이 있다면 무엇인가요?",
-};
+// QUESTION_TEXT is owned by ui.js (createAnalysisPanel closure) and exposed
+// via window.PchemTutor.QUESTION_TEXT. Access with optional chaining since
+// ai-tutor.js may run before ui.js populates the surface.
 
 // === HTML safety + minimal markdown ===
 function escapeHtml(text) {
@@ -100,7 +98,7 @@ function renderConversation(questionId) {
                 `<strong>Q${questionId}</strong>에 대한 생각을 아래 입력창에 작성하세요.<br>` +
                 'AI 튜터가 함께 깊이 있게 탐구합니다.' +
                 '</div>' +
-                `<div class="question-full">${QUESTION_TEXT[questionId] || ""}</div>`;
+                `<div class="question-full">${window.PchemTutor?.QUESTION_TEXT?.[questionId] || ""}</div>`;
         }
         return;
     }
@@ -205,6 +203,16 @@ function resetAllConversations() {
         };
     });
     renderConversation(activeQuestion);
+}
+
+function resetQuestion(qid) {
+    aiConversations[qid] = {
+        messages: [], tokensIn: 0, tokensOut: 0, contextSnapshot: null,
+    };
+    if (String(activeQuestion) === String(qid)) {
+        renderConversation(qid);
+        updateInputAvailability();
+    }
 }
 
 // === Typing indicator ===
@@ -365,7 +373,7 @@ function switchToQuestion(questionId) {
         contextEl.classList.add("context-free");
     } else {
         if (contextLabel) contextLabel.textContent = "현재 대화 주제:";
-        snippetEl.textContent = QUESTION_TEXT[questionId] || "";
+        snippetEl.textContent = window.PchemTutor?.QUESTION_TEXT?.[questionId] || "";
         contextEl.classList.remove("context-free");
     }
 
@@ -400,6 +408,18 @@ document.addEventListener("DOMContentLoaded", () => {
                 return;
             }
             switchToQuestion(q);
+        });
+    });
+
+    // 탭별 초기화 버튼 (탭 전환 이벤트 차단)
+    document.querySelectorAll(".ai-sidebar .tab-reset").forEach(btn => {
+        btn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            const qid = btn.dataset.resetQ;
+            if (!qid) return;
+            const label = qid === "free" ? "자유" : `Q${qid}`;
+            if (!confirm(`${label} 탭의 대화를 초기화하시겠습니까?\n(누적 비용 표시는 유지됩니다)`)) return;
+            resetQuestion(qid);
         });
     });
 

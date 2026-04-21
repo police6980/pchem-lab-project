@@ -237,6 +237,29 @@ body {
     color: #a00;
 }
 
+/* === Sidebar: tab reset button === */
+.ai-sidebar .tab-reset {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: 5px;
+    padding: 1px 3px;
+    border-radius: 3px;
+    font-size: 0.8em;
+    opacity: 0;
+    transition: opacity 0.15s, background 0.15s;
+    vertical-align: middle;
+    line-height: 1;
+}
+.ai-sidebar .tab-btn:hover .tab-reset,
+.ai-sidebar .tab-btn.active .tab-reset {
+    opacity: 0.5;
+}
+.ai-sidebar .tab-reset:hover {
+    opacity: 1 !important;
+    background: rgba(0, 0, 0, 0.1);
+}
+
 /* === Sidebar: cost warning banner === */
 .cost-warning-banner {
     display: flex;
