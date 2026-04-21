@@ -122,86 +122,103 @@
 
 ## CSV 로그 포맷
 
-실험 종료 시 CSV 파일로 저장, 학생/교사가 분석 가능.
+세션 데이터를 두 종류 CSV로 분리해 저장한다.
 
-### 파일명 규칙
+| 파일 | 내용 | 헤더 언어 |
+|---|---|---|
+| **측정점 로그** | 학생이 `[기록]` 버튼으로 남긴 (P, V) 쌍 | 한글 (학생 분석 친화) |
+| **연속 세션 로그** | 250 ms 간격 시뮬레이션 내부 상태 | 영문 snake_case (기계 처리 친화) |
+
+### 공통 규칙
+
+- 문자 인코딩: UTF-8, 파일 맨 앞에 BOM `﻿` 삽입 (엑셀 한글 헤더 정상 표시)
+- 구분자: 쉼표
+- 줄바꿈: `\n`
+- 인용 부호 없음 (현재 필드에 쉼표 포함 없음)
+
+### 파일명
 
 ```
-<experiment>_<YYYYMMDD>_<HHMMSS>_<student-id-optional>.csv
+boyle_measurements_<YYYY-MM-DD>_<HH-MM-SS>.csv
+boyle_continuous_<YYYY-MM-DD>_<HH-MM-SS>.csv
 ```
 
-예: `boyle_20260501_143025.csv`, `charles_20260501_145533_studentA.csv`
+타임스탬프는 다운로드 버튼 클릭 시각의 로컬 시간. 같은 세션에서 나온 두 파일은 측정점 로그의 `세션시작시각_iso` 열로 식별.
 
-### 보일 법칙 CSV
+### 세션 시작 시점
 
-```csv
-timestamp_ms,sensor_pressure_kPa,volume_mL,ideal_prediction_kPa,deviation_kPa,event
-0,101.3,50.0,101.3,0.0,start
-200,101.4,50.0,101.3,0.1,
-400,101.3,50.0,101.3,0.0,
-600,105.2,48.0,105.5,-0.3,volume_changed
-...
-12500,253.1,20.0,253.25,-0.15,volume_changed
-13000,253.0,20.0,253.25,-0.25,
-...
-30000,,,,,end
+- `sessionStartMs` 초기값 `null`
+- 다음 중 **먼저 발생**하는 이벤트에서 `Date.now()`로 세팅:
+  - 압력 슬라이더 조작 (향후 실센서 첫 측정값 수신)
+  - `[기록]` 버튼 클릭
+- `[전체 삭제]`에서 `null`로 리셋 → 다음 상호작용에서 새 세션 시작
+- 세션 시작 전에는 연속 로그 버퍼에 아무것도 쌓이지 않음
+
+### 측정점 로그 — 헤더와 필드
+
+```
+번호,압력_kPa,부피_mL,P·V,기록시각_ms,세션시작시각_iso
 ```
 
-**필드 설명**:
-- `timestamp_ms`: 실험 시작 이후 경과 시간
-- `sensor_pressure_kPa`: 센서 측정 절대압 (대기압 보정 후)
-- `volume_mL`: 학생이 입력한 현재 부피
-- `ideal_prediction_kPa`: 이상기체 법칙 예측값
-- `deviation_kPa`: 센서값 - 예측값
-- `event`: 특정 이벤트 표시 (start, volume_changed, end 등)
+- `번호`: 고유 id (표의 `#` 열과 일치). 삭제 후에도 번호 재배정 없음.
+- `압력_kPa`: 기록 시점 직전 1 초의 `smoothedP` 이동평균
+- `부피_mL`: 기록 시점 직전 1 초의 `box.width` 이동평균 → `pixelsToML` 환산. 단, 학생이 V 입력 필드를 편집했으면 학생 값 그대로.
+- `P·V`: 압력 × 부피
+- `기록시각_ms`: `Date.now() - sessionStartMs`
+- `세션시작시각_iso`: ISO 8601. 모든 행 동일 (세션 식별자).
 
-### 샤를 법칙 CSV
-
-```csv
-timestamp_ms,sensor_temperature_celsius,sensor_temperature_K,simulation_volume_mL,target_volume_mL,charles_prediction_mL,event
-0,22.3,295.45,60.0,60.0,60.0,start
-1000,22.3,295.45,60.0,60.0,60.0,
-5000,35.6,308.75,60.5,62.7,62.7,placed_in_warm_water
-10000,48.2,321.35,62.8,65.3,65.3,
-20000,58.4,331.55,65.5,67.3,67.3,
-30000,58.7,331.85,67.2,67.4,67.4,equilibrium_near
-...
+예시:
+```
+번호,압력_kPa,부피_mL,P·V,기록시각_ms,세션시작시각_iso
+1,101.3,50.0,5065.0,12500,2026-04-21T06:30:15.123Z
+2,130.5,38.8,5063.4,34200,2026-04-21T06:30:15.123Z
 ```
 
-### 공통 이벤트 로그 (별도 파일)
+### 연속 세션 로그 — 헤더와 필드
 
-`events_<timestamp>.csv`:
-```csv
-timestamp_ms,event_type,description
-0,experiment_start,"Boyle experiment started"
-500,initial_condition_set,"V0=50mL, P0=101.3kPa, T0=295.45K"
-3200,student_input,"Volume changed to 40mL"
-8500,ai_tutor_question,"Why does pressure increase?"
-8600,ai_tutor_response,"Think about particle collisions..."
+```
+timestamp_ms,P_kPa,V_mL,box_width_px,mean_speed_px_per_s,piston_collisions_per_s,stabilized
 ```
 
-### 대화 로그 (LLM 상호작용)
+- `timestamp_ms`: 세션 시작부터 경과 ms
+- `P_kPa`: 샘플링 시점의 `smoothedP` (실시간)
+- `V_mL`: `pixelsToML(box.width)`
+- `box_width_px`: `box.width` 원값
+- `mean_speed_px_per_s`: 실제 입자 RMS 속력 (`system.getAverageSpeed()`)
+- `piston_collisions_per_s`: 직전 250 ms의 피스톤 충돌 빈도 (초당 환산)
+- `stabilized`: 해당 시점의 안정화 플래그 (`true`/`false`). 슬라이더 조작 중 `false`, 1 초 안정 후 `true`.
 
-`chat_<timestamp>.json`:
-```json
-[
-  {
-    "timestamp_ms": 8500,
-    "role": "context",
-    "content": "<시뮬레이션 상태 JSON>"
-  },
-  {
-    "timestamp_ms": 8600,
-    "role": "student",
-    "content": "왜 압력이 갑자기 높아지죠?"
-  },
-  {
-    "timestamp_ms": 9100,
-    "role": "tutor",
-    "content": "부피가 줄어들었는데 입자 수는 그대로죠. 지금 화면에서 입자가 벽에 부딪히는 빈도를 한번 관찰해볼까요?"
-  }
-]
+예시:
 ```
+timestamp_ms,P_kPa,V_mL,box_width_px,mean_speed_px_per_s,piston_collisions_per_s,stabilized
+250,101.30,50.00,600.0,172.1,85.0,true
+500,101.30,50.00,600.0,171.9,84.5,true
+12750,125.34,40.12,481.4,172.3,110.8,false
+13000,127.00,39.85,478.2,172.1,112.3,true
+```
+
+### 연속 로그 버퍼 관리
+
+- 메모리 내 배열. 상한 **10 000 행** (≈ 42 분 상당).
+- 초과 시 가장 오래된 행부터 `shift`, 콘솔에 1회 경고.
+- 경고 플래그는 `[전체 삭제]`에서 함께 리셋.
+
+### 샤를·산염기 CSV (v1.1 이후)
+
+샤를 법칙과 산염기 실험도 동일한 두-파일 스킴을 따른다. 각 실험 구현 시 이 문서에 해당 실험의 측정점/연속 로그 헤더를 추가한다.
+
+설계 의도 (잠정):
+- **샤를 측정점 로그**: `번호, 온도_K, 부피_mL, V/T, 기록시각_ms, 세션시작시각_iso`
+- **샤를 연속 세션 로그**: `timestamp_ms, T_K, V_mL, box_width_px, mean_speed_px_per_s, wall_collisions_per_s, stabilized`
+- **산염기 측정점 로그**: `번호, pH, 부피_mL, 기록시각_ms, 세션시작시각_iso` (또는 pKa 관련 파생값 추가)
+
+### 이벤트 로그 / LLM 대화 로그 (v2)
+
+LLM 튜터 도입 시:
+- `events_<YYYY-MM-DD>_<HH-MM-SS>.csv`: 단계 전환, 튜터 개입, 학생 입력 등 이벤트
+- `chat_<YYYY-MM-DD>_<HH-MM-SS>.json`: LLM 턴별 대화 내역
+
+v2 설계 시 상세 정의.
 
 ---
 
