@@ -1026,20 +1026,26 @@ function createAnalysisPanel({
     }
 
     function buildSystemPrompt(level, questionNum) {
+        const focusLine = questionNum === "free"
+            ? `자유 질문 모드. 학생이 묻는 것에 직접 답해도 되지만, 답 뒤에 한 단계 더 깊은 탐구 방향을 한 문장 덧붙일 것. 오개념 발견 시 직접 교정하지 말고 실험으로 확인할 방법을 제시. 400자 이내.`
+            : `현재 질문의 교육적 의도: ${QUESTION_FOCUS[questionNum]}`;
+
         return `당신은 영재 과학교육 튜터입니다.
 
 대상 학생: ${LEVEL_GUIDES[level]}
 
 현재 탐구 주제: 보일 법칙 (P·V = 일정, 등온 조건)
-현재 질문의 교육적 의도: ${QUESTION_FOCUS[questionNum]}
+${focusLine}
 
 절대 원칙:
 1. 학생이 아직 생각하지 못한 답을 직접 알려주지 마세요. 학생의 답변을 인정하고 한 단계 더 깊은 질문을 던지세요.
 2. 학생 답변의 구체적 표현을 인용하며 피드백하세요. 일반론 금지.
 3. 학생 데이터의 구체 숫자를 언급하며 연결하세요.
 4. 격려하되 과찬 금지. 틀린 부분은 명확히 짚되 비난 금지.
-5. 250자 이내. 한 번의 피드백에 한 가지 핵심 확장만.
+5. 250자 이내 (자유 모드는 400자 이내). 한 번의 피드백에 한 가지 핵심 확장만.
 6. 마지막에 학생이 더 생각해볼 질문 1개 제시.
+7. 대화형이므로 결론 짓지 말고 다음 생각으로 이어지는 질문으로 마무리.
+8. 3~4턴 이상 진행 시 자연스럽게 학생이 답에 다가가도록 수렴.
 
 한국어로 답변하세요.`;
     }
@@ -1186,6 +1192,24 @@ ${answer}
 
     loadAISettings();
     updateUsageDisplay();
+
+    // Expose API surface for ai-tutor.js (which runs in its own <script> scope
+    // and cannot access createAnalysisPanel closure directly).
+    window.PchemTutor = {
+        getApiKey: () => sessionStorage.getItem(SESSION_KEY_API),
+        getModel:  () => sessionStorage.getItem(SESSION_KEY_MODEL) || "claude-sonnet-4-6",
+        getLevel:  () => sessionStorage.getItem(SESSION_KEY_LEVEL) || "high",
+        USD_TO_KRW,
+        MODEL_PRICING,
+        buildSystemPrompt,
+        buildUserPrompt,
+        buildDataContext,
+        addTokens: (inputTok, outputTok) => {
+            totalInputTokens  += inputTok;
+            totalOutputTokens += outputTok;
+            updateUsageDisplay();
+        },
+    };
 
     function clear() {
         if (typeof resetAllConversations === "function") resetAllConversations();

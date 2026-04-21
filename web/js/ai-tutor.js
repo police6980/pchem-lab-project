@@ -1,13 +1,51 @@
 // AI tutor conversation state and message rendering.
-// Part 3.5: reflection textareas removed; tabs gated by datapoint count (>=3).
-// Real Anthropic API integration lands in Part 4.
+// Part 4 (step 1): Anthropic API caller added; dummy responses still active
+// (replacement in next step).
+
+// === Anthropic Messages API ===
+// Accesses ui.js via window.PchemTutor surface (exposed inside
+// createAnalysisPanel closure after loadAISettings/updateUsageDisplay).
+async function callAnthropicAPI(messages, systemPrompt) {
+    const apiKey = window.PchemTutor.getApiKey();
+    const model  = window.PchemTutor.getModel();
+    if (!apiKey) throw { type: "no_key" };
+
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+            "content-type": "application/json",
+            "x-api-key": apiKey,
+            "anthropic-version": "2023-06-01",
+            "anthropic-dangerous-direct-browser-access": "true",
+        },
+        body: JSON.stringify({
+            model,
+            max_tokens: 1024,
+            system: systemPrompt,
+            messages,
+        }),
+    });
+
+    if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw { type: "api_error", status: res.status, err };
+    }
+
+    const data = await res.json();
+    return {
+        content: data.content[0].text,
+        inputTokens:  data.usage.input_tokens,
+        outputTokens: data.usage.output_tokens,
+        model,
+    };
+}
 
 // === State ===
 const aiConversations = {
-    1: { messages: [], tokensIn: 0, tokensOut: 0 },
-    2: { messages: [], tokensIn: 0, tokensOut: 0 },
-    3: { messages: [], tokensIn: 0, tokensOut: 0 },
-    free: { messages: [], tokensIn: 0, tokensOut: 0 },
+    1:    { messages: [], tokensIn: 0, tokensOut: 0, contextSnapshot: null },
+    2:    { messages: [], tokensIn: 0, tokensOut: 0, contextSnapshot: null },
+    3:    { messages: [], tokensIn: 0, tokensOut: 0, contextSnapshot: null },
+    free: { messages: [], tokensIn: 0, tokensOut: 0, contextSnapshot: null },
 };
 
 let activeQuestion = "free";
