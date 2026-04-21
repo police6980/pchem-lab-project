@@ -169,16 +169,41 @@ function createRenderer(box, particleSystem, params, updateFn) {
 
             p.background(0, 0, 98);
 
-            p.noFill();
+            const boxLeft = box.x;
+            const boxRight = box.x + box.width;
+            const boxTop = box.y;
+            const boxBottom = box.y + box.height;
+            const midY = (boxTop + boxBottom) / 2;
+
+            const HATCH_W = 18;
+            const HATCH_STEP = 10;
+            p.stroke(0, 0, 55);
+            p.strokeWeight(1);
+            for (let y = boxTop + 4; y < boxBottom - HATCH_W + 4; y += HATCH_STEP) {
+                p.line(boxLeft, y, boxLeft - HATCH_W, y + HATCH_W);
+            }
+
             p.stroke(0, 0, 31);
             p.strokeWeight(1);
-            p.rect(box.x, box.y, box.width, box.height);
+            p.line(boxLeft, boxTop, boxRight, boxTop);
+            p.line(boxLeft, boxBottom, boxRight, boxBottom);
 
-            p.strokeWeight(3);
-            p.line(
-                box.x + box.width, box.y,
-                box.x + box.width, box.y + box.height
-            );
+            p.strokeWeight(4);
+            p.line(boxLeft, boxTop, boxLeft, boxBottom);
+
+            p.noStroke();
+            p.fill(0, 0, 48);
+            p.rect(boxRight, boxTop, 12, boxBottom - boxTop);
+
+            p.fill(0, 0, 62);
+            const rodLen = 70;
+            const rodH = 14;
+            p.rect(boxRight + 12, midY - rodH / 2, rodLen, rodH);
+
+            p.fill(0, 0, 42);
+            const handleW = 6;
+            const handleH = 32;
+            p.rect(boxRight + 12 + rodLen, midY - handleH / 2, handleW, handleH);
 
             p.noStroke();
             const particles = particleSystem.getParticles();

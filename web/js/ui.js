@@ -11,8 +11,8 @@ function createDevPressureSlider(onChange) {
     const input = document.createElement("input");
     input.type = "range";
     input.id = "dev-pressure-range";
-    input.min = "60";
-    input.max = "180";
+    input.min = "70";
+    input.max = "230";
     input.step = "0.1";
     input.value = "101.3";
 

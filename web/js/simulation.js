@@ -1,9 +1,9 @@
 // Particle system, box geometry, physics update loop
 
-const BOX_INITIAL_X = 250;
+const BOX_INITIAL_X = 120;
 const BOX_INITIAL_Y = 50;
-const BOX_INITIAL_WIDTH = 500;
-const BOX_INITIAL_HEIGHT = 350;
+const BOX_INITIAL_WIDTH = 600;
+const BOX_INITIAL_HEIGHT = 250;
 const DEFAULT_SPEED_SCALE = 120;
 const DT_CAP = 0.05;
 // Tuned with particle_count=300 so steady-state overlap stays under ~15 pairs/frame.
@@ -105,15 +105,10 @@ class Box {
         this.width = width;
         this.height = height;
         this.targetWidth = width;
-        // Lock in the horizontal center from the initial placement. Keeps
-        // the box centered on screen as it expands/shrinks — piston-like
-        // motion on both sides rather than one anchored edge.
-        this._centerX = x + width / 2;
     }
 
     update(dt, volumeTauSec) {
         this.width += (this.targetWidth - this.width) * (dt / volumeTauSec);
-        this.x = this._centerX - this.width / 2;
     }
 
     getPistonLength() {
@@ -130,8 +125,8 @@ class Box {
         // Layout guard: keep the box clear of the histogram panel on the right
         // and avoid degenerate narrowness on the left. Realistic slider range
         // (60-180 kPa) rarely hits these caps; extreme pulls still saturate.
-        const MIN_WIDTH = 150;
-        const MAX_WIDTH = 750;
+        const MIN_WIDTH = 200;
+        const MAX_WIDTH = 760;
         targetWidth = Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, targetWidth));
         this.targetWidth = targetWidth;
     }
