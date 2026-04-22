@@ -5,9 +5,40 @@ body {
     padding: 16px;
     background: #f5f5f5;
     font-family: system-ui, sans-serif;
+}
+
+#basic-mode {
     display: flex;
     gap: 16px;
     align-items: flex-start;
+}
+
+#mode-tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+#mode-tabs .tab-btn {
+    padding: 10px 20px;
+    font-size: 15px;
+    font-family: system-ui, sans-serif;
+    background: #f5f5f5;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    cursor: pointer;
+    color: #555;
+    font-weight: 500;
+}
+
+#mode-tabs .tab-btn:hover {
+    background: #eaeaea;
+}
+
+#mode-tabs .tab-btn.active {
+    background: #e8f0ff;
+    border-color: #6090d0;
+    color: #2050c0;
 }
 
 #main-container {
@@ -1231,8 +1262,92 @@ body.sidebar-collapsed #ai-sidebar {
     visibility: visible;
 }
 
+#particle-count-control {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-family: system-ui, sans-serif;
+    font-size: 14px;
+    color: #333;
+    flex: 1;
+}
+
+#particle-count-control .pcount-label {
+    color: #666;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+#particle-count-control input[type="range"] {
+    flex: 0 0 240px;
+    accent-color: #6090d0;
+    cursor: pointer;
+}
+
+#particle-count-control .pcount-display {
+    font-size: 13px;
+    color: #666;
+}
+
+#particle-count-control .pcount-display strong {
+    font-family: ui-monospace, "SF Mono", Consolas, monospace;
+    color: #222;
+    font-weight: 500;
+}
+
+#advanced-mode {
+    padding: 16px 20px;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    font-family: system-ui, sans-serif;
+    color: #333;
+}
+
+#advanced-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+#advanced-controls .control-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    font-size: 14px;
+}
+
+#advanced-controls .control-row label {
+    color: #666;
+    font-weight: 500;
+    min-width: 120px;
+}
+
+#advanced-controls input[type="range"] {
+    flex: 0 0 320px;
+    accent-color: #6090d0;
+    cursor: pointer;
+}
+
+#advanced-controls #adv-volume-display,
+#advanced-controls #adv-pressure-display {
+    font-family: ui-monospace, "SF Mono", Consolas, monospace;
+    color: #222;
+    min-width: 90px;
+}
+
+#advanced-canvas-container {
+    display: inline-block;
+    background: #fafafa;
+    border: 1px solid #d0d0d0;
+    border-radius: 6px;
+    padding: 4px;
+    line-height: 0;
+}
+
 .hidden {
-    display: none;
+    display: none !important;
 }
 
 /* === Sensor panel === */

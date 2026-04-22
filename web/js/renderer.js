@@ -313,7 +313,7 @@ function createRenderer(box, particleSystem, params, updateFn) {
         };
     };
 
-    new p5(simSketch, document.getElementById("section-canvas"));
+    const simP5 = new p5(simSketch, document.getElementById("section-canvas"));
 
     // Inject histogram toggle bar BEFORE appending p5 canvas so toggles sit on top.
     const histArea = document.getElementById("histogram-area");
@@ -332,13 +332,21 @@ function createRenderer(box, particleSystem, params, updateFn) {
         showMBCurve = e.target.checked;
     });
 
-    new p5(histSketch, histArea);
+    const histP5 = new p5(histSketch, histArea);
 
     return {
         snapshotHistogramForGhost: () => {
             if (smoothedBins) {
                 previousTempBins = smoothedBins.map(b => ({ ...b }));
             }
+        },
+        pause: () => {
+            simP5.noLoop();
+            histP5.noLoop();
+        },
+        resume: () => {
+            simP5.loop();
+            histP5.loop();
         },
     };
 }

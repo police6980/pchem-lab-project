@@ -1,5 +1,82 @@
 // Entry point - boot and overall orchestration
 
+// Advanced mode lives on its own canvas with its own Box/ParticleSystem.
+// Pixel scale is independent of basic mode — there's no shared cylinder,
+// so width = V_mL × ADV_PX_PER_ML with no reference to baseline_gas_width_px.
+const ADV_CANVAS_W = 720;
+const ADV_CANVAS_H = 260;
+const ADV_BOX_X = 30;
+const ADV_BOX_Y = 30;
+const ADV_BOX_H = 200;
+const ADV_PX_PER_ML = 8;
+const ADV_V0_ML = 50;
+
+function initAdvancedMode(params) {
+    const P0 = params.initial_pressure_kPa;
+    let currentV_mL = ADV_V0_ML;
+
+    const box = new Box(ADV_BOX_X, ADV_BOX_Y, ADV_V0_ML * ADV_PX_PER_ML, ADV_BOX_H);
+    const system = new ParticleSystem(params.particle_count, box, DEFAULT_SPEED_SCALE, 0);
+
+    const slider = document.getElementById("adv-volume-slider");
+    const volDisplay = document.getElementById("adv-volume-display");
+    const pressDisplay = document.getElementById("adv-pressure-display");
+
+    function applyVolume(V_mL) {
+        currentV_mL = V_mL;
+        box.targetWidth = V_mL * ADV_PX_PER_ML;
+        const P = P0 * ADV_V0_ML / V_mL;
+        volDisplay.textContent = `${V_mL.toFixed(0)} mL`;
+        pressDisplay.textContent = `${P.toFixed(1)} kPa`;
+    }
+
+    slider.addEventListener("input", () => applyVolume(parseFloat(slider.value)));
+    applyVolume(ADV_V0_ML);
+
+    const sketch = (p) => {
+        let lastFrameMs = 0;
+        const vMaxColor = system.getInitialAverageSpeed() * params.v_max_color_factor;
+
+        p.setup = () => {
+            p.createCanvas(ADV_CANVAS_W, ADV_CANVAS_H);
+            p.colorMode(p.HSB, 360, 100, 100, 255);
+            lastFrameMs = performance.now();
+        };
+
+        p.draw = () => {
+            const now = performance.now();
+            const dt = Math.min((now - lastFrameMs) / 1000, 0.05);
+            lastFrameMs = now;
+
+            box.update(dt, params.volume_tau_seconds);
+            system.update(dt);
+            system.clampParticlesIntoBox();
+
+            p.background(0, 0, 98);
+            p.noFill();
+            p.stroke(0, 0, 30);
+            p.strokeWeight(2);
+            p.rect(box.x, box.y, box.width, box.height);
+
+            p.noStroke();
+            for (const particle of system.getParticles()) {
+                const speed = Math.sqrt(particle.vx * particle.vx + particle.vy * particle.vy);
+                const ratio = Math.min(speed / vMaxColor, 1.0);
+                const hue = 240 - 240 * ratio;
+                p.fill(hue, 40 + 60 * ratio, 70 + 30 * ratio);
+                p.circle(particle.x, particle.y, particle.radius * 2);
+            }
+        };
+    };
+
+    const advP5 = new p5(sketch, document.getElementById("advanced-canvas-container"));
+
+    return {
+        pause: () => advP5.noLoop(),
+        resume: () => advP5.loop(),
+    };
+}
+
 const REFERENCE_TEMP_K = 298.15;
 const REFERENCE_V_ML = 50;
 const REFERENCE_P_KPA = 101.3;
@@ -93,6 +170,23 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     });
 
+    let advancedApi = null;
+    initModeTabs({
+        onSwitch: (mode) => {
+            if (mode === "basic") {
+                if (advancedApi) advancedApi.pause();
+                renderer.resume();
+            } else {
+                renderer.pause();
+                if (!advancedApi) {
+                    advancedApi = initAdvancedMode(params);
+                } else {
+                    advancedApi.resume();
+                }
+            }
+        },
+    });
+
     createInfoPanel();
     lastDisplayAvgSpeed = system.getAverageSpeed();
     updateInfoPanel({
@@ -182,6 +276,25 @@ document.addEventListener("DOMContentLoaded", async () => {
         getCurrentTempCelsius: () => currentTempCelsius,
         getCurrentTempKelvin: currentTempKelvin,
         getSessionStart: () => sessionStartMs,
+    });
+
+    createParticleCountControl({
+        initialCount: params.particle_count,
+        onChange: (n, ghostN) => {
+            // Snap any in-flight temp transition so scaleVelocities state is
+            // flat before we throw away the particles it was scaling.
+            if (transitionStartTime !== null) {
+                const frameRatio = targetSpeedRatio / lastAppliedRatio;
+                system.scaleVelocities(frameRatio);
+                transitionStartTime = null;
+            }
+            targetSpeedRatio = 1;
+            currentSpeedRatio = 1;
+            lastAppliedRatio = 1;
+
+            const speedScale = DEFAULT_SPEED_SCALE * Math.sqrt(currentTempKelvin() / REFERENCE_TEMP_K);
+            system.setParticleCount(n, ghostN, speedScale);
+        },
     });
 
     createTemperatureControl({

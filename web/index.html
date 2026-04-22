@@ -16,6 +16,11 @@
     <script src="js/main.js" defer></script>
 </head>
 <body>
+    <div id="mode-tabs">
+        <button id="tab-basic" class="tab-btn active">🔬 기본 실험</button>
+        <button id="tab-advanced" class="tab-btn">⚗️ 심화 탐구</button>
+    </div>
+    <div id="basic-mode">
     <main id="main-container" class="main-area">
         <section id="section-controls">
             <div id="sensor-panel">
@@ -33,6 +38,7 @@
                 <div id="serial-error" class="sensor-error"></div>
             </div>
             <div class="control-row control-row-temperature"></div>
+            <div class="control-row control-row-particle-count"></div>
             <div class="control-row control-row-actuators"></div>
         </section>
         <section id="section-canvas"></section>
@@ -146,5 +152,20 @@
         </div>
     </aside>
     <button id="ai-reopen-btn" title="AI 튜터 열기">💬</button>
+    </div>
+    <div id="advanced-mode" class="hidden">
+        <div id="advanced-controls">
+            <div class="control-row">
+                <label for="adv-volume-slider">부피 조절</label>
+                <input type="range" id="adv-volume-slider" min="20" max="80" step="1" value="50">
+                <span id="adv-volume-display">50 mL</span>
+            </div>
+            <div class="control-row">
+                <label>압력 (자동 계산)</label>
+                <span id="adv-pressure-display">101.3 kPa</span>
+            </div>
+        </div>
+        <div id="advanced-canvas-container"></div>
+    </div>
 </body>
 </html>

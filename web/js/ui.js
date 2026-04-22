@@ -822,6 +822,49 @@ function createTemperatureControl({
     refreshCurrentDisplay();
 }
 
+function initModeTabs({ onSwitch }) {
+    const tabBasic = document.getElementById("tab-basic");
+    const tabAdvanced = document.getElementById("tab-advanced");
+    const basicPane = document.getElementById("basic-mode");
+    const advancedPane = document.getElementById("advanced-mode");
+
+    function activate(mode) {
+        const isBasic = mode === "basic";
+        tabBasic.classList.toggle("active", isBasic);
+        tabAdvanced.classList.toggle("active", !isBasic);
+        basicPane.classList.toggle("hidden", !isBasic);
+        advancedPane.classList.toggle("hidden", isBasic);
+        onSwitch(mode);
+    }
+
+    tabBasic.addEventListener("click", () => activate("basic"));
+    tabAdvanced.addEventListener("click", () => activate("advanced"));
+}
+
+function createParticleCountControl({ initialCount, onChange }) {
+    const GHOST_RATIO = 9;
+    const container = document.createElement("div");
+    container.id = "particle-count-control";
+    container.innerHTML = `
+        <span class="pcount-label">입자 수:</span>
+        <input type="range" id="pcount-slider" min="50" max="600" step="50" value="${initialCount}">
+        <span class="pcount-display"><strong id="pcount-real">${initialCount}</strong>개 (유령: <strong id="pcount-ghost">${initialCount * GHOST_RATIO}</strong>개)</span>
+    `;
+    document.querySelector(".control-row-particle-count").appendChild(container);
+
+    const slider = document.getElementById("pcount-slider");
+    const realEl = document.getElementById("pcount-real");
+    const ghostEl = document.getElementById("pcount-ghost");
+
+    slider.addEventListener("input", () => {
+        const n = parseInt(slider.value, 10);
+        const ghostN = n * GHOST_RATIO;
+        realEl.textContent = n;
+        ghostEl.textContent = ghostN;
+        onChange(n, ghostN);
+    });
+}
+
 function createAnalysisPanel({
     getDatapoints,
     getCurrentTempCelsius,
