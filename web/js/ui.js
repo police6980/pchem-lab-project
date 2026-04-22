@@ -200,7 +200,7 @@ function createMeasurementPanel({
     vInput.addEventListener("input", () => { studentEdited = true; });
 
     // === Stabilization detection ===
-    const STABILIZATION_WINDOW = 120;         // 50ms × 120 = 6s
+    const STABILIZATION_WINDOW = 200;         // 50ms × 200 = 10s
     const STABILIZATION_THRESHOLD = 0.005;    // 0.5%
     const pHistory = [];
     const widthHistory = [];
