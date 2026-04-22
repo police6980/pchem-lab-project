@@ -661,9 +661,27 @@ ${convText}
     }));
     docChildren.push(new Paragraph(""));
 
+    // 1. AI report body (## headings parsed) — moved to the top so the
+    //    narrative leads and supporting data follows.
+    for (const line of reportText.split("\n")) {
+        if (line.startsWith("## ")) {
+            docChildren.push(new Paragraph({
+                text: line.replace(/^##\s*/, ""),
+                heading: HeadingLevel.HEADING_2,
+            }));
+        } else if (line.trim()) {
+            docChildren.push(new Paragraph({
+                children: [new TextRun({ text: line })],
+            }));
+        } else {
+            docChildren.push(new Paragraph(""));
+        }
+    }
+
+    // 2. 실험 결과 (measurement table)
     if (datapoints.length > 0) {
         docChildren.push(new Paragraph({
-            text: "측정 결과",
+            text: "실험 결과",
             heading: HeadingLevel.HEADING_2,
         }));
         const headers = ["#", "P (kPa)", "V (mL)", "P·V", "v̄ (px/s)", "충돌/s"];
@@ -697,6 +715,7 @@ ${convText}
         docChildren.push(new Paragraph(""));
     }
 
+    // 3. 측정 그래프 (chart images — now 3 charts: PV scatter, v̄, 충돌/s)
     const svgEls = document.querySelectorAll(".chart-wrap svg");
     if (svgEls.length > 0) {
         docChildren.push(new Paragraph({
@@ -713,21 +732,6 @@ ${convText}
                 })],
                 alignment: AlignmentType.CENTER,
             }));
-            docChildren.push(new Paragraph(""));
-        }
-    }
-
-    for (const line of reportText.split("\n")) {
-        if (line.startsWith("## ")) {
-            docChildren.push(new Paragraph({
-                text: line.replace(/^##\s*/, ""),
-                heading: HeadingLevel.HEADING_2,
-            }));
-        } else if (line.trim()) {
-            docChildren.push(new Paragraph({
-                children: [new TextRun({ text: line })],
-            }));
-        } else {
             docChildren.push(new Paragraph(""));
         }
     }

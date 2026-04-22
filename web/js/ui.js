@@ -728,6 +728,9 @@ function createAnalysisPanel({
                 <div class="chart-wrap">
                     <div id="speed-chart" class="analysis-chart"></div>
                 </div>
+                <div class="chart-wrap">
+                    <div id="collision-chart" class="analysis-chart"></div>
+                </div>
             </div>
         </div>
         <div class="report-btn-wrap">
@@ -799,7 +802,7 @@ function createAnalysisPanel({
 
     // SVG chart helpers (inline, no external lib).
     // CHART_W/H are viewBox dimensions; SVG is width="100%" so it scales.
-    const CHART_W = 400, CHART_H = 200;
+    const CHART_W = 400, CHART_H = 180;
     const CHART_PAD = { top: 20, right: 20, bottom: 40, left: 55 };
 
     function renderPVScatterChart(data) {
@@ -922,6 +925,65 @@ function createAnalysisPanel({
         `;
     }
 
+    function renderCollisionChart(data) {
+        const container = document.getElementById("collision-chart");
+        if (!container) return;
+        const innerW = CHART_W - CHART_PAD.left - CHART_PAD.right;
+        const innerH = CHART_H - CHART_PAD.top - CHART_PAD.bottom;
+        const x0 = CHART_PAD.left, y0 = CHART_PAD.top;
+        const xEnd = x0 + innerW, yEnd = y0 + innerH;
+
+        const valid = data.filter(d => d.collisions !== null && d.collisions !== undefined);
+        if (valid.length < 2) {
+            container.innerHTML = `<svg viewBox="0 0 ${CHART_W} ${CHART_H}" width="100%" height="${CHART_H}"><text x="${CHART_W/2}" y="${CHART_H/2}" text-anchor="middle" fill="#888" font-size="11">측정점이 부족합니다</text></svg>`;
+            return;
+        }
+
+        const Ps = valid.map(d => d.P);
+        const Cs = valid.map(d => d.collisions);
+        const pMin = Math.min(...Ps) * 0.95;
+        const pMax = Math.max(...Ps) * 1.05;
+        // Theory: collisions ∝ P anchored at the first valid datapoint.
+        const p0 = valid[0].P, c0 = valid[0].collisions;
+        const ratio = c0 / p0;
+        const theoryAt = p => ratio * p;
+        const cMin = Math.min(...Cs, theoryAt(pMin)) * 0.9;
+        const cMax = Math.max(...Cs, theoryAt(pMax)) * 1.1;
+        const xScale = p => x0 + ((p - pMin) / (pMax - pMin || 1)) * innerW;
+        const yScale = c => yEnd - ((c - cMin) / (cMax - cMin || 1)) * innerH;
+
+        const theoryLine = `<line x1="${xScale(pMin).toFixed(1)}" y1="${yScale(theoryAt(pMin)).toFixed(1)}" x2="${xScale(pMax).toFixed(1)}" y2="${yScale(theoryAt(pMax)).toFixed(1)}" stroke="#aaa" stroke-dasharray="4,3" stroke-width="1.5"/>`;
+
+        const points = valid.map(d => {
+            const cx = xScale(d.P).toFixed(1), cy = yScale(d.collisions).toFixed(1);
+            return `<circle cx="${cx}" cy="${cy}" r="5" fill="#8e44ad" stroke="#fff" stroke-width="1"><title>P=${d.P.toFixed(1)}kPa, 충돌=${d.collisions}/s</title></circle>`;
+        }).join("");
+
+        const ticks = 5;
+        const xTicks = Array.from({ length: ticks + 1 }, (_, i) => {
+            const p = pMin + (pMax - pMin) * (i / ticks);
+            const x = xScale(p).toFixed(1);
+            return `<line x1="${x}" y1="${yEnd}" x2="${x}" y2="${yEnd + 4}" stroke="#666"/><text x="${x}" y="${yEnd + 16}" text-anchor="middle" fill="#555" font-size="10">${p.toFixed(0)}</text>`;
+        }).join("");
+        const yTicks = Array.from({ length: ticks + 1 }, (_, i) => {
+            const c = cMin + (cMax - cMin) * (i / ticks);
+            const y = yScale(c).toFixed(1);
+            return `<line x1="${x0 - 4}" y1="${y}" x2="${x0}" y2="${y}" stroke="#666"/><text x="${x0 - 8}" y="${(parseFloat(y) + 3).toFixed(1)}" text-anchor="end" fill="#555" font-size="10">${c.toFixed(0)}</text>`;
+        }).join("");
+
+        container.innerHTML = `
+            <svg viewBox="0 0 ${CHART_W} ${CHART_H}" width="100%" height="${CHART_H}">
+                <line x1="${x0}" y1="${y0}" x2="${x0}" y2="${yEnd}" stroke="#666"/>
+                <line x1="${x0}" y1="${yEnd}" x2="${xEnd}" y2="${yEnd}" stroke="#666"/>
+                ${xTicks}${yTicks}
+                <text x="${x0 + innerW / 2}" y="${CHART_H - 5}" text-anchor="middle" fill="#333" font-size="11">P (kPa)</text>
+                <text x="12" y="${y0 + innerH / 2}" text-anchor="middle" fill="#333" font-size="11" transform="rotate(-90 12 ${y0 + innerH / 2})">충돌/s</text>
+                ${theoryLine}${points}
+                <text x="${xEnd - 4}" y="${y0 + 10}" text-anchor="end" fill="#555" font-size="10">● 실측   — 이론 (충돌 ∝ P)</text>
+            </svg>
+        `;
+    }
+
     function refresh() {
         const data = getDatapoints();
         if (typeof updateTabAvailability === "function") {
@@ -959,6 +1021,7 @@ function createAnalysisPanel({
 
         renderPVScatterChart(data);
         renderSpeedChart(data);
+        renderCollisionChart(data);
     }
 
     // === AI tutor helpers ===
