@@ -148,6 +148,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (sessionStartMs === null) return;
 
         const hitsPerSec = continuousHitsAccumulator / (CONTINUOUS_SAMPLE_INTERVAL_MS / 1000);
+        lastDisplayHitsPerSec = hitsPerSec;
         continuousHitsAccumulator = 0;
 
         const row = {
