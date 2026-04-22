@@ -464,11 +464,11 @@ function initAdvancedMode(params) {
 
     // Main sim + single-particle tracker share the same ParticleSystem — the
     // tracker just renders differently (one highlighted particle + its trail).
-    // Canvases are half-width (500×200) so both fit side-by-side inside the
-    // advanced main container (which shares space with the AI sidebar).
-    const ADV_SIM_CANVAS_W = 500;
-    const ADV_SIM_CANVAS_H = 200;
-    const ADV_SIM_SCALE = ADV_SIM_CANVAS_W / SIM_CANVAS_WIDTH;  // 500/900 ≈ 0.556
+    // Both canvases use the basic-mode native resolution (900×360) so physics
+    // coordinates match exactly; CSS flex ratios (7:3) scale the rendered
+    // size at the browser level — main ends up larger, tracker smaller.
+    const ADV_SIM_CANVAS_W = SIM_CANVAS_WIDTH;    // 900
+    const ADV_SIM_CANVAS_H = SIM_CANVAS_HEIGHT;   // 360
     const ADV_TRAIL_LEN = 45;
 
     let hitsAccumulator = 0;
@@ -498,13 +498,10 @@ function initAdvancedMode(params) {
             advFlashes = advFlashes.filter(f => !f.isDead());
 
             p.background(0, 0, 98);
-            p.push();
-            p.scale(ADV_SIM_SCALE);
             drawCylinderShell(p);
             drawPiston(p, box.x + box.width);
             drawParticlesHSB(p, system.getParticles(), ADV_VMAX_COLOR);
             for (const f of advFlashes) f.draw(p);
-            p.pop();
         };
     };
 
@@ -534,9 +531,6 @@ function initAdvancedMode(params) {
             trail.push({ x: tracked.x, y: tracked.y });
             if (trail.length > ADV_TRAIL_LEN) trail.shift();
 
-            p.push();
-            p.scale(ADV_SIM_SCALE);
-
             // Cylinder + piston (same helpers, no flashes on this view).
             drawCylinderShell(p);
             drawPiston(p, box.x + box.width);
@@ -545,9 +539,11 @@ function initAdvancedMode(params) {
             drawParticlesHSB(p, particles.slice(1), ADV_VMAX_COLOR, 40);
 
             // Trail polyline — oldest segment transparent, newest fully visible.
+            // Bumped strokeWeight (world coords) so the trail stays visible when
+            // the tracker container is CSS-scaled down to ~30% of main.
             if (trail.length >= 2) {
                 p.noFill();
-                p.strokeWeight(2);
+                p.strokeWeight(4);
                 for (let i = 1; i < trail.length; i++) {
                     const t = i / (trail.length - 1);  // 0 at oldest → 1 at newest
                     p.stroke(0, 80, 95, 40 + 180 * t);  // red, fades in
@@ -555,12 +551,11 @@ function initAdvancedMode(params) {
                 }
             }
 
-            // Tracked particle — red, 2× radius.
+            // Tracked particle — red, bumped to radius×6 (world) so it remains
+            // visible after CSS shrinks the tracker canvas.
             p.noStroke();
             p.fill(0, 85, 95);
-            p.circle(tracked.x, tracked.y, tracked.radius * 4);
-
-            p.pop();
+            p.circle(tracked.x, tracked.y, tracked.radius * 6);
         };
     };
 

@@ -1949,21 +1949,33 @@ body.adv-sidebar-collapsed #adv-ai-reopen-btn {
 }
 
 /* Canvas row — main simulation on the left, single-particle tracker on
-   the right. Both canvases are 500×200 (scaled-down 900×360 via p5.scale)
-   so the pair fits the advanced main container alongside the AI sidebar. */
+   the right. Canvases are created at native 900×360; CSS scales them down
+   to fit the container via flex ratios (7 : 3). Main stays dominant; the
+   tracker is ~43% the width of main but keeps the same aspect ratio. */
 #adv-section-canvas {
     display: flex;
     gap: 20px;
-    justify-content: center;
-    align-items: center;
+    align-items: flex-start;
     padding: 10px 12px;
     background: white;
     border-radius: 8px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
-#adv-section-canvas > div {
+#adv-sim-canvas-container {
+    flex: 7;
+    min-width: 0;
     line-height: 0;
-    flex: 0 0 auto;
+}
+#adv-tracker-canvas-container {
+    flex: 3;
+    min-width: 0;
+    line-height: 0;
+}
+#adv-sim-canvas-container canvas,
+#adv-tracker-canvas-container canvas {
+    display: block;
+    width: 100%;
+    height: auto;
 }
 
 /* Pressure readout next to volume slider (row 2) */
