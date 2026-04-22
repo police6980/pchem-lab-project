@@ -1997,40 +1997,24 @@ body.adv-sidebar-collapsed #adv-ai-reopen-btn {
    the right. Canvases are created at native 900×360; CSS scales them down
    to fit the container via flex ratios (7 : 3). Main stays dominant; the
    tracker is ~43% the width of main but keeps the same aspect ratio. */
+/* Canvas row — matches the basic #section-canvas pattern exactly: flex
+   container with justify-content:center, no canvas size overrides. Each
+   canvas displays at its native p5 resolution (main 1000×360, tracker
+   400×144 with internal p.scale). */
 #adv-section-canvas {
     display: flex;
     justify-content: center;
     gap: 24px;
     align-items: flex-start;
-    padding: 12px;
+    padding: 10px;
     background: white;
     border-radius: 8px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
-/* flex-grow 11 : 9 = 5.5 : 4.5 — tracker is nearly the same size as main.
-   max-width caps on wide screens so the pair centres with symmetric padding
-   instead of stretching edge-to-edge. */
-#adv-sim-canvas-container {
-    flex: 11 1 0;
-    max-width: 680px;
-    min-width: 0;
-    line-height: 0;
-}
+#adv-sim-canvas-container,
 #adv-tracker-canvas-container {
-    flex: 9 1 0;
-    max-width: 560px;
-    min-width: 0;
+    flex: 0 0 auto;
     line-height: 0;
-}
-#adv-sim-canvas-container canvas,
-#adv-tracker-canvas-container canvas {
-    display: block;
-    width: 100% !important;
-    height: auto !important;
-    /* Explicit aspect-ratio keeps height proportional to the responsive
-       width even in browsers that don't derive aspect from the canvas's
-       intrinsic attributes when CSS width is set to a percentage. */
-    aspect-ratio: 1000 / 360;
 }
 
 /* Pressure readout next to volume slider (row 2) */

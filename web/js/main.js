@@ -462,36 +462,26 @@ function initAdvancedMode(params) {
         validateTempInput();
     });
 
-    // Main sim + single-particle tracker share the same ParticleSystem AND
-    // the same native canvas resolution (1000×360). CSS flex ratios make the
-    // tracker display narrower in the browser; the physics / box / particle
-    // coordinates stay identical so there's no risk of aspect-ratio drift or
-    // off-by-one scaling. `canvas.style()` enforces width:100% to override
-    // p5's default inline sizing.
-    const ADV_SIM_CANVAS_W = SIM_CANVAS_WIDTH;    // 1000
-    const ADV_SIM_CANVAS_H = SIM_CANVAS_HEIGHT;   // 360
+    // Main uses basic-mode native resolution (1000×360). Tracker uses a
+    // smaller native canvas and p.scale to shrink drawing — same pattern as
+    // basic renders, just with an extra scale factor. No canvas.style() or
+    // CSS width:100%/height:auto — those caused the rendering issues.
+    const ADV_TRACKER_CANVAS_W = 400;
+    const ADV_TRACKER_CANVAS_H = 144;                // preserves 1000:360 aspect
+    const ADV_TRACKER_SCALE = ADV_TRACKER_CANVAS_W / SIM_CANVAS_WIDTH;  // 0.4
     const ADV_TRAIL_LEN = 45;
 
     let hitsAccumulator = 0;
     let advFlashes = [];
 
+    // Main sim sketch — pattern mirrors basic renderer's simSketch exactly.
     const simSketch = (p) => {
         p.setup = () => {
-            const canvas = p.createCanvas(ADV_SIM_CANVAS_W, ADV_SIM_CANVAS_H);
-            canvas.parent("adv-sim-canvas-container");
-            // Override p5's inline width/height so the canvas honours the
-            // flex:7 container width instead of stretching to 1000 px.
-            canvas.style("width", "100%");
-            canvas.style("height", "auto");
+            p.createCanvas(SIM_CANVAS_WIDTH, SIM_CANVAS_HEIGHT);
             p.colorMode(p.HSB, 360, 100, 100, 255);
+            p.background(0, 0, 98);
         };
         p.draw = () => {
-            // Clear FIRST, before any physics or draws, so there's no chance
-            // the previous frame's pixels leak through (e.g. if the browser
-            // keeps the canvas buffer due to `preserveDrawingBuffer`).
-            p.clear();
-            p.background(0, 0, 98);
-
             const dt = Math.min((p.deltaTime || 0) / 1000, 0.05);
 
             box.update(dt, params.volume_tau_seconds);
@@ -508,6 +498,7 @@ function initAdvancedMode(params) {
             for (const f of advFlashes) f.update(dt);
             advFlashes = advFlashes.filter(f => !f.isDead());
 
+            p.background(0, 0, 98);
             drawCylinderShell(p);
             drawPiston(p, box.x + box.width);
             drawParticlesHSB(p, system.getParticles(), ADV_VMAX_COLOR);
@@ -515,27 +506,19 @@ function initAdvancedMode(params) {
         };
     };
 
-    // Tracker sketch — isolates particles[0]'s trajectory. Same native
-    // 1000×360 canvas as main, same world coords, no p.scale — just CSS
-    // down-sizes the displayed canvas via the narrower flex column. The
-    // trail resets when the system is rebuilt (object identity swap on
-    // particle-count change).
+    // Tracker sketch — smaller native canvas (400×144) + p.scale(0.4) so the
+    // cylinder still uses world coords (CYLINDER_* constants) but fits a
+    // compact panel. Same clean pattern as basic, plus one scale factor.
     const trackerSketch = (p) => {
         let trail = [];
         let lastTrackedRef = null;
 
         p.setup = () => {
-            const canvas = p.createCanvas(ADV_SIM_CANVAS_W, ADV_SIM_CANVAS_H);
-            canvas.parent("adv-tracker-canvas-container");
-            canvas.style("width", "100%");
-            canvas.style("height", "auto");
+            p.createCanvas(ADV_TRACKER_CANVAS_W, ADV_TRACKER_CANVAS_H);
             p.colorMode(p.HSB, 360, 100, 100, 255);
+            p.background(0, 0, 98);
         };
         p.draw = () => {
-            // Clear + paint background FIRST, every frame, unconditionally.
-            // Without this, the trail polyline (and prior faded particles)
-            // could linger when preserveDrawingBuffer is on.
-            p.clear();
             p.background(0, 0, 98);
 
             const particles = system.getParticles();
@@ -552,20 +535,21 @@ function initAdvancedMode(params) {
             trail.push({ x: tracked.x, y: tracked.y, speed: trackedSpeed });
             if (trail.length > ADV_TRAIL_LEN) trail.shift();
 
-            // Cylinder + piston (same helpers — no flashes on this view).
+            p.push();
+            p.scale(ADV_TRACKER_SCALE);
+
             drawCylinderShell(p);
             drawPiston(p, box.x + box.width);
-
-            // Faded background particles (skip index 0 — drawn highlighted below).
             drawParticlesHSB(p, particles.slice(1), ADV_VMAX_COLOR, 40);
 
             // Trail polyline — speed-based HSB colour, alpha fades from
-            // oldest (low) to newest (high).
+            // oldest (low) to newest (high). Thicker at world scale since
+            // p.scale shrinks it.
             if (trail.length >= 2) {
                 p.noFill();
-                p.strokeWeight(3);
+                p.strokeWeight(7);
                 for (let i = 1; i < trail.length; i++) {
-                    const t = i / (trail.length - 1);  // 0 at oldest → 1 at newest
+                    const t = i / (trail.length - 1);
                     const tr = trail[i];
                     const r = Math.min(tr.speed / ADV_VMAX_COLOR, 1.0);
                     const hue = 240 - 240 * r;
@@ -577,17 +561,17 @@ function initAdvancedMode(params) {
                 }
             }
 
-            // Tracked particle — same HSB formula as the general drawParticles
-            // call, but with 3× radius and a dark outline so it reads as the
-            // highlighted one.
+            // Tracked particle — HSB color + dark outline + 3× radius.
             const ratio = Math.min(trackedSpeed / ADV_VMAX_COLOR, 1.0);
             const hue = 240 - 240 * ratio;
             const sat = 40 + 60 * ratio;
             const bri = 70 + 30 * ratio;
             p.stroke(0, 0, 20);
-            p.strokeWeight(2);
+            p.strokeWeight(5);
             p.fill(hue, sat, bri);
             p.circle(tracked.x, tracked.y, tracked.radius * 6);
+
+            p.pop();
         };
     };
 
@@ -604,8 +588,7 @@ function initAdvancedMode(params) {
     // the same σ always peaks at exactly 1.0, so it never moves vertically.
     const histSketch = (p) => {
         p.setup = () => {
-            const canvas = p.createCanvas(ADV_HIST_CANVAS_W, ADV_HIST_CANVAS_H);
-            canvas.parent("adv-histogram-area");
+            p.createCanvas(ADV_HIST_CANVAS_W, ADV_HIST_CANVAS_H);
             p.colorMode(p.HSB, 360, 100, 100, 255);
             p.textFont("ui-monospace, monospace");
         };
@@ -690,9 +673,12 @@ function initAdvancedMode(params) {
         });
     }, 1000);
 
-    const simP5 = new p5(simSketch);
-    const trackerP5 = new p5(trackerSketch);
-    const histP5 = new p5(histSketch);
+    // Pattern matches basic renderer: pass the parent element directly so
+    // p5 appends the canvas there — no canvas.parent() / canvas.style()
+    // fight afterwards.
+    const simP5 = new p5(simSketch, document.getElementById("adv-sim-canvas-container"));
+    const trackerP5 = new p5(trackerSketch, document.getElementById("adv-tracker-canvas-container"));
+    const histP5 = new p5(histSketch, document.getElementById("adv-histogram-area"));
 
     return {
         refreshTutor: () => advTutor.refresh(),
