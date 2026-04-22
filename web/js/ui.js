@@ -721,8 +721,14 @@ function createAnalysisPanel({
         <div class="analysis-verification">
             <h3>🔬 보일 법칙 검증</h3>
             <p class="verdict" id="analysis-verdict">—</p>
-            <div id="pv-scatter-chart" class="analysis-chart"></div>
-            <div id="speed-chart" class="analysis-chart"></div>
+            <div class="charts-row">
+                <div class="chart-wrap">
+                    <div id="pv-scatter-chart" class="analysis-chart"></div>
+                </div>
+                <div class="chart-wrap">
+                    <div id="speed-chart" class="analysis-chart"></div>
+                </div>
+            </div>
         </div>
         <div class="report-btn-wrap">
             <button id="btn-generate-report" disabled
@@ -1266,6 +1272,7 @@ ${answer}
         getApiKey: () => sessionStorage.getItem(SESSION_KEY_API),
         getModel:  () => sessionStorage.getItem(SESSION_KEY_MODEL) || "claude-sonnet-4-6",
         getLevel:  () => sessionStorage.getItem(SESSION_KEY_LEVEL) || "high",
+        getDatapoints: () => getDatapoints(),
         USD_TO_KRW,
         MODEL_PRICING,
         QUESTION_TEXT,

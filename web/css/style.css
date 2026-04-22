@@ -295,7 +295,19 @@ body {
 /* === Analysis chart containers (SVG-based) === */
 .analysis-chart {
     width: 100%;
+}
+.charts-row {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
     margin-top: 12px;
+}
+.chart-wrap {
+    flex: 1;
+    min-width: 0;
+}
+@media (max-width: 700px) {
+    .charts-row { flex-direction: column; }
 }
 
 /* === Report modal === */

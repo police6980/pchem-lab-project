@@ -493,6 +493,165 @@ function downloadConversations() {
     URL.revokeObjectURL(a.href);
 }
 
+// Render the report textarea + experiment data + chart images as a .docx.
+// Depends on the `docx` global provided by docx.js (index.html CDN).
+async function downloadReportAsDocx() {
+    const textarea = document.getElementById("report-textarea");
+    if (!textarea || !textarea.value.trim()) return;
+    if (typeof docx === "undefined") {
+        alert("docx 라이브러리를 불러오지 못했습니다. 페이지를 새로고침 해주세요.");
+        return;
+    }
+
+    const T = window.PchemTutor;
+    const ctx = T ? T.buildDataContext() : null;
+    const datapoints = T?.getDatapoints ? T.getDatapoints() : [];
+    const reportText = textarea.value;
+
+    async function svgToPngBlob(svgEl) {
+        return new Promise((resolve) => {
+            const svgData = new XMLSerializer().serializeToString(svgEl);
+            const svgBlob = new Blob([svgData], { type: "image/svg+xml;charset=utf-8" });
+            const url = URL.createObjectURL(svgBlob);
+            const img = new Image();
+            img.onload = () => {
+                const w = svgEl.clientWidth || 400;
+                const h = svgEl.clientHeight || 200;
+                const canvas = document.createElement("canvas");
+                canvas.width = w * 2;   // 2x for sharper output
+                canvas.height = h * 2;
+                const c = canvas.getContext("2d");
+                c.fillStyle = "#fff";
+                c.fillRect(0, 0, canvas.width, canvas.height);
+                c.drawImage(img, 0, 0, canvas.width, canvas.height);
+                URL.revokeObjectURL(url);
+                canvas.toBlob(resolve, "image/png");
+            };
+            img.onerror = () => { URL.revokeObjectURL(url); resolve(null); };
+            img.src = url;
+        });
+    }
+
+    async function blobToArrayBuffer(blob) {
+        return new Promise(r => {
+            const fr = new FileReader();
+            fr.onload = () => r(fr.result);
+            fr.readAsArrayBuffer(blob);
+        });
+    }
+
+    const svgEls = document.querySelectorAll(".chart-wrap svg");
+    const chartBlobs = [];
+    for (const svg of svgEls) {
+        const blob = await svgToPngBlob(svg);
+        if (blob) chartBlobs.push(blob);
+    }
+
+    const {
+        Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell,
+        ImageRun, HeadingLevel, AlignmentType, WidthType,
+    } = docx;
+
+    const children = [];
+
+    children.push(new Paragraph({
+        text: "탐구 보고서",
+        heading: HeadingLevel.HEADING_1,
+        alignment: AlignmentType.CENTER,
+    }));
+    children.push(new Paragraph({
+        children: [new TextRun({
+            text: `작성 일시: ${new Date().toLocaleString("ko-KR")}`,
+            size: 20, color: "666666",
+        })],
+        alignment: AlignmentType.CENTER,
+    }));
+    children.push(new Paragraph(""));
+
+    if (datapoints.length > 0) {
+        children.push(new Paragraph({
+            text: "측정 결과",
+            heading: HeadingLevel.HEADING_2,
+        }));
+
+        const headerRow = new TableRow({
+            children: ["#", "P (kPa)", "V (mL)", "P·V", "v̄ (px/s)", "충돌/s"].map(h =>
+                new TableCell({
+                    children: [new Paragraph({
+                        children: [new TextRun({ text: h, bold: true })],
+                        alignment: AlignmentType.CENTER,
+                    })],
+                })
+            ),
+        });
+
+        const dataRows = datapoints.map(d => new TableRow({
+            children: [
+                String(d.id),
+                d.P.toFixed(1),
+                d.V.toFixed(1),
+                d.PV.toFixed(1),
+                d.avgSpeed   ?? "—",
+                d.collisions ?? "—",
+            ].map(v => new TableCell({
+                children: [new Paragraph({
+                    children: [new TextRun({ text: String(v) })],
+                    alignment: AlignmentType.CENTER,
+                })],
+            })),
+        }));
+
+        children.push(new Table({
+            rows: [headerRow, ...dataRows],
+            width: { size: 100, type: WidthType.PERCENTAGE },
+        }));
+        children.push(new Paragraph(""));
+    }
+
+    if (chartBlobs.length > 0) {
+        children.push(new Paragraph({
+            text: "측정 그래프",
+            heading: HeadingLevel.HEADING_2,
+        }));
+        for (const blob of chartBlobs) {
+            const ab = await blobToArrayBuffer(blob);
+            children.push(new Paragraph({
+                children: [new ImageRun({
+                    data: ab,
+                    transformation: { width: 360, height: 180 },
+                })],
+                alignment: AlignmentType.CENTER,
+            }));
+            children.push(new Paragraph(""));
+        }
+    }
+
+    // AI-generated report body (parse ## headings)
+    const lines = reportText.split("\n");
+    for (const line of lines) {
+        if (line.startsWith("## ")) {
+            children.push(new Paragraph({
+                text: line.replace(/^##\s+/, ""),
+                heading: HeadingLevel.HEADING_2,
+            }));
+        } else if (line.trim()) {
+            children.push(new Paragraph({
+                children: [new TextRun({ text: line })],
+            }));
+        } else {
+            children.push(new Paragraph(""));
+        }
+    }
+
+    const doc = new Document({ sections: [{ children }] });
+    const blob = await Packer.toBlob(doc);
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `탐구보고서_${new Date().toISOString().slice(0, 10)}.docx`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+}
+
 async function generateReport() {
     const T = window.PchemTutor;
     const modal = document.getElementById("report-modal");
@@ -532,20 +691,18 @@ async function generateReport() {
 학생의 실험 데이터와 AI 튜터와의 탐구 대화를 바탕으로
 탐구 보고서 초안을 작성하세요.
 
-보고서 구조:
-1. 탐구 제목
-2. 탐구 목표
-3. 실험 조건 (온도, 입자 수 등)
-4. 측정 결과 (표 형식으로)
-5. 데이터 분석 (P·V 관계, 편차 해석)
-6. 결론 (보일 법칙 검증, 대화에서 도달한 핵심 이해 포함)
-7. 더 탐구하고 싶은 것 (대화에서 나온 질문·아이디어 추출)
+보고서 구조 (각 섹션을 ## 헤딩으로 구분):
+## 1. 탐구 제목
+## 2. 탐구 목표
+## 3. 실험 조건
+## 4. 데이터 분석
+## 5. 결론
+## 6. 더 탐구하고 싶은 것
 
 원칙:
 - 학생이 대화에서 직접 말한 표현을 최대한 인용하세요.
 - 결론은 학생의 이해 수준에 맞게 학생 목소리로 작성하세요.
-- 7번은 탐구 대화에서 자연스럽게 나온 것만 포함, 없으면 생략.
-- 전체 600자 이내로 간결하게.
+- 각 섹션 100자 내외로 간결하게.
 - 한국어로 작성하세요.`;
 
     const userPrompt = `[실험 데이터]
@@ -844,14 +1001,7 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     });
     document.getElementById("btn-report-download")?.addEventListener("click", () => {
-        const ta = document.getElementById("report-textarea");
-        if (!ta || !ta.value) return;
-        const blob = new Blob([ta.value], { type: "text/plain;charset=utf-8" });
-        const a = document.createElement("a");
-        a.href = URL.createObjectURL(blob);
-        a.download = `탐구보고서_${new Date().toISOString().slice(0, 10)}.txt`;
-        a.click();
-        URL.revokeObjectURL(a.href);
+        downloadReportAsDocx();
     });
     // #btn-generate-report and #btn-download-conversations are created later
     // by createAnalysisPanel (ui.js), after main.js's async DOMContentLoaded
