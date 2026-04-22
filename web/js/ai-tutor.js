@@ -793,7 +793,13 @@ document.addEventListener("DOMContentLoaded", () => {
         a.click();
         URL.revokeObjectURL(a.href);
     });
-    document.getElementById("btn-generate-report")?.addEventListener("click", generateReport);
+    // #btn-generate-report is created later by createAnalysisPanel (ui.js),
+    // after main.js's async DOMContentLoaded handler completes its fetch.
+    // Direct getElementById here would return null. Event delegation works
+    // regardless of when the button enters the DOM.
+    document.addEventListener("click", (e) => {
+        if (e.target?.closest?.("#btn-generate-report")) generateReport();
+    });
 
     // Attach getConversationSummary to PchemTutor if the surface is ready
     // (ui.js's createAnalysisPanel may populate window.PchemTutor after
