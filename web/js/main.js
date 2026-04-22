@@ -348,17 +348,31 @@ function initAdvancedMode(params) {
 
     createAdvInfoPanel();
 
+    // Snapshot of the current advanced-mode state. Used by both the
+    // measurement panel (for a new row) and the AI tutor (for context).
+    const getAdvState = () => {
+        const V = parseFloat(volSlider.value);
+        return {
+            V_mL: V,
+            P_kPa: computeAdvPressure(),
+            tempK: currentTempK,
+            particleCount: system.getParticles().length,
+            gas: gasSelect.value,
+            avgSpeed: system.getAverageSpeed(),
+        };
+    };
+
+    // Measurement panel (PV/nT verification table + chart).
+    const measPanel = createAdvMeasurementPanel({ getAdvState });
+
     // AI tutor sidebar — shares API key/level/model via sessionStorage with basic.
+    // Datapoints are piped in so the tutor can reference recorded measurements
+    // once the student has logged at least two points.
     createAdvAiTutor({
         getAdvState: () => {
-            const V = parseFloat(volSlider.value);
             return {
-                V_mL: V,
-                P_kPa: computeAdvPressure(),
-                tempK: currentTempK,
-                particleCount: system.getParticles().length,
-                gas: gasSelect.value,
-                avgSpeed: system.getAverageSpeed(),
+                ...getAdvState(),
+                datapoints: measPanel.getDatapoints(),
             };
         },
     });

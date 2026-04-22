@@ -1711,13 +1711,28 @@ function createAdvAiTutor({ getAdvState }) {
     // --- Context + prompt construction ---
     function buildContext() {
         const s = getAdvState();
-        return `[현재 실험 조건]
+        let ctx = `[현재 실험 조건]
 부피(V): ${s.V_mL.toFixed(0)} mL
-압력(P): ${s.P_kPa.toFixed(1)} kPa (P = P₀·V₀/V·T/T₀ 로 자동 계산)
+압력(P): ${s.P_kPa.toFixed(1)} kPa (P = P₀·V₀/V·T/T₀·N/N₀ 로 자동 계산)
 온도(T): ${s.tempK.toFixed(0)} K (${(s.tempK - 273.15).toFixed(0)}°C)
 입자 수: ${s.particleCount}개 (유령입자 없음)
 기체: ${ADV_TUTOR_GAS_NAMES[s.gas] || s.gas}
 평균 속도(RMS): ${s.avgSpeed.toFixed(0)} px/s`;
+
+        // Measurement table context — only useful once ≥2 rows exist.
+        const dp = Array.isArray(s.datapoints) ? s.datapoints : [];
+        if (dp.length >= 2) {
+            const vals = dp.map(d => d.pvnt);
+            const mean = vals.reduce((a, v) => a + v, 0) / vals.length;
+            const maxDev = Math.max(...vals.map(v => Math.abs(v - mean))) / mean * 100;
+            const rows = dp.map(d =>
+                `  ${d.id}. ${ADV_TUTOR_GAS_NAMES[d.gas] || d.gas}, T=${d.tempK.toFixed(0)}K, V=${d.V_mL.toFixed(0)}mL, N=${d.N}, P=${d.P_kPa.toFixed(1)}kPa, PV/nT=${d.pvnt.toFixed(4)}`
+            ).join("\n");
+            ctx += `\n\n[기록된 측정점 ${dp.length}개]
+평균 PV/nT = ${mean.toFixed(4)}, 최대 편차 ${maxDev.toFixed(2)}%
+${rows}`;
+        }
+        return ctx;
     }
 
     function buildSystemPrompt(level, qid) {
@@ -1809,6 +1824,251 @@ ${focus}
             send();
         }
     });
+}
+
+// ============================================================
+// Advanced-mode measurement panel — "PV / nT" ideal-gas verification.
+// Independent from basic's createMeasurementPanel because the column set,
+// record semantics (just snapshot current state), and plot series are
+// different. Returns { getDatapoints } so the caller can expose the list
+// to the AI tutor.
+// ============================================================
+function createAdvMeasurementPanel({ getAdvState, onChange }) {
+    const ADV_GAS_LABELS = { He: "He", N2: "N₂", Ar: "Ar", CO2: "CO₂" };
+
+    let datapoints = [];
+    let nextId = 1;
+    let showConnectLine = true;
+    let showTheoryLine = true;
+
+    const container = document.getElementById("adv-section-measurements");
+    container.innerHTML = `
+        <div id="adv-measurement-panel">
+            <div class="section-head">
+                <span class="section-title">측정 기록 · PV/nT 검증</span>
+                <div class="section-actions">
+                    <button id="adv-btn-record">기록</button>
+                    <button id="adv-btn-export-pvnt" disabled>측정점 CSV 저장</button>
+                    <button id="adv-btn-clear-pvnt" disabled>전체 삭제</button>
+                </div>
+            </div>
+            <table id="adv-pvnt-table">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>기체</th>
+                        <th class="num-col">T (K)</th>
+                        <th class="num-col">V (mL)</th>
+                        <th class="num-col">N</th>
+                        <th class="num-col">P (kPa)</th>
+                        <th class="num-col">PV / nT</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody id="adv-pvnt-tbody"></tbody>
+            </table>
+            <div id="adv-pvnt-summary" class="summary">측정점을 기록하세요</div>
+        </div>
+        <div id="adv-pvnt-plot-area">
+            <div class="plot-toggles">
+                <label><input type="checkbox" id="adv-toggle-connect" checked> 연결선</label>
+                <label><input type="checkbox" id="adv-toggle-theory" checked> 이론선 (평균값)</label>
+            </div>
+            <div id="adv-pvnt-plot-wrap"></div>
+        </div>
+    `;
+
+    const tbodyEl   = document.getElementById("adv-pvnt-tbody");
+    const summaryEl = document.getElementById("adv-pvnt-summary");
+    const exportBtn = document.getElementById("adv-btn-export-pvnt");
+    const clearBtn  = document.getElementById("adv-btn-clear-pvnt");
+    const plotWrap  = document.getElementById("adv-pvnt-plot-wrap");
+
+    document.getElementById("adv-toggle-connect").addEventListener("change", e => {
+        showConnectLine = e.target.checked;
+        redrawPlot();
+    });
+    document.getElementById("adv-toggle-theory").addEventListener("change", e => {
+        showTheoryLine = e.target.checked;
+        redrawPlot();
+    });
+
+    document.getElementById("adv-btn-record").addEventListener("click", () => {
+        const s = getAdvState();
+        // PV / (N · T). Units: kPa·mL / (particle·K). At baseline state
+        // (P₀=101.3, V₀=50, N₀=300, T₀=298.15) this is ≈ 0.0566.
+        const pvnt = (s.P_kPa * s.V_mL) / (s.particleCount * s.tempK);
+        datapoints.push({
+            id: nextId++,
+            timestamp: Date.now(),
+            gas: s.gas,
+            tempK: s.tempK,
+            V_mL: s.V_mL,
+            N: s.particleCount,
+            P_kPa: s.P_kPa,
+            pvnt,
+        });
+        refresh();
+    });
+
+    clearBtn.addEventListener("click", () => {
+        if (datapoints.length === 0) return;
+        if (!window.confirm("모든 측정점을 삭제합니다. 계속?")) return;
+        datapoints = [];
+        nextId = 1;
+        refresh();
+    });
+
+    exportBtn.addEventListener("click", exportCSV);
+
+    function deletePoint(id) {
+        datapoints = datapoints.filter(d => d.id !== id);
+        refresh();
+    }
+
+    function refresh() {
+        renderTable();
+        renderSummary();
+        redrawPlot();
+        const hasData = datapoints.length > 0;
+        exportBtn.disabled = !hasData;
+        clearBtn.disabled = !hasData;
+        if (onChange) onChange();
+    }
+
+    function renderTable() {
+        if (datapoints.length === 0) {
+            tbodyEl.innerHTML = `<tr><td colspan="8" style="color:#aaa; text-align:center; padding:16px">기록된 측정점이 없습니다</td></tr>`;
+            return;
+        }
+        tbodyEl.innerHTML = datapoints.map(d => `
+            <tr>
+                <td class="num">${d.id}</td>
+                <td>${ADV_GAS_LABELS[d.gas] || d.gas}</td>
+                <td class="num">${d.tempK.toFixed(0)}</td>
+                <td class="num">${d.V_mL.toFixed(0)}</td>
+                <td class="num">${d.N}</td>
+                <td class="num">${d.P_kPa.toFixed(1)}</td>
+                <td class="num pvnt">${d.pvnt.toFixed(4)}</td>
+                <td><button class="btn-delete" data-id="${d.id}" aria-label="삭제">×</button></td>
+            </tr>
+        `).join("");
+        tbodyEl.querySelectorAll(".btn-delete").forEach(btn => {
+            btn.addEventListener("click", () => deletePoint(parseInt(btn.dataset.id, 10)));
+        });
+    }
+
+    function renderSummary() {
+        const n = datapoints.length;
+        if (n < 2) {
+            summaryEl.innerHTML = n === 0
+                ? "측정점을 기록하세요"
+                : `측정점 <strong>1</strong>개 · 2개 이상 기록하면 편차가 계산됩니다`;
+            return;
+        }
+        const vals = datapoints.map(d => d.pvnt);
+        const mean = vals.reduce((s, v) => s + v, 0) / n;
+        const maxDev = Math.max(...vals.map(v => Math.abs(v - mean))) / mean * 100;
+        summaryEl.innerHTML = `
+            측정점 <strong>${n}</strong>개 ·
+            평균 PV/nT = <strong>${mean.toFixed(4)}</strong> ·
+            최대 편차 <strong>${maxDev.toFixed(2)}%</strong>
+        `;
+    }
+
+    function redrawPlot() {
+        const W = 400, H = 260;
+        const m = { l: 56, r: 12, t: 14, b: 30 };
+        const plotW = W - m.l - m.r;
+        const plotH = H - m.t - m.b;
+        const n = datapoints.length;
+
+        const vals = datapoints.map(d => d.pvnt);
+        let yLo, yHi;
+        if (n === 0) { yLo = 0; yHi = 1; }
+        else if (n === 1) {
+            const v = vals[0];
+            yLo = v * 0.85; yHi = v * 1.15;
+        } else {
+            const yMin = Math.min(...vals);
+            const yMax = Math.max(...vals);
+            const span = yMax - yMin;
+            const pad = span > 0 ? span * 0.25 : yMax * 0.05 || 0.001;
+            yLo = yMin - pad; yHi = yMax + pad;
+        }
+
+        const xPos = (i) => m.l + (n <= 1 ? plotW / 2 : ((i - 1) / (n - 1)) * plotW);
+        const yPos = (v) => m.t + ((yHi - v) / (yHi - yLo)) * plotH;
+
+        let svg = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">`;
+
+        // y-axis grid + labels (4 ticks).
+        for (let i = 0; i <= 3; i++) {
+            const v = yLo + (yHi - yLo) * (i / 3);
+            const py = yPos(v);
+            svg += `<line x1="${m.l}" y1="${py}" x2="${m.l + plotW}" y2="${py}" stroke="#eee"/>`;
+            svg += `<text x="${m.l - 6}" y="${py + 3}" text-anchor="end" font-size="10" fill="#888">${v.toFixed(4)}</text>`;
+        }
+        // axis lines
+        svg += `<line x1="${m.l}" y1="${m.t}" x2="${m.l}" y2="${m.t + plotH}" stroke="#bbb"/>`;
+        svg += `<line x1="${m.l}" y1="${m.t + plotH}" x2="${m.l + plotW}" y2="${m.t + plotH}" stroke="#bbb"/>`;
+
+        // x-axis tick labels (measurement numbers; thinned when many).
+        const xStep = n <= 10 ? 1 : Math.ceil(n / 10);
+        for (let i = 1; i <= n; i++) {
+            if (i % xStep !== 0 && i !== n && i !== 1) continue;
+            svg += `<text x="${xPos(i)}" y="${m.t + plotH + 14}" text-anchor="middle" font-size="10" fill="#888">${i}</text>`;
+        }
+        svg += `<text x="${m.l + plotW / 2}" y="${H - 4}" text-anchor="middle" font-size="10" fill="#666">측정 번호</text>`;
+        svg += `<text x="14" y="${m.t + plotH / 2}" text-anchor="middle" font-size="10" fill="#666" transform="rotate(-90 14 ${m.t + plotH / 2})">PV / nT</text>`;
+
+        if (n === 0) {
+            svg += `<text x="${m.l + plotW / 2}" y="${m.t + plotH / 2}" text-anchor="middle" font-size="12" fill="#bbb">[기록] 버튼으로 측정점을 추가하세요</text></svg>`;
+            plotWrap.innerHTML = svg;
+            return;
+        }
+
+        // Theory line = mean of current points (horizontal, dashed red).
+        if (showTheoryLine && n >= 2) {
+            const mean = vals.reduce((s, v) => s + v, 0) / n;
+            const py = yPos(mean);
+            svg += `<line x1="${m.l}" y1="${py}" x2="${m.l + plotW}" y2="${py}" stroke="#c04040" stroke-width="1" stroke-dasharray="4,3"/>`;
+            svg += `<text x="${m.l + plotW - 4}" y="${py - 4}" text-anchor="end" font-size="10" fill="#c04040">평균 ${mean.toFixed(4)}</text>`;
+        }
+
+        // Connect line.
+        if (showConnectLine && n >= 2) {
+            const d = datapoints.map((dp, i) => `${i === 0 ? "M" : "L"}${xPos(i + 1)},${yPos(dp.pvnt)}`).join(" ");
+            svg += `<path d="${d}" fill="none" stroke="#7aa" stroke-width="1.5"/>`;
+        }
+
+        // Points.
+        datapoints.forEach((dp, i) => {
+            svg += `<circle cx="${xPos(i + 1)}" cy="${yPos(dp.pvnt)}" r="4" fill="#4a8ed8" stroke="#2a6cb8" stroke-width="1.5"/>`;
+        });
+
+        svg += `</svg>`;
+        plotWrap.innerHTML = svg;
+    }
+
+    function exportCSV() {
+        if (datapoints.length === 0) return;
+        const headers = ["번호", "기체", "온도_K", "부피_mL", "입자수", "압력_kPa", "PV_nT"];
+        const rows = datapoints.map(d => [
+            d.id,
+            ADV_GAS_LABELS[d.gas] || d.gas,
+            d.tempK.toFixed(2),
+            d.V_mL.toFixed(2),
+            d.N,
+            d.P_kPa.toFixed(2),
+            d.pvnt.toFixed(6),
+        ]);
+        const filename = `advanced_pvnt_${formatTimestampForFilename(new Date())}.csv`;
+        downloadCSV(filename, headers, rows);
+    }
+
+    refresh();
+    return { getDatapoints: () => datapoints.slice() };
 }
 
 // ============================================================
