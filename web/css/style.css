@@ -260,10 +260,13 @@ body {
     background: rgba(0, 0, 0, 0.1);
 }
 
-/* === Analysis: 탐구 보고서 초안 버튼 === */
+/* === Analysis: 탐구 보고서 + 대화 내려받기 버튼 행 === */
 .report-btn-wrap {
     padding: 12px 0 4px;
-    text-align: center;
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    flex-wrap: wrap;
 }
 #btn-generate-report {
     padding: 9px 20px;
@@ -277,6 +280,23 @@ body {
 }
 #btn-generate-report:hover:not(:disabled) { background: #3f51b5; }
 #btn-generate-report:disabled             { background: #aaa; cursor: not-allowed; }
+#btn-download-conversations {
+    padding: 9px 20px;
+    background: #fff;
+    color: #5c6bc0;
+    border: 1.5px solid #5c6bc0;
+    border-radius: 6px;
+    font-size: 0.92rem;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+#btn-download-conversations:hover { background: #f0f0fa; }
+
+/* === Analysis chart containers (SVG-based) === */
+.analysis-chart {
+    width: 100%;
+    margin-top: 12px;
+}
 
 /* === Report modal === */
 .report-modal {

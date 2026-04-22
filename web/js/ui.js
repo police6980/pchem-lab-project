@@ -721,20 +721,18 @@ function createAnalysisPanel({
         <div class="analysis-verification">
             <h3>🔬 보일 법칙 검증</h3>
             <p class="verdict" id="analysis-verdict">—</p>
-            <div id="pv-bars-canvas-wrap"></div>
-        </div>
-        <div class="analysis-export">
-            <button id="btn-export-analysis">분석 보고서 저장</button>
+            <div id="pv-scatter-chart" class="analysis-chart"></div>
+            <div id="speed-chart" class="analysis-chart"></div>
         </div>
         <div class="report-btn-wrap">
-            <button id="btn-generate-report" disabled>📄 탐구 보고서 초안 생성</button>
+            <button id="btn-generate-report" disabled
+                    title="Q1, Q2, Q3 탐구를 모두 진행한 후 활성화됩니다">📄 탐구 보고서 초안 생성</button>
+            <button id="btn-download-conversations"
+                    title="Q1~Q4 및 자유 대화 전체를 txt로 저장">💬 대화 내려받기</button>
         </div>
     `;
 
     const MIN_DATAPOINTS = 3;
-    const PV_BARS_WIDTH = 400;
-    const PV_BARS_HEIGHT = 180;
-    const PV_BARS_PAD = { left: 40, right: 10, top: 20, bottom: 30 };
 
     // === AI tutor constants ===
     const SESSION_KEY_API = "pchem_api_key";
@@ -793,93 +791,130 @@ function createAnalysisPanel({
         }
     }
 
-    const pvBarsSketch = (p) => {
-        p.setup = () => {
-            p.createCanvas(PV_BARS_WIDTH, PV_BARS_HEIGHT);
-            p.textFont("system-ui");
-            p.noLoop();
-        };
+    // SVG chart helpers (inline, no external lib).
+    // CHART_W/H are viewBox dimensions; SVG is width="100%" so it scales.
+    const CHART_W = 400, CHART_H = 200;
+    const CHART_PAD = { top: 20, right: 20, bottom: 40, left: 55 };
 
-        p.draw = () => {
-            p.background(255);
-            const data = getDatapoints();
-            if (data.length < MIN_DATAPOINTS) return;
+    function renderPVScatterChart(data) {
+        const container = document.getElementById("pv-scatter-chart");
+        if (!container) return;
+        const innerW = CHART_W - CHART_PAD.left - CHART_PAD.right;
+        const innerH = CHART_H - CHART_PAD.top - CHART_PAD.bottom;
+        const x0 = CHART_PAD.left, y0 = CHART_PAD.top;
+        const xEnd = x0 + innerW, yEnd = y0 + innerH;
 
-            const innerLeft = PV_BARS_PAD.left;
-            const innerRight = p.width - PV_BARS_PAD.right;
-            const innerTop = PV_BARS_PAD.top;
-            const innerBottom = p.height - PV_BARS_PAD.bottom;
+        if (data.length === 0) {
+            container.innerHTML = `<svg viewBox="0 0 ${CHART_W} ${CHART_H}" width="100%" height="${CHART_H}"><text x="${CHART_W/2}" y="${CHART_H/2}" text-anchor="middle" fill="#888" font-size="11">측정점을 기록해주세요</text></svg>`;
+            return;
+        }
 
-            const mean = data.reduce((s, d) => s + d.PV, 0) / data.length;
-            const maxAbsDev = Math.max(...data.map(d => Math.abs(d.PV - mean)));
-            const span = Math.max(maxAbsDev * 1.2, mean * 0.01);
-            const yMin = mean - span;
-            const yMax = mean + span;
+        const Vs = data.map(d => d.V);
+        const Ps = data.map(d => d.P);
+        const vMin = Math.min(...Vs) * 0.9;
+        const vMax = Math.max(...Vs) * 1.1;
+        const pMin = Math.min(...Ps) * 0.9;
+        const pMax = Math.max(...Ps) * 1.1;
+        const xScale = v => x0 + ((v - vMin) / (vMax - vMin || 1)) * innerW;
+        const yScale = p => yEnd - ((p - pMin) / (pMax - pMin || 1)) * innerH;
 
-            const yToPx = (v) =>
-                innerBottom - (v - yMin) / (yMax - yMin) * (innerBottom - innerTop);
+        const meanPV = data.reduce((s, d) => s + d.PV, 0) / data.length;
+        const curvePoints = [];
+        for (let i = 0; i <= 50; i++) {
+            const v = vMin + (vMax - vMin) * (i / 50);
+            const p = meanPV / v;
+            if (p >= pMin && p <= pMax) curvePoints.push(`${xScale(v).toFixed(1)},${yScale(p).toFixed(1)}`);
+        }
+        const curvePath = curvePoints.length > 1
+            ? `<polyline points="${curvePoints.join(" ")}" stroke="#aaa" stroke-dasharray="4,3" fill="none" stroke-width="1.5"/>`
+            : "";
 
-            p.stroke(120);
-            p.strokeWeight(1);
-            p.line(innerLeft, innerTop, innerLeft, innerBottom);
-            p.line(innerLeft, innerBottom, innerRight, innerBottom);
+        const points = data.map(d => {
+            const cx = xScale(d.V).toFixed(1), cy = yScale(d.P).toFixed(1);
+            return `<circle cx="${cx}" cy="${cy}" r="5" fill="#4a90d9" stroke="#fff" stroke-width="1"><title>P=${d.P.toFixed(1)}kPa, V=${d.V.toFixed(1)}mL, P·V=${d.PV.toFixed(0)}</title></circle>`;
+        }).join("");
 
-            p.noStroke();
-            p.fill(120);
-            p.textSize(9);
-            p.textAlign(p.RIGHT, p.CENTER);
-            [yMin, mean, yMax].forEach(v => {
-                p.text(v.toFixed(0), innerLeft - 4, yToPx(v));
-            });
+        const ticks = 5;
+        const xTicks = Array.from({ length: ticks + 1 }, (_, i) => {
+            const v = vMin + (vMax - vMin) * (i / ticks);
+            const x = xScale(v).toFixed(1);
+            return `<line x1="${x}" y1="${yEnd}" x2="${x}" y2="${yEnd + 4}" stroke="#666"/><text x="${x}" y="${yEnd + 16}" text-anchor="middle" fill="#555" font-size="10">${v.toFixed(0)}</text>`;
+        }).join("");
+        const yTicks = Array.from({ length: ticks + 1 }, (_, i) => {
+            const p = pMin + (pMax - pMin) * (i / ticks);
+            const y = yScale(p).toFixed(1);
+            return `<line x1="${x0 - 4}" y1="${y}" x2="${x0}" y2="${y}" stroke="#666"/><text x="${x0 - 8}" y="${(parseFloat(y) + 3).toFixed(1)}" text-anchor="end" fill="#555" font-size="10">${p.toFixed(0)}</text>`;
+        }).join("");
 
-            const meanY = yToPx(mean);
-            p.stroke(170);
-            p.strokeWeight(1);
-            p.drawingContext.setLineDash([4, 3]);
-            p.line(innerLeft, meanY, innerRight, meanY);
-            p.drawingContext.setLineDash([]);
-            p.noStroke();
-            p.fill(130);
-            p.textSize(9);
-            p.textAlign(p.LEFT, p.BOTTOM);
-            p.text(`평균 ${mean.toFixed(1)}`, innerLeft + 4, meanY - 2);
+        container.innerHTML = `
+            <svg viewBox="0 0 ${CHART_W} ${CHART_H}" width="100%" height="${CHART_H}">
+                <line x1="${x0}" y1="${y0}" x2="${x0}" y2="${yEnd}" stroke="#666"/>
+                <line x1="${x0}" y1="${yEnd}" x2="${xEnd}" y2="${yEnd}" stroke="#666"/>
+                ${xTicks}${yTicks}
+                <text x="${x0 + innerW / 2}" y="${CHART_H - 5}" text-anchor="middle" fill="#333" font-size="11">V (mL)</text>
+                <text x="12" y="${y0 + innerH / 2}" text-anchor="middle" fill="#333" font-size="11" transform="rotate(-90 12 ${y0 + innerH / 2})">P (kPa)</text>
+                ${curvePath}${points}
+                <text x="${xEnd - 4}" y="${y0 + 10}" text-anchor="end" fill="#555" font-size="10">● 측정값   — 이론 (P·V=일정)</text>
+            </svg>
+        `;
+    }
 
-            const slotWidth = (innerRight - innerLeft) / data.length;
-            const barWidth = slotWidth * 0.7;
+    function renderSpeedChart(data) {
+        const container = document.getElementById("speed-chart");
+        if (!container) return;
+        const innerW = CHART_W - CHART_PAD.left - CHART_PAD.right;
+        const innerH = CHART_H - CHART_PAD.top - CHART_PAD.bottom;
+        const x0 = CHART_PAD.left, y0 = CHART_PAD.top;
+        const xEnd = x0 + innerW, yEnd = y0 + innerH;
 
-            data.forEach((d, i) => {
-                const devPct = mean > 0 ? Math.abs(d.PV - mean) / mean * 100 : 0;
-                let fill;
-                if (devPct <= 2) fill = [76, 175, 80];
-                else if (devPct <= 5) fill = [255, 152, 0];
-                else fill = [231, 76, 60];
+        const valid = data.filter(d => d.avgSpeed !== null && d.avgSpeed !== undefined);
+        if (valid.length < 2) {
+            container.innerHTML = `<svg viewBox="0 0 ${CHART_W} ${CHART_H}" width="100%" height="${CHART_H}"><text x="${CHART_W/2}" y="${CHART_H/2}" text-anchor="middle" fill="#888" font-size="11">측정점이 부족합니다</text></svg>`;
+            return;
+        }
 
-                const barX = innerLeft + i * slotWidth + (slotWidth - barWidth) / 2;
-                const valueY = yToPx(d.PV);
+        const Ps = valid.map(d => d.P);
+        const Ss = valid.map(d => d.avgSpeed);
+        const pMin = Math.min(...Ps) * 0.95;
+        const pMax = Math.max(...Ps) * 1.05;
+        const sMin = Math.min(...Ss) * 0.9;
+        const sMax = Math.max(...Ss) * 1.1;
+        const xScale = p => x0 + ((p - pMin) / (pMax - pMin || 1)) * innerW;
+        const yScale = s => yEnd - ((s - sMin) / (sMax - sMin || 1)) * innerH;
 
-                p.noStroke();
-                p.fill(fill[0], fill[1], fill[2]);
-                p.rect(barX, valueY, barWidth, innerBottom - valueY);
+        const meanSpeed = Ss.reduce((a, b) => a + b, 0) / Ss.length;
+        const meanY = yScale(meanSpeed).toFixed(1);
+        const meanLine = `<line x1="${x0}" y1="${meanY}" x2="${xEnd}" y2="${meanY}" stroke="#aaa" stroke-dasharray="4,3" stroke-width="1.5"/>`;
 
-                p.fill(80);
-                p.textAlign(p.CENTER, p.BOTTOM);
-                p.textSize(9);
-                p.text(d.PV.toFixed(0), barX + barWidth / 2, valueY - 2);
+        const points = valid.map(d => {
+            const cx = xScale(d.P).toFixed(1), cy = yScale(d.avgSpeed).toFixed(1);
+            return `<circle cx="${cx}" cy="${cy}" r="5" fill="#e67e22" stroke="#fff" stroke-width="1"><title>P=${d.P.toFixed(1)}kPa, v̄=${d.avgSpeed}px/s</title></circle>`;
+        }).join("");
 
-                p.fill(130);
-                p.textAlign(p.CENTER, p.TOP);
-                p.text(d.id, barX + barWidth / 2, innerBottom + 4);
-            });
+        const ticks = 5;
+        const xTicks = Array.from({ length: ticks + 1 }, (_, i) => {
+            const p = pMin + (pMax - pMin) * (i / ticks);
+            const x = xScale(p).toFixed(1);
+            return `<line x1="${x}" y1="${yEnd}" x2="${x}" y2="${yEnd + 4}" stroke="#666"/><text x="${x}" y="${yEnd + 16}" text-anchor="middle" fill="#555" font-size="10">${p.toFixed(0)}</text>`;
+        }).join("");
+        const yTicks = Array.from({ length: ticks + 1 }, (_, i) => {
+            const s = sMin + (sMax - sMin) * (i / ticks);
+            const y = yScale(s).toFixed(1);
+            return `<line x1="${x0 - 4}" y1="${y}" x2="${x0}" y2="${y}" stroke="#666"/><text x="${x0 - 8}" y="${(parseFloat(y) + 3).toFixed(1)}" text-anchor="end" fill="#555" font-size="10">${s.toFixed(0)}</text>`;
+        }).join("");
 
-            p.fill(100);
-            p.textAlign(p.CENTER, p.TOP);
-            p.textSize(10);
-            p.text("측정점 번호", (innerLeft + innerRight) / 2, innerBottom + 16);
-        };
-    };
-
-    const pvBarsP5 = new p5(pvBarsSketch,
-        document.getElementById("pv-bars-canvas-wrap"));
+        container.innerHTML = `
+            <svg viewBox="0 0 ${CHART_W} ${CHART_H}" width="100%" height="${CHART_H}">
+                <line x1="${x0}" y1="${y0}" x2="${x0}" y2="${yEnd}" stroke="#666"/>
+                <line x1="${x0}" y1="${yEnd}" x2="${xEnd}" y2="${yEnd}" stroke="#666"/>
+                ${xTicks}${yTicks}
+                <text x="${x0 + innerW / 2}" y="${CHART_H - 5}" text-anchor="middle" fill="#333" font-size="11">P (kPa)</text>
+                <text x="12" y="${y0 + innerH / 2}" text-anchor="middle" fill="#333" font-size="11" transform="rotate(-90 12 ${y0 + innerH / 2})">v̄ (px/s)</text>
+                ${meanLine}${points}
+                <text x="${xEnd - 4}" y="${y0 + 10}" text-anchor="end" fill="#555" font-size="10">● 실측   — 평균 (${meanSpeed.toFixed(0)})</text>
+            </svg>
+        `;
+    }
 
     function refresh() {
         const data = getDatapoints();
@@ -891,8 +926,7 @@ function createAnalysisPanel({
             return;
         }
         section.classList.remove("hidden");
-        const reportBtn = document.getElementById("btn-generate-report");
-        if (reportBtn) reportBtn.disabled = false;
+        if (typeof updateReportButtonState === "function") updateReportButtonState();
 
         const meanPV = data.reduce((s, d) => s + d.PV, 0) / data.length;
         const maxDevPct = Math.max(...data.map(d => Math.abs(d.PV - meanPV))) / meanPV * 100;
@@ -917,7 +951,8 @@ function createAnalysisPanel({
         verdictEl.classList.add(cls);
         verdictEl.textContent = text;
 
-        pvBarsP5.redraw();
+        renderPVScatterChart(data);
+        renderSpeedChart(data);
     }
 
     // === AI tutor helpers ===
@@ -1193,12 +1228,8 @@ ${answer}
         return lines.join("\n");
     }
 
-    document.getElementById("btn-export-analysis").addEventListener("click", () => {
-        const content = buildAnalysisCSV();
-        if (content === null) return;
-        const filename = `boyle_analysis_${formatTimestampForFilename(new Date())}.csv`;
-        downloadRawCSV(filename, content);
-    });
+    // buildAnalysisCSV is kept (may be reused by future export options); the
+    // 분석 보고서 저장 button was removed in favor of the report modal.
 
     // === AI tutor event wiring ===
     document.getElementById("btn-verify-key").addEventListener("click", verifyKey);

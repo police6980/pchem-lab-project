@@ -225,6 +225,7 @@ function resetAllConversations() {
     renderConversation(activeQuestion);
     updateInputAvailability();
     updateEndControlsVisibility();
+    updateReportButtonState();
 }
 
 function resetQuestion(qid) {
@@ -238,6 +239,7 @@ function resetQuestion(qid) {
         updateInputAvailability();
         updateEndControlsVisibility();
     }
+    updateReportButtonState();
 }
 
 function countStudentTurns(qid) {
@@ -315,6 +317,7 @@ async function closeQuestion(qid) {
         updateInputAvailability();
         updateTabClosedLabel(qid);
         updateEndControlsVisibility();
+        updateReportButtonState();
     } catch (e) {
         hideTypingIndicator();
         conv.messages.pop();
@@ -387,6 +390,7 @@ async function generateQ3Question() {
         q3QuestionGenerated = true;
         renderConversation("3");
         updateInputAvailability();
+        updateReportButtonState();
     } catch (e) {
         hideTypingIndicator();
         // Roll back the synthetic user message so retry shows the generate button again
@@ -433,6 +437,60 @@ function getConversationSummary() {
         }));
     });
     return result;
+}
+
+function updateReportButtonState() {
+    const btn = document.getElementById("btn-generate-report");
+    if (!btn) return;
+    const visibleCount = (qid) => (aiConversations[qid]?.messages
+        .filter(m => !m.isPromptInternal).length ?? 0);
+    const q1ok = visibleCount("1") > 0;
+    const q2ok = visibleCount("2") > 0;
+    const q3ok = visibleCount("3") > 0;
+    btn.disabled = !(q1ok && q2ok && q3ok);
+    btn.title = btn.disabled
+        ? "Q1, Q2, Q3 탐구를 모두 진행한 후 활성화됩니다"
+        : "탐구 보고서 초안 생성";
+}
+
+function downloadConversations() {
+    const LABELS = {
+        "1": "Q1 — 메커니즘 설명",
+        "2": "Q2 — 극단 조건 외삽",
+        "3": "Q3 — AI 탐구 질문",
+        "4": "Q4 — 다음 실험 설계",
+        "free": "자유 질문",
+    };
+
+    let text = "=== 탐구 대화 기록 ===\n";
+    text += `저장 시각: ${new Date().toLocaleString("ko-KR")}\n\n`;
+
+    let hasAny = false;
+    ["1", "2", "3", "4", "free"].forEach(qid => {
+        const conv = aiConversations[qid];
+        if (!conv) return;
+        const visible = conv.messages.filter(m => !m.isPromptInternal);
+        if (visible.length === 0) return;
+        hasAny = true;
+        text += `${"=".repeat(40)}\n${LABELS[qid] || qid}\n${"=".repeat(40)}\n`;
+        visible.forEach(m => {
+            const speaker = m.role === "user" ? "학생" : "AI 튜터";
+            const time = new Date(m.timestamp).toLocaleTimeString("ko-KR");
+            text += `[${speaker}] (${time})\n${m.content}\n\n`;
+        });
+    });
+
+    if (!hasAny) {
+        alert("저장할 대화가 없습니다.");
+        return;
+    }
+
+    const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `탐구대화_${new Date().toISOString().slice(0, 10)}.txt`;
+    a.click();
+    URL.revokeObjectURL(a.href);
 }
 
 async function generateReport() {
@@ -642,6 +700,7 @@ async function sendMessage() {
     renderConversation(qid);
     updateInputAvailability();
     updateEndControlsVisibility();
+    updateReportButtonState();
 }
 
 function updateInputAvailability() {
@@ -702,6 +761,7 @@ function switchToQuestion(questionId) {
     renderConversation(questionId);
     updateInputAvailability();
     updateEndControlsVisibility();
+    updateReportButtonState();
 }
 
 // === Init ===
@@ -793,12 +853,13 @@ document.addEventListener("DOMContentLoaded", () => {
         a.click();
         URL.revokeObjectURL(a.href);
     });
-    // #btn-generate-report is created later by createAnalysisPanel (ui.js),
-    // after main.js's async DOMContentLoaded handler completes its fetch.
-    // Direct getElementById here would return null. Event delegation works
-    // regardless of when the button enters the DOM.
+    // #btn-generate-report and #btn-download-conversations are created later
+    // by createAnalysisPanel (ui.js), after main.js's async DOMContentLoaded
+    // handler completes its fetch. Event delegation works regardless of when
+    // the buttons enter the DOM.
     document.addEventListener("click", (e) => {
         if (e.target?.closest?.("#btn-generate-report")) generateReport();
+        else if (e.target?.closest?.("#btn-download-conversations")) downloadConversations();
     });
 
     // Attach getConversationSummary to PchemTutor if the surface is ready
