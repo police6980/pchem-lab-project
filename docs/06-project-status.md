@@ -3,9 +3,9 @@
 **문서 목적**: 현재 구현 상태와 남은 작업의 마스터 트래커. 다른 설계 문서는 "어떻게 만들어졌는가"를 설명하고, 이 문서는 "어디까지 왔는가"를 기록한다.
 
 **마지막 업데이트**: 2026-04-22
-**현재 상태**: 보일 법칙 시뮬레이터 완성 + **Phase 3 진행 중** — 소프트웨어(Web Serial 어댑터·프로토콜 v1.1·UI 패널) 완료, 하드웨어·펌웨어 대기.
-**최신 태그**: `v0.4-boyle-complete`
-**다음 단계**: Arduino 하드웨어 입수 후 펌웨어 작성 + 실연결 테스트
+**현재 상태**: 보일 법칙 시뮬레이터 완성 + **심화 탐구 모드 추가** (`feature/particle-controls`) + **Phase 3 진행 중** — 소프트웨어(Web Serial 어댑터·프로토콜 v1.1·UI 패널) 완료, 하드웨어·펌웨어 대기.
+**최신 태그**: `v0.4-boyle-complete` (main), `feature/particle-controls` 브랜치 작업 완료 (태그 미할당)
+**다음 단계**: Arduino 하드웨어 입수 후 펌웨어 작성 + 실연결 테스트; `feature/particle-controls` 는 추가 검증 후 main 병합 예정
 
 ---
 
@@ -172,6 +172,64 @@ Arduino·ESP32 하드웨어 입수 전 선행 가능한 브라우저·프로토�
 
 ---
 
+## 2-E. 심화 탐구 모드 + 기본 실험 확장 (`feature/particle-controls`)
+
+`main` 브랜치의 보일 법칙 MVP 위에 **기본/심화** 듀얼 탭 구조를 얹고, 기본 실험도 범위 확장했다. 모든 작업은 `feature/particle-controls` 브랜치에 누적.
+
+### 탭 분리 + 심화 탐구 신규 구현
+- [x] 상단 탭 (`#mode-tabs`) — `🔬 기본 실험` / `⚗️ 심화 탐구`
+- [x] `initModeTabs({ onSwitch })` — 전환 시 p5 draw 루프 pause/resume
+- [x] 탭별 독립 DOM (모든 심화 요소는 `adv-` 접두사)
+
+### 심화 탐구 물리 모델
+- [x] **부피 주도** (기본과 반대): 학생이 V 슬라이더 조작 → `P = P₀·(V₀/V)·(T/T₀)·(N/N₀)` 로 압력 자동 계산
+- [x] 입자 수 자유 조절 (50~800, step 50) — 슬라이더 변경 시 `ParticleSystem` 재생성
+- [x] 기체 종류 4종: **He (4) / N₂ (28) / Ar (40) / CO₂ (44) g/mol**
+- [x] 속도 스케일: `σ = σ₀·√(T/T_ref)·√(m_ref/m)` — 2-D Maxwell-Boltzmann 정합
+- [x] 온도 범위 **−100 °C ~ 500 °C** (프리셋 6개: −100/0/25/100/300/500 + 커스텀)
+- [x] 유령입자 **0개** (순수 실입자 통계) — 관측 노이즈를 체감 포인트로
+
+### 심화 탐구 시각화
+- [x] **메인 실린더** (1000×360 p5) — 기본 실험 `drawCylinderShell / drawPiston / drawParticlesHSB` 헬퍼 재사용
+- [x] **추적 실린더** (400×144 p5, `p.scale(0.4)`) — `particles[0]` 한 개만 빨강→파랑 HSB + 3× 반경 + 다크 외곽선으로 강조, 45프레임 잔상 (속도별 HSB + 알파 페이드)
+- [x] 추적 실린더 하단 **속도 게이지** (HTML/CSS) — 현재 속도 바 + 평균 속도 세로 마커, 100 ms 갱신
+- [x] **볼츠만 히스토그램**: x축 `4·σ(He, 500°C)` 고정, y축 peak-normalized (`probDensity / (1/σ)·e^(−0.5)` → 이론 peak 항상 y=1), EMA 제거
+- [x] **피스톤 충돌 플래시** — 기본 실험과 동일 소스(`getLastPistonCollisions`), 고정벽 제외
+
+### 심화 탐구 데이터 기록
+- [x] **PV/nT 검증 표** (`#adv-section-measurements`): 컬럼 `# / 기체 / T(K) / V(mL) / N / P(kPa) / PV·nT⁻¹` + 행별 `×` 삭제
+- [x] **PV/nT 막대 그래프**: y축 `0 → mean × 2` 고정 스케일, 이론선(평균) 토글
+- [x] CSV 내보내기: `advanced_pvnt_YYYY-MM-DD_HH-MM-SS.csv` (UTF-8 BOM)
+- [x] `기록` 버튼 — 컨트롤 바 우측(기체 드롭다운 옆), 강조색
+
+### 심화 탐구 AI 튜터
+- [x] 독립 사이드바 (`#adv-ai-sidebar`) — Q1-Q4 + 자유 탭, 메시지 입력, 학생 수준/모델 드롭다운
+- [x] **기본 실험과 API 키 공유** — `sessionStorage["pchem_api_key"]` 동일 키, 키 입력 UI는 기본 실험에만
+- [x] `createAdvAiTutor({ getAdvState })` — 자체 대화 상태, Anthropic Messages API 직접 호출
+- [x] `buildContext` 에 실험 조건 + 기록된 측정점(N≥2 시) 포함
+- [x] `× 사이드바 접기` + 우측 재열기 버튼 (`body.adv-sidebar-collapsed` 로 scoped)
+- [x] 입력창 활성 상태 = API 키 유무 반영 (`updateInputAvailability()`, 탭 전환·포커스·탭 클릭 시 갱신)
+
+### 심화 탐구 레이아웃
+- [x] 제어 영역 2줄 압축 — 온도 / [부피+압력+입자수+기체+기록]
+- [x] 측정 기록 + 그래프 3카드 가로 배치
+
+### 기본 실험 확장 (동시 반영)
+- [x] **압력 슬라이더 81 ~ 500 kPa** (기존 81 ~ 230 kPa)
+- [x] 실린더 캔버스 900 → **1000 px**, `BOX_INITIAL_X` 40 → 20, `BOX_MAX_WIDTH` 760 → 880, `BOX_MIN_WIDTH` 200 → 120 (P=500 kPa 지점 V≈10.1 mL 시각화)
+- [x] 측정 그래프 영역 3카드 (표 : P-V : 1/V-P = 4 : 3 : 3)
+- [x] **1/V vs P 그래프 신규** — x: 0~500 kPa, y: 0~0.12 (1/mL), 이론선 `1/V = P/(P₀·V₀)` 토글
+- [x] 그래프 토글 기본 미체크 + 측정점 2개 이상일 때만 활성화
+- [x] 측정점 표 컬럼 `기체 / 온도(K)` 컨텍스트 추가
+
+### 미적용 / 후속 작업
+- [ ] main 병합 전 실전 검증 (수업 시뮬레이션)
+- [ ] 측정 기록 관련 리그레션 테스트 (500 kPa 범위에서 `runPVAccuracyTest` 갱신)
+- [ ] AI 튜터 심화 모드 전용 프롬프트 튜닝 (기체 종류 비교 유도 등)
+- [ ] 반응형 레이아웃 — **별도 브랜치 진행 중**. 현 브랜치는 데스크탑 ≥ 1872 px 기준 (심화 탭)
+
+---
+
 ## 3. 진행 중인 작업
 
 **Phase 3: Arduino 실센서 통합** — 소프트웨어 레이어 완료, **하드웨어·펌웨어 대기**.
@@ -228,20 +286,27 @@ Arduino·ESP32 하드웨어 입수 전 선행 가능한 브라우저·프로토�
 
 | 항목 | 값 | 출처 |
 |---|---|---|
-| 슬라이더 범위 | 81 ~ 230 kPa | `ui.js` `createDevPressureSlider` |
+| 슬라이더 범위 (기본) | 81 ~ 500 kPa (`feature/particle-controls`), main: 81 ~ 230 | `ui.js` `createDevPressureSlider` |
+| 부피 슬라이더 범위 (심화) | 20 ~ 80 mL | `index.html` `#adv-volume-slider` |
+| 온도 범위 (기본) | 0 ~ 77 °C | `ui.js` `createTemperatureControl` |
+| 온도 범위 (심화) | −100 ~ 500 °C | `index.html` `#adv-temp-custom-input` |
 | 기본 온도 | 25 °C (298.15 K) | `params.json` `initial_temperature_K` |
-| 온도 입력 범위 | 0 ~ 77 °C | `ui.js` `createTemperatureControl` |
 | 초기 P | 101.3 kPa | `params.json` `initial_pressure_kPa` |
 | 초기 V 표시 | 30.0 mL | `params.json` `initial_volume_mL` |
 | V_baseline (25 °C 기준) | 50.0 mL | `params.json` `baseline_volume_mL` |
 | 기준 가스 폭 (px) | 600 | `params.json` `baseline_gas_width_px` |
+| `SIM_CANVAS_WIDTH` | 1000 (`feature`), main: 900 | `renderer.js` |
+| `BOX_INITIAL_X` | 20 (`feature`), main: 40 | `simulation.js` |
 | `BOX_INITIAL_WIDTH` | 600 | `simulation.js` |
-| `BOX_MIN_WIDTH` | 200 | `simulation.js` |
-| `BOX_MAX_WIDTH` | 760 | `simulation.js` |
+| `BOX_MIN_WIDTH` | 120 (`feature`), main: 200 | `simulation.js` |
+| `BOX_MAX_WIDTH` | 880 (`feature`), main: 760 | `simulation.js` |
 | `BOX_INITIAL_HEIGHT` | 250 | `simulation.js` |
 | `PARTICLE_RADIUS` | 2.5 px | `simulation.js` |
-| 실입자 수 | 300 | `params.json` `particle_count` |
-| 유령 입자 수 | 2700 | `params.json` `ghost_count` |
+| 실입자 수 (기본) | 300 | `params.json` `particle_count` |
+| 실입자 수 범위 (심화) | 50 ~ 800 (step 50, 기본 300) | `index.html` `#adv-particle-slider` |
+| 유령 입자 수 (기본) | 2700 | `params.json` `ghost_count` |
+| 유령 입자 수 (심화) | 0 | `main.js` `initAdvancedMode` |
+| 기체 종류 (심화) | He(4) / N₂(28) / Ar(40) / CO₂(44) g/mol | `main.js` `ADV_GAS_MASSES` |
 | `DEFAULT_SPEED_SCALE` | 120 (초기 RMS 기준) | `simulation.js` |
 | `DT_CAP` | 0.05 s (프레임 드롭 가드) | `simulation.js` |
 | 속도 수렴 시정수 | 0.05 s | `params.json` `velocity_tau_seconds` |
