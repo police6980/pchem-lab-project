@@ -560,7 +560,7 @@ async function generateReport() {
     const systemPrompt = `당신은 영재 과학교육 보고서 작성 도우미입니다.
 학생의 실험 데이터와 AI 튜터와의 탐구 대화를 바탕으로 탐구 보고서 초안을 작성하세요.
 
-보고서 구조 (반드시 아래 ## 헤딩 형식 그대로 사용):
+반드시 아래 ## 헤딩 형식 그대로 사용하세요:
 ## 1. 탐구 제목
 ## 2. 탐구 목표
 ## 3. 실험 조건
@@ -569,7 +569,9 @@ async function generateReport() {
 ## 6. 더 탐구하고 싶은 것
 
 원칙:
+- 섹션 4 앞에는 [표와 그래프 자동 삽입] 이라는 텍스트를 출력하지 마세요. 표와 그래프는 코드가 자동으로 삽입합니다.
 - 학생이 대화에서 직접 말한 표현을 최대한 인용하세요.
+- 결론은 학생의 이해 수준에 맞게 학생 목소리로 작성하세요.
 - 각 섹션 100자 내외로 간결하게.
 - 한국어로 작성하세요.`;
 
@@ -645,6 +647,44 @@ ${convText}
     const { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell,
             ImageRun, HeadingLevel, AlignmentType, WidthType } = docx;
 
+    function parseSections(text) {
+        const map = {};
+        const lines = text.split("\n");
+        let current = null;
+        let buf = [];
+        const flush = () => {
+            if (current) map[current] = buf.join("\n").trim();
+        };
+        for (const line of lines) {
+            const m = line.match(/^##\s+(\d+)\.\s+/);
+            if (m) {
+                flush();
+                current = m[1];
+                buf = [];
+            } else if (current) {
+                buf.push(line);
+            }
+        }
+        flush();
+        return map;
+    }
+
+    function textToParas(text) {
+        const out = [];
+        if (!text) return out;
+        for (const line of text.split("\n")) {
+            if (line.trim()) {
+                out.push(new Paragraph({
+                    children: [new TextRun({ text: line })],
+                }));
+            } else {
+                out.push(new Paragraph(""));
+            }
+        }
+        return out;
+    }
+
+    const sections = parseSections(reportText);
     const docChildren = [];
 
     docChildren.push(new Paragraph({
@@ -661,29 +701,26 @@ ${convText}
     }));
     docChildren.push(new Paragraph(""));
 
-    // 1. AI report body (## headings parsed) — moved to the top so the
-    //    narrative leads and supporting data follows.
-    for (const line of reportText.split("\n")) {
-        if (line.startsWith("## ")) {
-            docChildren.push(new Paragraph({
-                text: line.replace(/^##\s*/, ""),
-                heading: HeadingLevel.HEADING_2,
-            }));
-        } else if (line.trim()) {
-            docChildren.push(new Paragraph({
-                children: [new TextRun({ text: line })],
-            }));
-        } else {
-            docChildren.push(new Paragraph(""));
-        }
-    }
-
-    // 2. 실험 결과 (measurement table)
-    if (datapoints.length > 0) {
+    // §1-3 from AI (탐구 제목 / 탐구 목표 / 실험 조건)
+    const aiLeadSections = [
+        { num: "1", title: "1. 탐구 제목" },
+        { num: "2", title: "2. 탐구 목표" },
+        { num: "3", title: "3. 실험 조건" },
+    ];
+    for (const s of aiLeadSections) {
         docChildren.push(new Paragraph({
-            text: "실험 결과",
+            text: s.title,
             heading: HeadingLevel.HEADING_2,
         }));
+        docChildren.push(...textToParas(sections[s.num] || ""));
+    }
+
+    // §4 실험 결과 (code-inserted: measurement table + chart images)
+    docChildren.push(new Paragraph({
+        text: "4. 실험 결과",
+        heading: HeadingLevel.HEADING_2,
+    }));
+    if (datapoints.length > 0) {
         const headers = ["#", "P (kPa)", "V (mL)", "P·V", "v̄ (px/s)", "충돌/s"];
         const headerRow = new TableRow({
             children: headers.map(h => new TableCell({
@@ -714,27 +751,46 @@ ${convText}
         }));
         docChildren.push(new Paragraph(""));
     }
-
-    // 3. 측정 그래프 (chart images — now 3 charts: PV scatter, v̄, 충돌/s)
     const svgEls = document.querySelectorAll(".chart-wrap svg");
-    if (svgEls.length > 0) {
+    for (const svg of svgEls) {
+        const ab = await svgToPngArrayBuffer(svg);
+        if (!ab) continue;
         docChildren.push(new Paragraph({
-            text: "측정 그래프",
+            children: [new ImageRun({
+                data: ab,
+                transformation: { width: 320, height: 160 },
+            })],
+            alignment: AlignmentType.CENTER,
+        }));
+        docChildren.push(new Paragraph(""));
+    }
+
+    // §5-7 remapped from AI's §4-6 (데이터 분석 / 결론 / 더 탐구하고 싶은 것)
+    const aiTailSections = [
+        { title: "5. 데이터 분석", srcIdx: "4" },
+        { title: "6. 결론", srcIdx: "5" },
+        { title: "7. 더 탐구하고 싶은 것", srcIdx: "6" },
+    ];
+    for (const s of aiTailSections) {
+        docChildren.push(new Paragraph({
+            text: s.title,
             heading: HeadingLevel.HEADING_2,
         }));
-        for (const svg of svgEls) {
-            const ab = await svgToPngArrayBuffer(svg);
-            if (!ab) continue;
-            docChildren.push(new Paragraph({
-                children: [new ImageRun({
-                    data: ab,
-                    transformation: { width: 320, height: 160 },
-                })],
-                alignment: AlignmentType.CENTER,
-            }));
-            docChildren.push(new Paragraph(""));
-        }
+        docChildren.push(...textToParas(sections[s.srcIdx] || ""));
     }
+
+    // §8 반성 (code-inserted guidance)
+    docChildren.push(new Paragraph({
+        text: "8. 반성",
+        heading: HeadingLevel.HEADING_2,
+    }));
+    docChildren.push(new Paragraph({
+        children: [new TextRun({
+            text: "이 실험 결과로부터 알게 된 것, 생각이 변한 것 등을 자유롭게 써보세요.",
+            italics: true,
+            color: "AAAAAA",
+        })],
+    }));
 
     try {
         // NB: local var is `doc`, not `document`, to avoid shadowing the
