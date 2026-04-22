@@ -123,6 +123,8 @@ function createMeasurementPanel({
     getCurrentTempKelvin,
     exportContinuousCSV, getContinuousBufferSize, clearContinuousBuffer, resetSession,
     onDataChange, onResetAll,
+    getAvgSpeed = null,
+    getCollisionsPerSec = null,
 }) {
     const readingBlock = document.createElement("div");
     readingBlock.id = "current-reading-block";
@@ -160,6 +162,8 @@ function createMeasurementPanel({
                     <th class="num-col">P (kPa)</th>
                     <th class="num-col">V (mL)</th>
                     <th class="num-col">P·V</th>
+                    <th class="num-col">v̄ (px/s)</th>
+                    <th class="num-col">충돌/s</th>
                     <th></th>
                 </tr>
             </thead>
@@ -389,6 +393,8 @@ function createMeasurementPanel({
                 <td class="num">${d.P.toFixed(1)}</td>
                 <td class="num">${d.V.toFixed(1)}</td>
                 <td class="num pv">${d.PV.toFixed(1)}</td>
+                <td class="num">${d.avgSpeed   ?? '—'}</td>
+                <td class="num">${d.collisions ?? '—'}</td>
                 <td><button class="btn-delete" data-id="${d.id}">×</button></td>
             </tr>
         `).join("");
@@ -442,6 +448,8 @@ function createMeasurementPanel({
             P, V, PV: P * V,
             timestamp: Date.now(),
             tempK: getCurrentTempKelvin(),
+            avgSpeed:   getAvgSpeed        ? Math.round(getAvgSpeed())        : null,
+            collisions: getCollisionsPerSec ? Math.round(getCollisionsPerSec()) : null,
         });
         renderTable();
         renderSummary();

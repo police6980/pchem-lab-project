@@ -61,6 +61,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     let pistonHitsAccumulator = 0;
+    let lastHitsPerSec = 0;
     const renderer = createRenderer(box, system, params, (dt) => {
         system.update(dt);
         box.update(dt, params.volume_tau_seconds);
@@ -134,6 +135,8 @@ document.addEventListener("DOMContentLoaded", async () => {
             continuousOverflowWarned = false;
         },
         resetSession: () => { sessionStartMs = null; },
+        getAvgSpeed:        () => system.getAverageSpeed(),
+        getCollisionsPerSec: () => lastHitsPerSec,
     });
 
     setInterval(() => {
@@ -220,6 +223,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         const hitsPer5s = pistonHitsAccumulator;
         const hitsPerSec = hitsPer5s / 5;
         pistonHitsAccumulator = 0;
+        lastHitsPerSec = hitsPerSec;
 
         updateInfoPanel({ hitsPerSec });
 
