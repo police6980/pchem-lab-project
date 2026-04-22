@@ -67,8 +67,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     let lastDisplayAvgSpeed = 0;
     let lastDisplayHitsPerSec = 0;
     // EMA-smoothed hitsPerSec for display. Updated every 250ms from raw
-    // continuous-log samples; α=0.3 gives τ≈0.7s for gentle smoothing
-    // that tracks the 2s stabilization window.
+    // continuous-log samples. α=0.15 gives τ≈1.5s — strong smoothing to
+    // suppress Poisson jitter (~14% per 250ms sample with 300 particles),
+    // response time aligned with the 2s stabilization window.
     let smoothedHitsPerSec = 0;
     const renderer = createRenderer(box, system, params, (dt) => {
         system.update(dt);
@@ -151,7 +152,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     setInterval(() => {
         const hitsPerSec = continuousHitsAccumulator / (CONTINUOUS_SAMPLE_INTERVAL_MS / 1000);
         continuousHitsAccumulator = 0;
-        smoothedHitsPerSec += (hitsPerSec - smoothedHitsPerSec) * 0.3;
+        smoothedHitsPerSec += (hitsPerSec - smoothedHitsPerSec) * 0.15;
         lastDisplayHitsPerSec = smoothedHitsPerSec;
         updateInfoPanel({ hitsPerSec: smoothedHitsPerSec });
 
