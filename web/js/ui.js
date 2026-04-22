@@ -385,9 +385,9 @@ function createMeasurementPanel({
     const PV_MARGIN_TOP = 16;
     const PV_MARGIN_BOTTOM = 36;
     const PV_X_MIN = 0;
-    const PV_X_MAX = 60;
-    const PV_Y_MIN = 60;
-    const PV_Y_MAX = 250;
+    const PV_X_MAX = 65;   // 81 kPa → V ≈ 62.5 mL, so 65 gives headroom
+    const PV_Y_MIN = 0;
+    const PV_Y_MAX = 500;  // matches dev pressure slider max
     const PV_INNER_LEFT = PV_MARGIN_LEFT;
     const PV_INNER_RIGHT = PV_CANVAS_WIDTH - PV_MARGIN_RIGHT;
     const PV_INNER_TOP = PV_MARGIN_TOP;
@@ -412,7 +412,7 @@ function createMeasurementPanel({
             for (let v = 10; v <= 60; v += 10) {
                 p.line(pvX(v), pvY(PV_Y_MIN), pvX(v), pvY(PV_Y_MAX));
             }
-            for (let q = 100; q <= 250; q += 50) {
+            for (let q = 100; q <= 500; q += 100) {
                 p.line(pvX(PV_X_MIN), pvY(q), pvX(PV_X_MAX), pvY(q));
             }
 
@@ -427,7 +427,7 @@ function createMeasurementPanel({
             p.textAlign(p.CENTER, p.TOP);
             for (let v = 0; v <= 60; v += 10) p.text(v, pvX(v), pvY(PV_Y_MIN) + 4);
             p.textAlign(p.RIGHT, p.CENTER);
-            for (let q = 100; q <= 250; q += 50) p.text(q, pvX(PV_X_MIN) - 5, pvY(q));
+            for (let q = 0; q <= 500; q += 100) p.text(q, pvX(PV_X_MIN) - 5, pvY(q));
 
             p.fill(80);
             p.textSize(11);
@@ -455,7 +455,7 @@ function createMeasurementPanel({
                 p.stroke(230, 100, 60, 150);
                 p.strokeWeight(1);
                 let inShape = false;
-                for (let V = 0.5; V <= 60; V += 0.5) {
+                for (let V = 0.5; V <= 65; V += 0.5) {
                     const P = k / V;
                     const inRange = P >= PV_Y_MIN && P <= PV_Y_MAX;
                     if (inRange) {
@@ -505,7 +505,7 @@ function createMeasurementPanel({
     const INVV_X_MIN = 0;
     const INVV_X_MAX = 500;
     const INVV_Y_MIN = 0;
-    const INVV_Y_MAX = 0.1;
+    const INVV_Y_MAX = 0.12;  // 500 kPa → 1/V ≈ 0.099, so 0.12 gives headroom
     const INVV_P0V0 = 5065;   // P₀·V₀ = 101.3·50 → theoretical slope = 1/5065
 
     const invvX = (P) => PV_INNER_LEFT + (P - INVV_X_MIN) / (INVV_X_MAX - INVV_X_MIN) * (PV_INNER_RIGHT - PV_INNER_LEFT);
@@ -528,7 +528,7 @@ function createMeasurementPanel({
             for (let v = 100; v <= 500; v += 100) {
                 p.line(invvX(v), invvY(INVV_Y_MIN), invvX(v), invvY(INVV_Y_MAX));
             }
-            for (let q = 0.02; q <= 0.1001; q += 0.02) {
+            for (let q = 0.02; q <= 0.1201; q += 0.02) {
                 p.line(invvX(INVV_X_MIN), invvY(q), invvX(INVV_X_MAX), invvY(q));
             }
 
@@ -545,7 +545,7 @@ function createMeasurementPanel({
             p.textAlign(p.CENTER, p.TOP);
             for (let v = 0; v <= 500; v += 100) p.text(v, invvX(v), invvY(INVV_Y_MIN) + 4);
             p.textAlign(p.RIGHT, p.CENTER);
-            for (let q = 0; q <= 0.1001; q += 0.02) p.text(q.toFixed(2), invvX(INVV_X_MIN) - 5, invvY(q));
+            for (let q = 0; q <= 0.1201; q += 0.02) p.text(q.toFixed(2), invvX(INVV_X_MIN) - 5, invvY(q));
 
             // Axis titles.
             p.fill(80);
