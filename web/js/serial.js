@@ -3,25 +3,38 @@
 class SensorSource {
     constructor() {
         this._callbacks = [];
+        this._eventHandlers = {};
     }
 
     onData(callback) {
         this._callbacks.push(callback);
     }
 
+    on(type, callback) {
+        if (!this._eventHandlers[type]) this._eventHandlers[type] = [];
+        this._eventHandlers[type].push(callback);
+    }
+
     _emit(data) {
-        for (const cb of this._callbacks) {
-            cb(data);
-        }
+        for (const cb of this._callbacks) cb(data);
     }
 
-    start() {
-        throw new Error("SensorSource.start() must be implemented by subclass");
+    _emitEvent(type, payload) {
+        const handlers = this._eventHandlers[type];
+        if (!handlers) return;
+        for (const cb of handlers) cb(payload);
     }
 
-    stop() {
-        throw new Error("SensorSource.stop() must be implemented by subclass");
+    async connect() {
+        throw new Error("SensorSource.connect() must be implemented by subclass");
     }
+
+    async disconnect() {
+        throw new Error("SensorSource.disconnect() must be implemented by subclass");
+    }
+
+    async sendCalib() { /* no-op by default */ }
+    async sendConfig(rateMs) { /* no-op by default */ }
 }
 
 class MockSensorSource extends SensorSource {
@@ -29,14 +42,16 @@ class MockSensorSource extends SensorSource {
         super();
         this._pressure = initialPressure;
         this._interval = null;
+        this._intervalMs = 50;
         this._noiseSigma = 0.1;
+        this.connected = false;
     }
 
     setPressure(value) {
         this._pressure = value;
     }
 
-    start() {
+    _startInterval() {
         if (this._interval !== null) return;
         this._interval = setInterval(() => {
             const noisy = this._pressure + this._gaussianNoise() * this._noiseSigma;
@@ -46,13 +61,45 @@ class MockSensorSource extends SensorSource {
                 unit: "kPa",
                 timestamp: performance.now()
             });
-        }, 50);
+        }, this._intervalMs);
     }
 
-    stop() {
+    _stopInterval() {
         if (this._interval !== null) {
             clearInterval(this._interval);
             this._interval = null;
+        }
+    }
+
+    async connect() {
+        if (this.connected) return;
+        this._startInterval();
+        this.connected = true;
+        this._emitEvent("connect", {
+            version: "mock",
+            sensor: "MockSensor",
+            fw: "mock",
+        });
+    }
+
+    async disconnect() {
+        if (!this.connected) return;
+        this._stopInterval();
+        this.connected = false;
+        this._emitEvent("disconnect");
+    }
+
+    async sendCalib() {
+        // Fake calibration: use current pressure as the zero reference.
+        this._emitEvent("calibrated", this._pressure);
+    }
+
+    async sendConfig(rateMs) {
+        const r = Math.max(10, Math.min(2000, Number(rateMs) || 50));
+        this._intervalMs = r;
+        if (this.connected) {
+            this._stopInterval();
+            this._startInterval();
         }
     }
 
@@ -81,7 +128,6 @@ class WebSerialSensorSource extends SensorSource {
         this._lineBuffer = "";
         this._decoder = new TextDecoder();
         this._encoder = new TextEncoder();
-        this._eventHandlers = {};
 
         this.connected = false;
         this.sensorLabel = null;
@@ -90,19 +136,10 @@ class WebSerialSensorSource extends SensorSource {
         this.p0 = null;
     }
 
-    // Typed control events (connect / calibrated / error). Data frames keep
-    // using the base class's onData / _emit path so MockSensor and WebSerial
-    // remain drop-in compatible from the data consumer's perspective.
-    onEvent(type, callback) {
-        if (!this._eventHandlers[type]) this._eventHandlers[type] = [];
-        this._eventHandlers[type].push(callback);
-    }
-
-    _emitEvent(type, payload) {
-        const handlers = this._eventHandlers[type];
-        if (!handlers) return;
-        for (const cb of handlers) cb(payload);
-    }
+    // Control events (connect / disconnect / calibrated / error) use the base
+    // class's .on() / _emitEvent() channel. Data frames keep using onData /
+    // _emit so MockSensor and WebSerial remain drop-in compatible for data
+    // consumers.
 
     async connect() {
         if (!("serial" in navigator)) {
@@ -169,6 +206,8 @@ class WebSerialSensorSource extends SensorSource {
         this.isV11 = false;
         this.p0 = null;
         this._lineBuffer = "";
+
+        this._emitEvent("disconnect");
     }
 
     async _readLoop() {
@@ -273,4 +312,61 @@ class WebSerialSensorSource extends SensorSource {
     async sendConfig(rateMs) {
         return this._sendJson({ t: "cfg", rate: rateMs });
     }
+}
+
+// Manager wraps a swappable SensorSource. Persists onData / on(...) subscriptions
+// across mode switches so consumers register once and don't need to re-wire
+// callbacks when mock↔real toggles.
+function createSensorManager(initialPressure = 101.3) {
+    const manager = {
+        source: null,
+        mode: null,
+        _dataCallbacks: [],
+        _eventCallbacks: {},
+        _initialPressure: initialPressure,
+
+        async setMode(mode) {
+            if (this.mode === mode) return;
+            if (this.source) {
+                try { await this.source.disconnect(); } catch (_) {}
+            }
+
+            this.source = (mode === "real")
+                ? new WebSerialSensorSource()
+                : new MockSensorSource(this._initialPressure);
+            this.mode = mode;
+
+            // Re-attach persisted subscriptions to the new source.
+            for (const cb of this._dataCallbacks) this.source.onData(cb);
+            for (const [type, cbs] of Object.entries(this._eventCallbacks)) {
+                for (const cb of cbs) this.source.on(type, cb);
+            }
+
+            if (mode === "mock") {
+                // Mock connects immediately — no port picker.
+                await this.source.connect();
+            }
+            // Real: wait for user to click [🔌 포트 연결].
+        },
+
+        onData(cb) {
+            this._dataCallbacks.push(cb);
+            if (this.source) this.source.onData(cb);
+        },
+
+        on(type, cb) {
+            if (!this._eventCallbacks[type]) this._eventCallbacks[type] = [];
+            this._eventCallbacks[type].push(cb);
+            if (this.source) this.source.on(type, cb);
+        },
+
+        async sendCalib() {
+            if (this.source) return this.source.sendCalib();
+        },
+
+        async sendConfig(rateMs) {
+            if (this.source) return this.source.sendConfig(rateMs);
+        },
+    };
+    return manager;
 }

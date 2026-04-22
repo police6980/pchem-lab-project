@@ -44,6 +44,118 @@ function createDevPressureSlider(onChange) {
     return container;
 }
 
+// Wires the #sensor-panel static markup (from index.html) to a sensorManager.
+// Mode toggle, connect/disconnect, calibration, and event-driven status/label
+// updates all live here.
+function initSensorPanel(sensorManager) {
+    const btnMock         = document.getElementById("btn-mode-mock");
+    const btnReal         = document.getElementById("btn-mode-real");
+    const realControls    = document.getElementById("sensor-real-controls");
+    const btnConnect      = document.getElementById("btn-serial-connect");
+    const btnDisconnect   = document.getElementById("btn-serial-disconnect");
+    const btnCalib        = document.getElementById("btn-serial-calib");
+    const statusEl        = document.getElementById("serial-status");
+    const sensorLabelEl   = document.getElementById("serial-sensor-label");
+    const errorEl         = document.getElementById("serial-error");
+
+    if (!btnMock || !btnReal) return;
+
+    const webSerialSupported = "serial" in navigator;
+    if (!webSerialSupported) {
+        btnReal.disabled = true;
+        btnReal.title = "Chrome/Edge에서만 지원됩니다";
+    }
+
+    function showRealControls(show) {
+        realControls.classList.toggle("hidden", !show);
+    }
+
+    function setModeUI(mode) {
+        btnMock.classList.toggle("active", mode === "mock");
+        btnReal.classList.toggle("active", mode === "real");
+        showRealControls(mode === "real");
+    }
+
+    function resetRealUI() {
+        statusEl.textContent = "연결 안 됨";
+        statusEl.className = "status-disconnected";
+        sensorLabelEl.textContent = "";
+        btnConnect.classList.remove("hidden");
+        btnDisconnect.classList.add("hidden");
+        btnCalib.disabled = true;
+        if (errorEl) errorEl.textContent = "";
+    }
+
+    btnMock.addEventListener("click", () => {
+        setModeUI("mock");
+        resetRealUI();
+        sensorManager.setMode("mock");
+    });
+
+    btnReal.addEventListener("click", () => {
+        if (btnReal.disabled) return;
+        setModeUI("real");
+        resetRealUI();
+        sensorManager.setMode("real");
+    });
+
+    btnConnect.addEventListener("click", () => {
+        sensorManager.source.connect().catch(err => {
+            statusEl.textContent = "연결 실패";
+            statusEl.className = "status-error";
+            if (errorEl) errorEl.textContent = `⚠ ${err.message || err}`;
+        });
+    });
+
+    btnDisconnect.addEventListener("click", () => {
+        sensorManager.source.disconnect();
+    });
+
+    btnCalib.addEventListener("click", () => {
+        sensorManager.sendCalib();
+    });
+
+    // Event subscriptions survive mode switches (manager re-attaches them).
+    sensorManager.on("connect", (info) => {
+        // Mock's connect shouldn't light up the real-sensor status badge.
+        if (info?.version === "mock") return;
+        statusEl.textContent = "● 연결됨";
+        statusEl.className = "status-connected";
+        sensorLabelEl.textContent = info?.sensor
+            ? `${info.sensor}${info.fw ? ` (fw ${info.fw})` : ""}`
+            : `v${info?.version || "?"}`;
+        btnConnect.classList.add("hidden");
+        btnDisconnect.classList.remove("hidden");
+        btnCalib.disabled = false;
+    });
+
+    sensorManager.on("disconnect", () => {
+        // Only update real UI if we're currently in real mode.
+        if (sensorManager.mode !== "real") return;
+        resetRealUI();
+    });
+
+    sensorManager.on("calibrated", (p0) => {
+        if (sensorManager.mode !== "real") return;
+        const n = Number(p0);
+        if (Number.isFinite(n)) {
+            sensorLabelEl.textContent = `p₀ = ${n.toFixed(1)} kPa`;
+        }
+    });
+
+    sensorManager.on("error", (msg) => {
+        if (errorEl) {
+            errorEl.textContent = `⚠ ${msg}`;
+            setTimeout(() => {
+                if (errorEl.textContent === `⚠ ${msg}`) errorEl.textContent = "";
+            }, 5000);
+        }
+    });
+
+    // Initial state: Mock mode active.
+    setModeUI("mock");
+}
+
 function createInfoPanel() {
     const panel = document.createElement("div");
     panel.id = "info-panel";

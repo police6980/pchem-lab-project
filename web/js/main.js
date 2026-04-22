@@ -1,7 +1,5 @@
 // Entry point - boot and overall orchestration
 
-const USE_MOCK_SENSOR = true;
-
 const REFERENCE_TEMP_K = 298.15;
 const REFERENCE_V_ML = 50;
 const REFERENCE_P_KPA = 101.3;
@@ -44,21 +42,21 @@ document.addEventListener("DOMContentLoaded", async () => {
     let continuousHitsAccumulator = 0;
     let continuousOverflowWarned = false;
 
-    if (USE_MOCK_SENSOR) {
-        const sensor = new MockSensorSource(params.initial_pressure_kPa);
-        createDevPressureSlider(v => {
-            setSessionStart();
-            sensor.setPressure(v);
-        });
-        sensor.onData(data => {
-            smoothedP += (data.value - smoothedP) * 0.1;
-            box.setTargetFromPressure(smoothedP, P0, V0_current);
-            updateInfoPanel({ pressure_kPa: smoothedP });
-        });
-        sensor.start();
-    } else {
-        console.warn("Real sensor not implemented yet");
-    }
+    const sensorManager = createSensorManager(params.initial_pressure_kPa);
+    createDevPressureSlider(v => {
+        setSessionStart();
+        // Slider only affects the mock source; in real mode it's orphaned.
+        if (typeof sensorManager.source?.setPressure === "function") {
+            sensorManager.source.setPressure(v);
+        }
+    });
+    sensorManager.onData(data => {
+        smoothedP += (data.value - smoothedP) * 0.1;
+        box.setTargetFromPressure(smoothedP, P0, V0_current);
+        updateInfoPanel({ pressure_kPa: smoothedP });
+    });
+    initSensorPanel(sensorManager);
+    sensorManager.setMode("mock");
 
     let pistonHitsAccumulator = 0;
     // Snapshot of the values currently shown in the info panel. Measurement

@@ -1235,6 +1235,66 @@ body.sidebar-collapsed #ai-sidebar {
     display: none;
 }
 
+/* === Sensor panel === */
+#sensor-panel {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 12px;
+    background: #f4f6fa;
+    border: 1px solid #d7dde8;
+    border-radius: 6px;
+    margin-bottom: 8px;
+    flex-wrap: wrap;
+}
+#sensor-mode-toggle button {
+    padding: 6px 12px;
+    border: 1px solid #cfd6e4;
+    background: #fff;
+    cursor: pointer;
+    border-radius: 4px;
+    font-size: 0.9rem;
+}
+#sensor-mode-toggle button.active {
+    background: #2e3650;
+    color: #fff;
+    border-color: #2e3650;
+}
+#sensor-mode-toggle button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+#sensor-real-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+#sensor-real-controls button {
+    padding: 6px 10px;
+    font-size: 0.88rem;
+    cursor: pointer;
+}
+#sensor-real-controls button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+#serial-status {
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+.status-connected { color: #27ae60; }
+.status-disconnected { color: #c0392b; }
+.status-error { color: #e67e22; }
+#serial-sensor-label {
+    font-size: 0.8rem;
+    color: #555;
+}
+.sensor-error {
+    width: 100%;
+    color: #c0392b;
+    font-size: 0.8rem;
+}
+
 #section-analysis {
     padding: 20px 24px;
     background: #f3f9ff;
