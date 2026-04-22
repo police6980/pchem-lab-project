@@ -93,6 +93,37 @@ function drawParticlesHSB(p, particles, vMaxColor) {
     }
 }
 
+// Wall-collision flash ring. Pulled out of createRenderer's closure so the
+// advanced-mode sim sketch can reuse the exact same class. `lifetime` is
+// passed in (basic uses params.flash_duration_sec).
+class Flash {
+    constructor(x, y, strength, hue, lifetime) {
+        this.x = x;
+        this.y = y;
+        this.hue = hue;
+        this.age = 0;
+        this.lifetime = lifetime;
+        this.baseRadius = 2 + strength * 0.015;
+    }
+
+    update(dt) {
+        this.age += dt;
+    }
+
+    isDead() {
+        return this.age >= this.lifetime;
+    }
+
+    draw(p) {
+        const t = this.age / this.lifetime;
+        const alpha = 180 * (1 - t);
+        const radius = this.baseRadius * (1 + t * 0.2);
+        p.noStroke();
+        p.fill(this.hue, 60, 100, alpha);
+        p.circle(this.x, this.y, radius * 2);
+    }
+}
+
 function createRenderer(box, particleSystem, params, updateFn) {
     // Fixed at start-up, never retuned. Distribution shift (e.g. heating) then
     // reads as visible color change instead of silent rescaling.
@@ -234,34 +265,6 @@ function createRenderer(box, particleSystem, params, updateFn) {
         }
     }
 
-    class Flash {
-        constructor(x, y, strength, hue) {
-            this.x = x;
-            this.y = y;
-            this.hue = hue;
-            this.age = 0;
-            this.lifetime = flashDuration;
-            this.baseRadius = 2 + strength * 0.015;
-        }
-
-        update(dt) {
-            this.age += dt;
-        }
-
-        isDead() {
-            return this.age >= this.lifetime;
-        }
-
-        draw(p) {
-            const t = this.age / this.lifetime;
-            const alpha = 180 * (1 - t);
-            const radius = this.baseRadius * (1 + t * 0.2);
-            p.noStroke();
-            p.fill(this.hue, 60, 100, alpha);
-            p.circle(this.x, this.y, radius * 2);
-        }
-    }
-
     const simSketch = (p) => {
         p.setup = () => {
             p.createCanvas(SIM_CANVAS_WIDTH, SIM_CANVAS_HEIGHT);
@@ -276,7 +279,7 @@ function createRenderer(box, particleSystem, params, updateFn) {
 
             const collisions = particleSystem.getLastPistonCollisions();
             for (const c of collisions) {
-                flashes.push(new Flash(c.x, c.y, c.momentumTransfer, computeHueFromSpeed(c.speed)));
+                flashes.push(new Flash(c.x, c.y, c.momentumTransfer, computeHueFromSpeed(c.speed), flashDuration));
             }
             for (const f of flashes) f.update(dt);
             flashes = flashes.filter(f => !f.isDead());

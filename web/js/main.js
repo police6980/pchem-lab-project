@@ -352,10 +352,9 @@ function initAdvancedMode(params) {
     createAdvAiTutor({
         getAdvState: () => {
             const V = parseFloat(volSlider.value);
-            const P = P0 * (ADV_V0_ML / V) * (currentTempK / ADV_REFERENCE_TEMP_K);
             return {
                 V_mL: V,
-                P_kPa: P,
+                P_kPa: computeAdvPressure(),
                 tempK: currentTempK,
                 particleCount: system.getParticles().length,
                 gas: gasSelect.value,
@@ -372,10 +371,19 @@ function initAdvancedMode(params) {
     const histNEl = document.getElementById("adv-hist-n");
 
     // --- Control handlers ---
-    function updatePressureReadout() {
+    // Ideal-gas pressure: P = P₀ · (V₀/V) · (T/T₀) · (N/N₀).
+    // N₀ = ADV_INITIAL_PARTICLES so the reference state (V₀, T₀, N₀, N₂)
+    // reads P₀ exactly. Changing any of V / T / N is reflected immediately.
+    function computeAdvPressure() {
         const V = parseFloat(volSlider.value);
-        const P = P0 * (ADV_V0_ML / V) * (currentTempK / ADV_REFERENCE_TEMP_K);
-        pressValue.textContent = `${P.toFixed(1)} kPa`;
+        const N = parseInt(partSlider.value, 10);
+        return P0
+            * (ADV_V0_ML / V)
+            * (currentTempK / ADV_REFERENCE_TEMP_K)
+            * (N / ADV_INITIAL_PARTICLES);
+    }
+    function updatePressureReadout() {
+        pressValue.textContent = `${computeAdvPressure().toFixed(1)} kPa`;
     }
 
     function applyVolume(V_mL) {
@@ -393,6 +401,7 @@ function initAdvancedMode(params) {
         // Rebuild instead of calling a setParticleCount method — keeps
         // simulation.js untouched and gets a correct, fresh MB draw.
         system = new ParticleSystem(n, box, currentSpeedScale(), 0);
+        updatePressureReadout();
     });
 
     gasSelect.addEventListener("change", () => {
@@ -439,8 +448,9 @@ function initAdvancedMode(params) {
         validateTempInput();
     });
 
-    // --- Sim sketch (reuses renderer.js draw helpers) ---
+    // --- Sim sketch (reuses renderer.js draw helpers + Flash class) ---
     let hitsAccumulator = 0;
+    let advFlashes = [];
     const simSketch = (p) => {
         p.setup = () => {
             const canvas = p.createCanvas(SIM_CANVAS_WIDTH, SIM_CANVAS_HEIGHT);
@@ -455,10 +465,22 @@ function initAdvancedMode(params) {
             system.clampParticlesIntoBox();
             hitsAccumulator += system.getTotalPistonCollisionCount();
 
+            // Spawn a flash on each piston collision (right wall only), same
+            // source as basic-mode. Flash colour uses advanced's vMaxColor so
+            // the palette matches the HSB particle colouring.
+            for (const c of system.getLastPistonCollisions()) {
+                const ratio = Math.min(c.speed / ADV_VMAX_COLOR, 1.0);
+                const hue = 240 - 240 * ratio;
+                advFlashes.push(new Flash(c.x, c.y, c.momentumTransfer, hue, params.flash_duration_sec));
+            }
+            for (const f of advFlashes) f.update(dt);
+            advFlashes = advFlashes.filter(f => !f.isDead());
+
             p.background(0, 0, 98);
             drawCylinderShell(p);
             drawPiston(p, box.x + box.width);
             drawParticlesHSB(p, system.getParticles(), ADV_VMAX_COLOR);
+            for (const f of advFlashes) f.draw(p);
         };
     };
 
@@ -545,11 +567,9 @@ function initAdvancedMode(params) {
         const hitsPerSec = hitsAccumulator / 0.25;
         hitsAccumulator = 0;
         smoothedHitsPerSec += (hitsPerSec - smoothedHitsPerSec) * 0.15;
-        const V = parseFloat(volSlider.value);
-        const P = P0 * (ADV_V0_ML / V) * (currentTempK / ADV_REFERENCE_TEMP_K);
         updateAdvInfoPanel({
             temp_K: currentTempK,
-            pressure_kPa: P,
+            pressure_kPa: computeAdvPressure(),
             hitsPerSec: smoothedHitsPerSec,
         });
     }, 250);
