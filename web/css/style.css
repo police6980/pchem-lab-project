@@ -1877,15 +1877,26 @@ body.adv-sidebar-collapsed #adv-ai-reopen-btn {
     font-weight: 500;
 }
 
-/* Actuator row — volume/particle sliders + gas select in one line */
+/* Actuator row — volume + pressure + particle + gas + record on a single
+   compact line, with vertical dividers between logical groups. */
 .adv-control-row-actuators {
     flex-wrap: wrap;
+    gap: 14px;
+}
+.adv-control-row-actuators > * + * {
+    padding-left: 14px;
+    border-left: 1px solid #e5e5e5;
+}
+.adv-control-row-actuators #adv-btn-record {
+    margin-left: auto;
+    border-left: none;
+    padding-left: 18px;
 }
 #adv-volume-slider-wrap,
 #adv-particle-slider-wrap {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
     font-size: 14px;
     color: #333;
     flex: 0 0 auto;
@@ -1901,7 +1912,7 @@ body.adv-sidebar-collapsed #adv-ai-reopen-btn {
     display: flex;
     flex-direction: column;
     gap: 2px;
-    min-width: 200px;
+    min-width: 150px;
 }
 .adv-slider-wrap input[type="range"] {
     width: 100%;
@@ -1918,13 +1929,14 @@ body.adv-sidebar-collapsed #adv-ai-reopen-btn {
     font-family: ui-monospace, "SF Mono", Consolas, monospace;
     font-size: 13px;
     color: #222;
-    min-width: 70px;
+    min-width: 58px;
     text-align: right;
 }
 #adv-gas-select-wrap {
     display: flex;
     align-items: center;
     gap: 8px;
+    flex: 0 0 auto;
 }
 #adv-gas-select {
     font-family: inherit;
@@ -1958,11 +1970,9 @@ body.adv-sidebar-collapsed #adv-ai-reopen-btn {
 #adv-pressure-wrap {
     display: inline-flex;
     align-items: baseline;
-    gap: 8px;
-    margin-left: 16px;
-    padding-left: 16px;
-    border-left: 1px solid #e0e0e0;
+    gap: 6px;
     font-size: 14px;
+    flex: 0 0 auto;
 }
 #adv-pressure-wrap .adv-pressure-label {
     color: #666;
@@ -1974,20 +1984,22 @@ body.adv-sidebar-collapsed #adv-ai-reopen-btn {
     min-width: 92px;
 }
 
-/* Record button lives in the volume row — same look as basic #btn-record. */
-.adv-control-row-volume #adv-btn-record {
-    margin-left: auto;
-    padding: 8px 18px;
+/* Record button — sits at the far right of the actuators row, accent-coloured
+   so it reads as the primary action on the control bar. */
+.adv-control-row-actuators #adv-btn-record {
+    padding: 7px 18px;
     font-size: 14px;
-    background: #f5f5f5;
-    border: 1px solid #ccc;
+    font-weight: 500;
+    background: #e8f0ff;
+    border: 1px solid #6090d0;
     border-radius: 4px;
     cursor: pointer;
-    color: #333;
+    color: #2050c0;
     font-family: system-ui, sans-serif;
+    white-space: nowrap;
 }
-.adv-control-row-volume #adv-btn-record:hover {
-    background: #eaeaea;
+.adv-control-row-actuators #adv-btn-record:hover {
+    background: #d7e4ff;
 }
 /* Horizontal layout identical to basic #section-visuals:
    histogram on the left (flex:6), info panel on the right (flex:4). */
