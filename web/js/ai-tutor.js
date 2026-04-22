@@ -45,10 +45,15 @@ const aiConversations = {
     1:    { messages: [], tokensIn: 0, tokensOut: 0, contextSnapshot: null },
     2:    { messages: [], tokensIn: 0, tokensOut: 0, contextSnapshot: null },
     3:    { messages: [], tokensIn: 0, tokensOut: 0, contextSnapshot: null },
+    4:    { messages: [], tokensIn: 0, tokensOut: 0, contextSnapshot: null },
     free: { messages: [], tokensIn: 0, tokensOut: 0, contextSnapshot: null },
 };
 
 let activeQuestion = "free";
+
+// Q3 first turn is AI-initiated (student clicks "질문 생성"). Tracks whether
+// the synthetic prompt-and-answer pair has been produced.
+let q3QuestionGenerated = false;
 
 // QUESTION_TEXT is owned by ui.js (createAnalysisPanel closure) and exposed
 // via window.PchemTutor.QUESTION_TEXT. Access with optional chaining since
@@ -82,7 +87,9 @@ function renderConversation(questionId) {
     if (!scroll || !emptyEl || !listEl) return;
 
     const conv = aiConversations[questionId];
-    if (!conv || conv.messages.length === 0) {
+    const visibleMessages = conv ? conv.messages.filter(m => !m.isPromptInternal) : [];
+
+    if (!conv || visibleMessages.length === 0) {
         emptyEl.style.display = "block";
         listEl.style.display = "none";
         listEl.innerHTML = "";
@@ -92,6 +99,12 @@ function renderConversation(questionId) {
                 '아래 입력창에 자유롭게 질문해보세요.<br><br>' +
                 '<small style="color:#999">예: "왜 입자 색깔이 다른가요?"<br>' +
                 '"온도가 더 높으면 어떻게 되나요?"</small>';
+        } else if (questionId === "3" && !q3QuestionGenerated) {
+            emptyEl.innerHTML =
+                '<p>AI가 내 측정 데이터를 분석해서<br>탐구 질문을 만들어줍니다.</p>' +
+                '<button id="btn-generate-q3" class="btn-generate-question">🔍 질문 생성</button>';
+            const genBtn = emptyEl.querySelector("#btn-generate-q3");
+            if (genBtn) genBtn.addEventListener("click", generateQ3Question);
         } else {
             emptyEl.innerHTML =
                 '<div class="prompt-question">' +
@@ -106,7 +119,7 @@ function renderConversation(questionId) {
     emptyEl.style.display = "none";
     listEl.style.display = "flex";
     listEl.innerHTML = "";
-    conv.messages.forEach(msg => listEl.appendChild(createMessageElement(msg)));
+    visibleMessages.forEach(msg => listEl.appendChild(createMessageElement(msg)));
 
     scroll.scrollTop = scroll.scrollHeight;
 }
@@ -140,7 +153,7 @@ function createMessageElement(msg) {
 function updateTabAvailability(datapointCount) {
     const count = typeof datapointCount === "number" ? datapointCount : 0;
     const hasEnoughData = count >= 3;
-    [1, 2, 3].forEach(q => {
+    [1, 2, 3, 4].forEach(q => {
         const tabBtn = document.querySelector(`.ai-sidebar .tab-btn[data-q="${q}"]`);
         if (!tabBtn) return;
         tabBtn.setAttribute("aria-disabled", String(!hasEnoughData));
@@ -197,11 +210,12 @@ function showCostBanner(msg, cls) {
 }
 
 function resetAllConversations() {
-    ["1", "2", "3", "free"].forEach(q => {
+    ["1", "2", "3", "4", "free"].forEach(q => {
         aiConversations[q] = {
             messages: [], tokensIn: 0, tokensOut: 0, contextSnapshot: null,
         };
     });
+    q3QuestionGenerated = false;
     renderConversation(activeQuestion);
 }
 
@@ -209,9 +223,85 @@ function resetQuestion(qid) {
     aiConversations[qid] = {
         messages: [], tokensIn: 0, tokensOut: 0, contextSnapshot: null,
     };
+    if (String(qid) === "3") q3QuestionGenerated = false;
     if (String(activeQuestion) === String(qid)) {
         renderConversation(qid);
         updateInputAvailability();
+    }
+}
+
+// Q3 AI-generated question: AI produces the opening question from student
+// data; stored as [synthetic user prompt (hidden) + assistant response].
+async function generateQ3Question() {
+    const T = window.PchemTutor;
+    if (!T) return;
+
+    const ctx = T.buildDataContext();
+    const level = T.getLevel();
+    const systemPrompt = T.buildSystemPrompt(level, "3");
+    const userMsgContent = T.buildUserPrompt("3_generate", null, ctx);
+
+    // Synthetic user message — sent to API, hidden from display
+    aiConversations["3"].messages.push({
+        role: "user",
+        content: "",
+        apiContent: userMsgContent,
+        timestamp: Date.now(),
+        isPromptInternal: true,
+    });
+    aiConversations["3"].contextSnapshot = ctx;
+
+    const btn = document.getElementById("btn-generate-q3");
+    if (btn) btn.disabled = true;
+
+    showTypingIndicator();
+    try {
+        const result = await callAnthropicAPI(
+            [{ role: "user", content: userMsgContent }],
+            systemPrompt
+        );
+        hideTypingIndicator();
+
+        aiConversations["3"].messages.push({
+            role: "assistant",
+            content: result.content,
+            timestamp: Date.now(),
+            tokensIn:  result.inputTokens,
+            tokensOut: result.outputTokens,
+            model:     result.model,
+        });
+        aiConversations["3"].tokensIn  += result.inputTokens;
+        aiConversations["3"].tokensOut += result.outputTokens;
+        T.addTokens(result.inputTokens, result.outputTokens);
+
+        q3QuestionGenerated = true;
+        renderConversation("3");
+        updateInputAvailability();
+    } catch (e) {
+        hideTypingIndicator();
+        // Roll back the synthetic user message so retry shows the generate button again
+        aiConversations["3"].messages.pop();
+
+        let errMsg;
+        if (e.type === "no_key") {
+            errMsg = "⚠️ API 키가 설정되지 않았습니다. 오른쪽 상단 설정 패널을 확인하세요.";
+        } else if (e.type === "api_error") {
+            if (e.status === 401)      errMsg = "⚠️ API 키가 유효하지 않습니다.";
+            else if (e.status === 429) errMsg = "⚠️ 요청이 너무 많습니다. 잠시 후 다시 시도해주세요.";
+            else if (e.status === 529) errMsg = "⚠️ 서버가 일시적으로 과부하 상태입니다.";
+            else                       errMsg = `⚠️ 오류가 발생했습니다. (HTTP ${e.status})`;
+        } else {
+            errMsg = "⚠️ 네트워크 오류가 발생했습니다. 인터넷 연결을 확인하세요.";
+        }
+        const emptyEl = document.getElementById("conversation-empty");
+        if (emptyEl) {
+            const errP = document.createElement("p");
+            errP.style.color = "#a00";
+            errP.style.marginTop = "12px";
+            errP.textContent = errMsg;
+            emptyEl.appendChild(errP);
+        }
+        if (btn) btn.disabled = false;
     }
 }
 

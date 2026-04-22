@@ -260,6 +260,21 @@ body {
     background: rgba(0, 0, 0, 0.1);
 }
 
+/* === Sidebar: Q3 question generator === */
+.btn-generate-question {
+    margin-top: 12px;
+    padding: 10px 20px;
+    background: #4a90d9;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+.btn-generate-question:hover           { background: #357abd; }
+.btn-generate-question:disabled        { background: #aaa; cursor: not-allowed; }
+
 /* === Sidebar: cost warning banner === */
 .cost-warning-banner {
     display: flex;
