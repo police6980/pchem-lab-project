@@ -1846,7 +1846,6 @@ function createAdvMeasurementPanel({ getAdvState, onChange }) {
             <div class="section-head">
                 <span class="section-title">측정 기록 · PV/nT 검증</span>
                 <div class="section-actions">
-                    <button id="adv-btn-record">기록</button>
                     <button id="adv-btn-export-pvnt" disabled>측정점 CSV 저장</button>
                     <button id="adv-btn-clear-pvnt" disabled>전체 삭제</button>
                 </div>
