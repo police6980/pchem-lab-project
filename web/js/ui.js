@@ -490,12 +490,14 @@ function createMeasurementPanel({
         if (datapoints.length === 0) return;
         const sessionStart = getSessionStart();
         const sessionIso = sessionStart !== null ? new Date(sessionStart).toISOString() : "";
-        const headers = ["번호", "압력_kPa", "부피_mL", "P·V", "기록시각_ms", "세션시작시각_iso", "온도_K"];
+        const headers = ["번호", "압력_kPa", "부피_mL", "P·V", "평균속도_px_s", "충돌_per_s", "기록시각_ms", "세션시작시각_iso", "온도_K"];
         const rows = datapoints.map(d => [
             d.id,
             d.P.toFixed(1),
             d.V.toFixed(1),
             d.PV.toFixed(1),
+            d.avgSpeed   ?? "",
+            d.collisions ?? "",
             sessionStart !== null ? (d.timestamp - sessionStart) : "",
             sessionIso,
             d.tempK.toFixed(2),
@@ -1119,7 +1121,7 @@ ${answer}
         lines.push("");
 
         lines.push("# == 측정점 ==");
-        lines.push("번호,압력_kPa,부피_mL,P·V,편차_퍼센트,기록시각_ms,온도_K");
+        lines.push("번호,압력_kPa,부피_mL,P·V,편차_퍼센트,평균속도_px_s,충돌_per_s,기록시각_ms,온도_K");
         data.forEach(d => {
             const dev = mean > 0 ? (d.PV - mean) / mean * 100 : 0;
             const elapsedMs = sessionStart ? (d.timestamp - sessionStart) : "";
@@ -1129,6 +1131,8 @@ ${answer}
                 d.V.toFixed(1),
                 d.PV.toFixed(1),
                 dev.toFixed(3),
+                d.avgSpeed   ?? "",
+                d.collisions ?? "",
                 elapsedMs,
                 d.tempK.toFixed(2),
             ].join(","));
