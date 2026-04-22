@@ -1838,7 +1838,6 @@ function createAdvMeasurementPanel({ getAdvState, onChange }) {
 
     let datapoints = [];
     let nextId = 1;
-    let showConnectLine = true;
     let showTheoryLine = true;
 
     const container = document.getElementById("adv-section-measurements");
@@ -1871,7 +1870,6 @@ function createAdvMeasurementPanel({ getAdvState, onChange }) {
         </div>
         <div id="adv-pvnt-plot-area">
             <div class="plot-toggles">
-                <label><input type="checkbox" id="adv-toggle-connect" checked> 연결선</label>
                 <label><input type="checkbox" id="adv-toggle-theory" checked> 이론선 (평균값)</label>
             </div>
             <div id="adv-pvnt-plot-wrap"></div>
@@ -1884,10 +1882,6 @@ function createAdvMeasurementPanel({ getAdvState, onChange }) {
     const clearBtn  = document.getElementById("adv-btn-clear-pvnt");
     const plotWrap  = document.getElementById("adv-pvnt-plot-wrap");
 
-    document.getElementById("adv-toggle-connect").addEventListener("change", e => {
-        showConnectLine = e.target.checked;
-        redrawPlot();
-    });
     document.getElementById("adv-toggle-theory").addEventListener("change", e => {
         showTheoryLine = e.target.checked;
         redrawPlot();
@@ -1982,29 +1976,25 @@ function createAdvMeasurementPanel({ getAdvState, onChange }) {
         const plotW = W - m.l - m.r;
         const plotH = H - m.t - m.b;
         const n = datapoints.length;
-
         const vals = datapoints.map(d => d.pvnt);
-        let yLo, yHi;
-        if (n === 0) { yLo = 0; yHi = 1; }
-        else if (n === 1) {
-            const v = vals[0];
-            yLo = v * 0.85; yHi = v * 1.15;
-        } else {
-            const yMin = Math.min(...vals);
-            const yMax = Math.max(...vals);
-            const span = yMax - yMin;
-            const pad = span > 0 ? span * 0.25 : yMax * 0.05 || 0.001;
-            yLo = yMin - pad; yHi = yMax + pad;
-        }
 
-        const xPos = (i) => m.l + (n <= 1 ? plotW / 2 : ((i - 1) / (n - 1)) * plotW);
+        // y-axis runs 0 → mean·2 (or first-point·2 when n=1) so variations
+        // around the ideal-gas constant show up small rather than filling
+        // the panel. Flat-looking bars = "PV/nT is a constant" visually.
+        const mean = n > 0 ? vals.reduce((s, v) => s + v, 0) / n : 0;
+        const yHi = n === 0 ? 1 : (n === 1 ? vals[0] * 2 : mean * 2);
+        const yLo = 0;
+
+        const xBandW = plotW / Math.max(n, 1);
+        const barW = Math.min(36, xBandW * 0.7);
+        const xCenter = (i) => m.l + (i - 0.5) * xBandW;
         const yPos = (v) => m.t + ((yHi - v) / (yHi - yLo)) * plotH;
 
         let svg = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">`;
 
-        // y-axis grid + labels (4 ticks).
-        for (let i = 0; i <= 3; i++) {
-            const v = yLo + (yHi - yLo) * (i / 3);
+        // y-axis gridlines + tick labels (0 / ½mean / mean / 1½mean / 2mean).
+        for (let i = 0; i <= 4; i++) {
+            const v = yLo + (yHi - yLo) * (i / 4);
             const py = yPos(v);
             svg += `<line x1="${m.l}" y1="${py}" x2="${m.l + plotW}" y2="${py}" stroke="#eee"/>`;
             svg += `<text x="${m.l - 6}" y="${py + 3}" text-anchor="end" font-size="10" fill="#888">${v.toFixed(4)}</text>`;
@@ -2013,11 +2003,11 @@ function createAdvMeasurementPanel({ getAdvState, onChange }) {
         svg += `<line x1="${m.l}" y1="${m.t}" x2="${m.l}" y2="${m.t + plotH}" stroke="#bbb"/>`;
         svg += `<line x1="${m.l}" y1="${m.t + plotH}" x2="${m.l + plotW}" y2="${m.t + plotH}" stroke="#bbb"/>`;
 
-        // x-axis tick labels (measurement numbers; thinned when many).
+        // x-axis tick labels (measurement numbers; thin when many).
         const xStep = n <= 10 ? 1 : Math.ceil(n / 10);
         for (let i = 1; i <= n; i++) {
             if (i % xStep !== 0 && i !== n && i !== 1) continue;
-            svg += `<text x="${xPos(i)}" y="${m.t + plotH + 14}" text-anchor="middle" font-size="10" fill="#888">${i}</text>`;
+            svg += `<text x="${xCenter(i)}" y="${m.t + plotH + 14}" text-anchor="middle" font-size="10" fill="#888">${i}</text>`;
         }
         svg += `<text x="${m.l + plotW / 2}" y="${H - 4}" text-anchor="middle" font-size="10" fill="#666">측정 번호</text>`;
         svg += `<text x="14" y="${m.t + plotH / 2}" text-anchor="middle" font-size="10" fill="#666" transform="rotate(-90 14 ${m.t + plotH / 2})">PV / nT</text>`;
@@ -2028,24 +2018,20 @@ function createAdvMeasurementPanel({ getAdvState, onChange }) {
             return;
         }
 
-        // Theory line = mean of current points (horizontal, dashed red).
-        if (showTheoryLine && n >= 2) {
-            const mean = vals.reduce((s, v) => s + v, 0) / n;
+        // Bars — drawn before the theory line so the line sits on top.
+        datapoints.forEach((dp, i) => {
+            const cx = xCenter(i + 1);
+            const yTop = yPos(dp.pvnt);
+            const h = (m.t + plotH) - yTop;
+            svg += `<rect x="${cx - barW / 2}" y="${yTop}" width="${barW}" height="${h}" fill="#4a8ed8" stroke="#2a6cb8" stroke-width="1"/>`;
+        });
+
+        // Theory line = mean across points (horizontal, dashed red).
+        if (showTheoryLine && n >= 1) {
             const py = yPos(mean);
-            svg += `<line x1="${m.l}" y1="${py}" x2="${m.l + plotW}" y2="${py}" stroke="#c04040" stroke-width="1" stroke-dasharray="4,3"/>`;
+            svg += `<line x1="${m.l}" y1="${py}" x2="${m.l + plotW}" y2="${py}" stroke="#c04040" stroke-width="1.2" stroke-dasharray="4,3"/>`;
             svg += `<text x="${m.l + plotW - 4}" y="${py - 4}" text-anchor="end" font-size="10" fill="#c04040">평균 ${mean.toFixed(4)}</text>`;
         }
-
-        // Connect line.
-        if (showConnectLine && n >= 2) {
-            const d = datapoints.map((dp, i) => `${i === 0 ? "M" : "L"}${xPos(i + 1)},${yPos(dp.pvnt)}`).join(" ");
-            svg += `<path d="${d}" fill="none" stroke="#7aa" stroke-width="1.5"/>`;
-        }
-
-        // Points.
-        datapoints.forEach((dp, i) => {
-            svg += `<circle cx="${xPos(i + 1)}" cy="${yPos(dp.pvnt)}" r="4" fill="#4a8ed8" stroke="#2a6cb8" stroke-width="1.5"/>`;
-        });
 
         svg += `</svg>`;
         plotWrap.innerHTML = svg;
