@@ -290,7 +290,7 @@ function createMeasurementPanel({
     plotArea.id = "pv-plot-area";
     plotArea.innerHTML = `
         <div class="plot-toggles">
-            <label><input type="checkbox" id="toggle-connect-line"> 연결선</label>
+            <label><input type="checkbox" id="toggle-connect-line" disabled> 연결선</label>
             <label><input type="checkbox" id="toggle-theory-curve" disabled> 이론 곡선 (P·V = 일정)</label>
         </div>
         <div id="pv-plot-canvas-wrap"></div>
@@ -302,8 +302,8 @@ function createMeasurementPanel({
     invvArea.id = "invv-plot-area";
     invvArea.innerHTML = `
         <div class="plot-toggles">
-            <label><input type="checkbox" id="toggle-invv-connect"> 연결선</label>
-            <label><input type="checkbox" id="toggle-invv-theory" checked> 이론선 (1/V = P / P₀V₀)</label>
+            <label><input type="checkbox" id="toggle-invv-connect" disabled> 연결선</label>
+            <label><input type="checkbox" id="toggle-invv-theory" disabled> 이론선 (1/V = P / P₀V₀)</label>
         </div>
         <div id="invv-plot-canvas-wrap"></div>
     `;
@@ -512,7 +512,7 @@ function createMeasurementPanel({
     const invvY = (invV) => PV_INNER_BOTTOM - (invV - INVV_Y_MIN) / (INVV_Y_MAX - INVV_Y_MIN) * (PV_INNER_BOTTOM - PV_INNER_TOP);
 
     let showInvVConnect = false;
-    let showInvVTheory = true;
+    let showInvVTheory = false;
 
     const invvSketch = (p) => {
         p.setup = () => {
@@ -615,14 +615,28 @@ function createMeasurementPanel({
 
     const invvP5Instance = new p5(invvSketch, document.getElementById("invv-plot-canvas-wrap"));
 
-    function redrawPVPlot() {
-        const cb = document.getElementById("toggle-theory-curve");
-        if (datapoints.length < 2) {
-            cb.disabled = true;
-            if (cb.checked) { cb.checked = false; showTheoryCurve = false; }
-        } else {
-            cb.disabled = false;
+    // All four plot toggles require N ≥ 2 to be meaningful (connect lines
+    // need 2 points, theory curves need 2 points for the PV curve's k
+    // estimation / invV linearity check). Disable them until that threshold
+    // and clear any stale checked state when dropping back below 2.
+    function updateToggleAvailability() {
+        const enough = datapoints.length >= 2;
+        const ids = ["toggle-connect-line", "toggle-theory-curve", "toggle-invv-connect", "toggle-invv-theory"];
+        for (const id of ids) {
+            const cb = document.getElementById(id);
+            cb.disabled = !enough;
+            if (!enough && cb.checked) cb.checked = false;
         }
+        if (!enough) {
+            showConnectLine = false;
+            showTheoryCurve = false;
+            showInvVConnect = false;
+            showInvVTheory = false;
+        }
+    }
+
+    function redrawPVPlot() {
+        updateToggleAvailability();
         pvP5Instance.redraw();
         invvP5Instance.redraw();
     }
