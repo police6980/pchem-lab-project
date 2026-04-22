@@ -302,7 +302,7 @@ const ADV_HIST_BINS = 40;
 const ADV_SIGMA_MAX = DEFAULT_SPEED_SCALE
     * Math.sqrt(ADV_REFERENCE_GAS_MASS / ADV_GAS_MASSES.He)
     * Math.sqrt((ADV_TEMP_MAX + 273.15) / ADV_REFERENCE_TEMP_K);
-const ADV_V_MAX_X = 4 * ADV_SIGMA_MAX;
+const ADV_V_MAX_X = 5.5 * ADV_SIGMA_MAX;
 const ADV_BIN_WIDTH = ADV_V_MAX_X / ADV_HIST_BINS;
 const ADV_HIST_Y_HEADROOM = 1.2;   // bars above the theoretical peak get 20% room
 
