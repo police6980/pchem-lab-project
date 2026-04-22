@@ -1991,20 +1991,26 @@ body.adv-sidebar-collapsed #adv-ai-reopen-btn {
    tracker is ~43% the width of main but keeps the same aspect ratio. */
 #adv-section-canvas {
     display: flex;
-    gap: 20px;
+    justify-content: center;
+    gap: 24px;
     align-items: flex-start;
-    padding: 10px 12px;
+    padding: 12px;
     background: white;
     border-radius: 8px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
+/* flex-grow 11 : 9 = 5.5 : 4.5 — tracker is nearly the same size as main.
+   max-width caps on wide screens so the pair centres with symmetric padding
+   instead of stretching edge-to-edge. */
 #adv-sim-canvas-container {
-    flex: 7;
+    flex: 11 1 0;
+    max-width: 680px;
     min-width: 0;
     line-height: 0;
 }
 #adv-tracker-canvas-container {
-    flex: 3;
+    flex: 9 1 0;
+    max-width: 560px;
     min-width: 0;
     line-height: 0;
 }

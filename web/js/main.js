@@ -470,9 +470,9 @@ function initAdvancedMode(params) {
     // also enforces width:100% to override p5's default inline sizing.
     const ADV_SIM_CANVAS_W = SIM_CANVAS_WIDTH;       // 1000
     const ADV_SIM_CANVAS_H = SIM_CANVAS_HEIGHT;      // 360
-    const ADV_TRACKER_CANVAS_W = 400;
-    const ADV_TRACKER_CANVAS_H = 144;                // preserves 1000:360 aspect
-    const ADV_TRACKER_SCALE = ADV_TRACKER_CANVAS_W / SIM_CANVAS_WIDTH;  // 0.4
+    const ADV_TRACKER_CANVAS_W = 500;
+    const ADV_TRACKER_CANVAS_H = 180;                // preserves 1000:360 aspect
+    const ADV_TRACKER_SCALE = ADV_TRACKER_CANVAS_W / SIM_CANVAS_WIDTH;  // 0.5
     const ADV_TRAIL_LEN = 45;
 
     let hitsAccumulator = 0;
