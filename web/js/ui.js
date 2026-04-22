@@ -297,6 +297,18 @@ function createMeasurementPanel({
     `;
     document.getElementById("section-measurements").appendChild(plotArea);
 
+    // 1/V vs P scatter — ideal-gas linearity check (slope = 1 / (P₀·V₀)).
+    const invvArea = document.createElement("div");
+    invvArea.id = "invv-plot-area";
+    invvArea.innerHTML = `
+        <div class="plot-toggles">
+            <label><input type="checkbox" id="toggle-invv-connect"> 연결선</label>
+            <label><input type="checkbox" id="toggle-invv-theory" checked> 이론선 (1/V = P / P₀V₀)</label>
+        </div>
+        <div id="invv-plot-canvas-wrap"></div>
+    `;
+    document.getElementById("section-measurements").appendChild(invvArea);
+
     const vInput = document.getElementById("current-v");
     const currentPEl = document.getElementById("current-p");
     const tbody = document.getElementById("datapoints-tbody");
@@ -487,6 +499,122 @@ function createMeasurementPanel({
 
     const pvP5Instance = new p5(pvSketch, document.getElementById("pv-plot-canvas-wrap"));
 
+    // === 1/V vs P plot ===
+    // Axes chosen for the full 81–500 kPa slider range; y capped at 0.1
+    // because 1/V_min ≈ 1/10 mL at the 500 kPa end.
+    const INVV_X_MIN = 0;
+    const INVV_X_MAX = 500;
+    const INVV_Y_MIN = 0;
+    const INVV_Y_MAX = 0.1;
+    const INVV_P0V0 = 5065;   // P₀·V₀ = 101.3·50 → theoretical slope = 1/5065
+
+    const invvX = (P) => PV_INNER_LEFT + (P - INVV_X_MIN) / (INVV_X_MAX - INVV_X_MIN) * (PV_INNER_RIGHT - PV_INNER_LEFT);
+    const invvY = (invV) => PV_INNER_BOTTOM - (invV - INVV_Y_MIN) / (INVV_Y_MAX - INVV_Y_MIN) * (PV_INNER_BOTTOM - PV_INNER_TOP);
+
+    let showInvVConnect = false;
+    let showInvVTheory = true;
+
+    const invvSketch = (p) => {
+        p.setup = () => {
+            p.createCanvas(PV_CANVAS_WIDTH, PV_CANVAS_HEIGHT);
+            p.noLoop();
+        };
+        p.draw = () => {
+            p.background(253);
+
+            // Gridlines.
+            p.stroke(230);
+            p.strokeWeight(1);
+            for (let v = 100; v <= 500; v += 100) {
+                p.line(invvX(v), invvY(INVV_Y_MIN), invvX(v), invvY(INVV_Y_MAX));
+            }
+            for (let q = 0.02; q <= 0.1001; q += 0.02) {
+                p.line(invvX(INVV_X_MIN), invvY(q), invvX(INVV_X_MAX), invvY(q));
+            }
+
+            // Axes.
+            p.stroke(80);
+            p.strokeWeight(1);
+            p.line(invvX(INVV_X_MIN), invvY(INVV_Y_MIN), invvX(INVV_X_MIN), invvY(INVV_Y_MAX));
+            p.line(invvX(INVV_X_MIN), invvY(INVV_Y_MIN), invvX(INVV_X_MAX), invvY(INVV_Y_MIN));
+
+            // Tick labels.
+            p.noStroke();
+            p.fill(120);
+            p.textSize(10);
+            p.textAlign(p.CENTER, p.TOP);
+            for (let v = 0; v <= 500; v += 100) p.text(v, invvX(v), invvY(INVV_Y_MIN) + 4);
+            p.textAlign(p.RIGHT, p.CENTER);
+            for (let q = 0; q <= 0.1001; q += 0.02) p.text(q.toFixed(2), invvX(INVV_X_MIN) - 5, invvY(q));
+
+            // Axis titles.
+            p.fill(80);
+            p.textSize(11);
+            p.textAlign(p.CENTER, p.CENTER);
+            p.text("P (kPa)", (invvX(INVV_X_MIN) + invvX(INVV_X_MAX)) / 2, PV_CANVAS_HEIGHT - 14);
+            p.push();
+            p.translate(14, (invvY(INVV_Y_MIN) + invvY(INVV_Y_MAX)) / 2);
+            p.rotate(-Math.PI / 2);
+            p.text("1 / V (1/mL)", 0, 0);
+            p.pop();
+
+            if (datapoints.length === 0) {
+                p.fill(160);
+                p.textSize(12);
+                p.textAlign(p.CENTER, p.CENTER);
+                p.text("[기록] 버튼을 눌러\n측정점을 추가하세요",
+                    (invvX(INVV_X_MIN) + invvX(INVV_X_MAX)) / 2,
+                    (invvY(INVV_Y_MIN) + invvY(INVV_Y_MAX)) / 2);
+                // Theory line still useful to show without data — draw it.
+            }
+
+            // Theoretical line: 1/V = P / (P₀·V₀). Always computable; no data needed.
+            if (showInvVTheory) {
+                p.noFill();
+                p.stroke(230, 100, 60, 150);
+                p.strokeWeight(1);
+                p.beginShape();
+                const maxP_onScreen = Math.min(INVV_X_MAX, INVV_Y_MAX * INVV_P0V0);
+                for (let P = INVV_X_MIN; P <= maxP_onScreen + 0.01; P += 5) {
+                    p.vertex(invvX(P), invvY(P / INVV_P0V0));
+                }
+                p.endShape();
+            }
+
+            if (datapoints.length === 0) return;
+
+            if (showInvVConnect && datapoints.length >= 2) {
+                const sorted = [...datapoints].sort((a, b) => a.P - b.P);
+                p.noFill();
+                p.stroke(100);
+                p.strokeWeight(1.5);
+                p.beginShape();
+                for (const d of sorted) p.vertex(invvX(d.P), invvY(1 / d.V));
+                p.endShape();
+            }
+
+            // Scatter points.
+            p.textSize(9);
+            for (const d of datapoints) {
+                const invV = 1 / d.V;
+                if (d.P < INVV_X_MIN || d.P > INVV_X_MAX) continue;
+                if (invV < INVV_Y_MIN || invV > INVV_Y_MAX) continue;
+                const px = invvX(d.P);
+                const py = invvY(invV);
+                p.strokeWeight(1.5);
+                p.stroke(40, 80, 180);
+                p.fill(150, 190, 240);
+                p.circle(px, py, 10);
+                p.noStroke();
+                p.fill(60);
+                p.textAlign(p.LEFT, p.BOTTOM);
+                p.text(d.id, px + 7, py - 5);
+            }
+        };
+    };
+
+    const invvP5Instance = new p5(invvSketch, document.getElementById("invv-plot-canvas-wrap"));
+
     function redrawPVPlot() {
         const cb = document.getElementById("toggle-theory-curve");
         if (datapoints.length < 2) {
@@ -496,6 +624,7 @@ function createMeasurementPanel({
             cb.disabled = false;
         }
         pvP5Instance.redraw();
+        invvP5Instance.redraw();
     }
 
     document.getElementById("toggle-connect-line").addEventListener("change", (e) => {
@@ -505,6 +634,14 @@ function createMeasurementPanel({
     document.getElementById("toggle-theory-curve").addEventListener("change", (e) => {
         showTheoryCurve = e.target.checked;
         redrawPVPlot();
+    });
+    document.getElementById("toggle-invv-connect").addEventListener("change", (e) => {
+        showInvVConnect = e.target.checked;
+        invvP5Instance.redraw();
+    });
+    document.getElementById("toggle-invv-theory").addEventListener("change", (e) => {
+        showInvVTheory = e.target.checked;
+        invvP5Instance.redraw();
     });
 
     // Initial draw so the empty state message is visible before any event.

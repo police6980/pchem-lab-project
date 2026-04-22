@@ -978,14 +978,17 @@ body.sidebar-collapsed #ai-sidebar {
 }
 
 #section-measurements #measurement-panel {
-    flex: 6;
+    flex: 4;
+    min-width: 0;
 }
 
-#section-measurements #pv-plot-area {
-    flex: 4;
+#section-measurements #pv-plot-area,
+#section-measurements #invv-plot-area {
+    flex: 3;
     display: flex;
     flex-direction: column;
     gap: 8px;
+    min-width: 0;
 }
 
 #measurement-panel {
@@ -1103,14 +1106,17 @@ body.sidebar-collapsed #ai-sidebar {
     margin: 0 2px;
 }
 
-#pv-plot-area .plot-toggles {
+#pv-plot-area .plot-toggles,
+#invv-plot-area .plot-toggles {
     display: flex;
-    gap: 16px;
+    gap: 12px;
     font-size: 12px;
     color: #555;
+    flex-wrap: wrap;
 }
 
-#pv-plot-area .plot-toggles label {
+#pv-plot-area .plot-toggles label,
+#invv-plot-area .plot-toggles label {
     display: inline-flex;
     align-items: center;
     gap: 6px;
@@ -1118,17 +1124,32 @@ body.sidebar-collapsed #ai-sidebar {
     user-select: none;
 }
 
-#pv-plot-area .plot-toggles input[type="checkbox"] {
+#pv-plot-area .plot-toggles input[type="checkbox"],
+#invv-plot-area .plot-toggles input[type="checkbox"] {
     cursor: pointer;
 }
 
-#pv-plot-area .plot-toggles input[type="checkbox"]:disabled {
+#pv-plot-area .plot-toggles input[type="checkbox"]:disabled,
+#invv-plot-area .plot-toggles input[type="checkbox"]:disabled {
     cursor: not-allowed;
 }
 
-#pv-plot-area .plot-toggles label:has(input:disabled) {
+#pv-plot-area .plot-toggles label:has(input:disabled),
+#invv-plot-area .plot-toggles label:has(input:disabled) {
     color: #aaa;
     cursor: not-allowed;
+}
+
+/* Canvas shrinks to fit container; internal resolution (380×280) untouched. */
+#pv-plot-canvas-wrap,
+#invv-plot-canvas-wrap {
+    width: 100%;
+}
+#pv-plot-canvas-wrap canvas,
+#invv-plot-canvas-wrap canvas {
+    max-width: 100%;
+    height: auto;
+    display: block;
 }
 
 @media (max-width: 900px) {
