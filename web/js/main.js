@@ -462,17 +462,14 @@ function initAdvancedMode(params) {
         validateTempInput();
     });
 
-    // Main sim + single-particle tracker share the same ParticleSystem.
-    // Main uses basic-mode native resolution (1000×360). Tracker uses a
-    // smaller native canvas (400×144, same aspect) and p.scale(0.4) so the
-    // box fits nicely — and so the tracker can't accidentally render the
-    // full main size even if CSS width:100% doesn't take. `canvas.style()`
-    // also enforces width:100% to override p5's default inline sizing.
-    const ADV_SIM_CANVAS_W = SIM_CANVAS_WIDTH;       // 1000
-    const ADV_SIM_CANVAS_H = SIM_CANVAS_HEIGHT;      // 360
-    const ADV_TRACKER_CANVAS_W = 500;
-    const ADV_TRACKER_CANVAS_H = 180;                // preserves 1000:360 aspect
-    const ADV_TRACKER_SCALE = ADV_TRACKER_CANVAS_W / SIM_CANVAS_WIDTH;  // 0.5
+    // Main sim + single-particle tracker share the same ParticleSystem AND
+    // the same native canvas resolution (1000×360). CSS flex ratios make the
+    // tracker display narrower in the browser; the physics / box / particle
+    // coordinates stay identical so there's no risk of aspect-ratio drift or
+    // off-by-one scaling. `canvas.style()` enforces width:100% to override
+    // p5's default inline sizing.
+    const ADV_SIM_CANVAS_W = SIM_CANVAS_WIDTH;    // 1000
+    const ADV_SIM_CANVAS_H = SIM_CANVAS_HEIGHT;   // 360
     const ADV_TRAIL_LEN = 45;
 
     let hitsAccumulator = 0;
@@ -513,17 +510,17 @@ function initAdvancedMode(params) {
         };
     };
 
-    // Tracker sketch — isolates particles[0]'s trajectory. Native canvas is
-    // smaller (400×144) and drawing is scaled by p.scale(0.4) so the cylinder
-    // still uses its normal world coords (CYLINDER_* constants) but fits a
-    // compact panel. particles[0] is the tracked one; the trail resets when
-    // the system is rebuilt (object identity swap on particle-count change).
+    // Tracker sketch — isolates particles[0]'s trajectory. Same native
+    // 1000×360 canvas as main, same world coords, no p.scale — just CSS
+    // down-sizes the displayed canvas via the narrower flex column. The
+    // trail resets when the system is rebuilt (object identity swap on
+    // particle-count change).
     const trackerSketch = (p) => {
         let trail = [];
         let lastTrackedRef = null;
 
         p.setup = () => {
-            const canvas = p.createCanvas(ADV_TRACKER_CANVAS_W, ADV_TRACKER_CANVAS_H);
+            const canvas = p.createCanvas(ADV_SIM_CANVAS_W, ADV_SIM_CANVAS_H);
             canvas.parent("adv-tracker-canvas-container");
             canvas.style("width", "100%");
             canvas.style("height", "auto");
@@ -545,9 +542,6 @@ function initAdvancedMode(params) {
             trail.push({ x: tracked.x, y: tracked.y, speed: trackedSpeed });
             if (trail.length > ADV_TRAIL_LEN) trail.shift();
 
-            p.push();
-            p.scale(ADV_TRACKER_SCALE);
-
             // Cylinder + piston (same helpers — no flashes on this view).
             drawCylinderShell(p);
             drawPiston(p, box.x + box.width);
@@ -555,12 +549,11 @@ function initAdvancedMode(params) {
             // Faded background particles (skip index 0 — drawn highlighted below).
             drawParticlesHSB(p, particles.slice(1), ADV_VMAX_COLOR, 40);
 
-            // Trail polyline — speed-based HSB colour, alpha fades from oldest
-            // (low) to newest (high). StrokeWeight at world scale — p.scale
-            // already shrinks it, so we bump to keep it visible.
+            // Trail polyline — speed-based HSB colour, alpha fades from
+            // oldest (low) to newest (high).
             if (trail.length >= 2) {
                 p.noFill();
-                p.strokeWeight(7);
+                p.strokeWeight(3);
                 for (let i = 1; i < trail.length; i++) {
                     const t = i / (trail.length - 1);  // 0 at oldest → 1 at newest
                     const tr = trail[i];
@@ -576,17 +569,15 @@ function initAdvancedMode(params) {
 
             // Tracked particle — same HSB formula as the general drawParticles
             // call, but with 3× radius and a dark outline so it reads as the
-            // highlighted one even inside the shrunken panel.
+            // highlighted one.
             const ratio = Math.min(trackedSpeed / ADV_VMAX_COLOR, 1.0);
             const hue = 240 - 240 * ratio;
             const sat = 40 + 60 * ratio;
             const bri = 70 + 30 * ratio;
             p.stroke(0, 0, 20);
-            p.strokeWeight(4);
+            p.strokeWeight(2);
             p.fill(hue, sat, bri);
             p.circle(tracked.x, tracked.y, tracked.radius * 6);
-
-            p.pop();
         };
     };
 
