@@ -1,6 +1,6 @@
 // Particle system, box geometry, physics update loop
 
-const BOX_INITIAL_X = 40;
+const BOX_INITIAL_X = 20;
 const BOX_INITIAL_Y = 55;
 const BOX_INITIAL_WIDTH = 600;
 const BOX_INITIAL_HEIGHT = 250;
@@ -9,8 +9,11 @@ const DT_CAP = 0.05;
 // Tuned with particle_count=300 so steady-state overlap stays under ~15 pairs/frame.
 // Overlap scales ~ N^2 * r^2, so both knobs move together when retuning density.
 const PARTICLE_RADIUS = 2.5;
-const BOX_MIN_WIDTH = 200;
-const BOX_MAX_WIDTH = 760;
+// MIN width = 120 px ≈ 10 mL (the V at P=500 kPa, the slider's upper limit).
+// MAX width = 880 px gives the piston ~880 px of travel inside the expanded
+// cylinder shell (SIM_CANVAS_WIDTH=1000 in renderer.js).
+const BOX_MIN_WIDTH = 120;
+const BOX_MAX_WIDTH = 880;
 
 function boxMullerStandardNormal() {
     const u1 = Math.random() || 1e-9;

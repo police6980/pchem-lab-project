@@ -1,6 +1,6 @@
 // p5.js drawing - particles, flashes, histogram, HSB color mapping
 
-const SIM_CANVAS_WIDTH = 900;
+const SIM_CANVAS_WIDTH = 1000;
 const SIM_CANVAS_HEIGHT = 360;
 const HIST_CANVAS_WIDTH = 560;
 const HIST_CANVAS_HEIGHT = 260;

@@ -15,13 +15,13 @@ function createDevPressureSlider(onChange) {
     input.type = "range";
     input.id = "dev-pressure-range";
     input.min = "81";
-    input.max = "230";
+    input.max = "500";
     input.step = "0.1";
     input.value = "101.3";
 
     const rangeHint = document.createElement("div");
     rangeHint.className = "range-hint";
-    rangeHint.textContent = "81 ~ 230 kPa";
+    rangeHint.textContent = "81 ~ 500 kPa";
 
     sliderWrap.appendChild(input);
     sliderWrap.appendChild(rangeHint);
