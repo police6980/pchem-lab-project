@@ -59,9 +59,14 @@ let activeQuestion = "free";
 // the synthetic prompt-and-answer pair has been produced.
 let q3QuestionGenerated = false;
 
-// QUESTION_TEXT is owned by ui.js (createAnalysisPanel closure) and exposed
-// via window.PchemTutor.QUESTION_TEXT. Access with optional chaining since
-// ai-tutor.js may run before ui.js populates the surface.
+// QUESTION_TEXT is owned by ui.js (createAnalysisPanel closure) and accessed
+// via window.PchemTutor.getQuestionText(level, qid). Uses optional chaining
+// since ai-tutor.js may run before ui.js populates the surface.
+function getQuestionText(qid) {
+    const T = window.PchemTutor;
+    const level = T?.getLevel() ?? "high";
+    return T?.getQuestionText(level, qid) ?? "";
+}
 
 // === HTML safety + minimal markdown ===
 function escapeHtml(text) {
@@ -115,7 +120,7 @@ function renderConversation(questionId) {
                 `<strong>Q${questionId}</strong>에 대한 생각을 아래 입력창에 작성하세요.<br>` +
                 'AI 튜터가 함께 깊이 있게 탐구합니다.' +
                 '</div>' +
-                `<div class="question-full">${window.PchemTutor?.QUESTION_TEXT?.[questionId] || ""}</div>`;
+                `<div class="question-full">${getQuestionText(questionId)}</div>`;
         }
         return;
     }
@@ -180,6 +185,7 @@ function showTabDisabledToast(q) {
 }
 
 const LEVEL_LABELS = {
+    elem: "초등학교",
     middle: "중학교",
     high: "고등학교",
     univ: "대학교",
@@ -401,7 +407,7 @@ async function generateQ3Question() {
     const ctx = T.buildDataContext();
     const level = T.getLevel();
     const systemPrompt = T.buildSystemPrompt(level, "3");
-    const userMsgContent = T.buildUserPrompt("3_generate", null, ctx);
+    const userMsgContent = T.buildUserPrompt("3_generate", null, ctx, T.getLevel());
 
     // Synthetic user message — sent to API, hidden from display
     aiConversations["3"].messages.push({
@@ -882,7 +888,7 @@ async function sendMessage() {
     if (isFirstTurn && isStructured) {
         const ctx = window.PchemTutor.buildDataContext();
         conv.contextSnapshot = ctx;
-        apiContent = window.PchemTutor.buildUserPrompt(qid, content, ctx);
+        apiContent = window.PchemTutor.buildUserPrompt(qid, content, ctx, window.PchemTutor.getLevel());
     }
 
     conv.messages.push({
@@ -909,7 +915,7 @@ async function sendMessage() {
         const result = await callAnthropicAPI(apiMessages, systemPrompt);
         hideTypingIndicator();
 
-        const LEVEL_SIGNAL_RE = /\[\[LEVEL:(middle|high|univ)\]\]/i;
+        const LEVEL_SIGNAL_RE = /\[\[LEVEL:(elem|middle|high|univ)\]\]/i;
         const levelMatch = result.content.match(LEVEL_SIGNAL_RE);
         const cleanContent = result.content.replace(LEVEL_SIGNAL_RE, "").trimEnd();
 
@@ -1024,7 +1030,7 @@ function switchToQuestion(questionId) {
         contextEl.classList.add("context-free");
     } else {
         if (contextLabel) contextLabel.textContent = "현재 대화 주제:";
-        snippetEl.textContent = window.PchemTutor?.QUESTION_TEXT?.[questionId] || "";
+        snippetEl.textContent = getQuestionText(questionId);
         contextEl.classList.remove("context-free");
     }
 
