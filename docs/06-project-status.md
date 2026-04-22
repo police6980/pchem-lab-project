@@ -3,9 +3,9 @@
 **문서 목적**: 현재 구현 상태와 남은 작업의 마스터 트래커. 다른 설계 문서는 "어떻게 만들어졌는가"를 설명하고, 이 문서는 "어디까지 왔는가"를 기록한다.
 
 **마지막 업데이트**: 2026-04-22
-**현재 상태**: 보일 법칙 시뮬레이터 완성 (Arduino 연동 전 단계). AI 튜터 고도화·4단계 수준·오개념 감지·자동 수준 조정·안정화 10s 카운트다운까지 완비.
+**현재 상태**: 보일 법칙 시뮬레이터 완성 + **Phase 3 진행 중** — 소프트웨어(Web Serial 어댑터·프로토콜 v1.1·UI 패널) 완료, 하드웨어·펌웨어 대기.
 **최신 태그**: `v0.4-boyle-complete`
-**다음 단계**: Phase 3 (Arduino 실센서 연동)
+**다음 단계**: Arduino 하드웨어 입수 후 펌웨어 작성 + 실연결 테스트
 
 ---
 
@@ -136,21 +136,61 @@ Phase 2-B에서 AI 튜터의 더미 응답을 실 API로 교체하고, 멀티턴
 
 ---
 
+## 2-D. Phase 3 착수 — 소프트웨어 부분 완료 (2026-04-22)
+
+Arduino·ESP32 하드웨어 입수 전 선행 가능한 브라우저·프로토콜 쪽을 완료. Mock 어댑터로 전체 UI 체인을 테스트 가능한 상태.
+
+**시리얼 어댑터 계층**
+- [x] `SensorSource` 추상 베이스 — 이벤트 시스템(`on`/`_emitEvent`), `connect/disconnect`, `sendCalib/sendConfig` 인터페이스 통합
+- [x] `MockSensorSource` — `connect/disconnect` 이벤트 발행, `sendCalib` (현재압을 p₀로 에뮬레이트), `sendConfig(rateMs)` (주기 동적 변경)
+- [x] `WebSerialSensorSource` 신규 구현 (`web/js/serial.js`)
+  - Web Serial API 포트 선택·열기·읽기 루프
+  - `TextDecoder` 스트리밍 + `LINE_BUFFER_MAX=4096` 오버플로 가드
+  - 2 s 주기 ping keep-alive, 3 s `HELLO_TIMEOUT_MS` v1.0 폴백
+  - `NotFoundError`(사용자 취소) 무시, 읽기 루프 에러를 `"error"` 이벤트로 격상
+- [x] `createSensorManager(initialPressure)` 팩토리 — 모드 전환 간 `onData`/`on(...)` 구독 유지, `setMode('mock'|'real')` 로 내부 source 교체
+
+**프로토콜 v1.1 확정**
+- [x] `docs/05-data-format.md` 에 v1.0(레거시) + v1.1 스펙 공존 명세
+- [x] 펌웨어 → 브라우저: `"t":"d"` (데이터), `"t":"s"` (hello/상태), `"t":"c"` (캘리브 ACK), `"t":"e"` (에러)
+- [x] 브라우저 → 펌웨어: `"t":"ping"`, `"t":"calib"`, `"t":"cfg","rate":ms`
+- [x] 버전 협상 규칙 (펌웨어가 `"t":"s"`를 먼저 보내면 v1.1, 타임아웃 시 v1.0 폴백)
+- [x] 단위 규약: 기존 kPa 유지
+
+**UI 패널**
+- [x] `#section-controls` 상단에 `#sensor-panel` 추가 (index.html)
+  - `[🖥 시뮬레이션] / [⚡ 실센서]` 모드 토글
+  - `[🔌 포트 연결] / [✖ 연결 해제]` 버튼
+  - 상태 배지 (연결 안 됨 / 연결됨 / 에러), 센서 라벨·펌웨어 버전 표시
+  - `[🎯 영점 캘리브]` — 연결 시에만 활성, 성공 시 `p₀ = N.N kPa` 표시
+  - 에러 토스트 5 s 자동 소멸
+- [x] `initSensorPanel(sensorManager)` — Web Serial 미지원 브라우저에서 실센서 버튼 자동 비활성화 + 툴팁
+- [x] `main.js`에서 `USE_MOCK_SENSOR` 플래그 제거 → sensorManager 기반 일원화, 부팅 시 Mock 자동 연결
+- [x] Mock 모드로 전체 UI 체인 (슬라이더 → 센서 → box → info panel → 측정 기록 → 차트 → 보고서) 정상 동작 확인
+
+**Mock 테스트 가능 상태의 의미**: 하드웨어 없이도 (1) 모드 토글, (2) 이벤트 라우팅, (3) 상태 배지·에러 표시, (4) 캘리브 피드백까지 모든 UI 경로가 검증 가능. 실 펌웨어 붙이면 `t` 필드 파서만 실제 라인을 받아 동일 이벤트 발행.
+
+---
+
 ## 3. 진행 중인 작업
 
-현재 진행 중인 작업 없음. 보일 시뮬레이터 + AI 튜터 완성. **다음은 Phase 3 (Arduino 실센서)**.
+**Phase 3: Arduino 실센서 통합** — 소프트웨어 레이어 완료, **하드웨어·펌웨어 대기**.
+
+다음 필수 작업:
+- [ ] Arduino / ESP32 하드웨어 입수 (DFRobot SEN0257)
+- [ ] 펌웨어 작성 (프로토콜 v1.1 준수, USB-CDC 115200 baud, `"t":"s"` hello + 주기 `"t":"d"` 송신)
+- [ ] 실센서 캘리브레이션 — 영점 보정 플로우 검증, 필요 시 2점 보정 추가
+- [ ] 노이즈 튜닝 (펌웨어 측 이동평균 / 브라우저 측 스무딩 α 조정)
+- [ ] 파일럿: 실제 주사기 + 센서로 보일 법칙 데이터 수집, `PV = const` ±2 % 검증
 
 ---
 
 ## 4. 남은 Phase (로드맵)
 
-### Phase 3: Arduino 실센서 연동
-- DFRobot SEN0257 + ESP32 펌웨어
-- Web Serial API 어댑터 (`serial.js`의 `MockSensorSource` → 실센서 모듈로 교체만으로 전환)
-- 캘리브레이션 UI (영점·2점 보정)
-- 연결 관리 UI (포트 선택·재연결·실패 안내)
-- 파일럿: 실제 주사기 + 센서로 보일 법칙 데이터 수집
-- 예상 소요: 핵심 구현 0.5~1일 + 현장 적응 2~5일
+### Phase 3: Arduino 실센서 연동 (진행 중)
+- [x] Web Serial 어댑터 + 프로토콜 v1.1 + UI 패널
+- [ ] 하드웨어·펌웨어·캘리브레이션·노이즈 튜닝 (위 §3 참조)
+- 예상 소요: 핵심 구현 0.5~1일 + 현장 적응 2~5일 (소프트웨어 완료분 제외)
 
 ### Phase 4: 비교 UX
 - Mock ↔ 실센서 병행 표시 (전환 토글)

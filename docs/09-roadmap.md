@@ -2,8 +2,8 @@
 
 **문서 목적**: Phase 2-B 이후 모든 개발 단계 통합 계획. 우선순위·의존관계·예상 소요·결정 이슈 기록. **06**이 "현재 상태"라면 **09**는 "미래 방향".
 
-**마지막 업데이트**: 2026-04-21
-**기준 상태**: Phase 1 MVP 완료, Phase 2-A 구조 완성, Part 4 대기
+**마지막 업데이트**: 2026-04-22
+**기준 상태**: Phase 1 MVP 완료, Phase 2-A/2-B 완료 (v0.4-boyle-complete), **Phase 3 진행 중** (소프트웨어 완료, 하드웨어·펌웨어 대기)
 
 ---
 
@@ -11,8 +11,8 @@
 
 - [완료] **Phase 1**: MVP — 보일 법칙 시뮬레이션
 - [완료] **Phase 2-A**: AI 튜터 UI (대화형 구조)
-- [진행] **Phase 2-B**: AI 튜터 실제 API 연동 (Part 4)
-- [계획] **Phase 3**: Arduino 실센서 통합
+- [완료] **Phase 2-B**: AI 튜터 실제 API 연동 (Part 4, v0.3-ai-tutor-live)
+- [진행] **Phase 3**: Arduino 실센서 통합 (소프트웨어 완료, 하드웨어·펌웨어 대기)
 - [계획] **Phase 4**: Mock ↔ 실센서 비교 UX
 - [계획] **Phase 5**: 다른 법칙 확장 (샤를, 게이뤼삭)
 - [계획] **Phase 6**: 교사 도구 (대시보드, 다중 사용자)
@@ -64,18 +64,28 @@
 - ESP32 또는 Arduino Uno
 - 상세: `docs/01-hardware-boyle.md` 참조
 
-### 3-3. 소프트웨어
-- Web Serial API 활용 (Chrome/Edge)
-- 기존 sensor 어댑터 인터페이스 재사용:
-  - `sensor.onData(cb)` 표준 유지
-  - Mock 어댑터 → Real 어댑터 교체만
-- 새 파일: `web/js/sensors/arduino-sensor.js`
-- 연결 관리 UI: 포트 선택, 연결 상태, 재연결
+### 3-3. 소프트웨어 체크리스트
 
-### 3-4. 캘리브레이션
-- 영점 캘리브레이션 (대기압 기준)
-- 2점 캘리브레이션 (2개 기준 압력)
-- UI: 설정 섹션에 캘리브레이션 마법사
+**완료 (2026-04-22)**
+- [x] Web Serial API 설계 및 구현 (`WebSerialSensorSource` in `web/js/serial.js`)
+  - 기존 `SensorSource` / `onData(cb)` 인터페이스 재사용 유지
+  - `MockSensorSource` ↔ `WebSerialSensorSource` 런타임 교체 지원
+- [x] Mock ↔ 실센서 전환 UI (`#sensor-panel`, `initSensorPanel()`)
+  - 모드 토글, 포트 연결·해제, 상태 배지, 에러 토스트
+  - Web Serial 미지원 브라우저에서 실센서 버튼 자동 비활성화
+- [x] 프로토콜 v1.1 확정 (`docs/05-data-format.md`)
+  - 타입 필드 `t` 기반 4종 (`d`/`s`/`c`/`e`) + 3종 송신 (`ping`/`calib`/`cfg`)
+  - v1.0 레거시와 공존, `HELLO_TIMEOUT_MS` 폴백
+- [x] `createSensorManager` 팩토리 — 모드 전환 간 구독 유지
+
+**미완료 (하드웨어 입수 후)**
+- [ ] 펌웨어 작성 (ESP32/Arduino, SEN0257 구동, 프로토콜 v1.1 준수)
+- [ ] 실센서 캘리브레이션 — 영점 플로우 실전 검증, 필요 시 2점 보정 추가
+- [ ] 노이즈 튜닝 — 펌웨어 이동평균 / 브라우저 스무딩 α 실측 기반 조정
+
+### 3-4. 캘리브레이션 UI
+- [x] [🎯 영점 캘리브] 버튼 + p₀ 표시 (UI 레이어 완료)
+- [ ] 2점 캘리브레이션 마법사 (실센서 오차 측정 후 필요성 판단)
 
 ### 3-5. 예상 소요
 - 핵심 기능: 0.5~1일
