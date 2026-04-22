@@ -623,6 +623,23 @@ body {
     to { opacity: 1; }
 }
 
+.level-changed-toast {
+    margin: 6px 8px 0;
+    padding: 8px 12px;
+    background: #e8f5e9;
+    border: 1px solid #81c784;
+    border-radius: 4px;
+    font-size: 0.83rem;
+    color: #2e7d32;
+    animation: fadeInOut 4s ease forwards;
+}
+@keyframes fadeInOut {
+    0%   { opacity: 0; transform: translateY(-4px); }
+    10%  { opacity: 1; transform: translateY(0); }
+    80%  { opacity: 1; }
+    100% { opacity: 0; }
+}
+
 /* === Sidebar: Q1-Q3 empty state (prompt + question box) === */
 .ai-sidebar .prompt-question {
     margin-bottom: 12px;

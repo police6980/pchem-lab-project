@@ -179,6 +179,26 @@ function showTabDisabledToast(q) {
     setTimeout(() => msg.remove(), 2500);
 }
 
+const LEVEL_LABELS = {
+    middle: "중학교",
+    high: "고등학교",
+    univ: "대학교",
+};
+
+function showLevelChangedToast(level) {
+    const existing = document.querySelector(".level-changed-toast");
+    if (existing) existing.remove();
+
+    const toast = document.createElement("div");
+    toast.className = "level-changed-toast";
+    toast.innerHTML =
+        `🎯 학생 수준을 <strong>${LEVEL_LABELS[level] || level}</strong>으로 자동 조정했습니다.`;
+
+    const sidebar = document.querySelector(".ai-sidebar");
+    if (sidebar) sidebar.prepend(toast);
+    setTimeout(() => toast.remove(), 4000);
+}
+
 // === Cost warning banner ===
 // 한 임계값당 1회만 노출. 페이지 재로드 시 초기화됨.
 const _costWarningShown = { 100: false, 500: false };
@@ -889,9 +909,24 @@ async function sendMessage() {
         const result = await callAnthropicAPI(apiMessages, systemPrompt);
         hideTypingIndicator();
 
+        const LEVEL_SIGNAL_RE = /\[\[LEVEL:(middle|high|univ)\]\]/i;
+        const levelMatch = result.content.match(LEVEL_SIGNAL_RE);
+        const cleanContent = result.content.replace(LEVEL_SIGNAL_RE, "").trimEnd();
+
+        if (levelMatch) {
+            const detectedLevel = levelMatch[1].toLowerCase();
+            const currentLevel = window.PchemTutor.getLevel();
+            if (detectedLevel !== currentLevel) {
+                sessionStorage.setItem("pchem_ai_level", detectedLevel);
+                const levelSelect = document.getElementById("ai-student-level");
+                if (levelSelect) levelSelect.value = detectedLevel;
+                showLevelChangedToast(detectedLevel);
+            }
+        }
+
         conv.messages.push({
             role: "assistant",
-            content: result.content,
+            content: cleanContent,
             timestamp: Date.now(),
             tokensIn:  result.inputTokens,
             tokensOut: result.outputTokens,
