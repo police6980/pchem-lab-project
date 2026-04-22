@@ -368,7 +368,7 @@ function initAdvancedMode(params) {
     // AI tutor sidebar — shares API key/level/model via sessionStorage with basic.
     // Datapoints are piped in so the tutor can reference recorded measurements
     // once the student has logged at least two points.
-    createAdvAiTutor({
+    const advTutor = createAdvAiTutor({
         getAdvState: () => {
             return {
                 ...getAdvState(),
@@ -601,6 +601,7 @@ function initAdvancedMode(params) {
     const histP5 = new p5(histSketch);
 
     return {
+        refreshTutor: () => advTutor.refresh(),
         pause: () => { simP5.noLoop(); histP5.noLoop(); },
         resume: () => { simP5.loop(); histP5.loop(); },
     };
@@ -617,6 +618,9 @@ document.addEventListener("DOMContentLoaded", async () => {
                     advancedApi = initAdvancedMode(params);
                 } else {
                     advancedApi.resume();
+                    // Re-check API-key availability in case the student set
+                    // it in basic mode after advanced was first opened.
+                    advancedApi.refreshTutor();
                 }
             } else if (advancedApi) {
                 advancedApi.pause();

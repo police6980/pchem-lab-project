@@ -1659,6 +1659,19 @@ function createAdvAiTutor({ getAdvState }) {
     levelSel.addEventListener("change", () => sessionStorage.setItem(SESSION_KEY_LEVEL, levelSel.value));
     modelSel.addEventListener("change", () => sessionStorage.setItem(SESSION_KEY_MODEL, modelSel.value));
 
+    // Input availability — mirrors basic-mode updateInputAvailability(). The
+    // API key is shared via sessionStorage["pchem_api_key"] so advanced is
+    // ready the moment the student enters the key in basic mode.
+    function updateInputAvailability() {
+        const hasApiKey = Boolean(sessionStorage.getItem(SESSION_KEY_API));
+        const hasText = inputEl.value.trim().length > 0;
+        inputEl.disabled = !hasApiKey;
+        sendBtn.disabled = !hasApiKey || !hasText;
+        inputEl.placeholder = hasApiKey
+            ? "메시지 입력 (Enter 전송, Shift+Enter 줄바꿈)"
+            : "먼저 기본 실험 탭에서 API 키를 입력하세요";
+    }
+
     // Settings panel toggle.
     settings.style.display = "none";
     settingsBtn.addEventListener("click", () => {
@@ -1675,9 +1688,16 @@ function createAdvAiTutor({ getAdvState }) {
         tabBtns.forEach(b => b.classList.toggle("active", b.dataset.q === q));
         snippetEl.textContent = ADV_TUTOR_QUESTION_TEXT[q] || "";
         render();
+        updateInputAvailability();
     }
     tabBtns.forEach(b => b.addEventListener("click", () => setActiveTab(b.dataset.q)));
     setActiveTab("1");
+
+    // Refresh whenever the user clicks/focuses anywhere in the sidebar — this
+    // is how the advanced tab picks up a key that was just saved in basic.
+    sidebar.addEventListener("focusin", updateInputAvailability);
+    sidebar.addEventListener("click", updateInputAvailability);
+    updateInputAvailability();
 
     // --- Message rendering ---
     function escapeHtml(t) {
@@ -1818,12 +1838,15 @@ ${focus}
     }
 
     sendBtn.addEventListener("click", send);
+    inputEl.addEventListener("input", updateInputAvailability);
     inputEl.addEventListener("keydown", (e) => {
         if (e.key === "Enter" && !e.shiftKey) {
             e.preventDefault();
             send();
         }
     });
+
+    return { refresh: updateInputAvailability };
 }
 
 // ============================================================
