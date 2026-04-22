@@ -486,6 +486,12 @@ function initAdvancedMode(params) {
             p.colorMode(p.HSB, 360, 100, 100, 255);
         };
         p.draw = () => {
+            // Clear FIRST, before any physics or draws, so there's no chance
+            // the previous frame's pixels leak through (e.g. if the browser
+            // keeps the canvas buffer due to `preserveDrawingBuffer`).
+            p.clear();
+            p.background(0, 0, 98);
+
             const dt = Math.min((p.deltaTime || 0) / 1000, 0.05);
 
             box.update(dt, params.volume_tau_seconds);
@@ -502,7 +508,6 @@ function initAdvancedMode(params) {
             for (const f of advFlashes) f.update(dt);
             advFlashes = advFlashes.filter(f => !f.isDead());
 
-            p.background(0, 0, 98);
             drawCylinderShell(p);
             drawPiston(p, box.x + box.width);
             drawParticlesHSB(p, system.getParticles(), ADV_VMAX_COLOR);
@@ -527,8 +532,13 @@ function initAdvancedMode(params) {
             p.colorMode(p.HSB, 360, 100, 100, 255);
         };
         p.draw = () => {
-            const particles = system.getParticles();
+            // Clear + paint background FIRST, every frame, unconditionally.
+            // Without this, the trail polyline (and prior faded particles)
+            // could linger when preserveDrawingBuffer is on.
+            p.clear();
             p.background(0, 0, 98);
+
+            const particles = system.getParticles();
             if (particles.length === 0) return;
 
             const tracked = particles[0];

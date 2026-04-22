@@ -2025,8 +2025,12 @@ body.adv-sidebar-collapsed #adv-ai-reopen-btn {
 #adv-sim-canvas-container canvas,
 #adv-tracker-canvas-container canvas {
     display: block;
-    width: 100%;
-    height: auto;
+    width: 100% !important;
+    height: auto !important;
+    /* Explicit aspect-ratio keeps height proportional to the responsive
+       width even in browsers that don't derive aspect from the canvas's
+       intrinsic attributes when CSS width is set to a percentage. */
+    aspect-ratio: 1000 / 360;
 }
 
 /* Pressure readout next to volume slider (row 2) */
