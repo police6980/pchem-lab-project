@@ -42,12 +42,17 @@ async function callAnthropicAPI(messages, systemPrompt) {
 
 // === State ===
 const aiConversations = {
-    1:    { messages: [], tokensIn: 0, tokensOut: 0, contextSnapshot: null },
-    2:    { messages: [], tokensIn: 0, tokensOut: 0, contextSnapshot: null },
-    3:    { messages: [], tokensIn: 0, tokensOut: 0, contextSnapshot: null },
-    4:    { messages: [], tokensIn: 0, tokensOut: 0, contextSnapshot: null },
-    free: { messages: [], tokensIn: 0, tokensOut: 0, contextSnapshot: null },
+    1:    { messages: [], tokensIn: 0, tokensOut: 0, contextSnapshot: null, isClosed: false },
+    2:    { messages: [], tokensIn: 0, tokensOut: 0, contextSnapshot: null, isClosed: false },
+    3:    { messages: [], tokensIn: 0, tokensOut: 0, contextSnapshot: null, isClosed: false },
+    4:    { messages: [], tokensIn: 0, tokensOut: 0, contextSnapshot: null, isClosed: false },
+    free: { messages: [], tokensIn: 0, tokensOut: 0, contextSnapshot: null, isClosed: false },
 };
+
+// Soft turn-limit threshold for Q1-Q4 (student turns). At or above, the
+// input placeholder nudges the student toward the [✓ 대화 마무리] button
+// but does not block sending.
+const SOFT_TURN_LIMIT = 8;
 
 let activeQuestion = "free";
 
@@ -212,21 +217,126 @@ function showCostBanner(msg, cls) {
 function resetAllConversations() {
     ["1", "2", "3", "4", "free"].forEach(q => {
         aiConversations[q] = {
-            messages: [], tokensIn: 0, tokensOut: 0, contextSnapshot: null,
+            messages: [], tokensIn: 0, tokensOut: 0, contextSnapshot: null, isClosed: false,
         };
+        updateTabClosedLabel(q);
     });
     q3QuestionGenerated = false;
     renderConversation(activeQuestion);
+    updateInputAvailability();
+    updateEndControlsVisibility();
 }
 
 function resetQuestion(qid) {
     aiConversations[qid] = {
-        messages: [], tokensIn: 0, tokensOut: 0, contextSnapshot: null,
+        messages: [], tokensIn: 0, tokensOut: 0, contextSnapshot: null, isClosed: false,
     };
     if (String(qid) === "3") q3QuestionGenerated = false;
+    updateTabClosedLabel(qid);
     if (String(activeQuestion) === String(qid)) {
         renderConversation(qid);
         updateInputAvailability();
+        updateEndControlsVisibility();
+    }
+}
+
+function countStudentTurns(qid) {
+    const conv = aiConversations[qid];
+    if (!conv) return 0;
+    return conv.messages.filter(m => m.role === "user" && !m.isPromptInternal).length;
+}
+
+function updateTabClosedLabel(qid) {
+    const tabBtn = document.querySelector(`.ai-sidebar .tab-btn[data-q="${qid}"]`);
+    if (!tabBtn) return;
+    tabBtn.classList.toggle("closed", !!aiConversations[qid]?.isClosed);
+}
+
+function updateEndControlsVisibility() {
+    const controls = document.getElementById("conversation-end-controls");
+    if (!controls) return;
+    const qid = activeQuestion;
+    const conv = aiConversations[qid];
+    const isStructured = qid !== "free";
+    const visibleCount = conv ? conv.messages.filter(m => !m.isPromptInternal).length : 0;
+    const show = isStructured && visibleCount > 0 && !conv.isClosed;
+    controls.hidden = !show;
+}
+
+// Close a Q-tab conversation with an AI-generated 2–3줄 summary.
+async function closeQuestion(qid) {
+    const conv = aiConversations[qid];
+    if (!conv || conv.isClosed) return;
+    const visibleCount = conv.messages.filter(m => !m.isPromptInternal).length;
+    if (visibleCount === 0) return;
+
+    const T = window.PchemTutor;
+    if (!T) return;
+
+    const closingSystem = "당신은 영재 과학교육 튜터입니다. 학생과의 탐구 대화를 마무리하는 시간입니다. 대화 전체를 바탕으로 2~3줄 요약을 작성하세요: 학생이 도달한 핵심 이해 + 추가로 생각해볼 여지. 한국어로 답변하세요.";
+    const closingUserPrompt = "지금까지의 탐구 대화를 2~3줄로 짧게 정리해주세요.";
+
+    // Hidden synthetic user message for the summary request
+    conv.messages.push({
+        role: "user",
+        content: "",
+        apiContent: closingUserPrompt,
+        timestamp: Date.now(),
+        isPromptInternal: true,
+    });
+
+    const apiMessages = conv.messages.map(msg => ({
+        role: msg.role,
+        content: msg.apiContent ?? msg.content,
+    }));
+
+    const closeBtn = document.getElementById("btn-close-q");
+    if (closeBtn) closeBtn.disabled = true;
+    showTypingIndicator();
+    try {
+        const result = await callAnthropicAPI(apiMessages, closingSystem);
+        hideTypingIndicator();
+
+        conv.messages.push({
+            role: "assistant",
+            content: "📝 **대화 요약**\n\n" + result.content,
+            timestamp: Date.now(),
+            tokensIn:  result.inputTokens,
+            tokensOut: result.outputTokens,
+            model:     result.model,
+            isClosing: true,
+        });
+        conv.tokensIn  += result.inputTokens;
+        conv.tokensOut += result.outputTokens;
+        T.addTokens(result.inputTokens, result.outputTokens);
+        conv.isClosed = true;
+
+        renderConversation(qid);
+        updateInputAvailability();
+        updateTabClosedLabel(qid);
+        updateEndControlsVisibility();
+    } catch (e) {
+        hideTypingIndicator();
+        conv.messages.pop();
+        let errMsg;
+        if (e.type === "no_key") {
+            errMsg = "⚠️ API 키가 설정되지 않아 요약을 생성할 수 없습니다.";
+        } else if (e.type === "api_error") {
+            errMsg = `⚠️ 요약 생성 중 오류 (HTTP ${e.status}). 잠시 후 다시 시도해주세요.`;
+        } else {
+            errMsg = "⚠️ 네트워크 오류로 요약을 받지 못했습니다.";
+        }
+        conv.messages.push({
+            role: "assistant",
+            content: errMsg,
+            timestamp: Date.now(),
+            isError: true,
+        });
+        renderConversation(qid);
+        updateInputAvailability();
+        updateEndControlsVisibility();
+    } finally {
+        if (closeBtn) closeBtn.disabled = false;
     }
 }
 
@@ -422,6 +532,7 @@ async function sendMessage() {
 
     renderConversation(qid);
     updateInputAvailability();
+    updateEndControlsVisibility();
 }
 
 function updateInputAvailability() {
@@ -434,15 +545,23 @@ function updateInputAvailability() {
         `.ai-sidebar .tab-btn[data-q="${activeQuestion}"]`
     );
     const tabReady = currentTab && currentTab.getAttribute("aria-disabled") !== "true";
+    const conv = aiConversations[activeQuestion];
+    const isClosed = !!conv?.isClosed;
+    const isStructured = activeQuestion !== "free";
+    const studentTurns = countStudentTurns(activeQuestion);
 
-    const enabled = hasApiKey && tabReady;
+    const enabled = hasApiKey && tabReady && !isClosed;
     input.disabled = !enabled;
     btn.disabled = !enabled || !input.value.trim();
 
-    if (!hasApiKey) {
+    if (isClosed) {
+        input.placeholder = "✓ 대화 마무리됨. [↺]로 재시작 가능";
+    } else if (!hasApiKey) {
         input.placeholder = "먼저 설정에서 API 키를 입력하세요";
     } else if (!tabReady) {
         input.placeholder = "측정점 3개를 기록한 뒤 사용할 수 있습니다";
+    } else if (isStructured && studentTurns >= SOFT_TURN_LIMIT) {
+        input.placeholder = "💡 충분히 탐구했어요. [✓ 마무리]로 요약받기 권장";
     } else {
         input.placeholder = "메시지 입력 (Enter 전송, Shift+Enter 줄바꿈)";
     }
@@ -473,6 +592,7 @@ function switchToQuestion(questionId) {
 
     renderConversation(questionId);
     updateInputAvailability();
+    updateEndControlsVisibility();
 }
 
 // === Init ===
@@ -528,6 +648,11 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         });
         sendBtn.addEventListener("click", sendMessage);
+    }
+
+    const closeBtn = document.getElementById("btn-close-q");
+    if (closeBtn) {
+        closeBtn.addEventListener("click", () => closeQuestion(activeQuestion));
     }
 
     // main.js createAnalysisPanel runs asynchronously after a fetch; setting

@@ -260,6 +260,35 @@ body {
     background: rgba(0, 0, 0, 0.1);
 }
 
+/* === Sidebar: conversation end controls (✓ 마무리 버튼) === */
+.ai-sidebar .conversation-end-controls {
+    padding: 8px 10px;
+    border-top: 1px solid #eee;
+    background: #fafafa;
+    display: flex;
+    justify-content: center;
+    flex-shrink: 0;
+}
+.ai-sidebar .conversation-end-controls[hidden] { display: none; }
+.ai-sidebar #btn-close-q {
+    padding: 6px 14px;
+    background: #4caf50;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    font-size: 0.85em;
+    cursor: pointer;
+    transition: background 0.15s, opacity 0.15s;
+}
+.ai-sidebar #btn-close-q:hover:not(:disabled) { background: #3d8b40; }
+.ai-sidebar #btn-close-q:disabled             { opacity: 0.5; cursor: not-allowed; }
+
+/* Closed tab checkmark (subtle green ✓ after the label) */
+.ai-sidebar .tab-btn.closed > span:first-child::after {
+    content: " ✓";
+    color: #4caf50;
+}
+
 /* === Sidebar: Q3 question generator === */
 .btn-generate-question {
     margin-top: 12px;
