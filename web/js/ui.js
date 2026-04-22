@@ -159,6 +159,7 @@ function initSensorPanel(sensorManager) {
 function createInfoPanel() {
     const panel = document.createElement("div");
     panel.id = "info-panel";
+    panel.classList.add("info-panel-styled");
 
     const measured = document.createElement("div");
     measured.className = "info-section";
@@ -820,49 +821,6 @@ function createTemperatureControl({
     });
 
     refreshCurrentDisplay();
-}
-
-function initModeTabs({ onSwitch }) {
-    const tabBasic = document.getElementById("tab-basic");
-    const tabAdvanced = document.getElementById("tab-advanced");
-    const basicPane = document.getElementById("basic-mode");
-    const advancedPane = document.getElementById("advanced-mode");
-
-    function activate(mode) {
-        const isBasic = mode === "basic";
-        tabBasic.classList.toggle("active", isBasic);
-        tabAdvanced.classList.toggle("active", !isBasic);
-        basicPane.classList.toggle("hidden", !isBasic);
-        advancedPane.classList.toggle("hidden", isBasic);
-        onSwitch(mode);
-    }
-
-    tabBasic.addEventListener("click", () => activate("basic"));
-    tabAdvanced.addEventListener("click", () => activate("advanced"));
-}
-
-function createParticleCountControl({ initialCount, onChange }) {
-    const GHOST_RATIO = 9;
-    const container = document.createElement("div");
-    container.id = "particle-count-control";
-    container.innerHTML = `
-        <span class="pcount-label">입자 수:</span>
-        <input type="range" id="pcount-slider" min="50" max="600" step="50" value="${initialCount}">
-        <span class="pcount-display"><strong id="pcount-real">${initialCount}</strong>개 (유령: <strong id="pcount-ghost">${initialCount * GHOST_RATIO}</strong>개)</span>
-    `;
-    document.querySelector(".control-row-particle-count").appendChild(container);
-
-    const slider = document.getElementById("pcount-slider");
-    const realEl = document.getElementById("pcount-real");
-    const ghostEl = document.getElementById("pcount-ghost");
-
-    slider.addEventListener("input", () => {
-        const n = parseInt(slider.value, 10);
-        const ghostN = n * GHOST_RATIO;
-        realEl.textContent = n;
-        ghostEl.textContent = ghostN;
-        onChange(n, ghostN);
-    });
 }
 
 function createAnalysisPanel({
@@ -1567,4 +1525,311 @@ ${answer}
     refresh();
 
     return { refresh, clear };
+}
+
+// ============================================================
+// Advanced-mode info panel — structural clone of createInfoPanel/
+// updateInfoPanel above, with adv- prefixed ids. Kept as a copy on
+// purpose: the basic pair is already wired into a dozen call sites and
+// parameterising it would ripple further than this rework warrants.
+// ============================================================
+function createAdvInfoPanel() {
+    const panel = document.createElement("div");
+    panel.id = "adv-info-panel";
+    panel.classList.add("info-panel-styled");  // hook for shared visual styling
+
+    const measured = document.createElement("div");
+    measured.className = "info-section";
+    measured.innerHTML = `
+        <div class="info-section-title">실측</div>
+        <div class="info-row"><span class="info-label">온도</span><span class="info-value" id="adv-info-temp">—</span></div>
+        <div class="info-row"><span class="info-label">압력</span><span class="info-value" id="adv-info-pressure">—</span></div>
+    `;
+
+    const simulated = document.createElement("div");
+    simulated.className = "info-section";
+    simulated.innerHTML = `
+        <div class="info-section-title">시뮬레이션</div>
+        <div class="info-row"><span class="info-label">평균 속도</span><span class="info-value" id="adv-info-speed">—</span></div>
+        <div class="info-row"><span class="info-label">충돌/s (전체)</span><span class="info-value" id="adv-info-hits">측정 중...</span></div>
+        <div class="info-row"><span class="info-label">평균 운동에너지</span><span class="info-value" id="adv-info-kinetic">—</span></div>
+    `;
+
+    panel.appendChild(measured);
+    panel.appendChild(simulated);
+    document.getElementById("adv-info-panel-area").appendChild(panel);
+
+    return panel;
+}
+
+function updateAdvInfoPanel(data) {
+    if (data.temp_K !== undefined) {
+        const celsius = (data.temp_K - 273.15).toFixed(0);
+        document.getElementById("adv-info-temp").innerHTML =
+            `${data.temp_K.toFixed(0)} <span class="info-unit">K</span>` +
+            ` <span class="info-unit">(${celsius}°C)</span>`;
+    }
+    if (data.pressure_kPa !== undefined) {
+        document.getElementById("adv-info-pressure").innerHTML =
+            formatValueWithUnit(data.pressure_kPa, 1, "kPa");
+    }
+    if (data.avgSpeed !== undefined) {
+        if (data.avgSpeedTheory !== undefined) {
+            document.getElementById("adv-info-speed").innerHTML =
+                `${data.avgSpeed.toFixed(0)} <span class="info-unit">px/s</span>` +
+                ` <span class="info-unit">(이론 ~${data.avgSpeedTheory.toFixed(0)})</span>`;
+        } else {
+            document.getElementById("adv-info-speed").innerHTML =
+                formatValueWithUnit(data.avgSpeed, 0, "px/s");
+        }
+    }
+    if (data.hitsPerSec !== undefined) {
+        document.getElementById("adv-info-hits").innerHTML =
+            formatValueWithUnit(data.hitsPerSec, 0, "회/초");
+    }
+    if (data.kineticEnergy !== undefined) {
+        if (data.kineticEnergyTheory !== undefined) {
+            document.getElementById("adv-info-kinetic").innerHTML =
+                `${data.kineticEnergy.toFixed(0)} <span class="info-unit">px²/s²</span>` +
+                ` <span class="info-unit">(이론 ~${data.kineticEnergyTheory.toFixed(0)})</span>`;
+        } else {
+            document.getElementById("adv-info-kinetic").innerHTML =
+                formatValueWithUnit(data.kineticEnergy, 0, "px²/s²");
+        }
+    }
+}
+
+// ============================================================
+// Advanced-mode AI tutor — self-contained duplicate of the basic
+// tutor's core chat loop. Shares the basic-mode API key via the
+// common sessionStorage entry "pchem_api_key". Kept separate from
+// basic's createAnalysisPanel closure because advanced has no
+// measurement table / data points — the context fed to the model
+// is the current V / P / T / N / gas, not a recorded point list.
+// ============================================================
+const ADV_TUTOR_QUESTION_TEXT = {
+    1: "Q1. 같은 온도에서 부피를 줄이면 압력이 왜 커질까? 입자 운동론으로 설명해보세요.",
+    2: "Q2. 기체 종류를 바꾸면 (예: He vs CO₂) 같은 조건에서 무엇이 달라질까? 왜?",
+    3: "Q3. 온도가 달라지면 맥스웰-볼츠만 분포가 어떻게 변화하는지 관찰한 것을 설명해보세요.",
+    4: "Q4. 이상기체 법칙(PV=nRT)은 어떤 조건에서 잘 맞고, 어떤 조건에서 벗어날까?",
+    free: "자유 질문. 실험 중 궁금한 것을 물어보세요.",
+};
+const ADV_TUTOR_LEVEL_GUIDES = {
+    elem: "초등학생. 입자를 공에 비유해 직관적으로. 수식 없이. 쉬운 단어, 칭찬 많이.",
+    middle: "중학교 2-3학년 영재. 기본 분자 운동론은 알지만 통계역학은 미숙. 친근한 톤.",
+    high: "고등학교 영재. 이상기체 상태방정식, 간단한 통계역학 개념 가능. 엄밀성 유지.",
+    univ: "대학교 일반화학/물리화학. 맥스웰-볼츠만 분포, 반데르발스 방정식 수준 개념 사용 가능.",
+};
+const ADV_TUTOR_GAS_NAMES = { He: "헬륨 (He, 4 g/mol)", N2: "질소 (N₂, 28 g/mol)", Ar: "아르곤 (Ar, 40 g/mol)", CO2: "이산화탄소 (CO₂, 44 g/mol)" };
+
+function createAdvAiTutor({ getAdvState }) {
+    const SESSION_KEY_API   = "pchem_api_key";
+    const SESSION_KEY_LEVEL = "pchem_ai_level";
+    const SESSION_KEY_MODEL = "pchem_ai_model";
+
+    // Separate conversation state per tab — independent of basic's.
+    const conversations = {
+        1:    { messages: [] },
+        2:    { messages: [] },
+        3:    { messages: [] },
+        4:    { messages: [] },
+        free: { messages: [] },
+    };
+    let activeQ = "1";
+
+    // --- DOM refs ---
+    const sidebar     = document.getElementById("adv-ai-sidebar");
+    const settingsBtn = document.getElementById("adv-btn-toggle-settings");
+    const collapseBtn = document.getElementById("adv-btn-ai-collapse");
+    const reopenBtn   = document.getElementById("adv-ai-reopen-btn");
+    const settings    = document.getElementById("adv-ai-settings-panel");
+    const levelSel    = document.getElementById("adv-ai-student-level");
+    const modelSel    = document.getElementById("adv-ai-model");
+    const tabBtns     = sidebar.querySelectorAll(".question-tabs .tab-btn");
+    const snippetEl   = document.getElementById("adv-question-snippet");
+    const scrollEl    = document.getElementById("adv-conversation-scroll");
+    const emptyEl     = document.getElementById("adv-conversation-empty");
+    const listEl      = document.getElementById("adv-messages-list");
+    const inputEl     = document.getElementById("adv-message-input");
+    const sendBtn     = document.getElementById("adv-btn-send-message");
+
+    // Load level/model from sessionStorage (shared with basic).
+    levelSel.value = sessionStorage.getItem(SESSION_KEY_LEVEL) || "high";
+    modelSel.value = sessionStorage.getItem(SESSION_KEY_MODEL) || "claude-sonnet-4-6";
+    levelSel.addEventListener("change", () => sessionStorage.setItem(SESSION_KEY_LEVEL, levelSel.value));
+    modelSel.addEventListener("change", () => sessionStorage.setItem(SESSION_KEY_MODEL, modelSel.value));
+
+    // Settings panel toggle.
+    settings.style.display = "none";
+    settingsBtn.addEventListener("click", () => {
+        settings.style.display = settings.style.display === "none" ? "" : "none";
+    });
+
+    // Sidebar collapse / reopen (scoped via body.adv-sidebar-collapsed).
+    collapseBtn.addEventListener("click", () => document.body.classList.add("adv-sidebar-collapsed"));
+    reopenBtn.addEventListener("click", () => document.body.classList.remove("adv-sidebar-collapsed"));
+
+    // --- Tab switching ---
+    function setActiveTab(q) {
+        activeQ = q;
+        tabBtns.forEach(b => b.classList.toggle("active", b.dataset.q === q));
+        snippetEl.textContent = ADV_TUTOR_QUESTION_TEXT[q] || "";
+        render();
+    }
+    tabBtns.forEach(b => b.addEventListener("click", () => setActiveTab(b.dataset.q)));
+    setActiveTab("1");
+
+    // --- Message rendering ---
+    function escapeHtml(t) {
+        return t.replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+    }
+    function renderMarkdown(t) {
+        return escapeHtml(t)
+            .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+            .replace(/\n/g, "<br>");
+    }
+    function render() {
+        const conv = conversations[activeQ];
+        listEl.innerHTML = "";
+        if (conv.messages.length === 0) {
+            emptyEl.style.display = "";
+            return;
+        }
+        emptyEl.style.display = "none";
+        for (const m of conv.messages) {
+            const row = document.createElement("div");
+            row.className = `message ${m.role === "user" ? "user-message" : "ai-message"}${m.isError ? " is-error" : ""}`;
+            row.innerHTML = `
+                <div class="avatar">${m.role === "user" ? "👤" : "🤖"}</div>
+                <div class="content"><div class="bubble">${renderMarkdown(m.content)}</div></div>
+            `;
+            listEl.appendChild(row);
+        }
+        scrollEl.scrollTop = scrollEl.scrollHeight;
+    }
+
+    // --- Context + prompt construction ---
+    function buildContext() {
+        const s = getAdvState();
+        return `[현재 실험 조건]
+부피(V): ${s.V_mL.toFixed(0)} mL
+압력(P): ${s.P_kPa.toFixed(1)} kPa (P = P₀·V₀/V·T/T₀ 로 자동 계산)
+온도(T): ${s.tempK.toFixed(0)} K (${(s.tempK - 273.15).toFixed(0)}°C)
+입자 수: ${s.particleCount}개 (유령입자 없음)
+기체: ${ADV_TUTOR_GAS_NAMES[s.gas] || s.gas}
+평균 속도(RMS): ${s.avgSpeed.toFixed(0)} px/s`;
+    }
+
+    function buildSystemPrompt(level, qid) {
+        const focus = qid === "free"
+            ? "자유 질문 모드. 직접 답해도 되지만 마지막에 한 단계 깊은 탐구 방향을 한 문장 제안. 400자 이내."
+            : `현재 질문: ${ADV_TUTOR_QUESTION_TEXT[qid]}`;
+        return `당신은 영재 과학교육 튜터입니다.
+
+대상 학생: ${ADV_TUTOR_LEVEL_GUIDES[level] || ADV_TUTOR_LEVEL_GUIDES.high}
+현재 탐구: 심화 모드 — 부피/온도/기체 종류/입자 수를 자유롭게 바꿔가며 분자 운동론, 맥스웰-볼츠만 분포, 이상기체 법칙을 탐구.
+${focus}
+
+원칙:
+1. 학생 답변을 인정하고 한 단계 깊은 질문을 던지세요. 정답을 먼저 알려주지 마세요.
+2. 학생이 언급한 구체적 조건 (온도/기체/부피)을 반드시 인용하세요.
+3. 실험 UI에서 직접 확인할 수 있는 조작을 제안하세요. 예: "CO₂에서 He로 바꿔보면 어떻게 달라질까요?"
+4. 250자 이내 (자유 모드는 400자). 한 피드백에 한 가지 핵심만.
+5. 마지막에 다음에 생각해볼 질문 1개로 마무리.
+
+한국어로 답변하세요.`;
+    }
+
+    // --- Send ---
+    async function send() {
+        const text = inputEl.value.trim();
+        if (!text) return;
+
+        const apiKey = sessionStorage.getItem(SESSION_KEY_API);
+        if (!apiKey) {
+            const conv = conversations[activeQ];
+            conv.messages.push({ role: "assistant", content: "⚠️ API 키가 설정되지 않았습니다. 기본 실험 탭 AI 튜터 설정에서 먼저 입력해주세요.", isError: true });
+            render();
+            inputEl.value = "";
+            return;
+        }
+
+        const conv = conversations[activeQ];
+        const isFirst = conv.messages.length === 0;
+        const apiContent = isFirst ? `${buildContext()}\n\n[학생]\n${text}` : text;
+
+        conv.messages.push({ role: "user", content: text, apiContent });
+        inputEl.value = "";
+        sendBtn.disabled = true;
+        render();
+
+        const apiMessages = conv.messages.map(m => ({
+            role: m.role,
+            content: m.apiContent ?? m.content,
+        }));
+        const level = sessionStorage.getItem(SESSION_KEY_LEVEL) || "high";
+        const model = sessionStorage.getItem(SESSION_KEY_MODEL) || "claude-sonnet-4-6";
+
+        try {
+            const res = await fetch("https://api.anthropic.com/v1/messages", {
+                method: "POST",
+                headers: {
+                    "content-type": "application/json",
+                    "x-api-key": apiKey,
+                    "anthropic-version": "2023-06-01",
+                    "anthropic-dangerous-direct-browser-access": "true",
+                },
+                body: JSON.stringify({
+                    model,
+                    max_tokens: 1024,
+                    system: buildSystemPrompt(level, activeQ),
+                    messages: apiMessages,
+                }),
+            });
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                const msg = err?.error?.message || `HTTP ${res.status}`;
+                conv.messages.push({ role: "assistant", content: `⚠️ API 오류: ${msg}`, isError: true });
+            } else {
+                const data = await res.json();
+                conv.messages.push({ role: "assistant", content: data.content[0].text });
+            }
+        } catch (e) {
+            conv.messages.push({ role: "assistant", content: `⚠️ 네트워크 오류: ${e.message || e}`, isError: true });
+        } finally {
+            sendBtn.disabled = false;
+            render();
+        }
+    }
+
+    sendBtn.addEventListener("click", send);
+    inputEl.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" && !e.shiftKey) {
+            e.preventDefault();
+            send();
+        }
+    });
+}
+
+// ============================================================
+// Advanced-mode tab switcher. Toggles #basic-mode / #advanced-mode visibility
+// and calls onSwitch(mode) so the caller can pause/resume simulations.
+// ============================================================
+function initModeTabs({ onSwitch }) {
+    const tabBasic = document.getElementById("tab-basic");
+    const tabAdvanced = document.getElementById("tab-advanced");
+    const basicPane = document.getElementById("basic-mode");
+    const advancedPane = document.getElementById("advanced-mode");
+
+    function activate(mode) {
+        const isBasic = mode === "basic";
+        tabBasic.classList.toggle("active", isBasic);
+        tabAdvanced.classList.toggle("active", !isBasic);
+        basicPane.classList.toggle("hidden", !isBasic);
+        advancedPane.classList.toggle("hidden", isBasic);
+        onSwitch(mode);
+    }
+
+    tabBasic.addEventListener("click", () => activate("basic"));
+    tabAdvanced.addEventListener("click", () => activate("advanced"));
 }

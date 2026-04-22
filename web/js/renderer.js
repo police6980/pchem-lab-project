@@ -49,6 +49,50 @@ function getAndResetFrameCount() {
     return count;
 }
 
+// Draw primitives shared between basic and advanced sim sketches. They use
+// the module-level CYLINDER_* constants, so callers must use the same box
+// geometry (x = BOX_INITIAL_X, y = BOX_INITIAL_Y, height = BOX_INITIAL_HEIGHT)
+// for the visuals to line up.
+function drawCylinderShell(p) {
+    const HATCH_W = 18;
+    const HATCH_STEP = 10;
+    p.stroke(0, 0, 55);
+    p.strokeWeight(1);
+    for (let y = CYLINDER_TOP + 4; y < CYLINDER_BOTTOM - HATCH_W + 4; y += HATCH_STEP) {
+        p.line(CYLINDER_LEFT, y, CYLINDER_LEFT - HATCH_W, y + HATCH_W);
+    }
+    p.stroke(0, 0, 31);
+    p.strokeWeight(1);
+    p.line(CYLINDER_LEFT, CYLINDER_TOP, CYLINDER_RIGHT, CYLINDER_TOP);
+    p.line(CYLINDER_LEFT, CYLINDER_BOTTOM, CYLINDER_RIGHT, CYLINDER_BOTTOM);
+    p.strokeWeight(4);
+    p.line(CYLINDER_LEFT, CYLINDER_TOP, CYLINDER_LEFT, CYLINDER_BOTTOM);
+}
+
+function drawPiston(p, pistonX) {
+    const midY = (CYLINDER_TOP + CYLINDER_BOTTOM) / 2;
+    p.noStroke();
+    p.fill(0, 0, 48);
+    p.rect(pistonX, CYLINDER_TOP, 12, CYLINDER_BOTTOM - CYLINDER_TOP);
+    p.fill(0, 0, 62);
+    p.rect(pistonX + 12, midY - 7, 70, 14);
+    p.fill(0, 0, 42);
+    p.rect(pistonX + 82, midY - 16, 6, 32);
+}
+
+function drawParticlesHSB(p, particles, vMaxColor) {
+    p.noStroke();
+    for (const particle of particles) {
+        const speed = Math.sqrt(particle.vx * particle.vx + particle.vy * particle.vy);
+        const ratio = Math.min(speed / vMaxColor, 1.0);
+        const hue = 240 - 240 * ratio;
+        const sat = 40 + 60 * ratio;
+        const bri = 70 + 30 * ratio;
+        p.fill(hue, sat, bri);
+        p.circle(particle.x, particle.y, particle.radius * 2);
+    }
+}
+
 function createRenderer(box, particleSystem, params, updateFn) {
     // Fixed at start-up, never retuned. Distribution shift (e.g. heating) then
     // reads as visible color change instead of silent rescaling.
@@ -238,52 +282,9 @@ function createRenderer(box, particleSystem, params, updateFn) {
             flashes = flashes.filter(f => !f.isDead());
 
             p.background(0, 0, 98);
-
-            const pistonX = box.x + box.width;
-            const midY = (CYLINDER_TOP + CYLINDER_BOTTOM) / 2;
-
-            const HATCH_W = 18;
-            const HATCH_STEP = 10;
-            p.stroke(0, 0, 55);
-            p.strokeWeight(1);
-            for (let y = CYLINDER_TOP + 4; y < CYLINDER_BOTTOM - HATCH_W + 4; y += HATCH_STEP) {
-                p.line(CYLINDER_LEFT, y, CYLINDER_LEFT - HATCH_W, y + HATCH_W);
-            }
-
-            p.stroke(0, 0, 31);
-            p.strokeWeight(1);
-            p.line(CYLINDER_LEFT, CYLINDER_TOP, CYLINDER_RIGHT, CYLINDER_TOP);
-            p.line(CYLINDER_LEFT, CYLINDER_BOTTOM, CYLINDER_RIGHT, CYLINDER_BOTTOM);
-
-            p.strokeWeight(4);
-            p.line(CYLINDER_LEFT, CYLINDER_TOP, CYLINDER_LEFT, CYLINDER_BOTTOM);
-
-            p.noStroke();
-            p.fill(0, 0, 48);
-            p.rect(pistonX, CYLINDER_TOP, 12, CYLINDER_BOTTOM - CYLINDER_TOP);
-
-            p.fill(0, 0, 62);
-            const rodLen = 70;
-            const rodH = 14;
-            p.rect(pistonX + 12, midY - rodH / 2, rodLen, rodH);
-
-            p.fill(0, 0, 42);
-            const handleW = 6;
-            const handleH = 32;
-            p.rect(pistonX + 12 + rodLen, midY - handleH / 2, handleW, handleH);
-
-            p.noStroke();
-            const particles = particleSystem.getParticles();
-            for (const particle of particles) {
-                const speed = Math.sqrt(particle.vx * particle.vx + particle.vy * particle.vy);
-                const ratio = Math.min(speed / vMaxColor, 1.0);
-                const hue = computeHueFromSpeed(speed);
-                const sat = 40 + 60 * ratio;
-                const bri = 70 + 30 * ratio;
-                p.fill(hue, sat, bri);
-                p.circle(particle.x, particle.y, particle.radius * 2);
-            }
-
+            drawCylinderShell(p);
+            drawPiston(p, box.x + box.width);
+            drawParticlesHSB(p, particleSystem.getParticles(), vMaxColor);
             for (const f of flashes) f.draw(p);
         };
     };
@@ -313,7 +314,7 @@ function createRenderer(box, particleSystem, params, updateFn) {
         };
     };
 
-    const simP5 = new p5(simSketch, document.getElementById("section-canvas"));
+    new p5(simSketch, document.getElementById("section-canvas"));
 
     // Inject histogram toggle bar BEFORE appending p5 canvas so toggles sit on top.
     const histArea = document.getElementById("histogram-area");
@@ -332,21 +333,13 @@ function createRenderer(box, particleSystem, params, updateFn) {
         showMBCurve = e.target.checked;
     });
 
-    const histP5 = new p5(histSketch, histArea);
+    new p5(histSketch, histArea);
 
     return {
         snapshotHistogramForGhost: () => {
             if (smoothedBins) {
                 previousTempBins = smoothedBins.map(b => ({ ...b }));
             }
-        },
-        pause: () => {
-            simP5.noLoop();
-            histP5.noLoop();
-        },
-        resume: () => {
-            simP5.loop();
-            histP5.loop();
         },
     };
 }

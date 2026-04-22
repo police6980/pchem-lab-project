@@ -309,41 +309,6 @@ class ParticleSystem {
         }
     }
 
-    // Rebuild both pools in place. speedScale must already reflect current
-    // temperature — the caller is responsible for that, because this class
-    // has no temperature concept of its own.
-    setParticleCount(particleCount, ghostCount, speedScale) {
-        const box = this.box;
-        const r = PARTICLE_RADIUS;
-
-        this.particles.length = 0;
-        for (let i = 0; i < particleCount; i++) {
-            const x = box.x + r + Math.random() * (box.width - 2 * r);
-            const y = box.y + r + Math.random() * (box.height - 2 * r);
-            const vx = boxMullerStandardNormal() * speedScale;
-            const vy = boxMullerStandardNormal() * speedScale;
-            this.particles.push(new Particle(x, y, vx, vy, r));
-        }
-
-        this.ghosts.length = 0;
-        for (let i = 0; i < ghostCount; i++) {
-            const x = box.x + Math.random() * box.width;
-            const y = box.y + Math.random() * box.height;
-            const vx = boxMullerStandardNormal() * speedScale;
-            const vy = boxMullerStandardNormal() * speedScale;
-            this.ghosts.push(new GhostParticle(x, y, vx, vy));
-        }
-
-        this.lastPistonCollisions = [];
-        this._ghostPistonHits = 0;
-        this._overlapPairCount = 0;
-
-        for (let i = 0; i < 10; i++) {
-            if (this._resolveParticleCollisions() === 0) break;
-        }
-        this._overlapPairCount = 0;
-    }
-
     getAverageKineticEnergy() {
         if (this.particles.length === 0) return 0;
         let sumSq = 0;

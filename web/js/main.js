@@ -1,82 +1,5 @@
 // Entry point - boot and overall orchestration
 
-// Advanced mode lives on its own canvas with its own Box/ParticleSystem.
-// Pixel scale is independent of basic mode — there's no shared cylinder,
-// so width = V_mL × ADV_PX_PER_ML with no reference to baseline_gas_width_px.
-const ADV_CANVAS_W = 720;
-const ADV_CANVAS_H = 260;
-const ADV_BOX_X = 30;
-const ADV_BOX_Y = 30;
-const ADV_BOX_H = 200;
-const ADV_PX_PER_ML = 8;
-const ADV_V0_ML = 50;
-
-function initAdvancedMode(params) {
-    const P0 = params.initial_pressure_kPa;
-    let currentV_mL = ADV_V0_ML;
-
-    const box = new Box(ADV_BOX_X, ADV_BOX_Y, ADV_V0_ML * ADV_PX_PER_ML, ADV_BOX_H);
-    const system = new ParticleSystem(params.particle_count, box, DEFAULT_SPEED_SCALE, 0);
-
-    const slider = document.getElementById("adv-volume-slider");
-    const volDisplay = document.getElementById("adv-volume-display");
-    const pressDisplay = document.getElementById("adv-pressure-display");
-
-    function applyVolume(V_mL) {
-        currentV_mL = V_mL;
-        box.targetWidth = V_mL * ADV_PX_PER_ML;
-        const P = P0 * ADV_V0_ML / V_mL;
-        volDisplay.textContent = `${V_mL.toFixed(0)} mL`;
-        pressDisplay.textContent = `${P.toFixed(1)} kPa`;
-    }
-
-    slider.addEventListener("input", () => applyVolume(parseFloat(slider.value)));
-    applyVolume(ADV_V0_ML);
-
-    const sketch = (p) => {
-        let lastFrameMs = 0;
-        const vMaxColor = system.getInitialAverageSpeed() * params.v_max_color_factor;
-
-        p.setup = () => {
-            p.createCanvas(ADV_CANVAS_W, ADV_CANVAS_H);
-            p.colorMode(p.HSB, 360, 100, 100, 255);
-            lastFrameMs = performance.now();
-        };
-
-        p.draw = () => {
-            const now = performance.now();
-            const dt = Math.min((now - lastFrameMs) / 1000, 0.05);
-            lastFrameMs = now;
-
-            box.update(dt, params.volume_tau_seconds);
-            system.update(dt);
-            system.clampParticlesIntoBox();
-
-            p.background(0, 0, 98);
-            p.noFill();
-            p.stroke(0, 0, 30);
-            p.strokeWeight(2);
-            p.rect(box.x, box.y, box.width, box.height);
-
-            p.noStroke();
-            for (const particle of system.getParticles()) {
-                const speed = Math.sqrt(particle.vx * particle.vx + particle.vy * particle.vy);
-                const ratio = Math.min(speed / vMaxColor, 1.0);
-                const hue = 240 - 240 * ratio;
-                p.fill(hue, 40 + 60 * ratio, 70 + 30 * ratio);
-                p.circle(particle.x, particle.y, particle.radius * 2);
-            }
-        };
-    };
-
-    const advP5 = new p5(sketch, document.getElementById("advanced-canvas-container"));
-
-    return {
-        pause: () => advP5.noLoop(),
-        resume: () => advP5.loop(),
-    };
-}
-
 const REFERENCE_TEMP_K = 298.15;
 const REFERENCE_V_ML = 50;
 const REFERENCE_P_KPA = 101.3;
@@ -170,23 +93,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     });
 
-    let advancedApi = null;
-    initModeTabs({
-        onSwitch: (mode) => {
-            if (mode === "basic") {
-                if (advancedApi) advancedApi.pause();
-                renderer.resume();
-            } else {
-                renderer.pause();
-                if (!advancedApi) {
-                    advancedApi = initAdvancedMode(params);
-                } else {
-                    advancedApi.resume();
-                }
-            }
-        },
-    });
-
     createInfoPanel();
     lastDisplayAvgSpeed = system.getAverageSpeed();
     updateInfoPanel({
@@ -278,25 +184,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         getSessionStart: () => sessionStartMs,
     });
 
-    createParticleCountControl({
-        initialCount: params.particle_count,
-        onChange: (n, ghostN) => {
-            // Snap any in-flight temp transition so scaleVelocities state is
-            // flat before we throw away the particles it was scaling.
-            if (transitionStartTime !== null) {
-                const frameRatio = targetSpeedRatio / lastAppliedRatio;
-                system.scaleVelocities(frameRatio);
-                transitionStartTime = null;
-            }
-            targetSpeedRatio = 1;
-            currentSpeedRatio = 1;
-            lastAppliedRatio = 1;
-
-            const speedScale = DEFAULT_SPEED_SCALE * Math.sqrt(currentTempKelvin() / REFERENCE_TEMP_K);
-            system.setParticleCount(n, ghostN, speedScale);
-        },
-    });
-
     createTemperatureControl({
         getCurrentCelsius: () => currentTempCelsius,
         getMeasurementCount: () => measApi.getMeasurementCount(),
@@ -370,4 +257,333 @@ document.addEventListener("DOMContentLoaded", async () => {
             `Overlap pairs (avg): ${overlapAvg.toFixed(1)} /frame`
         );
     }, 5000);
+});
+
+// ============================================================
+// Advanced mode — mirrors basic mode's layout and reuses its drawing
+// primitives (drawCylinderShell / drawPiston / drawParticlesHSB from
+// renderer.js, createAdvInfoPanel / updateAdvInfoPanel from ui.js).
+// Histogram math is rewritten per spec with FIXED x-range and y-scale.
+// ============================================================
+
+// Canvas / box geometry — matches basic (SIM_CANVAS_WIDTH etc. live in renderer.js).
+const ADV_PX_PER_ML = 9;             // V=80 mL → 720 px wide; fits CYLINDER_RIGHT=810.
+const ADV_V0_ML = 50;
+const ADV_INITIAL_PARTICLES = 300;
+const ADV_INITIAL_CELSIUS = 25;
+const ADV_TEMP_MIN = -100;
+const ADV_TEMP_MAX = 500;
+const ADV_REFERENCE_TEMP_K = 298.15;
+const ADV_REFERENCE_GAS_MASS = 28;   // N₂ — matches DEFAULT_SPEED_SCALE baseline.
+const ADV_GAS_MASSES = { He: 4, N2: 28, Ar: 40, CO2: 44 };
+
+// Histogram layout — matches basic mode (HIST_CANVAS_WIDTH/HEIGHT = 560/260)
+// so the histogram area + info panel can sit side-by-side in a flex row
+// inside the advanced-mode main container (which is already narrowed by the
+// 380px AI sidebar).
+const ADV_HIST_CANVAS_W = HIST_CANVAS_WIDTH;   // 560
+const ADV_HIST_CANVAS_H = HIST_CANVAS_HEIGHT;  // 260
+const ADV_HIST_X = 36;                         // left margin for y-axis count labels
+const ADV_HIST_Y = 5;
+const ADV_HIST_W = ADV_HIST_CANVAS_W - ADV_HIST_X - 5;     // 519
+const ADV_HIST_H = ADV_HIST_CANVAS_H - ADV_HIST_Y - 10;    // 245
+const ADV_HIST_BINS = 40;
+
+// x-axis range is DYNAMIC: v_max_x = 4·σ of the current state, EMA-smoothed.
+// Distribution always fills the frame — matches the look of basic-mode's
+// fixed-vMaxColor histogram but follows the student's current T/gas choice.
+// y-axis likewise proportional (smoothedMaxCount EMA).
+const ADV_HIST_TIME_ALPHA = 0.05;  // bin count EMA
+const ADV_HIST_MAX_ALPHA  = 0.03;  // y-scale EMA (slow — keeps theory curve still)
+const ADV_HIST_VMAX_ALPHA = 0.1;   // x-range EMA (fast-ish — ~0.2s transition)
+
+function initAdvancedMode(params) {
+    const P0 = params.initial_pressure_kPa;
+
+    // Color scale — pinned to the INITIAL state (N₂ at 25 °C), same convention
+    // as basic mode's `vMaxColor = initialAvgSpeed × v_max_color_factor`.
+    // This makes heating/lighter gases read as "redder particles" visually,
+    // the same feedback the basic tab gives when the student raises T.
+    const ADV_VMAX_COLOR =
+        DEFAULT_SPEED_SCALE * Math.sqrt(2) * params.v_max_color_factor;
+
+    let currentGasMass = ADV_GAS_MASSES.N2;
+    let currentTempK = ADV_INITIAL_CELSIUS + 273.15;
+    const currentSpeedScale = () =>
+        DEFAULT_SPEED_SCALE
+        * Math.sqrt(currentTempK / ADV_REFERENCE_TEMP_K)
+        * Math.sqrt(ADV_REFERENCE_GAS_MASS / currentGasMass);
+    const theoreticalSpeed = () => currentSpeedScale() * Math.sqrt(2);
+    const theoreticalKE = () => {
+        const s = currentSpeedScale();
+        return 0.5 * 1.0 * 2 * s * s;  // <v²> = 2σ² for 2-D MB
+    };
+
+    const box = new Box(BOX_INITIAL_X, BOX_INITIAL_Y, ADV_V0_ML * ADV_PX_PER_ML, BOX_INITIAL_HEIGHT);
+    // `system` is reassigned on particle-count changes; p5 closures read the
+    // latest value each frame because they reference the outer `let` by name.
+    let system = new ParticleSystem(ADV_INITIAL_PARTICLES, box, currentSpeedScale(), 0);
+
+    // --- DOM refs ---
+    const volSlider    = document.getElementById("adv-volume-slider");
+    const volValue     = document.getElementById("adv-volume-value");
+    const partSlider   = document.getElementById("adv-particle-slider");
+    const partValue    = document.getElementById("adv-particle-value");
+    const gasSelect    = document.getElementById("adv-gas-select");
+    const tempInput    = document.getElementById("adv-temp-custom-input");
+    const tempSetBtn   = document.getElementById("adv-btn-temp-set");
+    const tempCelEl    = document.getElementById("adv-temp-current-celsius");
+    const tempKelEl    = document.getElementById("adv-temp-current-kelvin");
+    const tempPresets  = document.querySelectorAll(".adv-temp-presets button");
+
+    createAdvInfoPanel();
+
+    // AI tutor sidebar — shares API key/level/model via sessionStorage with basic.
+    createAdvAiTutor({
+        getAdvState: () => {
+            const V = parseFloat(volSlider.value);
+            const P = P0 * (ADV_V0_ML / V) * (currentTempK / ADV_REFERENCE_TEMP_K);
+            return {
+                V_mL: V,
+                P_kPa: P,
+                tempK: currentTempK,
+                particleCount: system.getParticles().length,
+                gas: gasSelect.value,
+                avgSpeed: system.getAverageSpeed(),
+            };
+        },
+    });
+
+    // Histogram header — prepended before p5 mounts so it sits above the canvas.
+    const histHeader = document.createElement("div");
+    histHeader.className = "adv-hist-header";
+    histHeader.innerHTML = `실입자 수: <strong id="adv-hist-n">${ADV_INITIAL_PARTICLES}</strong>개`;
+    document.getElementById("adv-histogram-area").appendChild(histHeader);
+    const histNEl = document.getElementById("adv-hist-n");
+
+    // --- Control handlers ---
+    function applyVolume(V_mL) {
+        box.targetWidth = V_mL * ADV_PX_PER_ML;
+        volValue.textContent = `${V_mL.toFixed(0)} mL`;
+    }
+    volSlider.addEventListener("input", () => applyVolume(parseFloat(volSlider.value)));
+    applyVolume(ADV_V0_ML);
+
+    partSlider.addEventListener("input", () => {
+        const n = parseInt(partSlider.value, 10);
+        partValue.textContent = `${n}개`;
+        histNEl.textContent = n;
+        // Rebuild instead of calling a setParticleCount method — keeps
+        // simulation.js untouched and gets a correct, fresh MB draw.
+        system = new ParticleSystem(n, box, currentSpeedScale(), 0);
+    });
+
+    gasSelect.addEventListener("change", () => {
+        const oldScale = currentSpeedScale();
+        currentGasMass = ADV_GAS_MASSES[gasSelect.value];
+        system.scaleVelocities(currentSpeedScale() / oldScale);
+    });
+
+    function applyTemperature(celsius) {
+        const oldScale = currentSpeedScale();
+        currentTempK = celsius + 273.15;
+        system.scaleVelocities(currentSpeedScale() / oldScale);
+        tempCelEl.textContent = celsius.toFixed(0);
+        tempKelEl.textContent = currentTempK.toFixed(0);
+        tempPresets.forEach(btn => {
+            btn.classList.toggle("active", Math.abs(parseFloat(btn.dataset.celsius) - celsius) < 0.5);
+        });
+    }
+    tempPresets.forEach(btn => {
+        btn.addEventListener("click", () => applyTemperature(parseFloat(btn.dataset.celsius)));
+    });
+
+    function validateTempInput() {
+        const val = parseFloat(tempInput.value);
+        const empty = tempInput.value === "";
+        const valid = !isNaN(val) && val >= ADV_TEMP_MIN && val <= ADV_TEMP_MAX;
+        tempInput.classList.toggle("invalid", !empty && !valid);
+        tempSetBtn.disabled = !valid;
+        return valid ? val : null;
+    }
+    tempInput.addEventListener("input", validateTempInput);
+    tempInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+            const val = validateTempInput();
+            if (val !== null) tempSetBtn.click();
+        }
+    });
+    tempSetBtn.addEventListener("click", () => {
+        const val = validateTempInput();
+        if (val === null) return;
+        applyTemperature(val);
+        tempInput.value = "";
+        validateTempInput();
+    });
+
+    // --- Sim sketch (reuses renderer.js draw helpers) ---
+    let hitsAccumulator = 0;
+    const simSketch = (p) => {
+        p.setup = () => {
+            const canvas = p.createCanvas(SIM_CANVAS_WIDTH, SIM_CANVAS_HEIGHT);
+            canvas.parent("adv-section-canvas");
+            p.colorMode(p.HSB, 360, 100, 100, 255);
+        };
+        p.draw = () => {
+            const dt = Math.min((p.deltaTime || 0) / 1000, 0.05);
+
+            box.update(dt, params.volume_tau_seconds);
+            system.update(dt);
+            system.clampParticlesIntoBox();
+            hitsAccumulator += system.getTotalPistonCollisionCount();
+
+            p.background(0, 0, 98);
+            drawCylinderShell(p);
+            drawPiston(p, box.x + box.width);
+            drawParticlesHSB(p, system.getParticles(), ADV_VMAX_COLOR);
+        };
+    };
+
+    // --- Histogram sketch (proportional, EMA-smoothed, dynamic x-range) ---
+    const histSketch = (p) => {
+        let smoothedBins = null;
+        let smoothedMaxCount = 1;
+        let smoothedVMaxX = null;
+
+        p.setup = () => {
+            const canvas = p.createCanvas(ADV_HIST_CANVAS_W, ADV_HIST_CANVAS_H);
+            canvas.parent("adv-histogram-area");
+            p.colorMode(p.HSB, 360, 100, 100, 255);
+            p.textFont("ui-monospace, monospace");
+        };
+        p.draw = () => {
+            p.background(0, 0, 98);
+
+            // x-range tracks 4σ of the current state (EMA-smoothed so T/gas
+            // changes glide instead of snapping). Bin widths change with it.
+            const targetVMaxX = 4 * currentSpeedScale();
+            smoothedVMaxX = smoothedVMaxX === null
+                ? targetVMaxX
+                : smoothedVMaxX + (targetVMaxX - smoothedVMaxX) * ADV_HIST_VMAX_ALPHA;
+            const vMaxX = smoothedVMaxX;
+            const binWidthSpeed = vMaxX / ADV_HIST_BINS;
+
+            // EMA on bins + EMA on max bin for y-axis scale.
+            const rawBins = system.getVelocityHistogram(ADV_HIST_BINS, vMaxX);
+            if (smoothedBins === null) {
+                smoothedBins = rawBins.map(b => ({ ...b }));
+            } else {
+                // Bin boundaries drift with vMaxX each frame; with α=0.1 the
+                // per-frame drift is small enough that blending old/new bin
+                // counts converges cleanly within a few frames.
+                for (let i = 0; i < rawBins.length; i++) {
+                    smoothedBins[i].count =
+                        ADV_HIST_TIME_ALPHA * rawBins[i].count +
+                        (1 - ADV_HIST_TIME_ALPHA) * smoothedBins[i].count;
+                    smoothedBins[i].binMin = rawBins[i].binMin;
+                    smoothedBins[i].binMax = rawBins[i].binMax;
+                }
+            }
+            let rawMax = 0;
+            for (const b of smoothedBins) if (b.count > rawMax) rawMax = b.count;
+            smoothedMaxCount += (rawMax - smoothedMaxCount) * ADV_HIST_MAX_ALPHA;
+            const scale = Math.max(smoothedMaxCount, 1);
+
+            // Bars — colored by speed (basic-mode HSB via binCenter / vMaxColor).
+            const binPxW = ADV_HIST_W / ADV_HIST_BINS;
+            p.noStroke();
+            for (let i = 0; i < smoothedBins.length; i++) {
+                const h = Math.min(smoothedBins[i].count / scale, 1) * ADV_HIST_H;
+                const binCenter = (smoothedBins[i].binMin + smoothedBins[i].binMax) / 2;
+                const ratio = Math.min(binCenter / ADV_VMAX_COLOR, 1.0);
+                const hue = 240 - 240 * ratio;
+                const sat = 40 + 60 * ratio;
+                const bri = 70 + 30 * ratio;
+                p.fill(hue, sat, bri, 200);
+                p.rect(ADV_HIST_X + i * binPxW, ADV_HIST_Y + ADV_HIST_H - h, binPxW - 1, h);
+            }
+
+            // Theoretical 2-D Rayleigh — same σ, scaled against current vMaxX
+            // and smoothedMaxCount so it sits on top of the bars cleanly.
+            const N = system.getParticles().length;
+            const sigma = currentSpeedScale();
+            if (N > 0 && sigma > 0) {
+                p.noFill();
+                p.stroke(0, 0, 30, 220);
+                p.strokeWeight(2);
+                p.beginShape();
+                for (let i = 0; i <= 200; i++) {
+                    const v = (i / 200) * vMaxX;
+                    const pv = (v / (sigma * sigma)) * Math.exp(-v * v / (2 * sigma * sigma));
+                    const expected = pv * N * binWidthSpeed;
+                    const x = ADV_HIST_X + (v / vMaxX) * ADV_HIST_W;
+                    const y = ADV_HIST_Y + ADV_HIST_H - Math.min(expected / scale, 1) * ADV_HIST_H;
+                    p.vertex(x, y);
+                }
+                p.endShape();
+            }
+
+            // y-axis count tick labels (0 / 25% / 50% / 75% / 100% of scale).
+            p.noStroke();
+            p.fill(0, 0, 35);
+            p.textSize(11);
+            p.textAlign(p.RIGHT, p.CENTER);
+            for (const frac of [0, 0.25, 0.5, 0.75, 1]) {
+                const count = scale * frac;
+                const y = ADV_HIST_Y + ADV_HIST_H - frac * ADV_HIST_H;
+                p.text(count.toFixed(0), ADV_HIST_X - 6, y);
+            }
+        };
+    };
+
+    // --- Info panel refresh (basic mode's cadence: hits every 250ms, stats 1s) ---
+    let smoothedHitsPerSec = 0;
+    setInterval(() => {
+        const hitsPerSec = hitsAccumulator / 0.25;
+        hitsAccumulator = 0;
+        smoothedHitsPerSec += (hitsPerSec - smoothedHitsPerSec) * 0.15;
+        const V = parseFloat(volSlider.value);
+        const P = P0 * (ADV_V0_ML / V) * (currentTempK / ADV_REFERENCE_TEMP_K);
+        updateAdvInfoPanel({
+            temp_K: currentTempK,
+            pressure_kPa: P,
+            hitsPerSec: smoothedHitsPerSec,
+        });
+    }, 250);
+
+    setInterval(() => {
+        updateAdvInfoPanel({
+            avgSpeed: system.getAverageSpeed(),
+            avgSpeedTheory: theoreticalSpeed(),
+            kineticEnergy: system.getAverageKineticEnergy(),
+            kineticEnergyTheory: theoreticalKE(),
+        });
+    }, 1000);
+
+    const simP5 = new p5(simSketch);
+    const histP5 = new p5(histSketch);
+
+    return {
+        pause: () => { simP5.noLoop(); histP5.noLoop(); },
+        resume: () => { simP5.loop(); histP5.loop(); },
+    };
+}
+
+// Tab switching — lazy init on first advanced-mode tab click.
+document.addEventListener("DOMContentLoaded", async () => {
+    const params = await fetch("config/params.json").then(r => r.json());
+    let advancedApi = null;
+    initModeTabs({
+        onSwitch: (mode) => {
+            if (mode === "advanced") {
+                if (!advancedApi) {
+                    advancedApi = initAdvancedMode(params);
+                } else {
+                    advancedApi.resume();
+                }
+            } else if (advancedApi) {
+                advancedApi.pause();
+            }
+        },
+    });
 });

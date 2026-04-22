@@ -13,34 +13,6 @@ body {
     align-items: flex-start;
 }
 
-#mode-tabs {
-    display: flex;
-    gap: 8px;
-    margin-bottom: 16px;
-}
-
-#mode-tabs .tab-btn {
-    padding: 10px 20px;
-    font-size: 15px;
-    font-family: system-ui, sans-serif;
-    background: #f5f5f5;
-    border: 1px solid #ccc;
-    border-radius: 6px;
-    cursor: pointer;
-    color: #555;
-    font-weight: 500;
-}
-
-#mode-tabs .tab-btn:hover {
-    background: #eaeaea;
-}
-
-#mode-tabs .tab-btn.active {
-    background: #e8f0ff;
-    border-color: #6090d0;
-    color: #2050c0;
-}
-
 #main-container {
     flex: 1;
     min-width: 0;
@@ -942,7 +914,7 @@ body.sidebar-collapsed #ai-sidebar {
     display: flex;
 }
 
-#info-panel {
+.info-panel-styled {
     padding: 20px;
     background: white;
     border-radius: 8px;
@@ -953,11 +925,11 @@ body.sidebar-collapsed #ai-sidebar {
     flex: 1;
 }
 
-#info-panel .info-section + .info-section {
+.info-panel-styled .info-section + .info-section {
     margin-top: 14px;
 }
 
-#info-panel .info-section-title {
+.info-panel-styled .info-section-title {
     font-size: 12px;
     font-weight: 600;
     color: #888;
@@ -968,7 +940,7 @@ body.sidebar-collapsed #ai-sidebar {
     border-bottom: 1px solid #e5e5e5;
 }
 
-#info-panel .info-row {
+.info-panel-styled .info-row {
     display: flex;
     justify-content: space-between;
     align-items: baseline;
@@ -976,11 +948,11 @@ body.sidebar-collapsed #ai-sidebar {
     font-size: 14px;
 }
 
-#info-panel .info-label {
+.info-panel-styled .info-label {
     color: #666;
 }
 
-#info-panel .info-value {
+.info-panel-styled .info-value {
     font-family: ui-monospace, "SF Mono", Consolas, monospace;
     color: #222;
     font-weight: 500;
@@ -988,7 +960,7 @@ body.sidebar-collapsed #ai-sidebar {
     text-align: right;
 }
 
-#info-panel .info-unit {
+.info-panel-styled .info-unit {
     color: #888;
     font-size: 11px;
     font-weight: 400;
@@ -1262,92 +1234,8 @@ body.sidebar-collapsed #ai-sidebar {
     visibility: visible;
 }
 
-#particle-count-control {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    font-family: system-ui, sans-serif;
-    font-size: 14px;
-    color: #333;
-    flex: 1;
-}
-
-#particle-count-control .pcount-label {
-    color: #666;
-    font-weight: 500;
-    white-space: nowrap;
-}
-
-#particle-count-control input[type="range"] {
-    flex: 0 0 240px;
-    accent-color: #6090d0;
-    cursor: pointer;
-}
-
-#particle-count-control .pcount-display {
-    font-size: 13px;
-    color: #666;
-}
-
-#particle-count-control .pcount-display strong {
-    font-family: ui-monospace, "SF Mono", Consolas, monospace;
-    color: #222;
-    font-weight: 500;
-}
-
-#advanced-mode {
-    padding: 16px 20px;
-    background: white;
-    border-radius: 8px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-    font-family: system-ui, sans-serif;
-    color: #333;
-}
-
-#advanced-controls {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    margin-bottom: 16px;
-}
-
-#advanced-controls .control-row {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    font-size: 14px;
-}
-
-#advanced-controls .control-row label {
-    color: #666;
-    font-weight: 500;
-    min-width: 120px;
-}
-
-#advanced-controls input[type="range"] {
-    flex: 0 0 320px;
-    accent-color: #6090d0;
-    cursor: pointer;
-}
-
-#advanced-controls #adv-volume-display,
-#advanced-controls #adv-pressure-display {
-    font-family: ui-monospace, "SF Mono", Consolas, monospace;
-    color: #222;
-    min-width: 90px;
-}
-
-#advanced-canvas-container {
-    display: inline-block;
-    background: #fafafa;
-    border: 1px solid #d0d0d0;
-    border-radius: 6px;
-    padding: 4px;
-    line-height: 0;
-}
-
 .hidden {
-    display: none !important;
+    display: none;
 }
 
 /* === Sensor panel === */
@@ -1813,4 +1701,281 @@ body.sidebar-collapsed #ai-sidebar {
 }
 body.sidebar-collapsed #ai-reopen-btn {
   display: block;
+}
+
+/* Advanced-mode sidebar — scoped collapse class so it's independent of basic's. */
+#advanced-mode {
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+}
+#advanced-mode > #adv-main-container {
+    flex: 1;
+    min-width: 0;
+}
+#advanced-mode > #adv-ai-sidebar {
+    flex-basis: 380px;
+    flex-shrink: 0;
+}
+body.adv-sidebar-collapsed #adv-ai-sidebar {
+    display: none;
+}
+#adv-ai-reopen-btn {
+    display: none;
+    position: fixed;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 9999;
+    background: #1e2433;
+    color: #cdd6f4;
+    border: 1px solid #2e3650;
+    border-right: none;
+    border-radius: 8px 0 0 8px;
+    padding: 12px 8px;
+    font-size: 18px;
+    cursor: pointer;
+    writing-mode: vertical-rl;
+}
+#adv-ai-reopen-btn:hover {
+    background: #2e3650;
+}
+body.adv-sidebar-collapsed #adv-ai-reopen-btn {
+    display: block;
+}
+
+/* ============================================================
+   Advanced-mode tabs + pane. All additive; no basic-mode styles
+   are overridden except `body`, which had to lose its flex so
+   mode-tabs can stack above the basic-mode layout.
+   ============================================================ */
+
+#mode-tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+#mode-tabs .tab-btn {
+    padding: 10px 20px;
+    font-size: 15px;
+    font-family: system-ui, sans-serif;
+    background: #f5f5f5;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    cursor: pointer;
+    color: #555;
+    font-weight: 500;
+}
+#mode-tabs .tab-btn:hover {
+    background: #eaeaea;
+}
+#mode-tabs .tab-btn.active {
+    background: #e8f0ff;
+    border-color: #6090d0;
+    color: #2050c0;
+}
+
+/* --- Advanced-mode layout — mirrors basic-mode structure --- */
+#adv-main-container {
+    padding: 0 20px;
+    font-family: system-ui, sans-serif;
+    color: #333;
+    width: 100%;
+    box-sizing: border-box;
+}
+#adv-main-container > section {
+    margin-bottom: 20px;
+}
+#adv-main-container > section:last-child {
+    margin-bottom: 0;
+}
+
+#adv-section-controls {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+    padding: 14px 20px;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+#adv-section-controls .control-row {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+}
+
+/* Temperature controls — same visual language as basic #temperature-control */
+.adv-control-row-temperature {
+    font-size: 14px;
+    color: #333;
+    flex-wrap: wrap;
+}
+.adv-control-row-temperature .adv-temp-label {
+    color: #666;
+    font-weight: 500;
+    white-space: nowrap;
+}
+.adv-control-row-temperature .adv-temp-presets {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+.adv-control-row-temperature .adv-temp-presets button,
+.adv-control-row-temperature .adv-temp-custom button {
+    padding: 4px 10px;
+    font-size: 13px;
+    background: #f5f5f5;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    cursor: pointer;
+    color: #333;
+    font-family: inherit;
+}
+.adv-control-row-temperature .adv-temp-presets button {
+    min-width: 56px;
+}
+.adv-control-row-temperature .adv-temp-presets button:hover,
+.adv-control-row-temperature .adv-temp-custom button:hover:not(:disabled) {
+    background: #eaeaea;
+}
+.adv-control-row-temperature .adv-temp-presets button.active {
+    background: #e8f0ff;
+    border-color: #6090d0;
+    color: #2050c0;
+}
+.adv-control-row-temperature .adv-temp-custom {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+}
+.adv-control-row-temperature .adv-temp-custom input {
+    font-family: ui-monospace, "SF Mono", Consolas, monospace;
+    font-size: 13px;
+    width: 80px;
+    padding: 4px 6px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    text-align: right;
+}
+.adv-control-row-temperature .adv-temp-custom input.invalid {
+    border-color: #d04040;
+}
+.adv-control-row-temperature .adv-temp-custom button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+.adv-control-row-temperature .adv-temp-current {
+    font-size: 13px;
+    color: #666;
+}
+.adv-control-row-temperature .adv-temp-current strong {
+    font-family: ui-monospace, "SF Mono", Consolas, monospace;
+    color: #222;
+    font-weight: 500;
+}
+
+/* Actuator row — volume/particle sliders + gas select in one line */
+.adv-control-row-actuators {
+    flex-wrap: wrap;
+}
+#adv-volume-slider-wrap,
+#adv-particle-slider-wrap {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 14px;
+    color: #333;
+    flex: 0 0 auto;
+}
+#adv-volume-slider-wrap label,
+#adv-particle-slider-wrap label,
+#adv-gas-select-wrap label {
+    color: #666;
+    font-weight: 500;
+    white-space: nowrap;
+}
+.adv-slider-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 200px;
+}
+.adv-slider-wrap input[type="range"] {
+    width: 100%;
+    accent-color: #6090d0;
+    cursor: pointer;
+}
+.adv-range-hint {
+    display: flex;
+    justify-content: space-between;
+    font-size: 10px;
+    color: #999;
+}
+.adv-slider-value {
+    font-family: ui-monospace, "SF Mono", Consolas, monospace;
+    font-size: 13px;
+    color: #222;
+    min-width: 70px;
+    text-align: right;
+}
+#adv-gas-select-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+#adv-gas-select {
+    font-family: inherit;
+    font-size: 14px;
+    padding: 4px 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    background: white;
+    cursor: pointer;
+}
+
+/* Canvas + visuals — mirror basic #section-canvas / #section-visuals */
+#adv-section-canvas {
+    display: block;
+    line-height: 0;
+}
+/* Horizontal layout identical to basic #section-visuals:
+   histogram on the left (flex:6), info panel on the right (flex:4). */
+#adv-section-visuals {
+    display: flex;
+    gap: 20px;
+}
+#adv-histogram-area {
+    flex: 6;
+    padding: 10px;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+}
+.adv-hist-header {
+    font-size: 16px;
+    font-weight: 500;
+    color: #333;
+    padding: 2px 0;
+}
+.adv-hist-header strong {
+    font-family: ui-monospace, "SF Mono", Consolas, monospace;
+    color: #2050c0;
+    font-size: 18px;
+    font-weight: 600;
+    margin: 0 2px;
+}
+#adv-info-panel-area {
+    flex: 4;
+    display: flex;
+}
+
+.hidden {
+    display: none !important;
 }
