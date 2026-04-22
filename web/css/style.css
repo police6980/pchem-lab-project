@@ -1614,3 +1614,28 @@ body.sidebar-collapsed #ai-sidebar {
     font-size: 13px;
     margin-top: 8px;
 }
+
+/* AI 튜터 재열기 버튼 */
+#ai-reopen-btn {
+  display: none;
+  position: fixed;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 9999;
+  background: #1e2433;
+  color: #cdd6f4;
+  border: 1px solid #2e3650;
+  border-right: none;
+  border-radius: 8px 0 0 8px;
+  padding: 12px 8px;
+  font-size: 18px;
+  cursor: pointer;
+  writing-mode: vertical-rl;
+}
+#ai-reopen-btn:hover {
+  background: #2e3650;
+}
+body.sidebar-collapsed #ai-reopen-btn {
+  display: block;
+}
