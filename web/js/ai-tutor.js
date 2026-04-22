@@ -282,6 +282,11 @@ async function generateQ3Question() {
         // Roll back the synthetic user message so retry shows the generate button again
         aiConversations["3"].messages.pop();
 
+        // Restore empty-state visibility and recreate the generate button.
+        // showTypingIndicator() had set emptyEl display:none; renderConversation
+        // undoes that and re-inserts a fresh button with its click handler.
+        renderConversation("3");
+
         let errMsg;
         if (e.type === "no_key") {
             errMsg = "⚠️ API 키가 설정되지 않았습니다. 오른쪽 상단 설정 패널을 확인하세요.";
@@ -301,7 +306,6 @@ async function generateQ3Question() {
             errP.textContent = errMsg;
             emptyEl.appendChild(errP);
         }
-        if (btn) btn.disabled = false;
     }
 }
 
