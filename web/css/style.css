@@ -412,6 +412,29 @@ body {
     color: #4caf50;
 }
 
+/* Tab "new message" dot — pulsing red indicator when async tab update
+   lands while the student is on a different tab. */
+.ai-sidebar .tab-btn.has-new {
+    position: relative;
+}
+.ai-sidebar .tab-btn.has-new::after {
+    content: "";
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #e53935;
+    box-shadow: 0 0 0 1.5px #fff;
+    animation: pulse-dot 1.5s infinite;
+    pointer-events: none;
+}
+@keyframes pulse-dot {
+    0%, 100% { opacity: 1;   transform: scale(1); }
+    50%      { opacity: 0.6; transform: scale(0.8); }
+}
+
 /* === Sidebar: Q3 question generator === */
 .btn-generate-question {
     margin-top: 12px;

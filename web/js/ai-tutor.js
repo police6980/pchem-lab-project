@@ -219,6 +219,7 @@ function resetAllConversations() {
             messages: [], tokensIn: 0, tokensOut: 0, contextSnapshot: null, isClosed: false,
         };
         updateTabClosedLabel(q);
+        clearTabNew(q);
     });
     q3QuestionGenerated = false;
     renderConversation(activeQuestion);
@@ -233,6 +234,7 @@ function resetQuestion(qid) {
     };
     if (String(qid) === "3") q3QuestionGenerated = false;
     updateTabClosedLabel(qid);
+    clearTabNew(qid);
     if (String(activeQuestion) === String(qid)) {
         renderConversation(qid);
         updateInputAvailability();
@@ -251,6 +253,26 @@ function updateTabClosedLabel(qid) {
     const tabBtn = document.querySelector(`.ai-sidebar .tab-btn[data-q="${qid}"]`);
     if (!tabBtn) return;
     tabBtn.classList.toggle("closed", !!aiConversations[qid]?.isClosed);
+}
+
+// Tab "new message" dot: set when an async tab update finishes while the
+// student is viewing a different tab; cleared on tab switch or reset.
+const _tabNewFlags = {};
+
+function markTabNew(qid) {
+    _tabNewFlags[qid] = true;
+    const tabBtn = document.querySelector(
+        `.ai-sidebar .tab-btn[data-q="${qid}"]`
+    );
+    if (tabBtn) tabBtn.classList.add("has-new");
+}
+
+function clearTabNew(qid) {
+    _tabNewFlags[qid] = false;
+    const tabBtn = document.querySelector(
+        `.ai-sidebar .tab-btn[data-q="${qid}"]`
+    );
+    if (tabBtn) tabBtn.classList.remove("has-new");
 }
 
 function updateEndControlsVisibility() {
@@ -312,10 +334,14 @@ async function closeQuestion(qid) {
         T.addTokens(result.inputTokens, result.outputTokens);
         conv.isClosed = true;
 
-        renderConversation(qid);
-        updateInputAvailability();
+        if (String(activeQuestion) === String(qid)) {
+            renderConversation(qid);
+            updateInputAvailability();
+            updateEndControlsVisibility();
+        } else {
+            markTabNew(qid);
+        }
         updateTabClosedLabel(qid);
-        updateEndControlsVisibility();
         updateReportButtonState();
     } catch (e) {
         hideTypingIndicator();
@@ -334,9 +360,13 @@ async function closeQuestion(qid) {
             timestamp: Date.now(),
             isError: true,
         });
-        renderConversation(qid);
-        updateInputAvailability();
-        updateEndControlsVisibility();
+        if (String(activeQuestion) === String(qid)) {
+            renderConversation(qid);
+            updateInputAvailability();
+            updateEndControlsVisibility();
+        } else {
+            markTabNew(qid);
+        }
     } finally {
         if (closeBtn) closeBtn.disabled = false;
     }
@@ -387,13 +417,24 @@ async function generateQ3Question() {
         T.addTokens(result.inputTokens, result.outputTokens);
 
         q3QuestionGenerated = true;
-        renderConversation("3");
-        updateInputAvailability();
+        if (String(activeQuestion) === "3") {
+            renderConversation("3");
+            updateInputAvailability();
+        } else {
+            markTabNew("3");
+        }
         updateReportButtonState();
     } catch (e) {
         hideTypingIndicator();
         // Roll back the synthetic user message so retry shows the generate button again
         aiConversations["3"].messages.pop();
+
+        // If the student navigated away, don't touch the current view; surface
+        // the error later by flagging Q3 as having new activity.
+        if (String(activeQuestion) !== "3") {
+            markTabNew("3");
+            return;
+        }
 
         // Restore empty-state visibility and recreate the generate button.
         // showTypingIndicator() had set emptyEl display:none; renderConversation
@@ -826,9 +867,13 @@ async function sendMessage() {
         });
     }
 
-    renderConversation(qid);
-    updateInputAvailability();
-    updateEndControlsVisibility();
+    if (String(activeQuestion) === String(qid)) {
+        renderConversation(qid);
+        updateInputAvailability();
+        updateEndControlsVisibility();
+    } else {
+        markTabNew(qid);
+    }
     updateReportButtonState();
 }
 
@@ -867,6 +912,7 @@ function updateInputAvailability() {
 // === Tab switching ===
 function switchToQuestion(questionId) {
     activeQuestion = questionId;
+    clearTabNew(questionId);
 
     document.querySelectorAll(".ai-sidebar .tab-btn").forEach(btn => {
         btn.classList.toggle("active", btn.dataset.q === String(questionId));
