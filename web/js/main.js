@@ -673,6 +673,34 @@ function initAdvancedMode(params) {
         });
     }, 1000);
 
+    // --- Tracked-particle speed gauge (100 ms refresh) ---
+    // Bar length = v_tracked / ADV_V_MAX_X (same scale as the histogram x-axis
+    // so the gauge position is directly comparable). Bar colour uses the
+    // basic-mode HSB ratio keyed to ADV_VMAX_COLOR. The dark vertical mark
+    // shows where the overall mean speed sits on the same scale.
+    const gaugeFillEl   = document.getElementById("adv-gauge-bar-fill");
+    const gaugeMeanEl   = document.getElementById("adv-gauge-mean-mark");
+    const gaugeCurEl    = document.getElementById("adv-gauge-current");
+    const gaugeMeanValEl = document.getElementById("adv-gauge-mean-value");
+    setInterval(() => {
+        const ps = system.getParticles();
+        if (ps.length === 0) return;
+        const tracked = ps[0];
+        const trackedSpeed = Math.sqrt(tracked.vx * tracked.vx + tracked.vy * tracked.vy);
+        const meanSpeed = system.getAverageSpeed();
+        const curPct = Math.min(trackedSpeed / ADV_V_MAX_X, 1) * 100;
+        const meanPct = Math.min(meanSpeed / ADV_V_MAX_X, 1) * 100;
+        const ratio = Math.min(trackedSpeed / ADV_VMAX_COLOR, 1);
+        const hue = 240 - 240 * ratio;
+        const sat = 40 + 60 * ratio;
+        const bri = 70 + 30 * ratio;
+        gaugeFillEl.style.width = `${curPct.toFixed(1)}%`;
+        gaugeFillEl.style.background = `hsl(${hue}, ${sat}%, ${bri - 30}%)`;
+        gaugeMeanEl.style.left = `${meanPct.toFixed(1)}%`;
+        gaugeCurEl.textContent = `${trackedSpeed.toFixed(0)} px/s`;
+        gaugeMeanValEl.textContent = `${meanSpeed.toFixed(0)} px/s`;
+    }, 100);
+
     // Pattern matches basic renderer: pass the parent element directly so
     // p5 appends the canvas there — no canvas.parent() / canvas.style()
     // fight afterwards.

@@ -206,7 +206,20 @@
             </section>
             <section id="adv-section-canvas">
                 <div id="adv-sim-canvas-container"></div>
-                <div id="adv-tracker-canvas-container"></div>
+                <div id="adv-tracker-column">
+                    <div id="adv-tracker-canvas-container"></div>
+                    <div id="adv-tracker-gauge">
+                        <div class="adv-gauge-label">추적 입자 속도</div>
+                        <div class="adv-gauge-bar-track">
+                            <div id="adv-gauge-bar-fill"></div>
+                            <div id="adv-gauge-mean-mark" title="전체 평균"></div>
+                        </div>
+                        <div class="adv-gauge-stats">
+                            <span>현재: <strong id="adv-gauge-current">— px/s</strong></span>
+                            <span>평균: <strong id="adv-gauge-mean-value">— px/s</strong></span>
+                        </div>
+                    </div>
+                </div>
             </section>
             <section id="adv-section-visuals">
                 <div id="adv-histogram-area"></div>
