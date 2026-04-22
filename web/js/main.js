@@ -66,6 +66,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     // stored on record are identical to what the student sees on screen.
     let lastDisplayAvgSpeed = 0;
     let lastDisplayHitsPerSec = 0;
+    // EMA-smoothed hitsPerSec for display. Updated every 250ms from raw
+    // continuous-log samples; α=0.3 gives τ≈0.7s for gentle smoothing
+    // that tracks the 2s stabilization window.
+    let smoothedHitsPerSec = 0;
     const renderer = createRenderer(box, system, params, (dt) => {
         system.update(dt);
         box.update(dt, params.volume_tau_seconds);
@@ -145,11 +149,13 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
 
     setInterval(() => {
-        if (sessionStartMs === null) return;
-
         const hitsPerSec = continuousHitsAccumulator / (CONTINUOUS_SAMPLE_INTERVAL_MS / 1000);
-        lastDisplayHitsPerSec = hitsPerSec;
         continuousHitsAccumulator = 0;
+        smoothedHitsPerSec += (hitsPerSec - smoothedHitsPerSec) * 0.3;
+        lastDisplayHitsPerSec = smoothedHitsPerSec;
+        updateInfoPanel({ hitsPerSec: smoothedHitsPerSec });
+
+        if (sessionStartMs === null) return;
 
         const row = {
             timestamp_ms: Date.now() - sessionStartMs,
@@ -230,9 +236,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         const hitsPer5s = pistonHitsAccumulator;
         const hitsPerSec = hitsPer5s / 5;
         pistonHitsAccumulator = 0;
-        lastDisplayHitsPerSec = hitsPerSec;
-
-        updateInfoPanel({ hitsPerSec });
+        // Display + lastDisplayHitsPerSec are now owned by the 250ms tick
+        // (EMA-smoothed). 5s value kept only for the diagnostic console log.
 
         const frames = getAndResetFrameCount();
         const fps = frames / 5;
