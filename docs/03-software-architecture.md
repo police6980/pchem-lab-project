@@ -11,7 +11,7 @@
 - **단일 페이지 보일 법칙 전용** 웹 앱 (HTML + Vanilla JS + CSS + p5.js CDN)
 - **Mock 센서 기반 완전 시뮬레이션** (실 ESP32 통신은 Phase 3 예정)
 - **브라우저**: Chrome / Edge (Web Serial API 필요 시; 현 MVP엔 불필요)
-- **AI 튜터**: UI·구조 완성, 실제 Anthropic API 호출은 **Phase 2-B에서 교체 예정** (현재는 더미 응답)
+- **AI 튜터**: Phase 2-B 완료. 실제 Anthropic Messages API 호출 + 멀티턴 대화 + 비용 표시 + docx 보고서 생성 작동 (v0.3-ai-tutor-live)
 
 ### 1.2 구조 도식
 
@@ -38,7 +38,7 @@
 ### 1.3 이후 Phase 계획
 
 자세한 로드맵은 `docs/06-project-status.md` §4 참조. 요약:
-- **Phase 2-B** (진행 중): ai-tutor.js 더미 응답 → Anthropic Messages API 실호출 교체
+- **Phase 2-B** (완료): ai-tutor.js 실 Anthropic Messages API 호출. 멀티턴·비용·에러 처리·docx 보고서 생성 작동
 - **Phase 3**: ESP32 실센서 + Web Serial (MockSensorSource 교체)
 - **Phase 5**: 샤를 법칙 확장. 현재 플랫 폴더 → `experiments/` 분리 검토
 - **Phase 4/6**: 비교 UX, 교사 도구
@@ -81,7 +81,7 @@ logger.js → ai-tutor.js → ui.js → main.js
 
 모듈 시스템 없음 (`<script>` 기반). 각 파일의 최상위 `const`/`function`은 전역 네임스페이스에 노출.
 
-`index.html`에는 별도로 **사이드바 접기 토글만 담당하는 inline `<script>`** (4줄) 가 `<body>` 내부에 있음. Phase 2-B에서 `ai-tutor.js`로 이관 예정.
+`index.html`에는 별도로 **사이드바 접기 토글만 담당하는 inline `<script>`** (4줄) 가 `<body>` 내부에 있음. 해당 토글은 단일 DOM 조작이라 현재도 inline 유지.
 
 ### 2.2 파일별 역할과 주요 심볼
 
@@ -168,12 +168,15 @@ logger.js → ai-tutor.js → ui.js → main.js
 - `showTabDisabledToast(q)` — 탭과 컨텍스트 사이에 2.5 초 빨간 안내 삽입("측정점을 3개 이상 기록한 뒤 사용할 수 있습니다")
 - `switchToQuestion(questionId)` — 탭 active 토글 + 컨텍스트 라벨/스니펫/class 갱신 + `renderConversation` + `updateInputAvailability`
 
-**대화 + 입력창** (현재는 더미, Phase 2-B에서 실 API로 교체):
-- `sendMessage()` — `activeQuestion`에 user 메시지 push → 렌더 → 1.5 s 대기 → 더미 AI 응답 push → 렌더. 중복 전송 방지 (버튼 disabled)
-- `fakeApiDelay()` — 1.5 s `Promise` (Phase 2-B 제거 예정)
-- `generateDummyAiResponse(questionId, userMsg)` — 질문별 canned 응답 4종 (Phase 2-B 제거 예정)
-- `updateInputAvailability()` — API 키 + 현재 탭 활성 상태에 따라 input/btn disabled, placeholder 분기 ("먼저 설정에서…" / "측정점 3개를 기록한…" / 기본)
-- `resetAllConversations()` — 4개 세션 전부 비우고 현재 탭 재렌더
+**대화 + 입력창** (Phase 2-B 완료 — 실 API):
+- `sendMessage()` — `activeQuestion`에 user 메시지 push → 타이핑 인디케이터 렌더 → `callAnthropicAPI` 호출 → AI 응답 push → 렌더. 중복 전송 방지 (버튼 disabled)
+- `callAnthropicAPI(messages, systemPrompt)` — Anthropic `/v1/messages` `fetch`. 모델·시스템 프롬프트·멀티턴 히스토리 전달. 토큰 usage 반환 → 원화 환산 누적
+- `generateQ3Question()` — 측정 데이터 기반 탐구 질문 AI 자동 생성. Q3 탭 빈 상태 버튼에서 호출
+- `closeQuestion(qid)` — `[✓ 대화 마무리]` 클릭 시 AI 요약 생성 → 탭 gating 상태 업데이트 (Q1+Q2+Q3 완료 시 보고서 버튼 활성)
+- `generateReport()` — 전체 대화 + 측정 데이터 → systemPrompt로 보고서 생성 → docx 조립 (표 + 차트 PNG + AI 본문) → 직접 다운로드
+- `updateInputAvailability()` — API 키 + 현재 탭 활성 상태에 따라 input/btn disabled, placeholder 분기
+- `resetTabConversation(qid)` — 탭별 [↺] 버튼 핸들러, 해당 세션만 비움
+- `resetAllConversations()` — 5개 세션 전부 비우고 현재 탭 재렌더
 
 **Init** (DOMContentLoaded):
 - `#btn-toggle-settings` 클릭 → `#ai-settings-panel.open` 토글. API 키 없으면 초기 펼침
@@ -206,13 +209,13 @@ logger.js → ai-tutor.js → ui.js → main.js
 - `maskKey(key)` / `showKeyStatus(cls, text)` / `formatApiError(status, msg)`
 - `computeCost(model, tokensIn, tokensOut)` — `MODEL_PRICING` 기반 원화 환산
 - `updateUsageDisplay()` — `#tokens-used`·`#cost-estimate` 텍스트 갱신
-- `buildSystemPrompt(level, questionNum)` / `buildUserPrompt(...)` / `buildDataContext()` — **Phase 2-B에서 사용 예정** (현재 호출자 없음)
+- `buildSystemPrompt(level, questionNum)` / `buildUserPrompt(...)` / `buildDataContext()` — `ai-tutor.js`의 대화 흐름에서 호출되어 실 API 요청 페이로드 조립 (Phase 2-B 완료)
 - `buildAnalysisCSV()` — 전역 `aiConversations` 읽어 "AI 튜터 대화" 섹션 포함한 분석 보고서 CSV 생성
 
 **주요 상수** (`createAnalysisPanel` 내부):
 - `MODEL_PRICING` — `claude-sonnet-4-6` $3/$15, `claude-opus-4-7` $5/$25 per MTok
 - `USD_TO_KRW = 1400`
-- `LEVEL_GUIDES` / `QUESTION_FOCUS` / `QUESTION_TEXT` — 프롬프트 빌더 참조용 (`ai-tutor.js`의 `QUESTION_TEXT`와 중복 — Phase 2-B에서 통합 정리 예정)
+- `LEVEL_GUIDES` / `QUESTION_FOCUS` / `QUESTION_TEXT` — 프롬프트 빌더 참조용 (`ai-tutor.js`의 `QUESTION_TEXT`와 부분 중복 — 후속 통합 여지 있음)
 
 #### `main.js` — 부팅 + 오케스트레이션
 
@@ -326,12 +329,13 @@ logger.js → ai-tutor.js → ui.js → main.js
 3. 입력창에 메시지 작성 + Enter (Shift 없이)
 4. sendMessage:
    a. aiConversations[qid].messages.push({ role:"user", content, timestamp })
-   b. renderConversation → 학생 말풍선 추가
-   c. fakeApiDelay 1.5 s (Phase 2-B에서 실 API fetch로 교체)
-   d. generateDummyAiResponse → assistant 말풍선 push
-   e. renderConversation → AI 응답 표시
-   f. 전송 버튼 재활성화
-5. 대화 계속 or 다른 탭 전환 (세션별 독립 유지)
+   b. renderConversation → 학생 말풍선 + 타이핑 인디케이터
+   c. callAnthropicAPI(messages, systemPrompt) → `/v1/messages` fetch
+   d. 응답 assistant 말풍선 push, 토큰 usage 누적 (원화 환산)
+   e. renderConversation → AI 응답 표시 (다른 탭이 활성이면 "new" 뱃지 대신 표시)
+   f. 전송 버튼 재활성화. 에러 시 타이핑 인디케이터 제거 + alert
+5. 대화 계속 → 8턴 소프트 경고. [✓ 대화 마무리]로 AI 요약 + 탭 완료 처리
+6. Q1+Q2+Q3 완료 시 [📄 탐구 보고서 초안 생성] 활성 → docx 다운로드
 ```
 
 ---
@@ -534,14 +538,18 @@ simulation.js / serial.js / logger.js — 독립 (상호 참조 없음)
 
 자세한 Phase 계획은 `docs/06-project-status.md` §3~§4 참조.
 
-### 7.1 Phase 2-B — AI 튜터 실 API 연동 (진행 중)
+### 7.1 Phase 2-B — AI 튜터 실 API 연동 (완료, v0.3-ai-tutor-live)
 
-- `ai-tutor.js`: `fakeApiDelay` + `generateDummyAiResponse` 제거 → Anthropic `/v1/messages` `fetch`
-- 대화 히스토리 전체를 `messages` 배열로 누적 전송 (multi-turn)
-- 타이핑 인디케이터, 에러 처리 (401/429/529/0), 토큰/비용 누적 표시, 비용 경고 배너, [세션 초기화] 버튼
-- `ui.js`의 `buildSystemPrompt`/`buildUserPrompt`/`buildDataContext` 활용 (또는 `ai-tutor.js`로 이관)
-- `QUESTION_TEXT` 중복(ai-tutor.js + ui.js) 통합 정리
-- `index.html` inline `<script>` (사이드바 접기 토글) → `ai-tutor.js`로 이관 고려
+완료 항목:
+- `ai-tutor.js`의 `callAnthropicAPI` 도입 → Anthropic `/v1/messages` 직접 호출
+- 멀티턴 대화 히스토리 누적 전송, 탭별 독립 세션
+- 타이핑 인디케이터, 에러 처리 (401/429/529/0), 토큰·비용 누적 표시, 비용 경고 배너 (100원/500원), 탭별 [↺] 초기화 버튼
+- Q3 AI 자동 질문 생성, Q4 탭 신설, [✓ 대화 마무리] + AI 요약, 8턴 소프트 경고, cross-tab 렌더 가드 + "new" 뱃지
+- 측정점 테이블에 v̄·충돌/s 컬럼, 차트 3개 (PV / v̄ vs P / 충돌/s vs P)
+- 유령 입자 피스톤 충돌 카운트 포함 (`getTotalPistonCollisionCount`)
+- docx 보고서 자동 생성 (docx.js 8.5.0 UMD, SVG → PNG → ImageRun)
+
+후속 정리 여지 (블로커 아님): `QUESTION_TEXT` ai-tutor.js/ui.js 중복, `ui.js`의 `buildSystemPrompt` 경로 정리
 
 ### 7.2 Phase 3 — 보일 실물 통합
 

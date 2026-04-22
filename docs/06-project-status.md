@@ -2,18 +2,20 @@
 
 **문서 목적**: 현재 구현 상태와 남은 작업의 마스터 트래커. 다른 설계 문서는 "어떻게 만들어졌는가"를 설명하고, 이 문서는 "어디까지 왔는가"를 기록한다.
 
-**마지막 업데이트**: 2026-04-21
-**현재 버전**: Part 3.5 완료 (v0.2 MVP 직전, Phase 2-B 진행 중)
+**마지막 업데이트**: 2026-04-22
+**현재 상태**: Phase 2-B 완료. 보일 법칙 시뮬레이터 + AI 튜터 + docx 보고서 생성까지 완성.
+**최신 태그**: `v0.3-ai-tutor-live`
+**다음 단계**: Phase 3 (Arduino 실센서 연동)
 
 ---
 
 ## 1. 빠른 요약
 
-보일 법칙 MVP의 물리 엔진과 UI는 사실상 완성 상태다. 2D 입자 시뮬레이션(실입자 300 + 유령 2700), 맥스웰-볼츠만 분포 시각화, HSB 속도 색상, 충돌 섬광, 안정화 감지 기반 측정 기록, PV 산점도, 분석 화면, CSV 내보내기까지 모두 동작한다. 이상기체 `PV = const` 편차는 **±0.5 % 이내**로 확인됐다(목표 2 %).
+보일 법칙 MVP가 **Phase 2-B까지 완성**됐다. 2D 입자 시뮬레이션(실입자 300 + 유령 2700), 맥스웰-볼츠만 분포 시각화, HSB 속도 색상, 충돌 섬광, 안정화 감지 기반 측정 기록, PV 산점도, 분석 화면, CSV 내보내기, **실제 Anthropic Claude API 호출**(BYOK), **docx 탐구 보고서 자동 생성**까지 모두 동작한다. 이상기체 `PV = const` 편차는 **±0.5 % 이내**(목표 2 %).
 
-Part 3.5에서 왼쪽 분석 영역의 성찰 textarea를 제거하고, 우측 사이드바(380 px sticky) 기반 대화형 AI 튜터 UI로 통합했다. Q1/Q2/Q3/자유 탭, 메시지 말풍선, 설정 패널(BYOK), 입력창까지 구조·UI 완비. **실제 Anthropic API 호출은 아직 더미 함수로 시뮬레이션 중**이며, 이것을 교체하는 것이 **Phase 2-B (Part 4)**의 작업이다.
+Phase 2-B에서 AI 튜터의 더미 응답을 실 API로 교체하고, 멀티턴 대화·비용 표시·에러 처리를 완성했다. 이후 Q3 AI 자동 질문 생성, Q4 탭, 대화 마무리 버튼, 측정점 테이블 확장(평균 속도·충돌/s), 3개 차트(PV, v̄ vs P, 충돌/s vs P), 유령 입자 기반 충돌 카운트 스무딩, cross-tab 렌더 가드, docx 보고서 자동 생성까지 추가됐다.
 
-다음 작업: Phase 2-B 완료 후 Phase 3 (Arduino 실센서 연동)로 진입.
+다음 단계: Phase 3 (Arduino + ESP32 실센서 연동)로 진입.
 
 ---
 
@@ -61,14 +63,13 @@ Part 3.5에서 왼쪽 분석 영역의 성찰 textarea를 제거하고, 우측 �
 - [x] PV 막대 그래프 (편차 색 코드: ≤2 % 녹, ≤5 % 주황, >5 % 빨강)
 - [x] 분석 보고서 CSV (실험 조건·요약·측정점·AI 대화 통합)
 
-**AI 튜터 UI** (구조·UI 완성 / 실제 API 호출은 Phase 2-B)
+**AI 튜터 UI** (Phase 1 UI 구조)
 - [x] 우측 사이드바 (380 px sticky, 5 섹션 메인 레이아웃)
 - [x] 설정 패널 접이식 (API 키·학생 수준·모델·경고·사용량 표시)
-- [x] Q1/Q2/Q3/자유 탭 (측정점 ≥ 3 조건 gating, 자유는 상시 활성)
+- [x] Q1/Q2/Q3/Q4/자유 탭 (측정점 ≥ 3 조건 gating, 자유는 상시 활성)
 - [x] 메시지 말풍선 (학생 우측 보라·AI 좌측 회색, 마크다운 렌더)
 - [x] 입력창 (Enter 전송·Shift+Enter 줄바꿈, API 키·탭 준비 상태 기반 활성)
 - [x] BYOK sessionStorage 패턴, 가격표 기반 원화 환산
-- [ ] **실제 Anthropic API 호출** — Phase 2-B에서 더미 함수 교체 예정
 
 **배포·개발 도구**
 - [x] GitHub Pages 배포: https://police6980.github.io/pchem-lab-project/web/
@@ -77,25 +78,43 @@ Part 3.5에서 왼쪽 분석 영역의 성찰 textarea를 제거하고, 우측 �
 
 ---
 
+## 2-B. Phase 2-B 완료 기능 (Part 4 이후)
+
+**AI 튜터 실 API 연동**
+- [x] Anthropic Messages API 직접 호출 (BYOK, browser fetch, `anthropic-dangerous-direct-browser-access` 헤더)
+- [x] 멀티턴 대화 히스토리 누적 전송 (탭별 독립 세션)
+- [x] 타이핑 인디케이터 (요청 중 "..." 말풍선)
+- [x] 에러 처리 세분화 (401 키 불일치 / 429 rate limit / 529 overloaded / 네트워크 0)
+- [x] 비용 실시간 원화 환산 + 경고 배너 (100원 주황 / 500원 빨강)
+- [x] 탭별 [↺ 초기화] 버튼 (해당 세션만 비움, 누적 사용량은 유지)
+- [x] Q3 AI 자동 질문 생성 (측정 데이터 기반, 학생 수준별 톤)
+- [x] Q4 탭 신설 (다음 실험 설계 질문)
+- [x] [✓ 대화 마무리] 버튼 + AI 요약 생성
+- [x] 8턴 소프트 경고 (무한 대화 방지)
+- [x] 탭 "new" 뱃지 (다른 탭 응답 도착 시 펄스 표시)
+- [x] cross-tab 렌더 오염 방지 (activeQuestion 가드)
+
+**데이터·시각화 확장**
+- [x] 측정 테이블에 v̄ (px/s), 충돌/s 컬럼 추가
+- [x] P vs V 산점도 + 보일 법칙 이론 곡선 (SVG 인라인)
+- [x] v̄ vs P 차트 (등온 조건에서 속도 일정 확인)
+- [x] 충돌/s vs P 차트 (전체 입자 기준)
+- [x] 차트 3개 가로 배치 (`.chart-wrap` flex)
+- [x] 유령 입자 피스톤 충돌 카운트 포함 (`getTotalPistonCollisionCount`, 10× 샘플로 노이즈 감소)
+- [x] 충돌/s EMA 스무딩 (α = 0.15, τ ≈ 1.5 s)
+
+**탐구 보고서 (docx)**
+- [x] [📄 탐구 보고서 초안 생성] 버튼 (Q1 + Q2 + Q3 "대화 마무리" 시 활성)
+- [x] docx 직접 다운로드 (모달 없음)
+- [x] 보고서 구조 (8 섹션): 1. 탐구 제목 / 2. 목표 / 3. 조건 / **4. 실험 결과 (표 + 차트 이미지 자동 삽입)** / 5. 데이터 분석 / 6. 결론 / 7. 더 탐구하고 싶은 것 / **8. 반성 (학생 작성 가이드)**
+- [x] SVG → PNG ArrayBuffer 변환 후 `ImageRun` 삽입 (docx.js 8.5.0 UMD)
+- [x] [💬 대화 내려받기] — 전체 대화 txt 저장
+
+---
+
 ## 3. 진행 중인 작업
 
-### Phase 2-B: AI 튜터 실제 API 연동 (Part 4)
-
-**현재 상태 (2026-04-21 기준)**: 대화 UI는 완성. 모든 AI 응답은 `generateDummyAiResponse` 더미 함수로 시연 중. 실제 Anthropic Messages API 호출은 Phase 2-B 완료 시점부터 작동.
-
-> Phase 1 체크리스트의 "AI 튜터 UI" · "BYOK 설정" 항목은 **구조·UI 완성**을 의미하며, 실제 LLM 응답은 Phase 2-B 완료 후부터 흘러옴.
-
-작업 내용:
-- [ ] `fakeApiDelay` + `generateDummyAiResponse` 제거, Anthropic `/v1/messages` `fetch`로 교체
-- [ ] 대화 히스토리 전체를 `messages` 배열로 누적 전송 (multi-turn)
-- [ ] 타이핑 인디케이터 표시 (요청 중 말풍선 placeholder)
-- [ ] 에러 처리 (401 키 불일치, 429 rate limit, 529 overloaded, 네트워크 0)
-- [ ] 토큰 사용량 누적 + 원화 환산 표시 (기존 `updateUsageDisplay` 활성화)
-- [ ] 비용 경고 배너 (100원 주황, 500원 빨강)
-- [ ] [세션 초기화] 버튼 (질문별 대화 삭제, 누적 사용량은 유지)
-- [ ] `seedDummyMessages`·`fakeApiDelay`·`generateDummyAiResponse` 최종 제거
-
-예상 소요: 집중 작업 1시간 이내. 선행 조건: docs 리뉴얼(06~08) 완료.
+현재 진행 중인 작업 없음. Phase 2-B 완료. **다음은 Phase 3 (Arduino 실센서)**.
 
 ---
 
@@ -211,7 +230,7 @@ Part 3.5에서 왼쪽 분석 영역의 성찰 textarea를 제거하고, 우측 �
 - **GitHub 저장소**: https://github.com/police6980/pchem-lab-project (public)
 - **배포 URL**: https://police6980.github.io/pchem-lab-project/web/
 - **브랜치**: `main`
-- **릴리스 태그**: `v0.2-mvp-complete` (Phase 2-B 완료 시 부여 예정)
+- **릴리스 태그**: `v0.2-mvp-ui-complete` (Part 3.5 UI 완성), `v0.3-ai-tutor-live` (Phase 2-B 완료 — **최신**)
 
 ---
 
