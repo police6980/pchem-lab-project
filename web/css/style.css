@@ -2307,12 +2307,14 @@ body.adv-sidebar-collapsed #adv-ai-reopen-btn {
     #ai-sidebar,
     #adv-ai-sidebar {
         position: fixed;
-        top: 0;
+        top: 32px;
+        bottom: auto;
         right: 0;
-        height: 100vh;
+        max-height: calc(100vh - 64px);
         width: 380px;
         z-index: 1000;
         box-shadow: -4px 0 12px rgba(0, 0, 0, 0.1);
+        overflow: hidden;
         transform: translateX(0);
         transition: transform 0.3s ease;
     }
