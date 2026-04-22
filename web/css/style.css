@@ -2328,3 +2328,53 @@ body.adv-sidebar-collapsed #adv-ai-reopen-btn {
         pointer-events: none;
     }
 }
+
+/* ============================================================
+   Responsive Step 2a — Advanced tab tracker column stacks below
+   the main canvas on narrow viewports. Same breakpoint as the
+   overlay sidebar (1599px) so both changes kick in together.
+   ============================================================ */
+@media (max-width: 1599px) {
+    #adv-section-canvas {
+        flex-direction: column;
+        gap: 16px;
+    }
+    #adv-tracker-column {
+        align-self: center;
+    }
+}
+
+/* ============================================================
+   Responsive Step 2b — CSS-scale the p5 canvases when they can
+   no longer fit their parents at native resolution. The canvas
+   bitmap stays at its createCanvas() value (1000×360 etc.) —
+   only the display size shrinks, so world coordinates and the
+   physics simulation are unaffected. height:auto preserves the
+   aspect ratio.
+   ============================================================ */
+@media (max-width: 1279px) {
+    #section-canvas canvas,
+    #histogram-area canvas,
+    #adv-sim-canvas-container canvas,
+    #adv-tracker-canvas-container canvas,
+    #adv-histogram-area canvas {
+        max-width: 100%;
+        height: auto;
+    }
+}
+
+/* ============================================================
+   Responsive Step 2c — Visual rows (histogram+info, measurement+
+   graphs) fold into vertical stacks when horizontal space runs
+   out entirely. An existing `@media (max-width: 900px)` already
+   stacks #section-measurements; this rule raises that breakpoint
+   to 1023px and adds the #adv- counterparts.
+   ============================================================ */
+@media (max-width: 1023px) {
+    #section-visuals,
+    #adv-section-visuals,
+    #section-measurements,
+    #adv-section-measurements {
+        flex-direction: column;
+    }
+}
