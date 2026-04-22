@@ -2156,7 +2156,7 @@ function createAdvMeasurementPanel({ getAdvState, onChange }) {
             const v = yLo + (yHi - yLo) * (i / 4);
             const py = yPos(v);
             svg += `<line x1="${m.l}" y1="${py}" x2="${m.l + plotW}" y2="${py}" stroke="#eee"/>`;
-            svg += `<text x="${m.l - 6}" y="${py + 3}" text-anchor="end" font-size="10" fill="#888">${v.toFixed(4)}</text>`;
+            svg += `<text x="${m.l - 6}" y="${py + 3}" text-anchor="end" font-size="9" fill="#888">${v.toFixed(3)}</text>`;
         }
         // axis lines
         svg += `<line x1="${m.l}" y1="${m.t}" x2="${m.l}" y2="${m.t + plotH}" stroke="#bbb"/>`;
@@ -2166,13 +2166,13 @@ function createAdvMeasurementPanel({ getAdvState, onChange }) {
         const xStep = n <= 10 ? 1 : Math.ceil(n / 10);
         for (let i = 1; i <= n; i++) {
             if (i % xStep !== 0 && i !== n && i !== 1) continue;
-            svg += `<text x="${xCenter(i)}" y="${m.t + plotH + 14}" text-anchor="middle" font-size="10" fill="#888">${i}</text>`;
+            svg += `<text x="${xCenter(i)}" y="${m.t + plotH + 14}" text-anchor="middle" font-size="9" fill="#888">${i}</text>`;
         }
         svg += `<text x="${m.l + plotW / 2}" y="${H - 4}" text-anchor="middle" font-size="10" fill="#666">측정 번호</text>`;
         svg += `<text x="14" y="${m.t + plotH / 2}" text-anchor="middle" font-size="10" fill="#666" transform="rotate(-90 14 ${m.t + plotH / 2})">PV / nT</text>`;
 
         if (n === 0) {
-            svg += `<text x="${m.l + plotW / 2}" y="${m.t + plotH / 2}" text-anchor="middle" font-size="12" fill="#bbb">[기록] 버튼으로 측정점을 추가하세요</text></svg>`;
+            svg += `<text x="${m.l + plotW / 2}" y="${m.t + plotH / 2}" text-anchor="middle" font-size="11" fill="#bbb">[기록] 버튼으로 측정점을 추가하세요</text></svg>`;
             plotWrap.innerHTML = svg;
             return;
         }
@@ -2189,7 +2189,7 @@ function createAdvMeasurementPanel({ getAdvState, onChange }) {
         if (showTheoryLine && n >= 1) {
             const py = yPos(mean);
             svg += `<line x1="${m.l}" y1="${py}" x2="${m.l + plotW}" y2="${py}" stroke="#c04040" stroke-width="1.2" stroke-dasharray="4,3"/>`;
-            svg += `<text x="${m.l + plotW - 4}" y="${py - 4}" text-anchor="end" font-size="10" fill="#c04040">평균 ${mean.toFixed(4)}</text>`;
+            svg += `<text x="${m.l + plotW - 4}" y="${py - 4}" text-anchor="end" font-size="9" fill="#c04040">평균 ${mean.toFixed(3)}</text>`;
         }
 
         svg += `</svg>`;
