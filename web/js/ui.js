@@ -61,7 +61,7 @@ function createInfoPanel() {
     simulated.innerHTML = `
         <div class="info-section-title">시뮬레이션</div>
         <div class="info-row"><span class="info-label">평균 속도</span><span class="info-value" id="info-speed">—</span></div>
-        <div class="info-row"><span class="info-label">피스톤 충돌</span><span class="info-value" id="info-hits">측정 중...</span></div>
+        <div class="info-row"><span class="info-label">충돌/s (전체)</span><span class="info-value" id="info-hits">측정 중...</span></div>
         <div class="info-row"><span class="info-label">평균 운동에너지</span><span class="info-value" id="info-kinetic">—</span></div>
     `;
 
@@ -163,7 +163,7 @@ function createMeasurementPanel({
                     <th class="num-col">V (mL)</th>
                     <th class="num-col">P·V</th>
                     <th class="num-col">v̄ (px/s)</th>
-                    <th class="num-col">충돌/s</th>
+                    <th class="num-col">충돌/s (전체)</th>
                     <th></th>
                 </tr>
             </thead>

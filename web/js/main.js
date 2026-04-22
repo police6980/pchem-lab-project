@@ -75,7 +75,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         system.update(dt);
         box.update(dt, params.volume_tau_seconds);
         system.clampParticlesIntoBox();
-        const tickHits = system.getPistonCollisionCount();
+        const tickHits = system.getTotalPistonCollisionCount();
         pistonHitsAccumulator += tickHits;
         continuousHitsAccumulator += tickHits;
 

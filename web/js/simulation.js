@@ -83,12 +83,14 @@ class GhostParticle {
         this.x += this.vx * dt;
         this.y += this.vy * dt;
 
+        let pistonHit = false;
         if (this.x < box.x && this.vx < 0) {
             this.vx = -this.vx;
             this.x = box.x;
         } else if (this.x > box.x + box.width && this.vx > 0) {
             this.vx = -this.vx;
             this.x = box.x + box.width;
+            pistonHit = true;
         }
         if (this.y < box.y && this.vy < 0) {
             this.vy = -this.vy;
@@ -97,6 +99,7 @@ class GhostParticle {
             this.vy = -this.vy;
             this.y = box.y + box.height;
         }
+        return pistonHit;
     }
 }
 
@@ -156,6 +159,7 @@ class ParticleSystem {
         }
 
         this.lastPistonCollisions = [];
+        this._ghostPistonHits = 0;
         this._overlapPairCount = 0;
 
         // Random placement may leave pairs overlapping. Resolve them before
@@ -185,9 +189,11 @@ class ParticleSystem {
         }
         this._overlapPairCount += this._resolveParticleCollisions();
 
+        let ghostHits = 0;
         for (const g of this.ghosts) {
-            g.update(dt, this.box);
+            if (g.update(dt, this.box)) ghostHits++;
         }
+        this._ghostPistonHits = ghostHits;
     }
 
     // Called after Box.update shrinks the box. The per-tick wall logic only
@@ -340,6 +346,10 @@ class ParticleSystem {
 
     getPistonCollisionCount() {
         return this.lastPistonCollisions.length;
+    }
+
+    getTotalPistonCollisionCount() {
+        return this.lastPistonCollisions.length + this._ghostPistonHits;
     }
 
     getLastPistonCollisions() {
