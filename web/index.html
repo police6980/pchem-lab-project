@@ -126,5 +126,23 @@
             <button id="btn-send-message" title="전송" disabled>↑</button>
         </div>
     </aside>
+    <div id="report-modal" class="report-modal" hidden>
+        <div class="report-modal-inner">
+            <div class="report-modal-header">
+                <h2>📄 탐구 보고서 초안</h2>
+                <button id="btn-report-close" type="button" aria-label="닫기">✕</button>
+            </div>
+            <div id="report-loading" class="report-loading" hidden>
+                <span>AI가 보고서를 작성 중입니다...</span>
+            </div>
+            <textarea id="report-textarea" class="report-textarea"
+                      placeholder="보고서 초안이 여기에 표시됩니다."
+                      spellcheck="false"></textarea>
+            <div class="report-modal-footer">
+                <button id="btn-report-copy" type="button">📋 복사</button>
+                <button id="btn-report-download" type="button">💾 txt 다운로드</button>
+            </div>
+        </div>
+    </div>
 </body>
 </html>

@@ -260,6 +260,97 @@ body {
     background: rgba(0, 0, 0, 0.1);
 }
 
+/* === Analysis: 탐구 보고서 초안 버튼 === */
+.report-btn-wrap {
+    padding: 12px 0 4px;
+    text-align: center;
+}
+#btn-generate-report {
+    padding: 9px 20px;
+    background: #5c6bc0;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.92rem;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+#btn-generate-report:hover:not(:disabled) { background: #3f51b5; }
+#btn-generate-report:disabled             { background: #aaa; cursor: not-allowed; }
+
+/* === Report modal === */
+.report-modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+.report-modal[hidden] { display: none; }
+.report-modal-inner {
+    background: #fff;
+    border-radius: 10px;
+    width: min(720px, 92vw);
+    max-height: 85vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+    overflow: hidden;
+}
+.report-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 18px;
+    border-bottom: 1px solid #eee;
+}
+.report-modal-header h2 { margin: 0; font-size: 1.05rem; }
+.report-modal-header button {
+    background: none;
+    border: none;
+    font-size: 1.1rem;
+    cursor: pointer;
+    opacity: 0.5;
+}
+.report-modal-header button:hover { opacity: 1; }
+.report-loading {
+    padding: 24px;
+    text-align: center;
+    color: #666;
+    font-size: 0.95rem;
+}
+.report-loading[hidden] { display: none; }
+.report-textarea {
+    flex: 1;
+    resize: none;
+    border: none;
+    padding: 16px 18px;
+    font-size: 0.92rem;
+    line-height: 1.65;
+    font-family: inherit;
+    outline: none;
+    min-height: 300px;
+}
+.report-modal-footer {
+    display: flex;
+    gap: 8px;
+    padding: 12px 18px;
+    border-top: 1px solid #eee;
+    justify-content: flex-end;
+}
+.report-modal-footer button {
+    padding: 7px 14px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    background: #f5f5f5;
+    cursor: pointer;
+    font-size: 0.88rem;
+    transition: background 0.15s;
+}
+.report-modal-footer button:hover { background: #e8e8e8; }
+
 /* === Sidebar: conversation end controls (✓ 마무리 버튼) === */
 .ai-sidebar .conversation-end-controls {
     padding: 8px 10px;

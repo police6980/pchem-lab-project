@@ -726,6 +726,9 @@ function createAnalysisPanel({
         <div class="analysis-export">
             <button id="btn-export-analysis">분석 보고서 저장</button>
         </div>
+        <div class="report-btn-wrap">
+            <button id="btn-generate-report" disabled>📄 탐구 보고서 초안 생성</button>
+        </div>
     `;
 
     const MIN_DATAPOINTS = 3;
@@ -888,6 +891,8 @@ function createAnalysisPanel({
             return;
         }
         section.classList.remove("hidden");
+        const reportBtn = document.getElementById("btn-generate-report");
+        if (reportBtn) reportBtn.disabled = false;
 
         const meanPV = data.reduce((s, d) => s + d.PV, 0) / data.length;
         const maxDevPct = Math.max(...data.map(d => Math.abs(d.PV - meanPV))) / meanPV * 100;

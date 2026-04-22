@@ -419,6 +419,115 @@ async function generateQ3Question() {
     }
 }
 
+// === Report draft (analysis panel integration) ===
+function getConversationSummary() {
+    const result = {};
+    ["1", "2", "3", "4", "free"].forEach(q => {
+        const conv = aiConversations[q];
+        if (!conv || conv.messages.length === 0) return;
+        const visible = conv.messages.filter(m => !m.isPromptInternal);
+        if (visible.length === 0) return;
+        result[q] = visible.map(m => ({
+            role: m.role,
+            content: m.content,
+        }));
+    });
+    return result;
+}
+
+async function generateReport() {
+    const T = window.PchemTutor;
+    const modal = document.getElementById("report-modal");
+    const loading = document.getElementById("report-loading");
+    const textarea = document.getElementById("report-textarea");
+    if (!modal || !loading || !textarea) return;
+
+    modal.hidden = false;
+    loading.hidden = false;
+    textarea.value = "";
+    textarea.disabled = true;
+
+    if (!T) {
+        loading.hidden = true;
+        textarea.value = "⚠️ AI 설정이 준비되지 않았습니다. 페이지를 새로고침 후 다시 시도해주세요.";
+        textarea.disabled = false;
+        return;
+    }
+
+    const ctx = T.buildDataContext();
+    const conversations = getConversationSummary();
+
+    const LABELS = { "1": "Q1", "2": "Q2", "3": "Q3", "4": "Q4", "free": "자유 질문" };
+    let convText = "";
+    for (const [qid, msgs] of Object.entries(conversations)) {
+        convText += `\n[${LABELS[qid] || qid} 대화]\n`;
+        msgs.forEach(m => {
+            convText += `${m.role === "user" ? "학생" : "AI 튜터"}: ${m.content}\n`;
+        });
+    }
+
+    const pointsText = ctx.points.map(p =>
+        `  ${p.num}번: P=${p.P}kPa, V=${p.V}mL, P·V=${p.PV}`
+    ).join("\n");
+
+    const systemPrompt = `당신은 영재 과학교육 보고서 작성 도우미입니다.
+학생의 실험 데이터와 AI 튜터와의 탐구 대화를 바탕으로
+탐구 보고서 초안을 작성하세요.
+
+보고서 구조:
+1. 탐구 제목
+2. 탐구 목표
+3. 실험 조건 (온도, 입자 수 등)
+4. 측정 결과 (표 형식으로)
+5. 데이터 분석 (P·V 관계, 편차 해석)
+6. 결론 (보일 법칙 검증, 대화에서 도달한 핵심 이해 포함)
+7. 더 탐구하고 싶은 것 (대화에서 나온 질문·아이디어 추출)
+
+원칙:
+- 학생이 대화에서 직접 말한 표현을 최대한 인용하세요.
+- 결론은 학생의 이해 수준에 맞게 학생 목소리로 작성하세요.
+- 7번은 탐구 대화에서 자연스럽게 나온 것만 포함, 없으면 생략.
+- 전체 600자 이내로 간결하게.
+- 한국어로 작성하세요.`;
+
+    const userPrompt = `[실험 데이터]
+온도: ${ctx.tempC}°C (${ctx.tempK}K)
+측정점: ${ctx.N}개
+평균 P·V: ${ctx.meanPV} kPa·mL
+최대 편차: ${ctx.maxDev}%
+
+측정점 상세:
+${pointsText}
+${convText}
+위 데이터와 탐구 대화를 바탕으로 탐구 보고서 초안을 작성해주세요.`;
+
+    try {
+        const result = await callAnthropicAPI(
+            [{ role: "user", content: userPrompt }],
+            systemPrompt
+        );
+        loading.hidden = true;
+        textarea.value = result.content;
+        textarea.disabled = false;
+        T.addTokens(result.inputTokens, result.outputTokens);
+    } catch (e) {
+        loading.hidden = true;
+        let msg;
+        if (e.type === "no_key") {
+            msg = "⚠️ API 키가 설정되지 않았습니다. 설정 패널에서 키를 입력하세요.";
+        } else if (e.type === "api_error") {
+            if (e.status === 401)      msg = "⚠️ API 키가 유효하지 않습니다.";
+            else if (e.status === 429) msg = "⚠️ 요청이 너무 많습니다. 잠시 후 다시 시도해주세요.";
+            else if (e.status === 529) msg = "⚠️ 서버가 일시적으로 과부하 상태입니다.";
+            else                       msg = `⚠️ 오류 (HTTP ${e.status})`;
+        } else {
+            msg = "⚠️ 네트워크 오류가 발생했습니다.";
+        }
+        textarea.value = msg;
+        textarea.disabled = false;
+    }
+}
+
 // === Typing indicator ===
 function showTypingIndicator() {
     const listEl = document.getElementById("messages-list");
@@ -653,6 +762,44 @@ document.addEventListener("DOMContentLoaded", () => {
     const closeBtn = document.getElementById("btn-close-q");
     if (closeBtn) {
         closeBtn.addEventListener("click", () => closeQuestion(activeQuestion));
+    }
+
+    // Report modal wiring
+    const reportModal = document.getElementById("report-modal");
+    document.getElementById("btn-report-close")?.addEventListener("click", () => {
+        if (reportModal) reportModal.hidden = true;
+    });
+    reportModal?.addEventListener("click", (e) => {
+        if (e.target === reportModal) reportModal.hidden = true;
+    });
+    document.getElementById("btn-report-copy")?.addEventListener("click", () => {
+        const ta = document.getElementById("report-textarea");
+        if (!ta || !ta.value) return;
+        navigator.clipboard.writeText(ta.value).then(() => {
+            const btn = document.getElementById("btn-report-copy");
+            if (!btn) return;
+            const orig = btn.textContent;
+            btn.textContent = "✓ 복사됨";
+            setTimeout(() => { btn.textContent = orig; }, 1500);
+        });
+    });
+    document.getElementById("btn-report-download")?.addEventListener("click", () => {
+        const ta = document.getElementById("report-textarea");
+        if (!ta || !ta.value) return;
+        const blob = new Blob([ta.value], { type: "text/plain;charset=utf-8" });
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = `탐구보고서_${new Date().toISOString().slice(0, 10)}.txt`;
+        a.click();
+        URL.revokeObjectURL(a.href);
+    });
+    document.getElementById("btn-generate-report")?.addEventListener("click", generateReport);
+
+    // Attach getConversationSummary to PchemTutor if the surface is ready
+    // (ui.js's createAnalysisPanel may populate window.PchemTutor after
+    //  this handler runs; generateReport still works via direct reference).
+    if (window.PchemTutor) {
+        window.PchemTutor.getConversationSummary = getConversationSummary;
     }
 
     // main.js createAnalysisPanel runs asynchronously after a fetch; setting
