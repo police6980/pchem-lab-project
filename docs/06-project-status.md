@@ -3,8 +3,8 @@
 **문서 목적**: 현재 구현 상태와 남은 작업의 마스터 트래커. 다른 설계 문서는 "어떻게 만들어졌는가"를 설명하고, 이 문서는 "어디까지 왔는가"를 기록한다.
 
 **마지막 업데이트**: 2026-04-22
-**현재 상태**: Phase 2-B 완료. 보일 법칙 시뮬레이터 + AI 튜터 + docx 보고서 생성까지 완성.
-**최신 태그**: `v0.3-ai-tutor-live`
+**현재 상태**: 보일 법칙 시뮬레이터 완성 (Arduino 연동 전 단계). AI 튜터 고도화·4단계 수준·오개념 감지·자동 수준 조정·안정화 10s 카운트다운까지 완비.
+**최신 태그**: `v0.4-boyle-complete`
 **다음 단계**: Phase 3 (Arduino 실센서 연동)
 
 ---
@@ -112,9 +112,33 @@ Phase 2-B에서 AI 튜터의 더미 응답을 실 API로 교체하고, 멀티턴
 
 ---
 
+## 2-C. 2026-04-22 세션 추가 기능 (v0.4-boyle-complete)
+
+**AI 튜터 고도화**
+- [x] 오개념 감지 원칙 (systemPrompt 원칙 9): 물리적 오류 발견 시 직접 교정 대신 "잠깐, [학생이 한 말]이라고 하셨는데 [반례 상황]에서도 그럴까요?" 형식의 반례 질문
+- [x] 수준 자동 감지 원칙 (systemPrompt 원칙 10): AI가 응답 끝에 `[[LEVEL:xxx]]` 신호 삽입 → 클라이언트에서 파싱 → 드롭다운 자동 전환 + 초록색 토스트 알림 (태그는 학생에게 비표시)
+- [x] **4단계 수준 시스템** (초등/중학/고등/대학) — 기존 3단계(중/고/대)에서 확장
+- [x] 수준별 Q1~Q4 텍스트 — 같은 질문도 학생 수준에 맞춰 다른 문구 (`QUESTION_TEXT[level][q]` 중첩 구조)
+- [x] 수준별 QUESTION_FOCUS — AI 튜터의 교육적 의도도 수준별로 차별화 (16개 지침: 4 수준 × Q1-Q4)
+- [x] `LEVEL_GUIDES`에 `elem` 프로필 추가 (공·구슬 비유, 수식 없음, 격려 많이)
+
+**물리 시각화 안정성**
+- [x] 유령 입자(2700) 피스톤 충돌 카운트 포함 → 실입자만의 Poisson 잡음 10× 감소 (`getTotalPistonCollisionCount`)
+- [x] 충돌률 EMA 스무딩 α=0.15, τ≈1.5s, 250ms 갱신
+- [x] **안정화 윈도우 10초**로 확장 (기존 1s → 2s → 4s → 6s → 10s로 단계적 확장, 충돌률이 새 압력에서 충분히 수렴하도록)
+- [x] 안정화 카운트다운 UI (`#stabilization-countdown`) — 대기 중: 주황 "안정화 중... 약 N초" / 완료: 녹색 (130px min-width로 레이아웃 shift 방지)
+
+**보고서 재구조화**
+- [x] docx 보고서 섹션 순서 재편 — 서술 중심 구조 (제목·목표·조건 → 결과 → 분석·결론·확장·반성)
+- [x] §4 "실험 결과"에 표 + 3개 차트 이미지 코드로 자동 삽입 (AI는 `[표와 그래프 자동 삽입]` 텍스트 출력 금지 지시)
+- [x] §8 "반성" 학생 직접 작성 가이드 (회색 이탤릭 안내 문구)
+- [x] 충돌/s vs P 차트 (3번째 차트, 보라색 `#8e44ad`)
+
+---
+
 ## 3. 진행 중인 작업
 
-현재 진행 중인 작업 없음. Phase 2-B 완료. **다음은 Phase 3 (Arduino 실센서)**.
+현재 진행 중인 작업 없음. 보일 시뮬레이터 + AI 튜터 완성. **다음은 Phase 3 (Arduino 실센서)**.
 
 ---
 
@@ -188,7 +212,7 @@ Phase 2-B에서 AI 튜터의 더미 응답을 실 API로 교체하고, 멀티턴
 | 섬광 초기 alpha | 120 | `params.json` `flash_initial_alpha` |
 | `v_max_color_factor` | 2.0 (× v_max_init) | `params.json` |
 | 렌더링 FPS | p5.js 기본 60 | (명시 `frameRate` 호출 없음) |
-| 안정화 윈도우 | 1 s (20 샘플 × 50 ms) | `ui.js` `STABILIZATION_WINDOW` |
+| 안정화 윈도우 | 10 s (200 샘플 × 50 ms) | `ui.js` `STABILIZATION_WINDOW` |
 | 안정화 임계 | 0.5 % | `ui.js` `STABILIZATION_THRESHOLD` |
 | 이동평균 기록 윈도우 | 1 s (안정화 버퍼 재사용) | `ui.js` |
 | 연속 로그 샘플링 | 250 ms (4 Hz) | `main.js` `CONTINUOUS_SAMPLE_INTERVAL_MS` |
@@ -230,7 +254,7 @@ Phase 2-B에서 AI 튜터의 더미 응답을 실 API로 교체하고, 멀티턴
 - **GitHub 저장소**: https://github.com/police6980/pchem-lab-project (public)
 - **배포 URL**: https://police6980.github.io/pchem-lab-project/web/
 - **브랜치**: `main`
-- **릴리스 태그**: `v0.2-mvp-ui-complete` (Part 3.5 UI 완성), `v0.3-ai-tutor-live` (Phase 2-B 완료 — **최신**)
+- **릴리스 태그**: `v0.2-mvp-ui-complete` (Part 3.5 UI 완성), `v0.3-ai-tutor-live` (Phase 2-B 완료), `v0.4-boyle-complete` (보일 시뮬레이터 완성 — **최신**)
 
 ---
 
