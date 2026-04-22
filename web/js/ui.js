@@ -140,7 +140,7 @@ function createMeasurementPanel({
             <span class="reading-unit">mL</span>
         </span>
         <button id="btn-record">기록</button>
-        <span id="btn-record-hint" class="record-hint">값 안정화 중…</span>
+        <span id="stabilization-countdown" class="stab-countdown"></span>
     `;
     document.querySelector(".control-row-actuators").appendChild(readingBlock);
 
@@ -200,7 +200,7 @@ function createMeasurementPanel({
     vInput.addEventListener("input", () => { studentEdited = true; });
 
     // === Stabilization detection ===
-    const STABILIZATION_WINDOW = 80;          // 50ms × 80 = 4s
+    const STABILIZATION_WINDOW = 120;         // 50ms × 120 = 6s
     const STABILIZATION_THRESHOLD = 0.005;    // 0.5%
     const pHistory = [];
     const widthHistory = [];
@@ -236,9 +236,20 @@ function createMeasurementPanel({
 
     function updateRecordButtonState() {
         const btn = document.getElementById("btn-record");
-        const hint = document.getElementById("btn-record-hint");
+        const countdownEl = document.getElementById("stabilization-countdown");
         btn.disabled = !isStabilized;
-        hint.style.visibility = isStabilized ? "hidden" : "visible";
+        if (countdownEl) {
+            if (isStabilized) {
+                countdownEl.textContent = "";
+                countdownEl.className = "stab-countdown stab-ready";
+            } else {
+                const remaining = Math.ceil(
+                    (STABILIZATION_WINDOW - pHistory.length) * 50 / 1000
+                );
+                countdownEl.textContent = `안정화 중... 약 ${remaining}초`;
+                countdownEl.className = "stab-countdown stab-waiting";
+            }
+        }
     }
 
     // === PV scatter plot ===
