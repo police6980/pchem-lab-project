@@ -61,12 +61,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     let pistonHitsAccumulator = 0;
-    let lastHitsPerSec = 0;
-    // Fast rolling window for measurement-table snapshot. Independent of the
-    // 5s diagnostic tick so that a fresh record right after stabilization
-    // (before the 5s tick fires) still captures a meaningful collision rate.
-    let hitsWindowAccumulator = 0;
-    let hitsWindowStart = performance.now();
+    // Snapshot of the values currently shown in the info panel. Measurement
+    // table reads these via getAvgSpeed/getCollisionsPerSec so the numbers
+    // stored on record are identical to what the student sees on screen.
+    let lastDisplayAvgSpeed = 0;
+    let lastDisplayHitsPerSec = 0;
     const renderer = createRenderer(box, system, params, (dt) => {
         system.update(dt);
         box.update(dt, params.volume_tau_seconds);
@@ -74,13 +73,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         const tickHits = system.getPistonCollisionCount();
         pistonHitsAccumulator += tickHits;
         continuousHitsAccumulator += tickHits;
-        hitsWindowAccumulator += tickHits;
-        const hitsWindowElapsed = (performance.now() - hitsWindowStart) / 1000;
-        if (hitsWindowElapsed >= 0.5) {
-            lastHitsPerSec = hitsWindowAccumulator / hitsWindowElapsed;
-            hitsWindowAccumulator = 0;
-            hitsWindowStart = performance.now();
-        }
 
         if (transitionStartTime !== null) {
             currentSpeedRatio += (targetSpeedRatio - currentSpeedRatio) * (dt / TRANSITION_TAU);
@@ -99,9 +91,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
 
     createInfoPanel();
+    lastDisplayAvgSpeed = system.getAverageSpeed();
     updateInfoPanel({
         temp_K: currentTempKelvin(),
-        avgSpeed: system.getAverageSpeed(),
+        avgSpeed: lastDisplayAvgSpeed,
         avgSpeedTheory: theoreticalSpeed(),
         kineticEnergy: system.getAverageKineticEnergy(),
         kineticEnergyTheory: theoreticalKE(),
@@ -147,8 +140,8 @@ document.addEventListener("DOMContentLoaded", async () => {
             continuousOverflowWarned = false;
         },
         resetSession: () => { sessionStartMs = null; },
-        getAvgSpeed:        () => system.getAverageSpeed(),
-        getCollisionsPerSec: () => lastHitsPerSec,
+        getAvgSpeed:        () => lastDisplayAvgSpeed,
+        getCollisionsPerSec: () => lastDisplayHitsPerSec,
     });
 
     setInterval(() => {
@@ -223,8 +216,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
 
     setInterval(() => {
+        lastDisplayAvgSpeed = system.getAverageSpeed();
         updateInfoPanel({
-            avgSpeed: system.getAverageSpeed(),
+            avgSpeed: lastDisplayAvgSpeed,
             avgSpeedTheory: theoreticalSpeed(),
             kineticEnergy: system.getAverageKineticEnergy(),
             kineticEnergyTheory: theoreticalKE(),
@@ -235,6 +229,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         const hitsPer5s = pistonHitsAccumulator;
         const hitsPerSec = hitsPer5s / 5;
         pistonHitsAccumulator = 0;
+        lastDisplayHitsPerSec = hitsPerSec;
 
         updateInfoPanel({ hitsPerSec });
 
