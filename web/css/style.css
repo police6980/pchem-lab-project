@@ -2334,7 +2334,7 @@ body.adv-sidebar-collapsed #adv-ai-reopen-btn {
    the main canvas on narrow viewports. Same breakpoint as the
    overlay sidebar (1599px) so both changes kick in together.
    ============================================================ */
-@media (max-width: 1599px) {
+@media (max-width: 1919px) {
     #adv-section-canvas {
         flex-direction: column;
         gap: 16px;
