@@ -1888,7 +1888,6 @@ body.adv-sidebar-collapsed #adv-ai-reopen-btn {
     border-left: 1px solid #e5e5e5;
 }
 .adv-control-row-actuators #adv-btn-record {
-    margin-left: auto;
     border-left: none;
     padding-left: 18px;
 }
