@@ -968,27 +968,44 @@ body.sidebar-collapsed #ai-sidebar {
 }
 
 /* Section 4: Measurement table + PV plot */
+/* Measurements row: three equal-footprint cards with generous breathing room.
+   Outer section is a transparent flex container; each child is its own card. */
 #section-measurements {
-    padding: 16px 20px;
+    padding: 0;
+    background: transparent;
+    box-shadow: none;
+    border-radius: 0;
+    display: flex;
+    gap: 24px;
+}
+
+#section-measurements #measurement-panel,
+#section-measurements #pv-plot-area,
+#section-measurements #invv-plot-area {
     background: white;
     border-radius: 8px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    padding: 16px 20px;
+    min-width: 0;
     display: flex;
-    gap: 20px;
+    flex-direction: column;
+    gap: 10px;
 }
 
 #section-measurements #measurement-panel {
-    flex: 4;
-    min-width: 0;
+    flex: 3;
 }
-
 #section-measurements #pv-plot-area,
 #section-measurements #invv-plot-area {
     flex: 3;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    min-width: 0;
+}
+
+/* Table empty-state cell (shows "측정점을 2개 이상 기록하세요" when no rows). */
+#measurement-panel table {
+    table-layout: auto;
+}
+#measurement-panel .summary {
+    text-align: center;
 }
 
 #measurement-panel {
