@@ -1936,10 +1936,14 @@ body.adv-sidebar-collapsed #adv-ai-reopen-btn {
     cursor: pointer;
 }
 
-/* Canvas + visuals — mirror basic #section-canvas / #section-visuals */
+/* Canvas + visuals — mirror basic #section-canvas / #section-visuals.
+   text-align:center centres the 900-px canvas inside the full-width section
+   (main container is wider on large screens since it shares the flex row
+   with the 380-px sidebar). */
 #adv-section-canvas {
     display: block;
     line-height: 0;
+    text-align: center;
     background: white;
     border-radius: 8px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
