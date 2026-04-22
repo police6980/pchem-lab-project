@@ -289,13 +289,22 @@ const ADV_HIST_W = ADV_HIST_CANVAS_W - ADV_HIST_X - 5;     // 519
 const ADV_HIST_H = ADV_HIST_CANVAS_H - ADV_HIST_Y - 10;    // 245
 const ADV_HIST_BINS = 40;
 
-// x-axis range is DYNAMIC: v_max_x = 4·σ of the current state, EMA-smoothed.
-// Distribution always fills the frame — matches the look of basic-mode's
-// fixed-vMaxColor histogram but follows the student's current T/gas choice.
-// y-axis likewise proportional (smoothedMaxCount EMA).
-const ADV_HIST_TIME_ALPHA = 0.05;  // bin count EMA
-const ADV_HIST_MAX_ALPHA  = 0.03;  // y-scale EMA (slow — keeps theory curve still)
-const ADV_HIST_VMAX_ALPHA = 0.1;   // x-range EMA (fast-ish — ~0.2s transition)
+// Histogram axes are BOTH fixed so temperature / gas changes read as the
+// distribution moving and spreading, not as the plot rescaling around it.
+//
+//   x-axis: 0 → 4·σ_max, where σ_max is the fastest reachable state
+//           (He at ADV_TEMP_MAX). 4σ captures the full tail.
+//   y-axis: probability density / (theoretical peak at current σ).
+//           The theoretical peak of 2-D Maxwell-Boltzmann is (1/σ)·e^(-0.5)
+//           at v=σ, so this ratio is always 1 at the peak regardless of
+//           state. Bars fluctuate around the curve; the curve itself never
+//           moves vertically.
+const ADV_SIGMA_MAX = DEFAULT_SPEED_SCALE
+    * Math.sqrt(ADV_REFERENCE_GAS_MASS / ADV_GAS_MASSES.He)
+    * Math.sqrt((ADV_TEMP_MAX + 273.15) / ADV_REFERENCE_TEMP_K);
+const ADV_V_MAX_X = 4 * ADV_SIGMA_MAX;
+const ADV_BIN_WIDTH = ADV_V_MAX_X / ADV_HIST_BINS;
+const ADV_HIST_Y_HEADROOM = 1.2;   // bars above the theoretical peak get 20% room
 
 function initAdvancedMode(params) {
     const P0 = params.initial_pressure_kPa;
@@ -327,6 +336,7 @@ function initAdvancedMode(params) {
     // --- DOM refs ---
     const volSlider    = document.getElementById("adv-volume-slider");
     const volValue     = document.getElementById("adv-volume-value");
+    const pressValue   = document.getElementById("adv-pressure-value");
     const partSlider   = document.getElementById("adv-particle-slider");
     const partValue    = document.getElementById("adv-particle-value");
     const gasSelect    = document.getElementById("adv-gas-select");
@@ -362,9 +372,16 @@ function initAdvancedMode(params) {
     const histNEl = document.getElementById("adv-hist-n");
 
     // --- Control handlers ---
+    function updatePressureReadout() {
+        const V = parseFloat(volSlider.value);
+        const P = P0 * (ADV_V0_ML / V) * (currentTempK / ADV_REFERENCE_TEMP_K);
+        pressValue.textContent = `${P.toFixed(1)} kPa`;
+    }
+
     function applyVolume(V_mL) {
         box.targetWidth = V_mL * ADV_PX_PER_ML;
         volValue.textContent = `${V_mL.toFixed(0)} mL`;
+        updatePressureReadout();
     }
     volSlider.addEventListener("input", () => applyVolume(parseFloat(volSlider.value)));
     applyVolume(ADV_V0_ML);
@@ -393,6 +410,7 @@ function initAdvancedMode(params) {
         tempPresets.forEach(btn => {
             btn.classList.toggle("active", Math.abs(parseFloat(btn.dataset.celsius) - celsius) < 0.5);
         });
+        updatePressureReadout();
     }
     tempPresets.forEach(btn => {
         btn.addEventListener("click", () => applyTemperature(parseFloat(btn.dataset.celsius)));
@@ -444,12 +462,18 @@ function initAdvancedMode(params) {
         };
     };
 
-    // --- Histogram sketch (proportional, EMA-smoothed, dynamic x-range) ---
+    // --- Histogram sketch — peak-normalized, fixed axes, no EMA ---
+    //
+    // Math:
+    //   p(v)           = (v/σ²)·exp(-v²/(2σ²))              2-D M-B density
+    //   peak_p(σ)      = (1/σ)·exp(-0.5)                    at v = σ
+    //   empirical_p(i) = count[i] / (N · BIN_WIDTH)         per bin
+    //   normalized(i)  = empirical_p(i) / peak_p(σ)         ≈ 1 at the peak
+    //
+    // The y-axis shows `normalized` with 20% headroom (so bars that
+    // momentarily exceed 1.0 stay on-canvas). The theory curve computed from
+    // the same σ always peaks at exactly 1.0, so it never moves vertically.
     const histSketch = (p) => {
-        let smoothedBins = null;
-        let smoothedMaxCount = 1;
-        let smoothedVMaxX = null;
-
         p.setup = () => {
             const canvas = p.createCanvas(ADV_HIST_CANVAS_W, ADV_HIST_CANVAS_H);
             canvas.parent("adv-histogram-area");
@@ -459,79 +483,58 @@ function initAdvancedMode(params) {
         p.draw = () => {
             p.background(0, 0, 98);
 
-            // x-range tracks 4σ of the current state (EMA-smoothed so T/gas
-            // changes glide instead of snapping). Bin widths change with it.
-            const targetVMaxX = 4 * currentSpeedScale();
-            smoothedVMaxX = smoothedVMaxX === null
-                ? targetVMaxX
-                : smoothedVMaxX + (targetVMaxX - smoothedVMaxX) * ADV_HIST_VMAX_ALPHA;
-            const vMaxX = smoothedVMaxX;
-            const binWidthSpeed = vMaxX / ADV_HIST_BINS;
-
-            // EMA on bins + EMA on max bin for y-axis scale.
-            const rawBins = system.getVelocityHistogram(ADV_HIST_BINS, vMaxX);
-            if (smoothedBins === null) {
-                smoothedBins = rawBins.map(b => ({ ...b }));
-            } else {
-                // Bin boundaries drift with vMaxX each frame; with α=0.1 the
-                // per-frame drift is small enough that blending old/new bin
-                // counts converges cleanly within a few frames.
-                for (let i = 0; i < rawBins.length; i++) {
-                    smoothedBins[i].count =
-                        ADV_HIST_TIME_ALPHA * rawBins[i].count +
-                        (1 - ADV_HIST_TIME_ALPHA) * smoothedBins[i].count;
-                    smoothedBins[i].binMin = rawBins[i].binMin;
-                    smoothedBins[i].binMax = rawBins[i].binMax;
-                }
-            }
-            let rawMax = 0;
-            for (const b of smoothedBins) if (b.count > rawMax) rawMax = b.count;
-            smoothedMaxCount += (rawMax - smoothedMaxCount) * ADV_HIST_MAX_ALPHA;
-            const scale = Math.max(smoothedMaxCount, 1);
-
-            // Bars — colored by speed (basic-mode HSB via binCenter / vMaxColor).
-            const binPxW = ADV_HIST_W / ADV_HIST_BINS;
-            p.noStroke();
-            for (let i = 0; i < smoothedBins.length; i++) {
-                const h = Math.min(smoothedBins[i].count / scale, 1) * ADV_HIST_H;
-                const binCenter = (smoothedBins[i].binMin + smoothedBins[i].binMax) / 2;
-                const ratio = Math.min(binCenter / ADV_VMAX_COLOR, 1.0);
-                const hue = 240 - 240 * ratio;
-                const sat = 40 + 60 * ratio;
-                const bri = 70 + 30 * ratio;
-                p.fill(hue, sat, bri, 200);
-                p.rect(ADV_HIST_X + i * binPxW, ADV_HIST_Y + ADV_HIST_H - h, binPxW - 1, h);
-            }
-
-            // Theoretical 2-D Rayleigh — same σ, scaled against current vMaxX
-            // and smoothedMaxCount so it sits on top of the bars cleanly.
             const N = system.getParticles().length;
             const sigma = currentSpeedScale();
-            if (N > 0 && sigma > 0) {
-                p.noFill();
-                p.stroke(0, 0, 30, 220);
-                p.strokeWeight(2);
-                p.beginShape();
-                for (let i = 0; i <= 200; i++) {
-                    const v = (i / 200) * vMaxX;
-                    const pv = (v / (sigma * sigma)) * Math.exp(-v * v / (2 * sigma * sigma));
-                    const expected = pv * N * binWidthSpeed;
-                    const x = ADV_HIST_X + (v / vMaxX) * ADV_HIST_W;
-                    const y = ADV_HIST_Y + ADV_HIST_H - Math.min(expected / scale, 1) * ADV_HIST_H;
-                    p.vertex(x, y);
-                }
-                p.endShape();
+            if (N === 0 || sigma <= 0) return;
+
+            const theoreticalPeak = (1 / sigma) * Math.exp(-0.5);
+            const yFromNorm = (norm) =>
+                ADV_HIST_Y + ADV_HIST_H * (1 - Math.min(norm, ADV_HIST_Y_HEADROOM) / ADV_HIST_Y_HEADROOM);
+
+            // Bars — raw each frame (no EMA); fluctuation size is the point.
+            // Speed-based HSB color (basic-mode formula via binCenter/vMaxColor).
+            const rawBins = system.getVelocityHistogram(ADV_HIST_BINS, ADV_V_MAX_X);
+            const binPxW = ADV_HIST_W / ADV_HIST_BINS;
+            p.noStroke();
+            for (let i = 0; i < rawBins.length; i++) {
+                const empiricalDensity = rawBins[i].count / (N * ADV_BIN_WIDTH);
+                const normalized = empiricalDensity / theoreticalPeak;
+                const yTop = yFromNorm(normalized);
+                const h = ADV_HIST_Y + ADV_HIST_H - yTop;
+                if (h <= 0) continue;
+
+                const binCenter = (rawBins[i].binMin + rawBins[i].binMax) / 2;
+                const cRatio = Math.min(binCenter / ADV_VMAX_COLOR, 1.0);
+                const hue = 240 - 240 * cRatio;
+                const sat = 40 + 60 * cRatio;
+                const bri = 70 + 30 * cRatio;
+                p.fill(hue, sat, bri, 200);
+                p.rect(ADV_HIST_X + i * binPxW, yTop, binPxW - 1, h);
             }
 
-            // y-axis count tick labels (0 / 25% / 50% / 75% / 100% of scale).
+            // Theoretical 2-D Rayleigh — peak always sits at y=1.0.
+            p.noFill();
+            p.stroke(0, 0, 30, 220);
+            p.strokeWeight(2);
+            p.beginShape();
+            for (let i = 0; i <= 200; i++) {
+                const v = (i / 200) * ADV_V_MAX_X;
+                const pv = (v / (sigma * sigma)) * Math.exp(-v * v / (2 * sigma * sigma));
+                const normalized = pv / theoreticalPeak;
+                const x = ADV_HIST_X + (v / ADV_V_MAX_X) * ADV_HIST_W;
+                p.vertex(x, yFromNorm(normalized));
+            }
+            p.endShape();
+
+            // y-axis ticks at the physically meaningful values 0 / 0.5 / 1.0
+            // (the theoretical peak position). 1.0 label sits at 1/1.2 = 83%
+            // of the plot height so the 20% headroom shows above it.
             p.noStroke();
             p.fill(0, 0, 35);
             p.textSize(11);
             p.textAlign(p.RIGHT, p.CENTER);
-            for (const frac of [0, 0.25, 0.5, 0.75, 1]) {
-                const count = scale * frac;
-                const y = ADV_HIST_Y + ADV_HIST_H - frac * ADV_HIST_H;
-                p.text(count.toFixed(0), ADV_HIST_X - 6, y);
+            for (const v of [0, 0.5, 1.0]) {
+                p.text(v.toFixed(1), ADV_HIST_X - 6, yFromNorm(v));
             }
         };
     };

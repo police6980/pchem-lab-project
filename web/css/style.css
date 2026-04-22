@@ -1940,6 +1940,30 @@ body.adv-sidebar-collapsed #adv-ai-reopen-btn {
 #adv-section-canvas {
     display: block;
     line-height: 0;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+}
+
+/* Pressure readout next to volume slider (row 2) */
+#adv-pressure-wrap {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 8px;
+    margin-left: 16px;
+    padding-left: 16px;
+    border-left: 1px solid #e0e0e0;
+    font-size: 14px;
+}
+#adv-pressure-wrap .adv-pressure-label {
+    color: #666;
+}
+#adv-pressure-wrap #adv-pressure-value {
+    font-family: ui-monospace, "SF Mono", Consolas, monospace;
+    color: #2050c0;
+    font-size: 15px;
+    min-width: 92px;
 }
 /* Horizontal layout identical to basic #section-visuals:
    histogram on the left (flex:6), info panel on the right (flex:4). */
