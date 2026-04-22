@@ -2296,3 +2296,35 @@ body.adv-sidebar-collapsed #adv-ai-reopen-btn {
 .hidden {
     display: none !important;
 }
+
+/* ============================================================
+   Responsive Step 1 — AI sidebar overlay mode on narrow viewports.
+   Below 1600px, both sidebars leave the flex flow (position:fixed)
+   and slide in from the right like a drawer. Push-mode (≥1600px)
+   is untouched; all rules live inside @media so rollback is clean.
+   ============================================================ */
+@media (max-width: 1599px) {
+    #ai-sidebar,
+    #adv-ai-sidebar {
+        position: fixed;
+        top: 0;
+        right: 0;
+        height: 100vh;
+        width: 380px;
+        z-index: 1000;
+        box-shadow: -4px 0 12px rgba(0, 0, 0, 0.1);
+        transform: translateX(0);
+        transition: transform 0.3s ease;
+    }
+
+    /* Override the base rules' `display: none` so the element stays
+       rendered and the transform can animate the slide-out.
+       pointer-events disabled while off-screen so it can't intercept
+       clicks on the main content. */
+    body.sidebar-collapsed #ai-sidebar,
+    body.adv-sidebar-collapsed #adv-ai-sidebar {
+        display: flex;
+        transform: translateX(100%);
+        pointer-events: none;
+    }
+}

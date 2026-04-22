@@ -1,5 +1,12 @@
 // Entry point - boot and overall orchestration
 
+// Responsive Step 1 — pre-collapse both sidebars on narrow viewports so
+// they don't flash visible before the user sees the drawer UI. Runs at
+// defer-script execution time (before DOMContentLoaded, before first paint).
+const _narrowViewport = window.innerWidth < 1600;
+document.body.classList.toggle("sidebar-collapsed", _narrowViewport);
+document.body.classList.toggle("adv-sidebar-collapsed", _narrowViewport);
+
 const REFERENCE_TEMP_K = 298.15;
 const REFERENCE_V_ML = 50;
 const REFERENCE_P_KPA = 101.3;
