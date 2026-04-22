@@ -1,6 +1,5 @@
 // AI tutor conversation state and message rendering.
-// Part 4 (step 1): Anthropic API caller added; dummy responses still active
-// (replacement in next step).
+// Part 4: Anthropic API wired; docx report direct download (no modal).
 
 // === Anthropic Messages API ===
 // Accesses ui.js via window.PchemTutor surface (exposed inside
@@ -493,185 +492,16 @@ function downloadConversations() {
     URL.revokeObjectURL(a.href);
 }
 
-// Render the report textarea + experiment data + chart images as a .docx.
-// Depends on the `docx` global provided by docx.js (index.html CDN).
-async function downloadReportAsDocx() {
-    const textarea = document.getElementById("report-textarea");
-    if (!textarea || !textarea.value.trim()) return;
-    if (typeof docx === "undefined") {
-        alert("docx 라이브러리를 불러오지 못했습니다. 페이지를 새로고침 해주세요.");
-        return;
-    }
-
-    const T = window.PchemTutor;
-    const ctx = T ? T.buildDataContext() : null;
-    const datapoints = T?.getDatapoints ? T.getDatapoints() : [];
-    const reportText = textarea.value;
-
-    async function svgToPngBlob(svgEl) {
-        return new Promise((resolve) => {
-            const svgData = new XMLSerializer().serializeToString(svgEl);
-            const svgBlob = new Blob([svgData], { type: "image/svg+xml;charset=utf-8" });
-            const url = URL.createObjectURL(svgBlob);
-            const img = new Image();
-            img.onload = () => {
-                const w = svgEl.clientWidth || 400;
-                const h = svgEl.clientHeight || 200;
-                const canvas = document.createElement("canvas");
-                canvas.width = w * 2;   // 2x for sharper output
-                canvas.height = h * 2;
-                const c = canvas.getContext("2d");
-                c.fillStyle = "#fff";
-                c.fillRect(0, 0, canvas.width, canvas.height);
-                c.drawImage(img, 0, 0, canvas.width, canvas.height);
-                URL.revokeObjectURL(url);
-                canvas.toBlob(resolve, "image/png");
-            };
-            img.onerror = () => { URL.revokeObjectURL(url); resolve(null); };
-            img.src = url;
-        });
-    }
-
-    async function blobToArrayBuffer(blob) {
-        return new Promise(r => {
-            const fr = new FileReader();
-            fr.onload = () => r(fr.result);
-            fr.readAsArrayBuffer(blob);
-        });
-    }
-
-    const svgEls = document.querySelectorAll(".chart-wrap svg");
-    const chartBlobs = [];
-    for (const svg of svgEls) {
-        const blob = await svgToPngBlob(svg);
-        if (blob) chartBlobs.push(blob);
-    }
-
-    const {
-        Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell,
-        ImageRun, HeadingLevel, AlignmentType, WidthType,
-    } = docx;
-
-    const children = [];
-
-    children.push(new Paragraph({
-        text: "탐구 보고서",
-        heading: HeadingLevel.HEADING_1,
-        alignment: AlignmentType.CENTER,
-    }));
-    children.push(new Paragraph({
-        children: [new TextRun({
-            text: `작성 일시: ${new Date().toLocaleString("ko-KR")}`,
-            size: 20, color: "666666",
-        })],
-        alignment: AlignmentType.CENTER,
-    }));
-    children.push(new Paragraph(""));
-
-    if (datapoints.length > 0) {
-        children.push(new Paragraph({
-            text: "측정 결과",
-            heading: HeadingLevel.HEADING_2,
-        }));
-
-        const headerRow = new TableRow({
-            children: ["#", "P (kPa)", "V (mL)", "P·V", "v̄ (px/s)", "충돌/s"].map(h =>
-                new TableCell({
-                    children: [new Paragraph({
-                        children: [new TextRun({ text: h, bold: true })],
-                        alignment: AlignmentType.CENTER,
-                    })],
-                })
-            ),
-        });
-
-        const dataRows = datapoints.map(d => new TableRow({
-            children: [
-                String(d.id),
-                d.P.toFixed(1),
-                d.V.toFixed(1),
-                d.PV.toFixed(1),
-                d.avgSpeed   ?? "—",
-                d.collisions ?? "—",
-            ].map(v => new TableCell({
-                children: [new Paragraph({
-                    children: [new TextRun({ text: String(v) })],
-                    alignment: AlignmentType.CENTER,
-                })],
-            })),
-        }));
-
-        children.push(new Table({
-            rows: [headerRow, ...dataRows],
-            width: { size: 100, type: WidthType.PERCENTAGE },
-        }));
-        children.push(new Paragraph(""));
-    }
-
-    if (chartBlobs.length > 0) {
-        children.push(new Paragraph({
-            text: "측정 그래프",
-            heading: HeadingLevel.HEADING_2,
-        }));
-        for (const blob of chartBlobs) {
-            const ab = await blobToArrayBuffer(blob);
-            children.push(new Paragraph({
-                children: [new ImageRun({
-                    data: ab,
-                    transformation: { width: 360, height: 180 },
-                })],
-                alignment: AlignmentType.CENTER,
-            }));
-            children.push(new Paragraph(""));
-        }
-    }
-
-    // AI-generated report body (parse ## headings)
-    const lines = reportText.split("\n");
-    for (const line of lines) {
-        if (line.startsWith("## ")) {
-            children.push(new Paragraph({
-                text: line.replace(/^##\s+/, ""),
-                heading: HeadingLevel.HEADING_2,
-            }));
-        } else if (line.trim()) {
-            children.push(new Paragraph({
-                children: [new TextRun({ text: line })],
-            }));
-        } else {
-            children.push(new Paragraph(""));
-        }
-    }
-
-    const doc = new Document({ sections: [{ children }] });
-    const blob = await Packer.toBlob(doc);
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = `탐구보고서_${new Date().toISOString().slice(0, 10)}.docx`;
-    a.click();
-    URL.revokeObjectURL(a.href);
-}
-
+// === Report: fetch AI draft + embed into docx directly (no modal) ===
 async function generateReport() {
+    const btn = document.getElementById("btn-generate-report");
+    if (btn) { btn.disabled = true; btn.textContent = "⏳ 보고서 생성 중..."; }
+
     const T = window.PchemTutor;
-    const modal = document.getElementById("report-modal");
-    const loading = document.getElementById("report-loading");
-    const textarea = document.getElementById("report-textarea");
-    if (!modal || !loading || !textarea) return;
-
-    modal.hidden = false;
-    loading.hidden = false;
-    textarea.value = "";
-    textarea.disabled = true;
-
-    if (!T) {
-        loading.hidden = true;
-        textarea.value = "⚠️ AI 설정이 준비되지 않았습니다. 페이지를 새로고침 후 다시 시도해주세요.";
-        textarea.disabled = false;
-        return;
-    }
+    if (!T) { restoreReportBtn(); return; }
 
     const ctx = T.buildDataContext();
+    const datapoints = T.getDatapoints ? T.getDatapoints() : [];
     const conversations = getConversationSummary();
 
     const LABELS = { "1": "Q1", "2": "Q2", "3": "Q3", "4": "Q4", "free": "자유 질문" };
@@ -682,16 +512,14 @@ async function generateReport() {
             convText += `${m.role === "user" ? "학생" : "AI 튜터"}: ${m.content}\n`;
         });
     }
-
     const pointsText = ctx.points.map(p =>
         `  ${p.num}번: P=${p.P}kPa, V=${p.V}mL, P·V=${p.PV}`
     ).join("\n");
 
     const systemPrompt = `당신은 영재 과학교육 보고서 작성 도우미입니다.
-학생의 실험 데이터와 AI 튜터와의 탐구 대화를 바탕으로
-탐구 보고서 초안을 작성하세요.
+학생의 실험 데이터와 AI 튜터와의 탐구 대화를 바탕으로 탐구 보고서 초안을 작성하세요.
 
-보고서 구조 (각 섹션을 ## 헤딩으로 구분):
+보고서 구조 (반드시 아래 ## 헤딩 형식 그대로 사용):
 ## 1. 탐구 제목
 ## 2. 탐구 목표
 ## 3. 실험 조건
@@ -701,7 +529,6 @@ async function generateReport() {
 
 원칙:
 - 학생이 대화에서 직접 말한 표현을 최대한 인용하세요.
-- 결론은 학생의 이해 수준에 맞게 학생 목소리로 작성하세요.
 - 각 섹션 100자 내외로 간결하게.
 - 한국어로 작성하세요.`;
 
@@ -716,30 +543,175 @@ ${pointsText}
 ${convText}
 위 데이터와 탐구 대화를 바탕으로 탐구 보고서 초안을 작성해주세요.`;
 
+    let reportText = "";
     try {
         const result = await callAnthropicAPI(
             [{ role: "user", content: userPrompt }],
             systemPrompt
         );
-        loading.hidden = true;
-        textarea.value = result.content;
-        textarea.disabled = false;
+        reportText = result.content;
         T.addTokens(result.inputTokens, result.outputTokens);
     } catch (e) {
-        loading.hidden = true;
         let msg;
-        if (e.type === "no_key") {
-            msg = "⚠️ API 키가 설정되지 않았습니다. 설정 패널에서 키를 입력하세요.";
-        } else if (e.type === "api_error") {
-            if (e.status === 401)      msg = "⚠️ API 키가 유효하지 않습니다.";
-            else if (e.status === 429) msg = "⚠️ 요청이 너무 많습니다. 잠시 후 다시 시도해주세요.";
-            else if (e.status === 529) msg = "⚠️ 서버가 일시적으로 과부하 상태입니다.";
-            else                       msg = `⚠️ 오류 (HTTP ${e.status})`;
-        } else {
-            msg = "⚠️ 네트워크 오류가 발생했습니다.";
+        if (e.type === "no_key")         msg = "API 키가 설정되지 않았습니다.";
+        else if (e.type === "api_error") msg = `API 오류 (HTTP ${e.status})`;
+        else                             msg = "네트워크 오류가 발생했습니다.";
+        alert("⚠️ 보고서 생성 실패: " + msg);
+        restoreReportBtn();
+        return;
+    }
+
+    if (typeof docx === "undefined") {
+        alert("⚠️ docx 라이브러리 로드 실패. 페이지를 새로고침 후 다시 시도하세요.");
+        restoreReportBtn();
+        return;
+    }
+
+    async function svgToPngArrayBuffer(svgEl) {
+        return new Promise((resolve) => {
+            try {
+                const bb = svgEl.getBoundingClientRect();
+                const w = Math.max(bb.width || 400, 100);
+                const h = Math.max(bb.height || 200, 100);
+                const svgData = new XMLSerializer().serializeToString(svgEl);
+                const svgBlob = new Blob([svgData], { type: "image/svg+xml;charset=utf-8" });
+                const url = URL.createObjectURL(svgBlob);
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.createElement("canvas");
+                    canvas.width = w * 2;
+                    canvas.height = h * 2;
+                    const c = canvas.getContext("2d");
+                    c.fillStyle = "#ffffff";
+                    c.fillRect(0, 0, canvas.width, canvas.height);
+                    c.scale(2, 2);
+                    c.drawImage(img, 0, 0, w, h);
+                    URL.revokeObjectURL(url);
+                    canvas.toBlob(blob => {
+                        if (!blob) { resolve(null); return; }
+                        const fr = new FileReader();
+                        fr.onload = () => resolve(fr.result);
+                        fr.onerror = () => resolve(null);
+                        fr.readAsArrayBuffer(blob);
+                    }, "image/png");
+                };
+                img.onerror = () => { URL.revokeObjectURL(url); resolve(null); };
+                img.src = url;
+            } catch (err) { resolve(null); }
+        });
+    }
+
+    const { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell,
+            ImageRun, HeadingLevel, AlignmentType, WidthType } = docx;
+
+    const docChildren = [];
+
+    docChildren.push(new Paragraph({
+        text: "탐구 보고서",
+        heading: HeadingLevel.HEADING_1,
+        alignment: AlignmentType.CENTER,
+    }));
+    docChildren.push(new Paragraph({
+        children: [new TextRun({
+            text: `작성 일시: ${new Date().toLocaleString("ko-KR")}`,
+            size: 18, color: "888888",
+        })],
+        alignment: AlignmentType.CENTER,
+    }));
+    docChildren.push(new Paragraph(""));
+
+    if (datapoints.length > 0) {
+        docChildren.push(new Paragraph({
+            text: "측정 결과",
+            heading: HeadingLevel.HEADING_2,
+        }));
+        const headers = ["#", "P (kPa)", "V (mL)", "P·V", "v̄ (px/s)", "충돌/s"];
+        const headerRow = new TableRow({
+            children: headers.map(h => new TableCell({
+                children: [new Paragraph({
+                    children: [new TextRun({ text: h, bold: true })],
+                    alignment: AlignmentType.CENTER,
+                })],
+            })),
+        });
+        const dataRows = datapoints.map((d, i) => new TableRow({
+            children: [
+                String(i + 1),
+                d.P.toFixed(1),
+                d.V.toFixed(1),
+                d.PV.toFixed(1),
+                d.avgSpeed != null ? String(d.avgSpeed) : "—",
+                d.collisions != null ? String(d.collisions) : "—",
+            ].map(v => new TableCell({
+                children: [new Paragraph({
+                    children: [new TextRun({ text: v })],
+                    alignment: AlignmentType.CENTER,
+                })],
+            })),
+        }));
+        docChildren.push(new Table({
+            rows: [headerRow, ...dataRows],
+            width: { size: 100, type: WidthType.PERCENTAGE },
+        }));
+        docChildren.push(new Paragraph(""));
+    }
+
+    const svgEls = document.querySelectorAll(".chart-wrap svg");
+    if (svgEls.length > 0) {
+        docChildren.push(new Paragraph({
+            text: "측정 그래프",
+            heading: HeadingLevel.HEADING_2,
+        }));
+        for (const svg of svgEls) {
+            const ab = await svgToPngArrayBuffer(svg);
+            if (!ab) continue;
+            docChildren.push(new Paragraph({
+                children: [new ImageRun({
+                    data: ab,
+                    transformation: { width: 320, height: 160 },
+                })],
+                alignment: AlignmentType.CENTER,
+            }));
+            docChildren.push(new Paragraph(""));
         }
-        textarea.value = msg;
-        textarea.disabled = false;
+    }
+
+    for (const line of reportText.split("\n")) {
+        if (line.startsWith("## ")) {
+            docChildren.push(new Paragraph({
+                text: line.replace(/^##\s*/, ""),
+                heading: HeadingLevel.HEADING_2,
+            }));
+        } else if (line.trim()) {
+            docChildren.push(new Paragraph({
+                children: [new TextRun({ text: line })],
+            }));
+        } else {
+            docChildren.push(new Paragraph(""));
+        }
+    }
+
+    try {
+        // NB: local var is `doc`, not `document`, to avoid shadowing the
+        // global `document` used on the next line for createElement.
+        const doc = new Document({ sections: [{ children: docChildren }] });
+        const blob = await Packer.toBlob(doc);
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = `탐구보고서_${new Date().toISOString().slice(0, 10)}.docx`;
+        a.click();
+        URL.revokeObjectURL(a.href);
+    } catch (err) {
+        alert("⚠️ docx 생성 중 오류: " + err.message);
+    }
+    restoreReportBtn();
+}
+
+function restoreReportBtn() {
+    const btn = document.getElementById("btn-generate-report");
+    if (btn) {
+        btn.textContent = "📄 탐구 보고서 초안 생성";
+        updateReportButtonState();
     }
 }
 
@@ -981,32 +953,10 @@ document.addEventListener("DOMContentLoaded", () => {
         closeBtn.addEventListener("click", () => closeQuestion(activeQuestion));
     }
 
-    // Report modal wiring
-    const reportModal = document.getElementById("report-modal");
-    document.getElementById("btn-report-close")?.addEventListener("click", () => {
-        if (reportModal) reportModal.hidden = true;
-    });
-    reportModal?.addEventListener("click", (e) => {
-        if (e.target === reportModal) reportModal.hidden = true;
-    });
-    document.getElementById("btn-report-copy")?.addEventListener("click", () => {
-        const ta = document.getElementById("report-textarea");
-        if (!ta || !ta.value) return;
-        navigator.clipboard.writeText(ta.value).then(() => {
-            const btn = document.getElementById("btn-report-copy");
-            if (!btn) return;
-            const orig = btn.textContent;
-            btn.textContent = "✓ 복사됨";
-            setTimeout(() => { btn.textContent = orig; }, 1500);
-        });
-    });
-    document.getElementById("btn-report-download")?.addEventListener("click", () => {
-        downloadReportAsDocx();
-    });
-    // #btn-generate-report and #btn-download-conversations are created later
-    // by createAnalysisPanel (ui.js), after main.js's async DOMContentLoaded
-    // handler completes its fetch. Event delegation works regardless of when
-    // the buttons enter the DOM.
+    // Event delegation — the target buttons (generate-report, download-conversations)
+    // are inserted into the DOM after this handler runs by createAnalysisPanel
+    // in ui.js (which is called from main.js's async DOMContentLoaded handler,
+    // after a fetch). Delegation works regardless of when the buttons appear.
     document.addEventListener("click", (e) => {
         if (e.target?.closest?.("#btn-generate-report")) generateReport();
         else if (e.target?.closest?.("#btn-download-conversations")) downloadConversations();
