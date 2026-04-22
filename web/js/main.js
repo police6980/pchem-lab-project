@@ -462,13 +462,22 @@ function initAdvancedMode(params) {
         validateTempInput();
     });
 
-    // --- Sim sketch (reuses renderer.js draw helpers + Flash class) ---
+    // Main sim + single-particle tracker share the same ParticleSystem — the
+    // tracker just renders differently (one highlighted particle + its trail).
+    // Canvases are half-width (500×200) so both fit side-by-side inside the
+    // advanced main container (which shares space with the AI sidebar).
+    const ADV_SIM_CANVAS_W = 500;
+    const ADV_SIM_CANVAS_H = 200;
+    const ADV_SIM_SCALE = ADV_SIM_CANVAS_W / SIM_CANVAS_WIDTH;  // 500/900 ≈ 0.556
+    const ADV_TRAIL_LEN = 45;
+
     let hitsAccumulator = 0;
     let advFlashes = [];
+
     const simSketch = (p) => {
         p.setup = () => {
-            const canvas = p.createCanvas(SIM_CANVAS_WIDTH, SIM_CANVAS_HEIGHT);
-            canvas.parent("adv-section-canvas");
+            const canvas = p.createCanvas(ADV_SIM_CANVAS_W, ADV_SIM_CANVAS_H);
+            canvas.parent("adv-sim-canvas-container");
             p.colorMode(p.HSB, 360, 100, 100, 255);
         };
         p.draw = () => {
@@ -479,9 +488,7 @@ function initAdvancedMode(params) {
             system.clampParticlesIntoBox();
             hitsAccumulator += system.getTotalPistonCollisionCount();
 
-            // Spawn a flash on each piston collision (right wall only), same
-            // source as basic-mode. Flash colour uses advanced's vMaxColor so
-            // the palette matches the HSB particle colouring.
+            // Flash on every piston hit (right wall), same as basic mode.
             for (const c of system.getLastPistonCollisions()) {
                 const ratio = Math.min(c.speed / ADV_VMAX_COLOR, 1.0);
                 const hue = 240 - 240 * ratio;
@@ -491,10 +498,69 @@ function initAdvancedMode(params) {
             advFlashes = advFlashes.filter(f => !f.isDead());
 
             p.background(0, 0, 98);
+            p.push();
+            p.scale(ADV_SIM_SCALE);
             drawCylinderShell(p);
             drawPiston(p, box.x + box.width);
             drawParticlesHSB(p, system.getParticles(), ADV_VMAX_COLOR);
             for (const f of advFlashes) f.draw(p);
+            p.pop();
+        };
+    };
+
+    // Tracker sketch — isolates one particle's trajectory. Reads from the
+    // shared `system` (no second physics instance). particles[0] is the
+    // tracked one; rebuild of `system` (on particle-count change) swaps the
+    // instance, so we reset the trail whenever the reference identity shifts.
+    const trackerSketch = (p) => {
+        let trail = [];
+        let lastTrackedRef = null;
+
+        p.setup = () => {
+            const canvas = p.createCanvas(ADV_SIM_CANVAS_W, ADV_SIM_CANVAS_H);
+            canvas.parent("adv-tracker-canvas-container");
+            p.colorMode(p.HSB, 360, 100, 100, 255);
+        };
+        p.draw = () => {
+            const particles = system.getParticles();
+            p.background(0, 0, 98);
+            if (particles.length === 0) return;
+
+            const tracked = particles[0];
+            if (tracked !== lastTrackedRef) {
+                trail = [];
+                lastTrackedRef = tracked;
+            }
+            trail.push({ x: tracked.x, y: tracked.y });
+            if (trail.length > ADV_TRAIL_LEN) trail.shift();
+
+            p.push();
+            p.scale(ADV_SIM_SCALE);
+
+            // Cylinder + piston (same helpers, no flashes on this view).
+            drawCylinderShell(p);
+            drawPiston(p, box.x + box.width);
+
+            // Faded background particles (skip index 0 — drawn highlighted below).
+            drawParticlesHSB(p, particles.slice(1), ADV_VMAX_COLOR, 40);
+
+            // Trail polyline — oldest segment transparent, newest fully visible.
+            if (trail.length >= 2) {
+                p.noFill();
+                p.strokeWeight(2);
+                for (let i = 1; i < trail.length; i++) {
+                    const t = i / (trail.length - 1);  // 0 at oldest → 1 at newest
+                    p.stroke(0, 80, 95, 40 + 180 * t);  // red, fades in
+                    p.line(trail[i - 1].x, trail[i - 1].y, trail[i].x, trail[i].y);
+                }
+            }
+
+            // Tracked particle — red, 2× radius.
+            p.noStroke();
+            p.fill(0, 85, 95);
+            p.circle(tracked.x, tracked.y, tracked.radius * 4);
+
+            p.pop();
         };
     };
 
@@ -598,12 +664,13 @@ function initAdvancedMode(params) {
     }, 1000);
 
     const simP5 = new p5(simSketch);
+    const trackerP5 = new p5(trackerSketch);
     const histP5 = new p5(histSketch);
 
     return {
         refreshTutor: () => advTutor.refresh(),
-        pause: () => { simP5.noLoop(); histP5.noLoop(); },
-        resume: () => { simP5.loop(); histP5.loop(); },
+        pause: () => { simP5.noLoop(); trackerP5.noLoop(); histP5.noLoop(); },
+        resume: () => { simP5.loop(); trackerP5.loop(); histP5.loop(); },
     };
 }
 

@@ -80,7 +80,7 @@ function drawPiston(p, pistonX) {
     p.rect(pistonX + 82, midY - 16, 6, 32);
 }
 
-function drawParticlesHSB(p, particles, vMaxColor) {
+function drawParticlesHSB(p, particles, vMaxColor, alpha = 255) {
     p.noStroke();
     for (const particle of particles) {
         const speed = Math.sqrt(particle.vx * particle.vx + particle.vy * particle.vy);
@@ -88,7 +88,7 @@ function drawParticlesHSB(p, particles, vMaxColor) {
         const hue = 240 - 240 * ratio;
         const sat = 40 + 60 * ratio;
         const bri = 70 + 30 * ratio;
-        p.fill(hue, sat, bri);
+        p.fill(hue, sat, bri, alpha);
         p.circle(particle.x, particle.y, particle.radius * 2);
     }
 }
