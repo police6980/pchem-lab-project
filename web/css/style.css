@@ -2334,8 +2334,11 @@ body.adv-sidebar-collapsed #adv-ai-reopen-btn {
 
 /* ============================================================
    Responsive Step 2a — Advanced tab tracker column stacks below
-   the main canvas on narrow viewports. Same breakpoint as the
-   overlay sidebar (1599px) so both changes kick in together.
+   the main canvas on narrow viewports. Breakpoint (1919px) is
+   higher than the sidebar overlay breakpoint (1599px) to cover
+   the 1600–1911 dead zone where the overlay hasn't triggered
+   yet but the tracker row (1000 + 24 + 400 px) overflows the
+   container card.
    ============================================================ */
 @media (max-width: 1919px) {
     #adv-section-canvas {
