@@ -237,6 +237,45 @@ V_mL = box.width / baseline_gas_width_px × baseline_volume_mL
 - `baseline_gas_width_px = 600`, `baseline_volume_mL = 50` (params.json, 기준 T=298.15K 기준값)
 - 온도 변경 시 box.width 자체가 변하므로 V_mL도 자동 스케일 반영
 
+### 6.4 단위 병기 표시 정책 (Phase 4.6, `feature/responsive-canvas`)
+
+교육적 이해도를 높이기 위해 UI 표시 레이어에서 대체 단위를 **병기**. **내부 상태·물리 계산은 기존 단위(kPa, 입자수, mL, K) 그대로 유지**.
+
+**압력**:
+```
+atm = kPa / 101.325
+표시: "101.3 kPa (1.00 atm)"
+```
+- 심화 탭 실시간 압력 패널(`main.js:407`)과 info 패널(`ui.js:205, 1725`)에 적용
+- `computeAdvPressure()`의 반환값은 여전히 kPa, `setTargetFromPressure`도 kPa 입력
+
+**물질량** (심화 탭 전용):
+```
+n₀ = P₀V₀ / (R·T₀)
+   = (101.325 kPa × 0.050 L) / (8.31446 kPa·L·mol⁻¹·K⁻¹ × 298.15 K)
+   ≈ 2.044 mmol           (300 입자 기준)
+mmol = N × 0.006815     (입자당 mmol 계수)
+표시: "300개 (2.04 mmol)"
+```
+- 심화 탭 입자수 슬라이더 값(`main.js:420`)에만 적용
+- 기본 탭은 입자수 UI 노출 없음 → 영향 없음
+- 기체 종류 무관 (이상기체 전제, `ADV_GAS_MASSES`는 속도 스케일 `√(m_ref/m)`에만 영향)
+
+**자가 일관성 검증**:
+- 학생이 병기값(atm·mmol·mL·K)으로 `PV = nRT` 수작업 검증 시 R = 0.0815 ~ 0.0822 L·atm·mol⁻¹·K⁻¹
+- 이론값 0.08206 대비 **최대 오차 0.63%** (극단 영역 0.06 atm·0.34 mmol·173.15 K), 일반 영역 <0.2%
+- toFixed(2) 반올림 누적 오차가 교육 실험 허용치(통상 2~3%) 대비 충분히 작음
+
+**의도적으로 kPa 유지되는 경로** (후속 동기화 가능):
+- AI 프롬프트 컨텍스트 (`ai-tutor.js:583, 607, 750`)
+- CSV 헤더 (`main.js:123-125`, 측정·연속 로그)
+- 그래프 축 라벨 (`ui.js:435, 439, 554, 558`)
+- 측정표 컬럼 (`ui.js:275-276, 2033-2035`)
+- HTML 정적 라벨 (`index.html:179, 191`)
+- 센서 원시 입력 (`smoothedP`, `sensorManager` 전 경로)
+
+**원칙**: raw 단위는 물리 코드의 단일 진실 공급원(single source of truth). 표시만 다국어 라벨처럼 병기.
+
 ---
 
 ## 7. 샤를 법칙 (현 구조: 보일 프레임 내 온도 설정)

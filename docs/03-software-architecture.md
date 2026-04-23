@@ -202,6 +202,13 @@ logger.js → ai-tutor.js → ui.js → main.js
   - 요약 + verdict + PV 막대 p5 + [분석 보고서 저장] 버튼 (`section-analysis`)
   - **성찰 textarea는 Part 3.5에서 제거** — 성찰은 사이드바 탭으로 이관
 
+**단위 표시 유틸** (모듈 최상위, Phase 4.6 `feature/responsive-canvas`):
+- `formatValueWithUnit(value, digits, unit)` — 단일 단위 HTML 포맷 (기존)
+- `kPaToAtm(kPa)` — `kPa / 101.325`
+- `particlesToMmol(n)` — `n × 0.006815` (기준 `n₀ = P₀V₀/RT₀ ≈ 2.044 mmol`, 300입자 기준)
+- `formatValueDual(value, digits, unit, altValue, altDigits, altUnit)` — 병기 HTML (정보 패널용, `<span class="info-unit">` 래핑 포함)
+- `main.js`에서 `textContent` 기반 병기는 인라인 템플릿 리터럴로 직접 작성 (심화 실시간 압력·입자수 표시, §4.4 참조)
+
 **BYOK 설정 함수** (`createAnalysisPanel` 클로저 내부):
 - `loadAISettings()` — sessionStorage 3개 키 복원
 - `verifyKey()` — Anthropic `/v1/messages` 호출로 키 검증, `pchem_api_key` 저장
@@ -467,12 +474,40 @@ logger.js → ai-tutor.js → ui.js → main.js
 - 입력창 활성 조건: API 키 존재 + 현재 탭 활성
 - 설정 패널 초기 상태: API 키 없으면 자동 펼침 (`.open`), 있으면 접힘
 
-### 4.4 레이아웃 shift 방지
+### 4.4 레이아웃 shift 방지 + 반응형 동작 (Phase 4.6)
 
+**레이아웃 shift 방지 (기존)**
 - **슬라이더 고정 폭 420 px** + 안정화 힌트 `visibility` 토글 + 힌트 공간 예약 120 px
 - 모든 수치 표시에 `min-width` + `text-align: right`
-- 사이드바 `flex-shrink: 0` — 창 너비 변해도 380 px 고정
 - 상세는 `04-simulation-physics.md` §9 참조
+
+**반응형 브레이크포인트 (Phase 4.6, `feature/responsive-canvas`)**
+
+`feature/responsive-canvas`에서 4단계 @media 블록을 CSS에 추가. **물리 코드·HTML 구조·p5 `createCanvas` 값 전부 불변**. 각 브레이크포인트는 독립 블록으로 배치되어 단계별 롤백 가능.
+
+| 브레이크포인트 | 블록 이름 | 변경 내용 |
+|---|---|---|
+| `≥1920px` | — | 기존 push 모드 레이아웃 그대로 |
+| `≤1919px` | Step 2a | 심화 탭 `#adv-section-canvas`를 column 방향, 트래커 칼럼 가운데 정렬 |
+| `≤1599px` | Step 1 | `#ai-sidebar`/`#adv-ai-sidebar`를 `position:fixed` drawer로 전환 (top:74, right:0, max-height calc, overflow:hidden, translateX 슬라이드) |
+| `≤1279px` | Step 2b | 모든 p5 `<canvas>`에 `max-width:100%; height:auto` (내부 비트맵 불변, CSS 축소만) |
+| `≤1023px` | Step 2c | `#section-visuals`, `#adv-section-visuals`, `#section-measurements`, `#adv-section-measurements` flex-direction:column |
+
+**사이드바 높이 정책 (Push / Overlay 공통 "떠있는 카드")**
+- Push 모드(≥1600px): `height: min(720px, calc(100vh - 32px))` — 이전 꽉 채움(~1048px)에서 **720px로 축소**하여 입력창을 자연스러운 시선 영역으로 끌어올림
+- Overlay 모드(<1600px): `top: 74px` (본문 첫 카드와 y좌표 정렬) + `max-height: calc(100vh - 106px)` + `translateX(0/100%)` 슬라이드
+- 양 모드 모두 `overflow: hidden` (라운드 모서리 보호). 내부 `.conversation-scroll`이 `overflow-y: auto`로 메시지 스크롤 담당
+
+**첫 로드 자동 overlay 닫힘** (`main.js` 상단):
+```js
+const _narrowViewport = window.innerWidth < 1600;
+document.body.classList.toggle("sidebar-collapsed", _narrowViewport);
+document.body.classList.toggle("adv-sidebar-collapsed", _narrowViewport);
+```
+- `defer` 스크립트라 첫 페인트 전에 실행 → FOUC 없음
+- 리사이즈 이벤트 리스너는 미구현 (현 단계에서 의도적 보류)
+
+**남은 작업**: 동적 리사이즈 시 (1920 ↔ 1440 실시간 전환) 사이드바 클래스 재평가 없음. 한 번의 클릭으로 복구 가능하므로 실사용에 영향 경미.
 
 ---
 

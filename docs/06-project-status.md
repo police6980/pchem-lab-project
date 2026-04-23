@@ -2,10 +2,10 @@
 
 **문서 목적**: 현재 구현 상태와 남은 작업의 마스터 트래커. 다른 설계 문서는 "어떻게 만들어졌는가"를 설명하고, 이 문서는 "어디까지 왔는가"를 기록한다.
 
-**마지막 업데이트**: 2026-04-22
-**현재 상태**: 보일 법칙 시뮬레이터 완성 + **심화 탐구 모드 추가** (`feature/particle-controls`) + **Phase 3 진행 중** — 소프트웨어(Web Serial 어댑터·프로토콜 v1.1·UI 패널) 완료, 하드웨어·펌웨어 대기.
-**최신 태그**: `v0.4-boyle-complete` (main), `feature/particle-controls` 브랜치 작업 완료 (태그 미할당)
-**다음 단계**: Arduino 하드웨어 입수 후 펌웨어 작성 + 실연결 테스트; `feature/particle-controls` 는 추가 검증 후 main 병합 예정
+**마지막 업데이트**: 2026-04-23
+**현재 상태**: 보일 법칙 시뮬레이터 완성 + **심화 탐구 모드 추가** (`feature/particle-controls`) + **반응형 레이아웃 + 단위 병기 완료** (`feature/responsive-canvas`) + **Phase 3 진행 중** — 소프트웨어(Web Serial 어댑터·프로토콜 v1.1·UI 패널) 완료, 하드웨어·펌웨어 대기.
+**최신 태그**: `v0.4-boyle-complete` (main), `feature/particle-controls` · `feature/responsive-canvas` 브랜치 작업 완료 (태그 미할당)
+**다음 단계**: Arduino 하드웨어 입수 후 펌웨어 작성 + 실연결 테스트; `feature/particle-controls` 와 `feature/responsive-canvas` 는 추가 검증 후 main 병합 예정
 
 ---
 
@@ -226,7 +226,54 @@ Arduino·ESP32 하드웨어 입수 전 선행 가능한 브라우저·프로토�
 - [ ] main 병합 전 실전 검증 (수업 시뮬레이션)
 - [ ] 측정 기록 관련 리그레션 테스트 (500 kPa 범위에서 `runPVAccuracyTest` 갱신)
 - [ ] AI 튜터 심화 모드 전용 프롬프트 튜닝 (기체 종류 비교 유도 등)
-- [ ] 반응형 레이아웃 — **별도 브랜치 진행 중**. 현 브랜치는 데스크탑 ≥ 1872 px 기준 (심화 탭)
+- [x] 반응형 레이아웃 — **`feature/responsive-canvas` 브랜치에서 완료** (§2-F 참조)
+
+---
+
+## 2-F. 반응형 레이아웃 + 단위 병기 표시 (`feature/responsive-canvas`)
+
+`feature/particle-controls` 위에 파생한 `feature/responsive-canvas` 브랜치에서 진행. **물리 코드·p5 `createCanvas` 값·HTML 구조는 한 줄도 수정 안 함** — 순수 CSS 리플로우 + 표시 레이어 유틸 추가.
+
+### 반응형 브레이크포인트 (CSS @media 블록 4개)
+
+| 브레이크포인트 | 발동 동작 |
+|---|---|
+| ≤1919px | 심화 탭 트래커 칼럼이 메인 캔버스 아래로 세로 스택 (Step 2a) |
+| ≤1599px | AI 사이드바가 push → overlay drawer 전환 (position:fixed, 우측 슬라이드) (Step 1) |
+| ≤1279px | 모든 p5 캔버스에 `max-width:100%; height:auto` (Step 2b) — 내부 해상도 불변, CSS만 축소 |
+| ≤1023px | `#section-visuals`, `#section-measurements` flex-direction column (Step 2c) |
+
+- 1920px 이상에선 **기존 push 모드 레이아웃 그대로 유지**
+- Step 1~2c는 각각 독립 @media 블록으로 배치 → 단계별 롤백 가능
+- 최초 로드 시 `window.innerWidth < 1600`이면 `sidebar-collapsed`/`adv-sidebar-collapsed` 클래스 자동 부착 (FOUC 방지)
+
+### AI 사이드바 — "떠있는 카드" 동작 통일
+- **Push 모드 (≥1600px)**: `height: min(720px, calc(100vh - 32px))`로 상한. 이전 `calc(100vh - 32px)`(~1048px) → **720px로 축소**하여 입력창을 자연스러운 시선 영역으로 끌어올림
+- **Overlay 모드 (<1600px)**: `top: 74px` (본문 첫 카드와 정렬) + `max-height: calc(100vh - 106px)` + `transform: translateX(0↔100%)` 슬라이드 애니메이션
+- 두 모드 모두 `overflow: hidden` 적용 (라운드 모서리 보호). 내부 `.conversation-scroll`이 `overflow-y: auto`로 메시지 스크롤 담당
+- `top: 74px` 근거: body padding(16) + mode-tabs 버튼 높이(~42) + margin-bottom(16)
+
+### 단위 병기 표시 (표시 레이어만)
+- **압력**: `"101.3 kPa (1.00 atm)"` — 변환 `atm = kPa / 101.325`
+- **입자수**: `"300개 (2.04 mmol)"` — 기준 `n₀ = P₀V₀/RT₀ ≈ 2.044 mmol` (300입자 기준), 계수 `0.006815 mmol/particle`
+- 내부 계산값(kPa, 입자수)은 **변경 없음**. `computeAdvPressure`, `setTargetFromPressure` 등 물리 로직 그대로
+- PV=nRT 자가 일관성 검증 통과: R = 0.0815~0.0822 L·atm/(mol·K) (이론 0.08206, 최대 오차 0.63% — 극저압·저입자 극단값)
+
+### 커밋 시퀀스 (`feature/responsive-canvas`, 6 커밋)
+1. `d7797a2` feat(responsive): AI sidebar overlay mode on narrow viewports (<1600px)
+2. `8e6dabe` feat(responsive): canvas CSS scaling + section stacking for narrow viewports
+3. `83916f7` fix(responsive): raise tracker-stack breakpoint to 1919px
+4. `9bf22c8` fix(responsive): overlay sidebar as floating card instead of full-height
+5. `82caaf6` fix(responsive): cap push-mode sidebar height at 720px for better input access
+6. `23a2e02` fix(responsive): align overlay sidebar top with main content first card
+7. `418670c` feat(units): display atm and mmol alongside kPa and particle count
+
+### 의도적으로 남은 부분 (후속 작업 가능)
+- AI 프롬프트 (`ai-tutor.js:583, 607, 750`) 내부 `"kPa"·"mL"` 리터럴 유지 — 단위 병기 후속 동기화 여지
+- CSV 헤더(`main.js:123-125`, 연속 로그·측정 CSV) — kPa·mL 유지
+- 그래프 축 라벨(`ui.js:435, 439, 554, 558`), 측정표 헤더(`ui.js:275-276, 2033-2035`) — kPa 유지
+- HTML 정적 라벨(`index.html:179, 191` 슬라이더 힌트) — 기존 mL 유지
+- 이 모든 영역은 **내부 raw 값 기반이라 단위 변경이 물리 계산에 무영향**
 
 ---
 
