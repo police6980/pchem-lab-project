@@ -2,10 +2,10 @@
 
 **문서 목적**: 현재 구현 상태와 남은 작업의 마스터 트래커. 다른 설계 문서는 "어떻게 만들어졌는가"를 설명하고, 이 문서는 "어디까지 왔는가"를 기록한다.
 
-**마지막 업데이트**: 2026-04-23 (재생 컨트롤 + 충돌/초 시뮬 시간 보정 + 브랜치 품질 점검)
-**현재 상태**: 보일 법칙 시뮬레이터 완성 + **심화 탐구 모드 추가** (`feature/particle-controls`) + **반응형 레이아웃 + 단위 병기 완료** (`feature/responsive-canvas`) + **Phase 3 진행 중** — 소프트웨어(Web Serial 어댑터·프로토콜 v1.1·UI 패널) 완료, 하드웨어·펌웨어 대기.
-**최신 태그**: `v0.4-boyle-complete` (main), `feature/particle-controls` · `feature/responsive-canvas` 브랜치 작업 완료 (태그 미할당)
-**다음 단계**: Arduino 하드웨어 입수 후 펌웨어 작성 + 실연결 테스트; `feature/particle-controls` 와 `feature/responsive-canvas` 는 추가 검증 후 main 병합 예정
+**마지막 업데이트**: 2026-04-23 (Phase 3 에뮬레이터 Step 3-1~3-3 + 펌웨어 스켈레톤·시뮬 완료)
+**현재 상태**: 보일 법칙 시뮬레이터 완성 + **심화 탐구 모드 추가** (`feature/particle-controls`) + **반응형 레이아웃 + 단위 병기 완료** (`feature/responsive-canvas`) + **Phase 3 진행 중** (`phase3-real-sensor`) — 브라우저 측 소프트웨어(Web Serial 어댑터·프로토콜 v1.1·UI 패널) 완료, **WebSocket 펌웨어 에뮬레이터 Step 3-1~3-3 완료**, **ESP32 펌웨어 스켈레톤·시뮬 버전(Wokwi 검증) 완료**. 브라우저 `WebSocketSensorSource` 통합(Step 3-4~3-5)과 실물 ESP32 + BMP280 조립·검증(Step 3-6) 대기.
+**최신 태그**: `v0.4-boyle-complete` (main), `feature/particle-controls` · `feature/responsive-canvas` · `phase3-real-sensor` 브랜치 작업 진행 (태그 미할당)
+**다음 단계**: 브라우저 `WebSocketSensorSource` + v1.1 공통 파서(Step 3-4) → UI 센서 소스 토글 Mock/WebSocket/Serial(Step 3-5) → 실물 하드웨어 조립·플래시·실험 검증(Step 3-6); `feature/particle-controls` 와 `feature/responsive-canvas` 는 추가 검증 후 main 병합 예정
 
 ---
 
@@ -309,11 +309,18 @@ Arduino·ESP32 하드웨어 입수 전 선행 가능한 브라우저·프로토�
 
 ## 3. 진행 중인 작업
 
-**Phase 3: Arduino 실센서 통합** — 소프트웨어 레이어 완료, **하드웨어·펌웨어 대기**.
+**Phase 3: Arduino 실센서 통합** — 브라우저 측 소프트웨어 + WebSocket 에뮬레이터 + 펌웨어 스켈레톤 완료. **브라우저 통합과 실물 검증 대기**. (`phase3-real-sensor` 브랜치)
 
-다음 필수 작업:
-- [ ] Arduino / ESP32 하드웨어 입수 (DFRobot SEN0257)
-- [ ] 펌웨어 작성 (프로토콜 v1.1 준수, USB-CDC 115200 baud, `"t":"s"` hello + 주기 `"t":"d"` 송신)
+**완료 (Step 3-1~3-3, 2026-04-23)**
+- [x] ESP32 펌웨어 스켈레톤(`firmware/boyle/boyle.ino` 1.1.0-skeleton) — hello 프레임 주기 전송, Wokwi 검증 완료
+- [x] ESP32 펌웨어 시뮬 버전(1.1.0-sim) — 포텐셔미터 ADC(0..4095) → Pa(50000..200000) 선형 매핑, 5Hz `{"t":"d"}` 전송
+- [x] Node.js + WebSocket 펌웨어 에뮬레이터(`tools/firmware-emulator/`) — 연결 시 hello, 5Hz 데이터 프레임, CLI 키 조작(↑↓ ±1000 Pa, ←→ ±100 Pa, r=리셋, q=종료), 50000~200000 Pa 클램핑
+
+**남은 작업**
+- [ ] Step 3-4: 브라우저 `WebSocketSensorSource` + v1.1 공통 파서 (`WebSerialSensorSource`와 파싱 로직 공유)
+- [ ] Step 3-5: UI 센서 소스 토글 Mock/WebSocket/Serial
+- [ ] Step 3-6: 실물 ESP32 + BMP280 조립·플래시·실험 검증
+- [ ] Arduino / ESP32 하드웨어 입수 (DFRobot SEN0257 또는 BMP280)
 - [ ] 실센서 캘리브레이션 — 영점 보정 플로우 검증, 필요 시 2점 보정 추가
 - [ ] 노이즈 튜닝 (펌웨어 측 이동평균 / 브라우저 측 스무딩 α 조정)
 - [ ] 파일럿: 실제 주사기 + 센서로 보일 법칙 데이터 수집, `PV = const` ±2 % 검증
@@ -324,8 +331,11 @@ Arduino·ESP32 하드웨어 입수 전 선행 가능한 브라우저·프로토�
 
 ### Phase 3: Arduino 실센서 연동 (진행 중)
 - [x] Web Serial 어댑터 + 프로토콜 v1.1 + UI 패널
-- [ ] 하드웨어·펌웨어·캘리브레이션·노이즈 튜닝 (위 §3 참조)
-- 예상 소요: 핵심 구현 0.5~1일 + 현장 적응 2~5일 (소프트웨어 완료분 제외)
+- [x] ESP32 펌웨어 스켈레톤 + 시뮬(포텐셔미터) 버전, Wokwi 검증 완료
+- [x] Node.js + WebSocket 펌웨어 에뮬레이터 (Step 3-1~3-3, CLI 조작 포함)
+- [ ] 브라우저 WebSocketSensorSource + 공통 파서 (Step 3-4~3-5)
+- [ ] 실물 하드웨어·BMP280 구동 펌웨어·캘리브레이션·노이즈 튜닝 (위 §3 참조)
+- 예상 소요: Step 3-4~3-5 0.5일 + 실물 적응 2~5일
 
 ### Phase 4: 비교 UX
 - Mock ↔ 실센서 병행 표시 (전환 토글)

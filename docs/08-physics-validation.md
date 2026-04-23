@@ -297,4 +297,4 @@ runPVAccuracyTest()
 - `04-simulation-physics.md` — 시뮬레이션 물리 모델·충돌·시각화 (설계)
 - `06-project-status.md` — 프로젝트 진행 상태 (요약 및 마스터 링크)
 - `07-ai-tutor.md` — Phase 3+에서 AI 튜터가 편차·오차 해석 지원 예정
-- `09-roadmap.md` (예정) — Phase별 상세 로드맵
+- `09-roadmap.md` — Phase별 상세 로드맵

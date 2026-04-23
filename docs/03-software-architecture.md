@@ -9,7 +9,7 @@
 ### 1.1 현재 MVP 범위
 
 - **단일 페이지 보일 법칙 전용** 웹 앱 (HTML + Vanilla JS + CSS + p5.js CDN)
-- **Mock 센서 기반 완전 시뮬레이션** (실 ESP32 통신은 Phase 3 예정)
+- **Mock 센서 기반 완전 시뮬레이션** (실 ESP32 통신은 Phase 3 진행 중 — `phase3-real-sensor` 브랜치에서 WebSocket 펌웨어 에뮬레이터 Step 3-1~3-3 및 ESP32 펌웨어 스켈레톤·시뮬 완료; 브라우저 통합 Step 3-4~3-5와 실물 검증 Step 3-6 남음)
 - **브라우저**: Chrome / Edge (Web Serial API 필요 시; 현 MVP엔 불필요)
 - **AI 튜터**: Phase 2-B 완료. 실제 Anthropic Messages API 호출 + 멀티턴 대화 + 비용 표시 + docx 보고서 생성 작동 (v0.3-ai-tutor-live)
 
@@ -39,7 +39,7 @@
 
 자세한 로드맵은 `docs/06-project-status.md` §4 참조. 요약:
 - **Phase 2-B** (완료): ai-tutor.js 실 Anthropic Messages API 호출. 멀티턴·비용·에러 처리·docx 보고서 생성 작동
-- **Phase 3**: ESP32 실센서 + Web Serial (MockSensorSource 교체)
+- **Phase 3** (진행 중, `phase3-real-sensor` 브랜치): ESP32 실센서 + Web Serial (MockSensorSource 교체). 개발용 WebSocket 펌웨어 에뮬레이터(`tools/firmware-emulator/`)로 실물 도착 전 브라우저 수신 경로 사전 구현
 - **Phase 5**: 샤를 법칙 확장. 현재 플랫 폴더 → `experiments/` 분리 검토
 - **Phase 4/6**: 비교 UX, 교사 도구
 

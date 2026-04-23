@@ -2,8 +2,8 @@
 
 **문서 목적**: Phase 2-B 이후 모든 개발 단계 통합 계획. 우선순위·의존관계·예상 소요·결정 이슈 기록. **06**이 "현재 상태"라면 **09**는 "미래 방향".
 
-**마지막 업데이트**: 2026-04-23 (재생 컨트롤 + 충돌/초 시뮬 시간 보정 + 브랜치 품질 점검)
-**기준 상태**: Phase 1 MVP 완료, Phase 2-A/2-B 완료 (v0.4-boyle-complete), **Phase 3 진행 중** (소프트웨어 완료, 하드웨어·펌웨어 대기), **Phase 4.5 심화 탐구 모드 완료** (`feature/particle-controls` 브랜치, 병합 대기), **반응형 레이아웃 + 단위 병기 완료** (`feature/responsive-canvas` 브랜치, 병합 대기)
+**마지막 업데이트**: 2026-04-23 (Phase 3 에뮬레이터 Step 3-1~3-3 + 펌웨어 스켈레톤·시뮬 완료)
+**기준 상태**: Phase 1 MVP 완료, Phase 2-A/2-B 완료 (v0.4-boyle-complete), **Phase 3 진행 중** (브라우저 측 완료 + **WebSocket 에뮬레이터 Step 3-1~3-3 완료** + **ESP32 펌웨어 스켈레톤·시뮬 완료**, Step 3-4~3-6 남음 — `phase3-real-sensor` 브랜치), **Phase 4.5 심화 탐구 모드 완료** (`feature/particle-controls` 브랜치, 병합 대기), **반응형 레이아웃 + 단위 병기 완료** (`feature/responsive-canvas` 브랜치, 병합 대기)
 
 ---
 
@@ -80,8 +80,15 @@
   - v1.0 레거시와 공존, `HELLO_TIMEOUT_MS` 폴백
 - [x] `createSensorManager` 팩토리 — 모드 전환 간 구독 유지
 
-**미완료 (하드웨어 입수 후)**
-- [ ] 펌웨어 작성 (ESP32/Arduino, SEN0257 구동, 프로토콜 v1.1 준수)
+**완료 (2026-04-23, `phase3-real-sensor` 브랜치)**
+- [x] ESP32 펌웨어 스켈레톤(`firmware/boyle/boyle.ino` 1.1.0-skeleton), Wokwi 검증
+- [x] ESP32 펌웨어 시뮬 버전(1.1.0-sim) — 포텐셔미터 → Pa 선형 매핑 5Hz 전송
+- [x] Node.js + WebSocket 펌웨어 에뮬레이터(`tools/firmware-emulator/`) Step 3-1~3-3 — hello·데이터 프레임·CLI 키 조작·클램핑
+
+**진행 중 · 남은 작업**
+- [ ] Step 3-4: 브라우저 `WebSocketSensorSource` + v1.1 공통 파서
+- [ ] Step 3-5: UI 센서 소스 토글 Mock/WebSocket/Serial
+- [ ] Step 3-6 (하드웨어 입수 후): BMP280 구동 펌웨어(`bmp.readPressure()`로 `readPressurePa()` 교체), 실물 플래시·실험 검증
 - [ ] 실센서 캘리브레이션 — 영점 플로우 실전 검증, 필요 시 2점 보정 추가
 - [ ] 노이즈 튜닝 — 펌웨어 이동평균 / 브라우저 스무딩 α 실측 기반 조정
 
