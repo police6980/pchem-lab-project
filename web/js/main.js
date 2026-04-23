@@ -404,7 +404,9 @@ function initAdvancedMode(params) {
             * (N / ADV_INITIAL_PARTICLES);
     }
     function updatePressureReadout() {
-        pressValue.textContent = `${computeAdvPressure().toFixed(1)} kPa`;
+        const pKpa = computeAdvPressure();
+        const pAtm = kPaToAtm(pKpa);
+        pressValue.textContent = `${pKpa.toFixed(1)} kPa (${pAtm.toFixed(2)} atm)`;
     }
 
     function applyVolume(V_mL) {
@@ -417,7 +419,8 @@ function initAdvancedMode(params) {
 
     partSlider.addEventListener("input", () => {
         const n = parseInt(partSlider.value, 10);
-        partValue.textContent = `${n}개`;
+        const mmol = particlesToMmol(n);
+        partValue.textContent = `${n}개 (${mmol.toFixed(2)} mmol)`;
         histNEl.textContent = n;
         // Rebuild instead of calling a setParticleCount method — keeps
         // simulation.js untouched and gets a correct, fresh MB draw.

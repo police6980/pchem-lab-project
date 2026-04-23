@@ -193,6 +193,21 @@ function formatValueWithUnit(value, digits, unit) {
     return `${formatted} <span class="info-unit">${unit}</span>`;
 }
 
+const kPaToAtm = (kPa) => kPa / 101.325;
+const particlesToMmol = (n) => n * 0.006815;
+
+function formatValueDual(value, digits, unit, altValue, altDigits, altUnit) {
+    const formatted = value.toLocaleString("en-US", {
+        minimumFractionDigits: digits,
+        maximumFractionDigits: digits,
+    });
+    const altFormatted = altValue.toLocaleString("en-US", {
+        minimumFractionDigits: altDigits,
+        maximumFractionDigits: altDigits,
+    });
+    return `${formatted} <span class="info-unit">${unit}</span> <span class="info-unit">(${altFormatted} ${altUnit})</span>`;
+}
+
 function updateInfoPanel(data) {
     if (data.temp_K !== undefined) {
         const celsius = (data.temp_K - 273.15).toFixed(0);
@@ -202,7 +217,7 @@ function updateInfoPanel(data) {
     }
     if (data.pressure_kPa !== undefined) {
         document.getElementById("info-pressure").innerHTML =
-            formatValueWithUnit(data.pressure_kPa, 1, "kPa");
+            formatValueDual(data.pressure_kPa, 1, "kPa", kPaToAtm(data.pressure_kPa), 2, "atm");
     }
     if (data.avgSpeed !== undefined) {
         if (data.avgSpeedTheory !== undefined) {
@@ -1722,7 +1737,7 @@ function updateAdvInfoPanel(data) {
     }
     if (data.pressure_kPa !== undefined) {
         document.getElementById("adv-info-pressure").innerHTML =
-            formatValueWithUnit(data.pressure_kPa, 1, "kPa");
+            formatValueDual(data.pressure_kPa, 1, "kPa", kPaToAtm(data.pressure_kPa), 2, "atm");
     }
     if (data.avgSpeed !== undefined) {
         if (data.avgSpeedTheory !== undefined) {
