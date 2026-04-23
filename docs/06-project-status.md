@@ -2,7 +2,7 @@
 
 **문서 목적**: 현재 구현 상태와 남은 작업의 마스터 트래커. 다른 설계 문서는 "어떻게 만들어졌는가"를 설명하고, 이 문서는 "어디까지 왔는가"를 기록한다.
 
-**마지막 업데이트**: 2026-04-23 (재생 컨트롤 + 충돌/초 시뮬 시간 보정 추가)
+**마지막 업데이트**: 2026-04-23 (재생 컨트롤 + 충돌/초 시뮬 시간 보정 + 브랜치 품질 점검)
 **현재 상태**: 보일 법칙 시뮬레이터 완성 + **심화 탐구 모드 추가** (`feature/particle-controls`) + **반응형 레이아웃 + 단위 병기 완료** (`feature/responsive-canvas`) + **Phase 3 진행 중** — 소프트웨어(Web Serial 어댑터·프로토콜 v1.1·UI 패널) 완료, 하드웨어·펌웨어 대기.
 **최신 태그**: `v0.4-boyle-complete` (main), `feature/particle-controls` · `feature/responsive-canvas` 브랜치 작업 완료 (태그 미할당)
 **다음 단계**: Arduino 하드웨어 입수 후 펌웨어 작성 + 실연결 테스트; `feature/particle-controls` 와 `feature/responsive-canvas` 는 추가 검증 후 main 병합 예정
@@ -259,7 +259,7 @@ Arduino·ESP32 하드웨어 입수 전 선행 가능한 브라우저·프로토�
 - 내부 계산값(kPa, 입자수)은 **변경 없음**. `computeAdvPressure`, `setTargetFromPressure` 등 물리 로직 그대로
 - PV=nRT 자가 일관성 검증 통과: R = 0.0815~0.0822 L·atm/(mol·K) (이론 0.08206, 최대 오차 0.63% — 극저압·저입자 극단값)
 
-### 커밋 시퀀스 (`feature/responsive-canvas`, 10 커밋)
+### 커밋 시퀀스 (`feature/responsive-canvas`, 12 커밋)
 1. `d7797a2` feat(responsive): AI sidebar overlay mode on narrow viewports (<1600px)
 2. `8e6dabe` feat(responsive): canvas CSS scaling + section stacking for narrow viewports
 3. `83916f7` fix(responsive): raise tracker-stack breakpoint to 1919px
@@ -270,6 +270,8 @@ Arduino·ESP32 하드웨어 입수 전 선행 가능한 브라우저·프로토�
 8. `8eb6b63` docs: reflect responsive layout + unit dual-display work
 9. `69b18da` feat(playback): slowmo (0.25x/0.5x/1x) and pause controls
 10. `0c295a7` fix(playback): normalize collisions/sec to simulation time regardless of speed
+11. `35850e2` docs: playback controls + collisions/sec simulation-time correction
+12. `90b09eb` docs(responsive): fix outdated Step 2a comment (breakpoint is 1919px not 1599px)
 
 ### 재생 컨트롤 (슬로모션 + 일시정지)
 - **UI**: `#section-controls` / `#adv-section-controls`에 **3번째 행** `.control-row-playback` 추가 — segmented 배율 버튼 그룹 (0.25x/0.5x/1x) + 별도 일시정지 버튼
