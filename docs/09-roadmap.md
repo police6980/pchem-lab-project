@@ -2,7 +2,7 @@
 
 **문서 목적**: Phase 2-B 이후 모든 개발 단계 통합 계획. 우선순위·의존관계·예상 소요·결정 이슈 기록. **06**이 "현재 상태"라면 **09**는 "미래 방향".
 
-**마지막 업데이트**: 2026-04-23
+**마지막 업데이트**: 2026-04-23 (재생 컨트롤 + 충돌/초 시뮬 시간 보정 추가)
 **기준 상태**: Phase 1 MVP 완료, Phase 2-A/2-B 완료 (v0.4-boyle-complete), **Phase 3 진행 중** (소프트웨어 완료, 하드웨어·펌웨어 대기), **Phase 4.5 심화 탐구 모드 완료** (`feature/particle-controls` 브랜치, 병합 대기), **반응형 레이아웃 + 단위 병기 완료** (`feature/responsive-canvas` 브랜치, 병합 대기)
 
 ---
@@ -181,6 +181,8 @@
 - [x] Push 모드 사이드바 높이 상한 `min(720px, calc(100vh-32px))` (시선 이동 거리 단축)
 - [x] Overlay 사이드바 `top:74px`로 본문 첫 카드와 정렬
 - [x] 단위 병기 표시: `kPa (atm)`, `개 (mmol)` — 내부값 불변, PV=nRT 자가 일관성 <0.63% 오차
+- [x] **재생 컨트롤** (슬로모션 + 일시정지, `69b18da`) — 0.25x/0.5x/1x segmented + ⏸ 버튼, 기본/심화 탭 공유 전역 상태(`speedMultiplier`, `isPaused`), dt 스케일링은 update 루프 진입점에서만 적용, 일시정지 시 기록 버튼 자동 비활성
+- [x] **충돌/초 시뮬 시간 보정** (`0c295a7`) — `hitsPerSec / speedMultiplier`로 배율 무관 물리 상수 표시, 라벨 `"(시뮬 시간)"` 명시, 측정 CSV도 자동 sim-time 기준 저장
 
 ### 4.6-3. 물리 불변 보증
 - `simulation.js`, `renderer.js`, `params.json`, `main.js`의 `createCanvas` 값 **무수정**
@@ -191,6 +193,8 @@
 - [ ] main 병합 — `feature/particle-controls` 와 함께 병합 순서 결정
 - [ ] 후속 동기화 작업(선택): AI 프롬프트·CSV 헤더·그래프 축·측정표 헤더의 kPa 리터럴 → atm 병기
 - [ ] 실 디바이스 테스트 (iPad, 안드로이드 태블릿 — 현재 데스크탑 Chrome 기준 검증)
+- [ ] **2x 배율** (후속): `simulation.js:185 DT_CAP=0.05` 이중 가드로 `dt × 2`가 무효화됨 → sub-step(한 프레임 updateFn 2회 호출) 방식 필요
+- [ ] **스텝 모드 + 키보드 단축키** (후속): Space=일시정지, N=스텝 1프레임, ,/.=배율 조절
 
 ---
 

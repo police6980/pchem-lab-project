@@ -194,6 +194,38 @@ current += (target - current) × (dt / tau)
 | EWMA α_P | 0.1 @ 20Hz | smoothedP 센서 스무딩 (≈475 ms) |
 | `HIST_TIME_ALPHA` | 0.03 @ 60Hz | 히스토그램 시간 평활 (≈550 ms) |
 
+### 5.4 재생 속도 제어 (Phase 4.6, `feature/responsive-canvas`)
+
+물리 코드(Particle, Box, ParticleSystem)를 건드리지 않고 시각적 재생 속도만 조절:
+
+**원칙**: dt는 update 루프 **진입점에서만** 스케일링. 내부 물리는 원래 dt 의미 그대로 받음.
+```
+기본 탭 (main.js:79-101):
+  raw dt = min(deltaTime/1000, 0.05)         // renderer.js에서 계산
+  if (isPaused) return;                       // early-return
+  scaledDt = dt * speedMultiplier             // 0.25 / 0.5 / 1
+  system.update(scaledDt)
+  box.update(scaledDt, volume_tau_seconds)
+  currentSpeedRatio += ... * (scaledDt / TRANSITION_TAU)
+
+심화 탭 (main.js:494-517): 동일 + Flash.update(scaledDt)
+```
+
+**불변성**:
+- 내부 `vx, vy` 값 그대로 — 속도 게이지·히스토그램 x축은 배율 무관
+- 평균 속도 `v̄`, 평균 KE, 온도 K, 압력 kPa 전부 불변 (물리량은 시간 흐름과 독립)
+- 피스톤 충돌 주파수 `f₁` (시뮬 시간 기준)도 불변
+
+**배율이 영향 주는 것**:
+- wall-clock 대비 입자 이동 속도 (시각적으로 느려/빨라 보임)
+- wall-clock 기준 측정: 그대로 두면 `hitsPerSec_wall = k × f₁`로 편향됨
+  - 보정: main.js:167, 706에서 `/ speedMultiplier` 적용 → sim-time 기준 `f₁` 복원
+  - 라벨 `"충돌/s (시뮬 시간)"`로 명시
+
+**2x 배율 미지원 이유**: `simulation.js:185`의 `if (dt > DT_CAP) dt = DT_CAP;` (DT_CAP=0.05)가 `dt × 2 = 0.1`을 다시 0.05로 잘라버림. sub-step(한 프레임 updateFn 2회 호출) 방식 필요 — 후속 작업.
+
+**CFL 안전성**: 현재 3σ 이동거리 최대 ≈ 51px/frame (심화 He 500°C 기준 1x), 박스 최소 폭 180px 대비 여유. 0.5x/0.25x는 이동거리 감소 방향이라 항상 안전.
+
 ---
 
 ## 6. 보일 법칙 (현 구현)

@@ -2,7 +2,7 @@
 
 **문서 목적**: 현재 구현 상태와 남은 작업의 마스터 트래커. 다른 설계 문서는 "어떻게 만들어졌는가"를 설명하고, 이 문서는 "어디까지 왔는가"를 기록한다.
 
-**마지막 업데이트**: 2026-04-23
+**마지막 업데이트**: 2026-04-23 (재생 컨트롤 + 충돌/초 시뮬 시간 보정 추가)
 **현재 상태**: 보일 법칙 시뮬레이터 완성 + **심화 탐구 모드 추가** (`feature/particle-controls`) + **반응형 레이아웃 + 단위 병기 완료** (`feature/responsive-canvas`) + **Phase 3 진행 중** — 소프트웨어(Web Serial 어댑터·프로토콜 v1.1·UI 패널) 완료, 하드웨어·펌웨어 대기.
 **최신 태그**: `v0.4-boyle-complete` (main), `feature/particle-controls` · `feature/responsive-canvas` 브랜치 작업 완료 (태그 미할당)
 **다음 단계**: Arduino 하드웨어 입수 후 펌웨어 작성 + 실연결 테스트; `feature/particle-controls` 와 `feature/responsive-canvas` 는 추가 검증 후 main 병합 예정
@@ -259,7 +259,7 @@ Arduino·ESP32 하드웨어 입수 전 선행 가능한 브라우저·프로토�
 - 내부 계산값(kPa, 입자수)은 **변경 없음**. `computeAdvPressure`, `setTargetFromPressure` 등 물리 로직 그대로
 - PV=nRT 자가 일관성 검증 통과: R = 0.0815~0.0822 L·atm/(mol·K) (이론 0.08206, 최대 오차 0.63% — 극저압·저입자 극단값)
 
-### 커밋 시퀀스 (`feature/responsive-canvas`, 6 커밋)
+### 커밋 시퀀스 (`feature/responsive-canvas`, 10 커밋)
 1. `d7797a2` feat(responsive): AI sidebar overlay mode on narrow viewports (<1600px)
 2. `8e6dabe` feat(responsive): canvas CSS scaling + section stacking for narrow viewports
 3. `83916f7` fix(responsive): raise tracker-stack breakpoint to 1919px
@@ -267,6 +267,34 @@ Arduino·ESP32 하드웨어 입수 전 선행 가능한 브라우저·프로토�
 5. `82caaf6` fix(responsive): cap push-mode sidebar height at 720px for better input access
 6. `23a2e02` fix(responsive): align overlay sidebar top with main content first card
 7. `418670c` feat(units): display atm and mmol alongside kPa and particle count
+8. `8eb6b63` docs: reflect responsive layout + unit dual-display work
+9. `69b18da` feat(playback): slowmo (0.25x/0.5x/1x) and pause controls
+10. `0c295a7` fix(playback): normalize collisions/sec to simulation time regardless of speed
+
+### 재생 컨트롤 (슬로모션 + 일시정지)
+- **UI**: `#section-controls` / `#adv-section-controls`에 **3번째 행** `.control-row-playback` 추가 — segmented 배율 버튼 그룹 (0.25x/0.5x/1x) + 별도 일시정지 버튼
+- **전역 상태**: `main.js` 모듈 최상위 `let speedMultiplier = 1; let isPaused = false;` — 기본/심화 탭 공유
+- **dt 스케일링**: 업데이트 루프 진입점 2곳에서만 적용
+  - `main.js:79-101` (기본 탭): `const scaledDt = dt * speedMultiplier` → `system.update(scaledDt)`, `box.update(scaledDt, ...)`, 온도 전이도 `scaledDt / TRANSITION_TAU`
+  - `main.js:494-517` (심화 탭): 동일 패턴 + `Flash.update(scaledDt)`
+- **일시정지**: update 콜백에서 `if (isPaused) return;` early return → 물리 상태 완전 동결 (플래시도 age 진행 안 함)
+- **양 탭 동기화**: `document.querySelectorAll('.playback-btn')`로 기본/심화 DOM 모두 탐색 → 한 번 클릭에 양쪽 CSS `.active` 동기화
+- **기록 버튼 일시정지 중 비활성**: `ui.js:380` `btn.disabled = !isStabilized || isPaused` — 안정화 setInterval이 매 50ms마다 재평가
+
+### 충돌/초 시뮬 시간 보정
+- wall-clock 기준 충돌/초는 배율에 비례해 변동 (`hitsPerSec_wall = k × hitsPerSec_sim`) → **물리 법칙 "PV=일정" 검증을 흐리게 함**
+- 보정식 적용: `hitsPerSec_sim = hitsPerSec_wall / speedMultiplier` → 배율 무관 상수 유지
+- 수정 지점 2곳: `main.js:167` (기본 탭 250ms tick) + `main.js:706` (심화 탭 250ms tick)
+- 라벨 변경: `"충돌/s (전체)"` → `"충돌/s (시뮬 시간)"` (`ui.js:177, 1720`)
+- mid-sample 배율 전환 시 1-tick 최대 +40% 과대 표시 → EMA α=0.15 (τ≈1.5s) 흡수
+- 속도 게이지·평균 KE는 vx²/vx 기반이라 이미 sim-time 기준 → **보정 후 모든 "시간당" 지표 통일**
+- CSV 필드명 `piston_collisions_per_s` 그대로 유지 (값만 sim-time 기준 저장)
+
+### 의도적으로 배율 미적용 (범위 외)
+- 측정표 컬럼 헤더 `충돌/s (전체)`: 교실 세션 이력과의 호환성
+- SVG 축 라벨 `충돌/s` (`ui.js:1311`): 그래프 축 표시는 시각적 맥락으로 충분
+- AI 프롬프트 CSV 헤더(`ai-tutor.js:750`)
+- 2x 배율: `simulation.js:185` `DT_CAP=0.05` 이중 가드가 `dt × 2`를 다시 0.05로 자름 → sub-step 방식 필요, 후속 작업
 
 ### 의도적으로 남은 부분 (후속 작업 가능)
 - AI 프롬프트 (`ai-tutor.js:583, 607, 750`) 내부 `"kPa"·"mL"` 리터럴 유지 — 단위 병기 후속 동기화 여지

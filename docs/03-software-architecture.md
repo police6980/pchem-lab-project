@@ -227,6 +227,7 @@ logger.js → ai-tutor.js → ui.js → main.js
 #### `main.js` — 부팅 + 오케스트레이션
 
 - **모듈 상수**: `REFERENCE_TEMP_K/V_ML/P_KPA/RMS/KE`, `TRANSITION_TAU` (0.3), `CONTINUOUS_MAX_ROWS` (10000), `CONTINUOUS_SAMPLE_INTERVAL_MS` (250), `USE_MOCK_SENSOR` 플래그
+- **재생 컨트롤 전역 상태** (Phase 4.6, `feature/responsive-canvas`): `speedMultiplier` (0.25/0.5/1), `isPaused` (bool). 기본/심화 탭 공유. dt 스케일링은 각 탭의 update 루프 진입점에서만 적용 (`scaledDt = dt * speedMultiplier`). 일시정지는 update 콜백 early return. 물리 코드(`simulation.js`, `renderer.js`) 불변.
 - **부팅 흐름** (async DOMContentLoaded 내부): `params.json` fetch → Box/ParticleSystem 생성 → MockSensor + slider → `createRenderer` → `createInfoPanel` → `createMeasurementPanel` → 250 ms 연속 로그 `setInterval` → `createAnalysisPanel` → `createTemperatureControl` → 1 s/5 s `setInterval`
 - **상태 변수** (DOMContentLoaded 클로저): `smoothedP`, `sessionStartMs`, `currentTempCelsius`, `V0_REFERENCE_AREA`, `V0_current`, `continuousBuffer`, 전이 애니메이션 4변수, `pistonHitsAccumulator`, `continuousHitsAccumulator`, `analysisApi`
 
