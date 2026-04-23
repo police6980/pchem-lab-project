@@ -377,7 +377,7 @@ function createMeasurementPanel({
     function updateRecordButtonState() {
         const btn = document.getElementById("btn-record");
         const countdownEl = document.getElementById("stabilization-countdown");
-        btn.disabled = !isStabilized;
+        btn.disabled = !isStabilized || isPaused;
         if (countdownEl) {
             if (isStabilized) {
                 countdownEl.textContent = "";

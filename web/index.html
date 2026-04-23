@@ -39,6 +39,15 @@
             </div>
             <div class="control-row control-row-temperature"></div>
             <div class="control-row control-row-actuators"></div>
+            <div class="control-row-playback">
+                <span class="playback-label">재생 속도:</span>
+                <div class="playback-btn-group">
+                    <button class="playback-btn" data-speed="0.25">0.25x</button>
+                    <button class="playback-btn" data-speed="0.5">0.5x</button>
+                    <button class="playback-btn active" data-speed="1">1x</button>
+                </div>
+                <button class="pause-btn" id="btn-pause">⏸</button>
+            </div>
         </section>
         <section id="section-canvas"></section>
         <section id="section-visuals">
@@ -202,6 +211,15 @@
                         </select>
                     </div>
                     <button id="adv-btn-record">기록</button>
+                </div>
+                <div class="adv-control-row-playback">
+                    <span class="playback-label">재생 속도:</span>
+                    <div class="playback-btn-group">
+                        <button class="playback-btn" data-speed="0.25">0.25x</button>
+                        <button class="playback-btn" data-speed="0.5">0.5x</button>
+                        <button class="playback-btn active" data-speed="1">1x</button>
+                    </div>
+                    <button class="pause-btn" id="adv-btn-pause">⏸</button>
                 </div>
             </section>
             <section id="adv-section-canvas">

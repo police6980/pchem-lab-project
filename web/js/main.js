@@ -7,6 +7,13 @@ const _narrowViewport = window.innerWidth < 1600;
 document.body.classList.toggle("sidebar-collapsed", _narrowViewport);
 document.body.classList.toggle("adv-sidebar-collapsed", _narrowViewport);
 
+// Playback controls — shared global state across basic/advanced tabs.
+// dt scaling is applied at update-loop entry only; physics code (simulation.js,
+// renderer.js) is untouched. 2x is deferred because simulation.js:185 clamps
+// dt at DT_CAP=0.05, which would silently cancel a 2x multiplier.
+let speedMultiplier = 1;   // 0.25 / 0.5 / 1
+let isPaused = false;
+
 const REFERENCE_TEMP_K = 298.15;
 const REFERENCE_V_ML = 50;
 const REFERENCE_P_KPA = 101.3;
@@ -77,15 +84,17 @@ document.addEventListener("DOMContentLoaded", async () => {
     // response time aligned with the 2s stabilization window.
     let smoothedHitsPerSec = 0;
     const renderer = createRenderer(box, system, params, (dt) => {
-        system.update(dt);
-        box.update(dt, params.volume_tau_seconds);
+        if (isPaused) return;
+        const scaledDt = dt * speedMultiplier;
+        system.update(scaledDt);
+        box.update(scaledDt, params.volume_tau_seconds);
         system.clampParticlesIntoBox();
         const tickHits = system.getTotalPistonCollisionCount();
         pistonHitsAccumulator += tickHits;
         continuousHitsAccumulator += tickHits;
 
         if (transitionStartTime !== null) {
-            currentSpeedRatio += (targetSpeedRatio - currentSpeedRatio) * (dt / TRANSITION_TAU);
+            currentSpeedRatio += (targetSpeedRatio - currentSpeedRatio) * (scaledDt / TRANSITION_TAU);
 
             const elapsed = (performance.now() - transitionStartTime) / 1000;
             const relError = Math.abs(targetSpeedRatio - currentSpeedRatio) / targetSpeedRatio;
@@ -264,6 +273,34 @@ document.addEventListener("DOMContentLoaded", async () => {
             `Overlap pairs (avg): ${overlapAvg.toFixed(1)} /frame`
         );
     }, 5000);
+
+    // Playback controls — wire speed buttons + pause across both tabs.
+    // querySelectorAll spans both basic and advanced DOM so state stays
+    // synchronized via CSS `.active` class on every click.
+    document.querySelectorAll(".playback-btn").forEach(btn => {
+        btn.addEventListener("click", () => {
+            const newSpeed = parseFloat(btn.dataset.speed);
+            speedMultiplier = newSpeed;
+            document.querySelectorAll(".playback-btn").forEach(b => {
+                b.classList.toggle("active", parseFloat(b.dataset.speed) === newSpeed);
+            });
+        });
+    });
+    document.querySelectorAll(".pause-btn").forEach(btn => {
+        btn.addEventListener("click", () => {
+            isPaused = !isPaused;
+            document.querySelectorAll(".pause-btn").forEach(b => {
+                b.classList.toggle("active", isPaused);
+                b.textContent = isPaused ? "▶" : "⏸";
+            });
+            // Advanced record button has no stabilization-driven setter,
+            // so pause state is the only gate here. Basic record button is
+            // managed by ui.js's updateRecordButtonState (runs every 50ms)
+            // which reads isPaused via the shared script scope.
+            const advRecordBtn = document.getElementById("adv-btn-record");
+            if (advRecordBtn) advRecordBtn.disabled = isPaused;
+        });
+    });
 });
 
 // ============================================================
@@ -493,9 +530,11 @@ function initAdvancedMode(params) {
         };
         p.draw = () => {
             const dt = Math.min((p.deltaTime || 0) / 1000, 0.05);
+            if (isPaused) return;
+            const scaledDt = dt * speedMultiplier;
 
-            box.update(dt, params.volume_tau_seconds);
-            system.update(dt);
+            box.update(scaledDt, params.volume_tau_seconds);
+            system.update(scaledDt);
             system.clampParticlesIntoBox();
             hitsAccumulator += system.getTotalPistonCollisionCount();
 
@@ -505,7 +544,7 @@ function initAdvancedMode(params) {
                 const hue = 240 - 240 * ratio;
                 advFlashes.push(new Flash(c.x, c.y, c.momentumTransfer, hue, params.flash_duration_sec));
             }
-            for (const f of advFlashes) f.update(dt);
+            for (const f of advFlashes) f.update(scaledDt);
             advFlashes = advFlashes.filter(f => !f.isDead());
 
             p.background(0, 0, 98);
