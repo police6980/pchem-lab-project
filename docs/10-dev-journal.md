@@ -560,6 +560,52 @@ ADC 0~4095를 Pa 50000~200000으로 선형 매핑.
   파일 삭제 (커밋 미포함)
 - `node_modules/`는 기존 `.gitignore`로 자동 제외
 
+### 2026-04-23 — WebSocket 펌웨어 에뮬레이터 완성 (Step 3-1~3-3)
+
+#### 한 일
+- `tools/firmware-emulator/` 신규 (Node.js + `ws` v8, ESM)
+- Step 3-1: WebSocket 서버(`ws://localhost:8787`), 연결 시 v1.1 hello 1회 전송
+- Step 3-2: `sendData()` 추가, 5Hz(200ms) 주기로 `{"t":"d","p":101325,"T":25.0,"ts":ms}` 전송. 연결 종료 시 `clearInterval` 정리
+- Step 3-3: `readline.emitKeypressEvents` 기반 CLI 키 조작. ↑↓ ±1000 Pa, ←→ ±100 Pa, `r` 리셋, `q` 종료. 50000~200000 Pa 클램핑. `broadcastData()`로 연결된 모든 클라이언트에 동시 반영
+
+#### 결정: com0com 대신 WebSocket 에뮬레이터
+
+**배경**: 실물 ESP32 도착 전 `WebSerialSensorSource` 개발에 필요한 실시간 데이터 소스 확보. 가상 시리얼 포트(com0com) 방식 검토.
+
+**결정**: Node.js + WebSocket 방식 채택.
+
+**근거**:
+- com0com은 Windows 커널 드라이버 → Secure Boot/TESTSIGNING 조정 필요, Windows 11 설치 실패 보고 다수
+- WebSocket은 `npm install ws` 한 번으로 완료
+- `SensorSource` 추상 클래스 구조 덕분에 `WebSocketSensorSource`를 형제 클래스로 추가하면 됨. v1.1 파서를 공통 모듈로 분리하면 실물 전환 시 `WebSerialSensorSource`에서 재사용 가능
+
+**배제된 대안**:
+- com0com 가상 시리얼: 설치 장벽 과대, Windows 11 호환성 불안정
+- 파일 replay: 실시간 조작 불가, UI 인터랙션 테스트 한계
+
+#### 결정: Walking Skeleton 패턴으로 3단계 분리
+
+**배경**: 에뮬레이터를 한 번에 완성하면 문제 발생 시 원인 격리 어려움.
+
+**결정**: 연결 확인(3-1) → 데이터 전송(3-2) → 조작 인터페이스(3-3) 순으로 단계 쌓기.
+
+**근거**: 각 단계가 성공해야 다음 단계 진행. 문제 생기면 "이전까진 됐다"는 보장이 있어 원인 범위 좁힘. 이 패턴은 펌웨어(boyle.ino)와 에뮬레이터 양쪽 모두에 동일하게 적용.
+
+#### 결정: 조작 인터페이스는 CLI 키 입력 (readline)
+
+**배경**: 에뮬레이터 조작 방식으로 CLI, HTTP 엔드포인트 등 검토.
+
+**결정**: Node.js 내장 `readline.emitKeypressEvents` 방식.
+
+**근거**:
+- 추가 의존성 없음 (express 등 불필요)
+- 코드 단순 → 나중에 다른 방식으로 교체 쉬움
+- 개발 중 수동 테스트 목적에 충분
+- `state.pressurePa` 객체 하나만 수정하는 구조라 향후 HTTP나 WebSocket 수신 방식 추가 시 인터페이스만 교체하면 됨
+
+**배제된 대안**:
+- HTTP 엔드포인트: 개발 단계에서 과설계. Step 3-4~3-5 브라우저 연동 시 WebSocket 프로토콜로 충분히 대체 가능
+
 ### Phase 3 진행 상태 (2026-04-23 기준)
 
 - [x] 프로토콜 v1.1 명세 확정
