@@ -164,7 +164,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
 
     setInterval(() => {
-        const hitsPerSec = continuousHitsAccumulator / (CONTINUOUS_SAMPLE_INTERVAL_MS / 1000);
+        // Normalize to simulation time: wall-clock rate is proportional to
+        // speedMultiplier, so divide it out to show a physics-invariant value.
+        const rawHitsPerSec = continuousHitsAccumulator / (CONTINUOUS_SAMPLE_INTERVAL_MS / 1000);
+        const hitsPerSec = speedMultiplier > 0 ? rawHitsPerSec / speedMultiplier : rawHitsPerSec;
         continuousHitsAccumulator = 0;
         smoothedHitsPerSec += (hitsPerSec - smoothedHitsPerSec) * 0.15;
         lastDisplayHitsPerSec = smoothedHitsPerSec;
@@ -703,7 +706,9 @@ function initAdvancedMode(params) {
     // --- Info panel refresh (basic mode's cadence: hits every 250ms, stats 1s) ---
     let smoothedHitsPerSec = 0;
     setInterval(() => {
-        const hitsPerSec = hitsAccumulator / 0.25;
+        // Normalize to simulation time (see basic-mode tick for rationale).
+        const rawHitsPerSec = hitsAccumulator / 0.25;
+        const hitsPerSec = speedMultiplier > 0 ? rawHitsPerSec / speedMultiplier : rawHitsPerSec;
         hitsAccumulator = 0;
         smoothedHitsPerSec += (hitsPerSec - smoothedHitsPerSec) * 0.15;
         updateAdvInfoPanel({

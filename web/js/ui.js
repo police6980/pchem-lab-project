@@ -174,7 +174,7 @@ function createInfoPanel() {
     simulated.innerHTML = `
         <div class="info-section-title">시뮬레이션</div>
         <div class="info-row"><span class="info-label">평균 속도</span><span class="info-value" id="info-speed">—</span></div>
-        <div class="info-row"><span class="info-label">충돌/s (전체)</span><span class="info-value" id="info-hits">측정 중...</span></div>
+        <div class="info-row"><span class="info-label">충돌/s (시뮬 시간)</span><span class="info-value" id="info-hits">측정 중...</span></div>
         <div class="info-row"><span class="info-label">평균 운동에너지</span><span class="info-value" id="info-kinetic">—</span></div>
     `;
 
@@ -1717,7 +1717,7 @@ function createAdvInfoPanel() {
     simulated.innerHTML = `
         <div class="info-section-title">시뮬레이션</div>
         <div class="info-row"><span class="info-label">평균 속도</span><span class="info-value" id="adv-info-speed">—</span></div>
-        <div class="info-row"><span class="info-label">충돌/s (전체)</span><span class="info-value" id="adv-info-hits">측정 중...</span></div>
+        <div class="info-row"><span class="info-label">충돌/s (시뮬 시간)</span><span class="info-value" id="adv-info-hits">측정 중...</span></div>
         <div class="info-row"><span class="info-label">평균 운동에너지</span><span class="info-value" id="adv-info-kinetic">—</span></div>
     `;
 
