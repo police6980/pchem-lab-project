@@ -6,8 +6,7 @@
  * 현재 단계: 스켈레톤 (hello 전송만 검증)
  *   - 센서 드라이버, 데이터 프레임, 수신 처리는 후속 커밋
  *
- * Wokwi 검증: https://wokwi.com/projects/462084497227360737
- *   (※ 실제 URL로 교체하세요)
+ * Wokwi 검증: https://wokwi.com/projects/462084497227380737
  */
 
 #include <Arduino.h>
