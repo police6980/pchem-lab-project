@@ -113,6 +113,9 @@
                 </div>
             </header>
             <div id="adv-ai-settings-panel" class="settings-panel">
+                <div class="api-key-hint">
+                    🔑 API 키는 <a href="index.html">🏠 홈</a> 에서 설정합니다.
+                </div>
                 <div class="options-row">
                     <label>학생 수준
                         <select id="adv-ai-student-level">
@@ -129,8 +132,10 @@
                         </select>
                     </label>
                 </div>
-                <div class="api-key-hint">
-                    🔑 API 키는 <a href="index.html">🏠 홈</a> 에서 설정합니다.
+                <div class="usage-display">
+                    이번 세션 사용량:
+                    <span id="adv-tokens-used">0</span> 토큰
+                    (약 <span id="adv-cost-estimate">0</span>원)
                 </div>
             </div>
             <div class="sidebar-body">
@@ -147,7 +152,12 @@
                 </div>
                 <div class="conversation-scroll" id="adv-conversation-scroll">
                     <div class="empty-state" id="adv-conversation-empty">
-                        아직 대화가 없습니다.<br>아래에 메시지를 입력해주세요.
+                        실험이 궁금한 게 생겼나요?<br>
+                        아래 입력창에 자유롭게 질문해보세요.<br><br>
+                        <small>
+                            예: "왜 온도가 높으면 입자가 빨라지나요?"<br>
+                            &nbsp;&nbsp;&nbsp;&nbsp;"평균 속도와 최빈 속도는 왜 다를까요?"
+                        </small>
                     </div>
                     <div class="messages-list" id="adv-messages-list"></div>
                 </div>
