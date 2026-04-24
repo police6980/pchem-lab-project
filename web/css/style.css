@@ -2726,3 +2726,27 @@ body.adv-sidebar-collapsed #adv-ai-reopen-btn {
     color: white;
     text-decoration: none;
 }
+
+/* =========================
+ * API 키 안내 — 실험 페이지(boyle/particles) 설정 패널에
+ * API 키 입력 UI 가 없을 때 "홈에서 설정" 을 가리키는 hint 박스
+ * ========================= */
+.api-key-hint {
+    padding: 12px;
+    background: #f0f4f8;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    color: #555;
+    text-align: center;
+    margin: 8px 0;
+}
+
+.api-key-hint a {
+    color: #2e7cf6;
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.api-key-hint a:hover {
+    text-decoration: underline;
+}

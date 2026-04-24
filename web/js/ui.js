@@ -1523,6 +1523,7 @@ function createAnalysisPanel({
 
     function showKeyStatus(cls, text) {
         const el = document.getElementById("key-status");
+        if (!el) return;  // API 키 입력 UI 가 없는 페이지(boyle·particles 분리 이후) 에선 no-op
         el.className = "key-status " + cls;
         el.textContent = text;
     }
@@ -1557,9 +1558,12 @@ function createAnalysisPanel({
         const storedKey = sessionStorage.getItem(SESSION_KEY_API);
         if (storedKey) {
             apiKey = storedKey;
+            // 입력 필드는 홈(index.html)에서만 존재. 실험 페이지엔 없어도 OK.
             const keyInput = document.getElementById("ai-api-key");
-            keyInput.value = maskKey(storedKey);
-            keyInput.dataset.masked = "true";
+            if (keyInput) {
+                keyInput.value = maskKey(storedKey);
+                keyInput.dataset.masked = "true";
+            }
             showKeyStatus("saved", "✓ 저장됨 (재검증하려면 다시 누르세요)");
         }
         const storedLevel = sessionStorage.getItem(SESSION_KEY_LEVEL);
@@ -1814,22 +1818,28 @@ ${answer}
     // 분석 보고서 저장 button was removed in favor of the report modal.
 
     // === AI tutor event wiring ===
-    document.getElementById("btn-verify-key").addEventListener("click", verifyKey);
-    document.getElementById("btn-clear-key").addEventListener("click", clearKey);
-
+    // API 키 입력 UI 는 현재 홈(index.html) 에서만 노출. boyle/particles 페이지엔
+    // ai-api-key / btn-verify-key / btn-clear-key / key-status 가 없으므로
+    // 관련 이벤트 배선 전체를 존재 여부로 가드.
     const keyInputEl = document.getElementById("ai-api-key");
-    keyInputEl.addEventListener("focus", (e) => {
-        if (e.target.dataset.masked === "true" && apiKey) {
-            e.target.value = apiKey;
-            delete e.target.dataset.masked;
-        }
-    });
-    keyInputEl.addEventListener("blur", (e) => {
-        if (apiKey && e.target.value === apiKey) {
-            e.target.value = maskKey(apiKey);
-            e.target.dataset.masked = "true";
-        }
-    });
+    const verifyBtn = document.getElementById("btn-verify-key");
+    const clearBtn  = document.getElementById("btn-clear-key");
+    if (keyInputEl && verifyBtn && clearBtn) {
+        verifyBtn.addEventListener("click", verifyKey);
+        clearBtn.addEventListener("click", clearKey);
+        keyInputEl.addEventListener("focus", (e) => {
+            if (e.target.dataset.masked === "true" && apiKey) {
+                e.target.value = apiKey;
+                delete e.target.dataset.masked;
+            }
+        });
+        keyInputEl.addEventListener("blur", (e) => {
+            if (apiKey && e.target.value === apiKey) {
+                e.target.value = maskKey(apiKey);
+                e.target.dataset.masked = "true";
+            }
+        });
+    }
 
     document.getElementById("ai-student-level").addEventListener("change", (e) => {
         sessionStorage.setItem(SESSION_KEY_LEVEL, e.target.value);
@@ -2015,7 +2025,7 @@ function createAdvAiTutor({ getAdvState }) {
         sendBtn.disabled = !hasApiKey || !hasText;
         inputEl.placeholder = hasApiKey
             ? "메시지 입력 (Enter 전송, Shift+Enter 줄바꿈)"
-            : "먼저 기본 실험 탭에서 API 키를 입력하세요";
+            : "🏠 홈 페이지에서 API 키를 먼저 입력하세요";
     }
 
     // Settings panel toggle.
@@ -2129,7 +2139,7 @@ ${focus}
         const apiKey = sessionStorage.getItem(SESSION_KEY_API);
         if (!apiKey) {
             const conv = conversations[activeQ];
-            conv.messages.push({ role: "assistant", content: "⚠️ API 키가 설정되지 않았습니다. 기본 실험 탭 AI 튜터 설정에서 먼저 입력해주세요.", isError: true });
+            conv.messages.push({ role: "assistant", content: "⚠️ API 키가 설정되지 않았습니다. 🏠 홈 페이지에서 먼저 입력해주세요.", isError: true });
             render();
             inputEl.value = "";
             return;

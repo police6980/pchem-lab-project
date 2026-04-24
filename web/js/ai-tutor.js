@@ -469,7 +469,7 @@ async function generateQ3Question() {
 
         let errMsg;
         if (e.type === "no_key") {
-            errMsg = "⚠️ API 키가 설정되지 않았습니다. 오른쪽 상단 설정 패널을 확인하세요.";
+            errMsg = "⚠️ API 키가 설정되지 않았습니다. 🏠 홈 페이지에서 먼저 입력해주세요.";
         } else if (e.type === "api_error") {
             if (e.status === 401)      errMsg = "⚠️ API 키가 유효하지 않습니다.";
             else if (e.status === 429) errMsg = "⚠️ 요청이 너무 많습니다. 잠시 후 다시 시도해주세요.";
@@ -947,10 +947,10 @@ async function sendMessage() {
         hideTypingIndicator();
         let msg;
         if (e.type === "no_key") {
-            msg = "⚠️ API 키가 설정되지 않았습니다. 오른쪽 상단 설정 패널을 확인하세요.";
+            msg = "⚠️ API 키가 설정되지 않았습니다. 🏠 홈 페이지에서 먼저 입력해주세요.";
         } else if (e.type === "api_error") {
             if (e.status === 401) {
-                msg = "⚠️ API 키가 유효하지 않습니다. 설정 패널에서 키를 다시 확인하세요.";
+                msg = "⚠️ API 키가 유효하지 않습니다. 🏠 홈 페이지에서 키를 다시 확인하세요.";
             } else if (e.status === 429) {
                 msg = "⚠️ 요청이 너무 많습니다. 잠시 후 다시 시도해주세요. (Rate limit)";
             } else if (e.status === 529) {

@@ -85,16 +85,8 @@
             </div>
         </header>
         <div id="ai-settings-panel" class="settings-panel">
-            <div class="key-section">
-                <label>Anthropic API 키
-                    <input type="password" id="ai-api-key"
-                           placeholder="sk-ant-api03-..." autocomplete="off">
-                </label>
-                <div class="key-actions">
-                    <button id="btn-verify-key">저장 및 검증</button>
-                    <button id="btn-clear-key">키 삭제</button>
-                </div>
-                <span id="key-status"></span>
+            <div class="api-key-hint">
+                🔑 API 키는 <a href="index.html">🏠 홈</a> 에서 설정합니다.
             </div>
             <div class="options-row">
                 <label>학생 수준
@@ -111,11 +103,6 @@
                         <option value="claude-opus-4-7">Opus</option>
                     </select>
                 </label>
-            </div>
-            <div class="warning-banner">
-                ⚠ API 키는 이 탭에만 저장되며 탭을 닫으면 사라집니다.<br>
-                공용 컴퓨터 사용 후 반드시 [키 삭제]를 눌러주세요.<br>
-                <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">API 키 발급 방법 →</a>
             </div>
             <div class="usage-display">
                 이번 세션 사용량:
