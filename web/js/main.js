@@ -782,12 +782,15 @@ function initAdvancedMode(params) {
 
 // 페이지 디스패처 — body.dataset.page 값으로 어느 초기화를 실행할지 결정.
 // boyle.html(기본 실험)은 data-page="boyle", particles.html(입자운동론)은
-// data-page="particles". 랜딩(index.html)은 이 main.js 를 로드하지 않는다.
+// data-page="particles", dalton.html(돌턴 부분압력)은 data-page="dalton".
+// 랜딩(index.html)은 이 main.js 를 로드하지 않는다.
 document.addEventListener("DOMContentLoaded", async () => {
     const params = await fetch("config/params.json").then(r => r.json());
     const page = document.body.dataset.page;
     if (page === "particles") {
         initAdvancedMode(params);
+    } else if (page === "dalton") {
+        initDaltonApp(params);
     } else {
         // 기본값: boyle (data-page 미지정 시 하위 호환)
         await initBasicApp(params);

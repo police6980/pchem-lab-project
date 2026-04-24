@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CAST — 돌턴의 부분압력</title>
+    <link rel="stylesheet" href="css/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/p5@1.11.2/lib/p5.min.js"></script>
+    <script src="https://unpkg.com/docx@8.5.0/build/index.umd.js"></script>
+    <script src="js/simulation.js" defer></script>
+    <script src="js/renderer.js" defer></script>
+    <script src="js/protocol.js" defer></script>
+    <script src="js/serial.js" defer></script>
+    <script src="js/logger.js" defer></script>
+    <script src="js/ai-tutor.js" defer></script>
+    <script src="js/ui.js" defer></script>
+    <script src="js/main.js" defer></script>
+</head>
+<body data-page="dalton">
+    <nav class="page-nav dalton-nav">
+        <a href="index.html" class="nav-home" title="홈으로 돌아가기">🏠 홈으로</a>
+        <h1 class="dalton-page-title">CAST — 돌턴의 부분압력</h1>
+        <div class="dalton-page-utilities">
+            <button id="dalton-unit-toggle" type="button" title="단위 전환 (atm ⇄ kPa)">단위: atm</button>
+            <button id="dalton-csv-download" type="button" title="측정 기록 CSV 내려받기">📥 CSV</button>
+        </div>
+    </nav>
+
+    <div id="dalton-mode" class="dalton-layout">
+        <!-- ─── 좌측: 설정 패널 ─── -->
+        <aside id="dalton-control-panel" class="dalton-panel">
+
+            <!-- 센서 모드 토글 (Phase 5.5에서 활용) -->
+            <div id="sensor-panel">
+                <div id="sensor-mode-toggle">
+                    <button id="btn-mode-mock" class="active" type="button">🖥 시뮬레이션</button>
+                    <button id="btn-mode-ws" type="button">🔌 에뮬레이터</button>
+                    <button id="btn-mode-real" type="button">⚡ 실센서</button>
+                </div>
+                <div id="sensor-real-controls" class="hidden">
+                    <button id="btn-serial-connect" type="button">🔌 포트 연결</button>
+                    <button id="btn-serial-disconnect" class="hidden" type="button">✖ 연결 해제</button>
+                    <span id="serial-status">연결 안 됨</span>
+                    <span id="serial-sensor-label"></span>
+                    <button id="btn-serial-calib" disabled type="button">🎯 영점 캘리브</button>
+                </div>
+                <div id="sensor-ws-controls" class="hidden">
+                    <span id="ws-status">연결 중...</span>
+                    <span id="ws-sensor-label"></span>
+                    <button id="btn-ws-calib" disabled type="button">🎯 영점 캘리브</button>
+                </div>
+                <div id="serial-error" class="sensor-error"></div>
+            </div>
+
+            <!-- 주사기 A -->
+            <section id="dalton-syringe-a" class="dalton-section">
+                <h2 class="dalton-section-title">주사기 A</h2>
+                <div class="dalton-field">
+                    <label for="dalton-gas-a">기체</label>
+                    <select id="dalton-gas-a">
+                        <option value="air">공기 (29)</option>
+                        <option value="co2">CO₂ (44)</option>
+                        <option value="he">He (4)</option>
+                        <option value="n2">N₂ (28)</option>
+                        <option value="o2">O₂ (32)</option>
+                    </select>
+                </div>
+                <div class="dalton-field">
+                    <label for="dalton-volume-a">
+                        부피 V<sub>A</sub>
+                        <span class="dalton-value-readout" id="dalton-volume-a-value">100 mL</span>
+                    </label>
+                    <input type="range" id="dalton-volume-a" min="20" max="150" step="1" value="100">
+                </div>
+                <div class="dalton-field dalton-field-static">
+                    <span class="dalton-field-label">초기 압력</span>
+                    <span class="dalton-field-value">1.00 atm (대기압)</span>
+                </div>
+            </section>
+
+            <!-- 주사기 B -->
+            <section id="dalton-syringe-b" class="dalton-section">
+                <h2 class="dalton-section-title">주사기 B</h2>
+                <div class="dalton-field">
+                    <label for="dalton-gas-b">기체</label>
+                    <select id="dalton-gas-b">
+                        <option value="air">공기 (29)</option>
+                        <option value="co2" selected>CO₂ (44)</option>
+                        <option value="he">He (4)</option>
+                        <option value="n2">N₂ (28)</option>
+                        <option value="o2">O₂ (32)</option>
+                    </select>
+                </div>
+                <div class="dalton-field">
+                    <label for="dalton-volume-b">
+                        부피 V<sub>B</sub>
+                        <span class="dalton-value-readout" id="dalton-volume-b-value">100 mL</span>
+                    </label>
+                    <input type="range" id="dalton-volume-b" min="20" max="150" step="1" value="100">
+                </div>
+                <div class="dalton-field dalton-field-static">
+                    <span class="dalton-field-label">초기 압력</span>
+                    <span class="dalton-field-value">1.00 atm (대기압)</span>
+                </div>
+            </section>
+
+            <!-- 중앙 용기 -->
+            <section id="dalton-central" class="dalton-section">
+                <h2 class="dalton-section-title">중앙 용기 V<sub>fixed</sub></h2>
+                <div class="dalton-radio-group" role="radiogroup" aria-label="중앙 용기 부피 프리셋">
+                    <label class="dalton-radio">
+                        <input type="radio" name="dalton-vfixed" value="50">
+                        <span>작음 50 mL</span>
+                    </label>
+                    <label class="dalton-radio">
+                        <input type="radio" name="dalton-vfixed" value="100" checked>
+                        <span>보통 100 mL</span>
+                    </label>
+                    <label class="dalton-radio">
+                        <input type="radio" name="dalton-vfixed" value="200">
+                        <span>큼 200 mL</span>
+                    </label>
+                </div>
+                <p class="dalton-help-text">실험 시작 후에는 변경할 수 없습니다.</p>
+            </section>
+
+            <!-- 이론값 박스 (Step B에서 실시간 계산) -->
+            <section id="dalton-theory-box" class="dalton-section dalton-section-theory">
+                <h2 class="dalton-section-title">이론값 (실시간)</h2>
+                <div class="dalton-theory-row">
+                    <span class="dalton-theory-label">A만 주입 시</span>
+                    <span class="dalton-theory-value" id="dalton-theory-stage1">— atm</span>
+                </div>
+                <div class="dalton-theory-row">
+                    <span class="dalton-theory-label">A+B 주입 시</span>
+                    <span class="dalton-theory-value" id="dalton-theory-stage2">— atm</span>
+                </div>
+            </section>
+
+            <!-- 제어 버튼 -->
+            <div id="dalton-controls" class="dalton-controls">
+                <button id="dalton-btn-inject-a" type="button" class="dalton-btn dalton-btn-primary">
+                    A 주입
+                </button>
+                <button id="dalton-btn-inject-b" type="button" class="dalton-btn dalton-btn-primary" disabled>
+                    B 주입
+                </button>
+                <button id="dalton-btn-reset" type="button" class="dalton-btn dalton-btn-secondary">
+                    초기화
+                </button>
+                <button id="dalton-btn-record" type="button" class="dalton-btn dalton-btn-record" disabled>
+                    기록
+                </button>
+            </div>
+
+            <!-- 재생 속도 / 일시정지 (boyle와 공유 패턴) -->
+            <div class="control-row-playback">
+                <span class="playback-label">재생 속도:</span>
+                <div class="playback-btn-group">
+                    <button class="playback-btn" data-speed="0.25" type="button">0.25x</button>
+                    <button class="playback-btn" data-speed="0.5" type="button">0.5x</button>
+                    <button class="playback-btn active" data-speed="1" type="button">1x</button>
+                </div>
+                <button class="pause-btn" id="btn-pause" type="button">⏸</button>
+            </div>
+        </aside>
+
+        <!-- ─── 중앙: 메인 시각화 ─── -->
+        <main id="dalton-main" class="dalton-main">
+            <div id="dalton-canvas-wrap">
+                <canvas id="dalton-canvas" width="640" height="720"></canvas>
+                <div id="dalton-stabilization" class="dalton-stabilization hidden" aria-live="polite">
+                    <span class="dalton-stab-label">측정 안정화 중</span>
+                    <span class="dalton-stab-countdown" id="dalton-stab-countdown">5</span>
+                </div>
+            </div>
+            <div id="dalton-pressure-readout" class="dalton-pressure-readout">
+                <div class="dalton-p-row">
+                    <span class="dalton-p-label">이론</span>
+                    <span class="dalton-p-value" id="dalton-p-theory">— atm</span>
+                </div>
+                <div class="dalton-p-row">
+                    <span class="dalton-p-label">시뮬</span>
+                    <span class="dalton-p-value" id="dalton-p-sim">— atm</span>
+                </div>
+                <div class="dalton-p-row dalton-p-row-measured hidden">
+                    <span class="dalton-p-label">실측</span>
+                    <span class="dalton-p-value" id="dalton-p-measured">— atm</span>
+                </div>
+            </div>
+            <div id="dalton-chart-wrap" class="hidden">
+                <canvas id="dalton-chart" width="640" height="220"></canvas>
+            </div>
+        </main>
+
+        <!-- ─── 하단: 측정 기록 accordion ─── -->
+        <section id="dalton-records-section" class="dalton-records-section">
+            <button id="dalton-records-toggle"
+                    class="dalton-accordion-header"
+                    type="button"
+                    aria-expanded="false"
+                    aria-controls="dalton-records-body">
+                <span>측정 기록</span>
+                <span class="dalton-accordion-arrow">▼</span>
+            </button>
+            <div id="dalton-records-body" class="dalton-accordion-body hidden">
+                <table class="dalton-records-table">
+                    <thead>
+                        <tr>
+                            <th>회차</th>
+                            <th>단계</th>
+                            <th>V<sub>A</sub></th>
+                            <th>V<sub>B</sub></th>
+                            <th>V<sub>fixed</sub></th>
+                            <th>모드</th>
+                            <th>P(이론)</th>
+                            <th>P(시뮬)</th>
+                            <th>P(실측)</th>
+                            <th>오차%</th>
+                            <th>시간</th>
+                        </tr>
+                    </thead>
+                    <tbody id="dalton-records"></tbody>
+                </table>
+                <p class="dalton-records-empty" id="dalton-records-empty">
+                    아직 기록된 측정이 없습니다.
+                </p>
+            </div>
+        </section>
+    </div>
+
+    <!-- AI 사이드바 토글 핸들러 (boyle 패턴 그대로) -->
+    <script>
+      document.addEventListener("DOMContentLoaded", () => {
+        document.getElementById("btn-ai-collapse")?.addEventListener("click", () => {
+          document.body.classList.toggle("sidebar-collapsed");
+        });
+        document.getElementById("ai-reopen-btn")?.addEventListener("click", () => {
+          document.body.classList.remove("sidebar-collapsed");
+        });
+      });
+    </script>
+
+    <!-- ─── AI 튜터 사이드바 (boyle와 동일 DOM, Phase 5.4에서 프롬프트 교체) ─── -->
+    <aside id="ai-sidebar" class="ai-sidebar">
+        <header class="sidebar-header">
+            <h2>🤖 AI 튜터</h2>
+            <div class="header-actions">
+                <button id="btn-toggle-settings" title="설정" aria-label="설정 토글" class="icon-btn">⚙</button>
+                <button id="btn-ai-collapse" title="사이드바 접기" aria-label="사이드바 접기" class="icon-btn">×</button>
+            </div>
+        </header>
+        <div id="ai-settings-panel" class="settings-panel">
+            <div class="api-key-hint">
+                🔑 API 키는 <a href="index.html">🏠 홈</a> 에서 설정합니다.
+            </div>
+            <div class="options-row">
+                <label>학생 수준
+                    <select id="ai-student-level">
+                        <option value="elem">초등학생</option>
+                        <option value="middle">중학생</option>
+                        <option value="high" selected>고등학생</option>
+                        <option value="univ">대학생</option>
+                    </select>
+                </label>
+                <label>모델
+                    <select id="ai-model">
+                        <option value="claude-sonnet-4-6" selected>Sonnet</option>
+                        <option value="claude-opus-4-7">Opus</option>
+                    </select>
+                </label>
+            </div>
+            <div class="usage-display">
+                이번 세션 사용량:
+                <span id="tokens-used">0</span> 토큰
+                (약 <span id="cost-estimate">0</span>원)
+            </div>
+        </div>
+        <div class="sidebar-body">
+            <nav class="question-tabs">
+                <button class="tab-btn active" data-q="1">
+                    <span>Q1</span>
+                    <span class="tab-reset" data-reset-q="1" title="이 탭 대화 초기화" aria-label="Q1 초기화">↺</span>
+                </button>
+                <button class="tab-btn" data-q="2">
+                    <span>Q2</span>
+                    <span class="tab-reset" data-reset-q="2" title="이 탭 대화 초기화" aria-label="Q2 초기화">↺</span>
+                </button>
+                <button class="tab-btn" data-q="3">
+                    <span>Q3</span>
+                    <span class="tab-reset" data-reset-q="3" title="이 탭 대화 초기화" aria-label="Q3 초기화">↺</span>
+                </button>
+                <button class="tab-btn" data-q="4" aria-disabled="true">
+                    <span>Q4</span>
+                    <span class="tab-reset" data-reset-q="4" title="이 탭 대화 초기화" aria-label="Q4 초기화">↺</span>
+                </button>
+                <button class="tab-btn tab-btn-free" data-q="free">
+                    <span>💬 자유</span>
+                    <span class="tab-reset" data-reset-q="free" title="이 탭 대화 초기화" aria-label="자유 초기화">↺</span>
+                </button>
+            </nav>
+            <div class="question-context" id="question-context">
+                <small>현재 대화 주제:</small>
+                <p class="question-snippet" id="question-snippet"></p>
+            </div>
+            <div class="conversation-scroll" id="conversation-scroll">
+                <div class="empty-state" id="conversation-empty">
+                    아직 대화가 없습니다.<br>
+                    왼쪽에서 [대화 시작]을 눌러주세요.
+                </div>
+                <div class="messages-list" id="messages-list"></div>
+            </div>
+        </div>
+        <div id="conversation-end-controls" class="conversation-end-controls" hidden>
+            <button id="btn-close-q" type="button" title="이 탭의 탐구를 마무리하고 요약받기">✓ 대화 마무리</button>
+        </div>
+        <div class="message-input-area">
+            <textarea id="message-input"
+                      placeholder="메시지 입력 (Enter 전송, Shift+Enter 줄바꿈)"
+                      rows="2" disabled></textarea>
+            <button id="btn-send-message" title="전송" disabled>↑</button>
+        </div>
+    </aside>
+    <button id="ai-reopen-btn" title="AI 튜터 열기">💬</button>
+</body>
+</html>

@@ -2465,3 +2465,17 @@ function initModeTabs({ onSwitch, initialMode = "basic" }) {
         activate("advanced");
     }
 }
+
+// ============================================================
+// Phase 5 — Dalton Experiment (돌턴의 부분압력)
+// ============================================================
+// dalton.html 의 진입점. main.js 디스패처가 body.dataset.page === "dalton"
+// 일 때 호출. Step A 단계에서는 빈 스텁만 두고, 실제 기능은 후속 Step 에서 채운다:
+//   Step B: 슬라이더 이벤트 바인딩, daltonState, 이론값 박스 실시간 업데이트
+//   Step C~E: 시뮬 엔진 (DaltonScene) 연결, 순차 주입 애니메이션
+//   Step F~G: 부분압력 계산, 3값 병기, 안정화 카운트다운, CSV
+//   Step H: AI 튜터 단계 동기화 프롬프트
+//   Step I: 센서 연동 (에뮬레이터 / Web Serial)
+function initDaltonApp(params) {
+    console.log("[Dalton] initDaltonApp stub — Phase 5.1 Step A 완료. 후속 Step 에서 기능 추가 예정.");
+}
