@@ -2783,3 +2783,145 @@ body.adv-sidebar-collapsed #adv-ai-reopen-btn {
     .chemviz-logo { font-size: 2.5rem; }
     .chemviz-logo .logo-ai { font-size: 2rem; }
 }
+
+/* ============================================================
+   Phase 5 — Dalton Experiment 최소 레이아웃
+   Step A 보완. 완전한 디자인 마감은 Phase 5.6-a 에서.
+   목적: Step B 이후 작업 시 레이아웃이 무너져 보이지 않도록
+         body[data-page="dalton"] 스코프로 다른 페이지 무영향.
+   ============================================================ */
+
+body[data-page="dalton"] {
+    padding-right: 412px;  /* AI 사이드바 380px + 좌우 여백 */
+}
+
+body[data-page="dalton"] .dalton-nav {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 20px;
+}
+
+body[data-page="dalton"] .dalton-page-title {
+    flex: 1;
+    margin: 0;
+    font-size: 1.2rem;
+}
+
+body[data-page="dalton"] .dalton-page-utilities {
+    display: flex;
+    gap: 8px;
+}
+
+/* 메인 그리드 — 좌측 패널 + 중앙 메인 (≥1280px). 기록 테이블은 두 칼럼 가로질러. */
+body[data-page="dalton"] #dalton-mode.dalton-layout {
+    display: grid;
+    grid-template-columns: 320px 1fr;
+    grid-template-areas:
+        "panel main"
+        "records records";
+    gap: 20px;
+    align-items: start;
+}
+
+body[data-page="dalton"] #dalton-control-panel { grid-area: panel; }
+body[data-page="dalton"] #dalton-main { grid-area: main; }
+body[data-page="dalton"] #dalton-records-section { grid-area: records; }
+
+body[data-page="dalton"] #dalton-control-panel,
+body[data-page="dalton"] #dalton-main,
+body[data-page="dalton"] #dalton-records-section {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 16px;
+}
+
+body[data-page="dalton"] .dalton-section {
+    margin-bottom: 20px;
+}
+
+body[data-page="dalton"] .dalton-section-title {
+    font-size: 0.95rem;
+    margin: 0 0 8px 0;
+    color: #1f2937;
+}
+
+body[data-page="dalton"] .dalton-radio-group {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+body[data-page="dalton"] .dalton-radio {
+    font-size: 0.9rem;
+    cursor: pointer;
+}
+
+body[data-page="dalton"] .dalton-controls {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 12px;
+}
+
+body[data-page="dalton"] .dalton-controls .dalton-btn {
+    flex: 1;
+    min-width: 80px;
+    padding: 8px 12px;
+}
+
+body[data-page="dalton"] .dalton-pressure-readout {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-top: 12px;
+    font-family: monospace;
+    font-size: 0.9rem;
+}
+
+body[data-page="dalton"] .dalton-records-table {
+    width: 100%;
+    font-size: 0.8rem;
+    border-collapse: collapse;
+    margin-top: 8px;
+}
+
+body[data-page="dalton"] .dalton-records-table th,
+body[data-page="dalton"] .dalton-records-table td {
+    padding: 4px 8px;
+    border-bottom: 1px solid #e5e7eb;
+    text-align: right;
+}
+
+/* AI 사이드바 — 돌턴 페이지 한정 fixed 위치 (boyle/particles 무영향) */
+body[data-page="dalton"] .ai-sidebar {
+    position: fixed;
+    top: 16px;
+    right: 16px;
+    width: 380px;
+    margin: 0;
+}
+
+/* ─── 반응형 ─── */
+/* ≤1279px: AI 사이드바 숨김. drawer 화는 Phase 5.6-a 예정. */
+@media (max-width: 1279px) {
+    body[data-page="dalton"] {
+        padding-right: 16px;
+    }
+    body[data-page="dalton"] .ai-sidebar,
+    body[data-page="dalton"] #ai-reopen-btn {
+        display: none;
+    }
+}
+
+/* ≤1023px: 패널 + 메인 단일 칼럼 */
+@media (max-width: 1023px) {
+    body[data-page="dalton"] #dalton-mode.dalton-layout {
+        grid-template-columns: 1fr;
+        grid-template-areas:
+            "panel"
+            "main"
+            "records";
+    }
+}

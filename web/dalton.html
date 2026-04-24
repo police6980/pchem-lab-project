@@ -30,27 +30,7 @@
         <!-- ─── 좌측: 설정 패널 ─── -->
         <aside id="dalton-control-panel" class="dalton-panel">
 
-            <!-- 센서 모드 토글 (Phase 5.5에서 활용) -->
-            <div id="sensor-panel">
-                <div id="sensor-mode-toggle">
-                    <button id="btn-mode-mock" class="active" type="button">🖥 시뮬레이션</button>
-                    <button id="btn-mode-ws" type="button">🔌 에뮬레이터</button>
-                    <button id="btn-mode-real" type="button">⚡ 실센서</button>
-                </div>
-                <div id="sensor-real-controls" class="hidden">
-                    <button id="btn-serial-connect" type="button">🔌 포트 연결</button>
-                    <button id="btn-serial-disconnect" class="hidden" type="button">✖ 연결 해제</button>
-                    <span id="serial-status">연결 안 됨</span>
-                    <span id="serial-sensor-label"></span>
-                    <button id="btn-serial-calib" disabled type="button">🎯 영점 캘리브</button>
-                </div>
-                <div id="sensor-ws-controls" class="hidden">
-                    <span id="ws-status">연결 중...</span>
-                    <span id="ws-sensor-label"></span>
-                    <button id="btn-ws-calib" disabled type="button">🎯 영점 캘리브</button>
-                </div>
-                <div id="serial-error" class="sensor-error"></div>
-            </div>
+            <!-- 센서 모드 선택 — Phase 5.5 에서 재설계 예정 -->
 
             <!-- 주사기 A -->
             <section id="dalton-syringe-a" class="dalton-section">
@@ -151,17 +131,6 @@
                 <button id="dalton-btn-record" type="button" class="dalton-btn dalton-btn-record" disabled>
                     기록
                 </button>
-            </div>
-
-            <!-- 재생 속도 / 일시정지 (boyle와 공유 패턴) -->
-            <div class="control-row-playback">
-                <span class="playback-label">재생 속도:</span>
-                <div class="playback-btn-group">
-                    <button class="playback-btn" data-speed="0.25" type="button">0.25x</button>
-                    <button class="playback-btn" data-speed="0.5" type="button">0.5x</button>
-                    <button class="playback-btn active" data-speed="1" type="button">1x</button>
-                </div>
-                <button class="pause-btn" id="btn-pause" type="button">⏸</button>
             </div>
         </aside>
 
