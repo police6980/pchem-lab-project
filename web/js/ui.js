@@ -2028,10 +2028,12 @@ function createAdvAiTutor({ getAdvState }) {
             : "🏠 홈 페이지에서 API 키를 먼저 입력하세요";
     }
 
-    // Settings panel toggle.
-    settings.style.display = "none";
+    // Settings panel toggle — CSS 가 .settings-panel 을 max-height:0 으로 닫고
+    // .open 클래스가 붙으면 max-height:500px 로 확장하는 구조(style.css).
+    // 따라서 display 대신 classList 토글을 사용해야 CSS 애니메이션과 정합.
+    // (boyle 쪽 ai-tutor.js:1050 과 동일 방식.)
     settingsBtn.addEventListener("click", () => {
-        settings.style.display = settings.style.display === "none" ? "" : "none";
+        settings.classList.toggle("open");
     });
 
     // Sidebar collapse / reopen (scoped via body.adv-sidebar-collapsed).
