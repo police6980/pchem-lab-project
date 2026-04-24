@@ -21,6 +21,11 @@ const REFERENCE_RMS = DEFAULT_SPEED_SCALE * Math.sqrt(2);   // 2D M-B RMS at REF
 const REFERENCE_KE = 0.5 * REFERENCE_RMS * REFERENCE_RMS;
 const TRANSITION_TAU = 0.3;
 
+// 5초 주기 진단 로그(평균 속도·FPS·오버랩 등)의 on/off 플래그.
+// 수업 배포용 기본 false — 학생 DevTools Console 에 잡음 안 찍힘.
+// 개발 중 성능 튜닝·물리 검증 필요 시 true 로 잠시 바꾼다.
+const DEBUG_DIAGNOSTICS = false;
+
 // 기본 실험(boyle.html) 초기화 래퍼. DOMContentLoaded 에서
 // body.dataset.page 값이 "boyle" 이면 호출. 본문은 원래의 DOMContentLoaded
 // 핸들러 내용 그대로 — 페이지 분기를 추가하기 위해 함수로 감싸기만 했다.
@@ -253,32 +258,35 @@ async function initBasicApp(params) {
         });
     }, 1000);
 
-    setInterval(() => {
-        const hitsPer5s = pistonHitsAccumulator;
-        const hitsPerSec = hitsPer5s / 5;
-        pistonHitsAccumulator = 0;
-        // Display + lastDisplayHitsPerSec are now owned by the 250ms tick
-        // (EMA-smoothed). 5s value kept only for the diagnostic console log.
+    // 5초 주기 진단 로그 — DEBUG_DIAGNOSTICS 플래그로 완전 제어.
+    // 플래그가 false 면 setInterval 자체를 안 걸어 getAndResetFrameCount/
+    // getAndResetOverlapPairCount 등 불필요 계산·누적기 리셋도 피한다.
+    if (DEBUG_DIAGNOSTICS) {
+        setInterval(() => {
+            const hitsPer5s = pistonHitsAccumulator;
+            const hitsPerSec = hitsPer5s / 5;
+            pistonHitsAccumulator = 0;
 
-        const frames = getAndResetFrameCount();
-        const fps = frames / 5;
-        const overlapTotal = system.getAndResetOverlapPairCount();
-        const overlapAvg = frames > 0 ? overlapTotal / frames : 0;
+            const frames = getAndResetFrameCount();
+            const fps = frames / 5;
+            const overlapTotal = system.getAndResetOverlapPairCount();
+            const overlapAvg = frames > 0 ? overlapTotal / frames : 0;
 
-        const avgSpeed = system.getAverageSpeed();
-        const initialSpeed = system.getInitialAverageSpeed();
-        const speedRel = avgSpeed / initialSpeed;
-        const widthRel = box.width / BOX_INITIAL_WIDTH;
-        const particleCount = system.getParticles().length;
-        console.log(
-            `Avg speed: ${avgSpeed.toFixed(1)} (×${speedRel.toFixed(2)}), ` +
-            `Box width: ${box.width.toFixed(0)} (×${widthRel.toFixed(2)}), ` +
-            `Particles: ${particleCount}, ` +
-            `Piston hits (last 5s): ${hitsPer5s} (≈${hitsPerSec.toFixed(0)}/s), ` +
-            `FPS: ${fps.toFixed(1)}, ` +
-            `Overlap pairs (avg): ${overlapAvg.toFixed(1)} /frame`
-        );
-    }, 5000);
+            const avgSpeed = system.getAverageSpeed();
+            const initialSpeed = system.getInitialAverageSpeed();
+            const speedRel = avgSpeed / initialSpeed;
+            const widthRel = box.width / BOX_INITIAL_WIDTH;
+            const particleCount = system.getParticles().length;
+            console.log(
+                `Avg speed: ${avgSpeed.toFixed(1)} (×${speedRel.toFixed(2)}), ` +
+                `Box width: ${box.width.toFixed(0)} (×${widthRel.toFixed(2)}), ` +
+                `Particles: ${particleCount}, ` +
+                `Piston hits (last 5s): ${hitsPer5s} (≈${hitsPerSec.toFixed(0)}/s), ` +
+                `FPS: ${fps.toFixed(1)}, ` +
+                `Overlap pairs (avg): ${overlapAvg.toFixed(1)} /frame`
+            );
+        }, 5000);
+    }
 
     // Playback controls — wire speed buttons + pause across both tabs.
     // querySelectorAll spans both basic and advanced DOM so state stays
