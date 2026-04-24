@@ -4,8 +4,8 @@
 화학 탐구 교육 플랫폼. 중·고등 과학 영재 학생을 대상으로 이론(기체 법칙)·
 실험(압력 센서)·탐구(AI 튜터 대화)의 연속성을 제공한다.
 
-현재 **보일의 법칙**·**입자운동론** 두 실험 모듈이 구현되어 있으며,
-**돌턴의 부분압력**을 비롯한 후속 실험이 로드맵에 있다.
+현재 **보일의 법칙**·**입자운동론** 두 실험 모듈이 완성 단계이고,
+**돌턴의 부분압력** 은 Phase 5.1 (UI·상태머신) 완료, 시뮬 엔진 진행 중.
 
 > 저장소 이름(`pchem-lab-project`)과 내부 식별자는 개발 초기 명칭을 유지한다.
 > UI·공개 문서에서는 정식 브랜드명 **CAST** 로 표기.
@@ -33,8 +33,9 @@
 | `/web/` (index.html) | 🏠 랜딩 페이지 — 실험 선택 + API 키 설정 (sessionStorage) |
 | `/web/boyle.html` | 보일의 법칙 실험 — 센서 3모드(Mock/WS/Real) + AI 튜터 |
 | `/web/particles.html` | 입자운동론 탐구 — V·T·N·기체 조작 + AI 튜터 |
+| `/web/dalton.html` | 돌턴의 부분압력 (Phase 5.1) — 주사기 A→B 수용 모델, 이론값 실시간, 상태 머신. 시뮬 엔진은 Phase 5.2 대기 |
 
-랜딩에서 API 키를 한 번 저장하면 두 실험 페이지가 sessionStorage 를 공유해
+랜딩에서 API 키를 한 번 저장하면 실험 페이지가 sessionStorage 를 공유해
 자동 인식. 각 실험 페이지 상단의 [🏠 홈으로] 로 복귀.
 
 ---
@@ -98,11 +99,15 @@ CLI 에서 `↑↓` (±10 kPa) / `←→` (±1 kPa) / `r` (리셋) / `q` (종료
     AI 튜터 데이터 소스 인식
   - ⏳ **Step 3-6**: 실물 DFRobot Gravity 1.6MPa 조립·플래시·실험 검증 (하드웨어 도착 대기)
 - **랜딩 페이지 + CAST 브랜딩** (`feature/landing-page` 브랜치)
-  - 단일 페이지 탭 구조 → 3 페이지 (랜딩·보일·입자운동) 분리
+  - 단일 페이지 탭 구조 → 4 페이지 (랜딩·보일·입자·돌턴) 분리
   - body.dataset.page 기반 디스패처로 JS 공유 + HTML 분리
   - 프로젝트명 CAST 정식 채택, 학술지 톤 디자인 (Georgia 세리프, PhET 레퍼런스)
 - **Phase 4.5 심화 탐구 모드** (`feature/particle-controls`, 병합 대기)
 - **반응형 레이아웃** (`feature/responsive-canvas`, 병합 대기)
+- **Phase 5.1 돌턴 부분압력 UI·상태머신** (`feature/dalton-experiment`, 태그 `phase5.1-complete`)
+  - ✅ 설계 3영역 → 2영역(A→B 수용) 전환, 부피 입력 숫자 전용 10~100mL 통일
+  - ✅ Step A (HTML·CSS·반응형 drawer), Step B (이벤트·이론값·상태 머신)
+  - ⏳ **Phase 5.2 Step C**: p5.js `DaltonScene` 시뮬 엔진, 피스톤 애니메이션 (다음 작업)
 
 상세 로드맵: `docs/09-roadmap.md`, 진행 상태 마스터: `docs/06-project-status.md`.
 
@@ -131,13 +136,14 @@ pchem-lab-project/
 │   ├── index.html            # 🏠 랜딩 (CAST 로고 + 실험 선택 + API 키 설정)
 │   ├── boyle.html            # 🔬 보일의 법칙 (MBL·시뮬·AI)
 │   ├── particles.html        # ⚗️ 입자운동론 (시뮬·AI)
+│   ├── dalton.html           # 🧪 돌턴의 부분압력 (Phase 5.1 UI 완료)
 │   ├── config/params.json
 │   ├── css/style.css
 │   └── js/ {simulation, renderer, serial, protocol, logger,
 │            ai-tutor, ui, main}.js
 ├── firmware/                 # ESP32 펌웨어 (boyle.ino)
 ├── tools/firmware-emulator/  # Node.js WebSocket 에뮬레이터
-└── docs/                     # 설계 문서 00~10
+└── docs/                     # 설계 문서 00~11
 ```
 
 ---
@@ -156,6 +162,7 @@ pchem-lab-project/
 | `docs/08-physics-validation.md` | 물리 정확도 검증 결과 |
 | `docs/09-roadmap.md` | Phase 2-B 이후 전체 로드맵 |
 | `docs/10-dev-journal.md` | 개발 일지 (의사결정 1차 자료) |
+| `docs/11-dalton-design.md` | Phase 5 돌턴 부분압력 설계서 |
 | `firmware/README.md` | 펌웨어 배선·Wokwi 설정 |
 | `CLAUDE.md` | Claude Code 자동화 규약 |
 

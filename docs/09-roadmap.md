@@ -2,8 +2,8 @@
 
 **문서 목적**: Phase 2-B 이후 모든 개발 단계 통합 계획. 우선순위·의존관계·예상 소요·결정 이슈 기록. **06**이 "현재 상태"라면 **09**는 "미래 방향".
 
-**마지막 업데이트**: 2026-04-23 (Phase 3 에뮬레이터 Step 3-1~3-3 + 펌웨어 스켈레톤·시뮬 완료)
-**기준 상태**: Phase 1 MVP 완료, Phase 2-A/2-B 완료 (v0.4-boyle-complete), **Phase 3 진행 중** (브라우저 측 완료 + **WebSocket 에뮬레이터 Step 3-1~3-3 완료** + **ESP32 펌웨어 스켈레톤·시뮬 완료**, Step 3-4~3-6 남음 — `phase3-real-sensor` 브랜치), **Phase 4.5 심화 탐구 모드 완료** (`feature/particle-controls` 브랜치, 병합 대기), **반응형 레이아웃 + 단위 병기 완료** (`feature/responsive-canvas` 브랜치, 병합 대기)
+**마지막 업데이트**: 2026-04-25 (Phase 5 재정의: 돌턴 부분압력. Phase 5.1 UI·상태머신 완료)
+**기준 상태**: Phase 1 MVP 완료, Phase 2-A/2-B 완료 (v0.4-boyle-complete), **Phase 3 진행 중** (소프트웨어 완료, Step 3-6 실물 대기 — `phase3-real-sensor` 브랜치), **Phase 4.5 심화 탐구 모드 완료** (`feature/particle-controls`, 병합 대기), **반응형 레이아웃 + 단위 병기 완료** (`feature/responsive-canvas`, 병합 대기), **Phase 5.1 돌턴 부분압력 UI·상태머신 완료** (`feature/dalton-experiment` — 설계 3→2영역 전환, 부피 입력 숫자 전용 10~100mL 통일, 태그 `phase5.1-complete`, 시뮬 엔진은 Phase 5.2 Step C 대기)
 
 ---
 
@@ -16,9 +16,10 @@
 - [계획] **Phase 4**: Mock ↔ 실센서 비교 UX
 - [완료·병합 대기] **Phase 4.5**: 심화 탐구 모드 (`feature/particle-controls`)
 - [완료·병합 대기] **반응형 레이아웃 + 단위 병기**: `feature/responsive-canvas` (§4.6 참조)
-- [계획] **Phase 5**: 다른 법칙 확장 (샤를, 게이뤼삭)
+- [진행] **Phase 5**: 돌턴의 부분압력 (Phase 5.1 UI·상태머신 완료, Phase 5.2~ 시뮬·센서·AI 튜터 대기)
 - [계획] **Phase 6**: 교사 도구 (대시보드, 다중 사용자)
-- [장기] **Phase 7+**: 배포·상용화·연구 발표
+- [계획] **Phase 7**: 다른 법칙 확장 (샤를, 게이뤼삭) — 기존 Phase 5 에서 이연
+- [장기] **Phase 8+**: 배포·상용화·연구 발표
 
 ---
 
@@ -167,7 +168,7 @@
 
 ### 4.5-4. Phase 4 / Phase 5 와의 관계
 - **Phase 4 (비교 UX)**: 심화 모드의 이상기체 거동은 Phase 4 반데르발스 편차 탐구의 **기준선**으로 재사용 가능
-- **Phase 5 (다른 법칙)**: 심화 모드의 온도·부피 자유 조절 UI는 샤를·게이뤼삭 확장에 **컴포넌트 재활용** 가능
+- **Phase 7 (다른 법칙 — 샤를·게이뤼삭, 기존 Phase 5 에서 이연)**: 심화 모드의 온도·부피 자유 조절 UI는 해당 확장에 **컴포넌트 재활용** 가능
 
 ### 4.5-5. 알려진 제약
 - ~~데스크탑 ≥ 1872 px 가정~~ → **`feature/responsive-canvas`에서 해결** (1023px까지 정상 동작, 자세한 내용은 §4.6 참조)
@@ -207,27 +208,43 @@
 
 ---
 
-## 5. Phase 5: 다른 법칙 확장
+## 5. Phase 5: 돌턴의 부분압력 (진행 중)
 
-### 5-1. 샤를 법칙 (`V/T = const`, P 일정)
-- 하드웨어: `docs/02-hardware-charles.md` 기반 (DS18B20 온도 센서)
-- 수조·가열·냉각 구성
-- 현재 시뮬의 온도 설정 기능 활용
-- 새 모드: "압력 고정, 온도 변경"
-- 예상: Phase 4 후 1~2주
+**재정의 이력**: 2026-04-24 이전 Phase 5 계획은 "다른 법칙 확장 (샤를, 게이뤼삭)".
+돌턴 부분압력의 실험 확장성·보일과의 병행 학습 효과가 더 크다고 판단되어
+Phase 5 목표를 **돌턴 부분압력** 으로 재정의. 샤를·게이뤼삭은 **Phase 7** 로 이연.
 
-### 5-2. 게이뤼삭 법칙 (`P/T = const`, V 일정)
-- 부피 고정 용기 (주사기 플런저 고정)
-- 샤를과 하드웨어 유사
-- 소프트웨어는 쉬움
+상세 설계는 `docs/11-dalton-design.md` 참조 (1570줄).
 
-### 5-3. 이상기체 법칙 통합 `PV = nRT`
-- 세 법칙 통합 대시보드
-- 어느 변수가 독립·종속·일정인지 선택
-- 전체 상태 방정식 시각화
+### 5-1. 모델 (확정)
+- **주사기 A (능동) → 주사기 B (수용, 피스톤 고정)** 2영역 직접 연결
+- A·B 사이 체크밸브로 역류 방지
+- 주입 후 A는 비어있음, B 내부 P_total 측정
+- 이론값: `P_total = (V_A / V_B + 1) × 1 atm` (대기압 기준)
+- 부피 입력: A·B 둘 다 숫자 입력 전용, 범위 10~100mL, 기본 50mL
+- 실센서는 B 에만 부착 (DFRobot Gravity 1.6MPa, v1.1 프로토콜 재사용)
 
-### 5-4. 예상 소요
-각 법칙 1~2주, 통합 1주. 총 1~2개월.
+### 5-2. Phase 5.1: UI·상태머신 (완료, `feature/dalton-experiment`)
+- Step A: HTML 스캐폴딩 + 2영역 DOM + 반응형 drawer CSS
+- Step B-1: 이벤트 바인딩 인프라 + `params.dalton` 확장 + UI 폰트·폼 보정
+- Step B-2: 이론값 실시간 계산 + 압력 표시 동적화 (stage 분기)
+- Step B-3: 상태 머신 (IDLE → INJECTING → INJECTED → CONFIRMED) + 3버튼 + 안정화 카운트다운 + 기록 추가
+- 태그: `phase5.1-stepA-complete`, `phase5.1-complete` (로컬·원격 모두)
+
+### 5-3. Phase 5.2: 시뮬 엔진 (예정, Step C~E)
+- `DaltonScene` p5.js 스케치 — 주사기 A·B 입자 시뮬 + 피스톤 애니메이션
+- 혼합 입자 시각화 (A·B 기체 색상 구분 + 분자량 기반 속도 차등)
+- 3초 주입 애니메이션을 현재 `sleep(3000)` placeholder 에서 실제 피스톤 이동으로 교체
+- 벽 충돌 카운트 → 부분압력 실시간 표시 (pressureBSensor 실제 계산값)
+
+### 5-4. Phase 5.3: 센서·AI 튜터 (예정, Step F~I)
+- Step F: 그래프 시계열 + 부분압력 차트
+- Step G: 기록 컬럼 정리 (V_fixed 삭제) + CSV 내보내기
+- Step H: AI 튜터 돌턴 프롬프트 (Q1~Q3 stage 동기화)
+- Step I: Web Serial + WebSocket 실센서 연동 (pressureBSensor 실측값)
+
+### 5-5. 예상 소요
+Phase 5.2 (시뮬 엔진): 1~2주. Phase 5.3 (센서·AI): 1~2주. 총 2~4주.
 
 ---
 
@@ -285,7 +302,9 @@ Phase 2-B ───────────────────────�
                                     ↓
         Phase 3 (실센서) ─────────────→ Phase 4 (비교)
                                             ↓
-                                    Phase 5 (다른 법칙) ─→ Phase 7 (연구·배포)
+                                    Phase 5 (돌턴 부분압력) ─┐
+                                            ↓              ├→ Phase 8 (연구·배포)
+                                    Phase 7 (샤를·게이뤼삭) ─┘
                                             ↓
                                     Phase 6 (교사 도구)
 
@@ -307,9 +326,10 @@ Phase 4.6 (반응형 + 단위 병기) ─── Phase 4.5 에서 파생. 물리 
 3. **Phase 4**: 없으면 Phase 3이 "그냥 센서 연동"에 머묾
 
 ### 9-2. 선택 (병렬 가능)
-- **Phase 5** (다른 법칙): 수업 범위 확장
+- **Phase 5** (돌턴 부분압력): 실험 다각화
 - **Phase 6** (교사 도구): 운영 규모 확장
-- **Phase 7** (배포·연구): 성과 확장
+- **Phase 7** (샤를·게이뤼삭): 법칙 확장
+- **Phase 8+** (배포·연구): 성과 확장
 
 ### 9-3. 결정 철학
 **"하나의 Phase를 완전히 끝내고 다음"**.
@@ -343,5 +363,7 @@ Phase 4.6 (반응형 + 단위 병기) ─── Phase 4.5 에서 파생. 물리 
 - `06-project-status.md` — 현재 상태 (어디까지)
 - `07-ai-tutor.md` — AI 튜터 상세 (어떻게)
 - `08-physics-validation.md` — 물리 검증 (얼마나 정확한가)
-- `01-hardware-boyle.md` / `02-hardware-charles.md` — Phase 3·5 하드웨어 명세
-- `03-software-architecture.md` — Phase 7 배포 확장 (PWA, Electron) 참조
+- `01-hardware-boyle.md` — Phase 3 보일 하드웨어 명세
+- `02-hardware-charles.md` — 샤를 하드웨어 초안 (Phase 7 이연, 현재 보류)
+- `11-dalton-design.md` — Phase 5 돌턴 부분압력 설계서
+- `03-software-architecture.md` — Phase 8 배포 확장 (PWA, Electron) 참조

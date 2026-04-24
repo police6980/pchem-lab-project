@@ -40,8 +40,9 @@
 자세한 로드맵은 `docs/06-project-status.md` §4 참조. 요약:
 - **Phase 2-B** (완료): ai-tutor.js 실 Anthropic Messages API 호출. 멀티턴·비용·에러 처리·docx 보고서 생성 작동
 - **Phase 3** (진행 중, `phase3-real-sensor` 브랜치): ESP32 실센서 + Web Serial (MockSensorSource 교체). 개발용 WebSocket 펌웨어 에뮬레이터(`tools/firmware-emulator/`)로 실물 도착 전 브라우저 수신 경로 사전 구현
-- **Phase 5**: 샤를 법칙 확장. 현재 플랫 폴더 → `experiments/` 분리 검토
+- **Phase 5** (진행 중): 돌턴의 부분압력 확장 (Phase 5.1 UI·상태머신 완료 — `feature/dalton-experiment` 브랜치, 태그 `phase5.1-complete`). Phase 5.2 p5.js `DaltonScene` 시뮬 엔진 대기. 현재 플랫 폴더 → `experiments/` 분리 검토 시점이 Phase 5 후반으로 이연됨
 - **Phase 4/6**: 비교 UX, 교사 도구
+- **Phase 7** (이전 Phase 5 계획): 샤를·게이뤼삭 법칙 확장
 
 MVP 단계에선 **플랫 폴더 + 보일 전용**으로 단순성 우선.
 
@@ -57,33 +58,35 @@ pchem-lab-project/
 │   ├── index.html              // 🏠 랜딩 (CAST 로고 + 실험 선택 + API 키 설정)
 │   ├── boyle.html              // 🔬 보일의 법칙 (MBL·시뮬·AI), <body data-page="boyle">
 │   ├── particles.html          // ⚗️ 입자운동론 (시뮬·AI), <body data-page="particles">
+│   ├── dalton.html             // 🧪 돌턴의 부분압력 (Phase 5.1), <body data-page="dalton">
 │   ├── config/
-│   │   └── params.json         // 튜닝 가능 수치 단일 파일
+│   │   └── params.json         // 튜닝 가능 수치 단일 파일 (`dalton` 키 포함)
 │   ├── css/
-│   │   └── style.css           // 3 페이지 공유 전체 스타일
-│   └── js/                     // 3 페이지가 전부 공유, body.dataset.page 로 분기
+│   │   └── style.css           // 4 페이지 공유 전체 스타일
+│   └── js/                     // 4 페이지가 전부 공유, body.dataset.page 로 분기
 │       ├── simulation.js       // 물리 엔진 (Box, Particle, ParticleSystem)
 │       ├── renderer.js         // p5.js 드로잉 원시
 │       ├── protocol.js         // v1.1 파서 공통 모듈 (parseV11Line)
 │       ├── serial.js           // SensorSource + Mock/WebSerial/WebSocket 소스
 │       ├── logger.js           // CSV 유틸
-│       ├── ai-tutor.js         // 보일 전용 풀 AI 튜터 (보고서·Q3 자동 등)
+│       ├── ai-tutor.js         // 보일 전용 풀 AI 튜터 (돌턴 프롬프트는 Phase 5.4)
 │       ├── ui.js               // DOM UI + 심화(adv-) AI 튜터·측정 패널
-│       └── main.js             // 부팅 디스패처 + initBasicApp / initAdvancedMode
+│       └── main.js             // 부팅 디스패처 + initBasicApp / initAdvancedMode / initDaltonApp
 ├── firmware/                    // ESP32 펌웨어 (boyle.ino, DFRobot Gravity 1.6MPa)
 ├── tools/
 │   └── firmware-emulator/       // Node.js + ws 기반 WebSocket 펌웨어 에뮬레이터 (ws://localhost:8787)
-└── docs/                        // 설계 문서
+└── docs/                        // 설계 문서 (00~11, dalton 설계서 `11-dalton-design.md` 포함)
 ```
 
 **페이지 디스패처 패턴** (`main.js` DOMContentLoaded):
 ```javascript
 const page = document.body.dataset.page;
-if (page === "particles")  initAdvancedMode(params);
-else                       await initBasicApp(params);   // boyle 또는 기본값
+if      (page === "particles") initAdvancedMode(params);
+else if (page === "dalton")    initDaltonApp(params);
+else                           await initBasicApp(params);   // boyle 또는 기본값
 ```
-- 3 페이지가 같은 `main.js` 를 로드하되 `<body data-page>` 로 해당 초기화만 실행
-- 돌턴 등 후속 실험 추가 시 `data-page="dalton"` 분기 한 줄 추가로 확장
+- 4 페이지가 같은 `main.js` 를 로드하되 `<body data-page>` 로 해당 초기화만 실행
+- 신규 실험 추가 시 `data-page="..."` 분기 한 줄 추가 패턴 유지 (돌턴은 Phase 5.1 에서 편입)
 - 랜딩(`index.html`)은 `main.js` 를 로드하지 않음 — 자체 인라인 `<script>` 로 API 키 저장만 처리
 
 스크립트 로드 순서 (`boyle.html` / `particles.html`, `defer`):
@@ -617,13 +620,20 @@ simulation.js / serial.js / logger.js — 독립 (상호 참조 없음)
 - **반데르발스 편차 교육 활용** (v1 탄성 충돌 부산물로 이미 +16 % 재현됨 — `06` §7 참조)
 - 이상기체 vs 실제 기체 비교 그래프
 
-### 7.4 Phase 5 — 다른 법칙
+### 7.4 Phase 5 — 돌턴의 부분압력 (재정의됨)
 
-- 샤를 법칙 — 별도 장비 (`02-hardware-charles.md`)
-- **실험 선택 화면** 루트 페이지
-- **폴더 구조 재편**:
+**이력**: 2026-04-24 이전 Phase 5 계획은 "샤를 법칙 확장". 현재는 **돌턴 부분압력** 으로
+재정의 (`docs/11-dalton-design.md` 설계서 참조). 샤를·게이뤼삭은 Phase 7 로 이연.
+
+- Phase 5.1 완료 (`feature/dalton-experiment`, 태그 `phase5.1-complete`):
+  - `web/dalton.html` 페이지, `initDaltonApp(params)` (main.js, +190줄 규모)
+  - `params.dalton` 중첩 객체 (기체 5종·주사기 A·B 프리셋·디바운스·안정화·주입 시간)
+  - 상태 머신 IDLE → INJECTING → INJECTED → CONFIRMED (async/await + abort 플래그)
+- Phase 5.2+ 예정: p5.js `DaltonScene` (`web/js/dalton-sim.js` 신규), 주사기 A·B 입자 시뮬
+- **실험 선택 화면** — `index.html` 이 이미 그 역할 수행 중 (Phase 5 랜딩 재설계 불필요)
+- **폴더 구조 재편** (Phase 5.2 이후 검토):
   - `web/js/engine/` — 공통 Particle·Box·ParticleSystem
-  - `web/js/experiments/boyle/` + `experiments/charles/`
+  - `web/js/experiments/{boyle,particles,dalton}/`
   - 공통 UI 컴포넌트 `web/js/ui/common/`
   - `experiments.json` — 실험별 기본값·상수 분리
 

@@ -2,11 +2,11 @@
 
 **문서 목적**: 현재 구현 상태와 남은 작업의 마스터 트래커. 다른 설계 문서는 "어떻게 만들어졌는가"를 설명하고, 이 문서는 "어디까지 왔는가"를 기록한다.
 
-**마지막 업데이트**: 2026-04-24 (CAST 브랜딩 + 랜딩 페이지 + 3 페이지 구조 분리, Phase 3 소프트웨어 마무리)
+**마지막 업데이트**: 2026-04-25 (Phase 5.1 돌턴 실험 착수·Step A·B 완료)
 **프로젝트 정식명**: **CAST** (Chemistry AI-assisted Simulation & MBL Tools). 저장소 이름 `pchem-lab-project` 는 개발 초기 명칭 호환 차원에서 유지.
-**현재 상태**: 보일 법칙 실험 + 입자운동론 심화 모듈 + AI 튜터 완성. **Phase 3 소프트웨어 완성** (`phase3-real-sensor` 브랜치: 프로토콜 v1.1, 에뮬레이터 calib ACK/cfg, WebSocket/WebSerial 소스, UI 삼항 토글, AI 튜터 데이터 소스 인식 — Step 3-6 실물 조립·검증만 하드웨어 도착 대기). **랜딩 페이지 + 3 페이지 분리 완성** (`feature/landing-page` 브랜치: 랜딩/보일/입자운동 HTML 분리, body.dataset.page 디스패처, API 키 홈 일원화, PhET 레퍼런스 학술지 톤 재디자인).
-**최신 태그**: `v0.4-boyle-complete` (main). 남은 브랜치 작업 4 개 모두 main 병합 대기: `phase3-real-sensor` / `feature/landing-page` / `feature/particle-controls` / `feature/responsive-canvas`.
-**다음 단계**: (1) 실물 DFRobot Gravity 1.6MPa 입수 후 Step 3-6 검증, (2) `phase3-real-sensor` → main 병합 후 `v0.5-real-sensor` 태그, (3) `feature/landing-page` rebase 후 병합, (4) 돌턴 실험 모듈 설계 착수.
+**현재 상태**: 보일 법칙 실험 + 입자운동론 심화 모듈 + AI 튜터 완성. **Phase 3 소프트웨어 완성** (`phase3-real-sensor` 브랜치 — Step 3-6 실물 조립·검증만 하드웨어 대기). **랜딩 페이지 + 3 페이지 분리 완성** (`feature/landing-page` 브랜치). **Phase 5.1 돌턴 부분압력 — UI·상태머신 완료** (`feature/dalton-experiment` 브랜치: HTML 스캐폴딩 + 반응형 drawer + 이벤트 바인딩 + 이론값 실시간 계산 + 상태 머신 IDLE→INJECTING→INJECTED→CONFIRMED + 기록 추가. 설계는 3영역(A·중앙·B) → 2영역(A→B 수용) 전환, 부피 입력은 A·B 둘 다 숫자 전용 10~100mL 통일. 시뮬 엔진·센서 연동·돌턴 AI 튜터 프롬프트는 Phase 5.2~ 대기).
+**최신 태그**: `v0.4-boyle-complete` (main). 추가 브랜치 태그: `phase5.1-complete` (`feature/dalton-experiment`). 병합 대기 브랜치 5개: `phase3-real-sensor` / `feature/landing-page` / `feature/particle-controls` / `feature/responsive-canvas` / `feature/dalton-experiment`.
+**다음 단계**: (1) Phase 5.2 Step C — p5.js `DaltonScene` 시뮬 엔진 (주사기 A·B 입자 시뮬 + 피스톤 애니메이션), (2) 실물 DFRobot Gravity 1.6MPa 입수 후 Step 3-6 검증, (3) 병합 대기 브랜치들 순차 main 통합.
 
 ---
 
