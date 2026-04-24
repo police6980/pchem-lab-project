@@ -27,6 +27,7 @@
             <div id="sensor-panel">
                 <div id="sensor-mode-toggle">
                     <button id="btn-mode-mock" class="active">🖥 시뮬레이션</button>
+                    <button id="btn-mode-ws">🔌 에뮬레이터</button>
                     <button id="btn-mode-real">⚡ 실센서</button>
                 </div>
                 <div id="sensor-real-controls" class="hidden">
@@ -35,6 +36,11 @@
                     <span id="serial-status">연결 안 됨</span>
                     <span id="serial-sensor-label"></span>
                     <button id="btn-serial-calib" disabled>🎯 영점 캘리브</button>
+                </div>
+                <div id="sensor-ws-controls" class="hidden">
+                    <span id="ws-status">연결 중...</span>
+                    <span id="ws-sensor-label"></span>
+                    <button id="btn-ws-calib" disabled>🎯 영점 캘리브</button>
                 </div>
                 <div id="serial-error" class="sensor-error"></div>
             </div>

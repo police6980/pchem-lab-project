@@ -1314,27 +1314,36 @@ body.sidebar-collapsed #ai-sidebar {
     opacity: 0.5;
     cursor: not-allowed;
 }
-#sensor-real-controls {
+#sensor-real-controls,
+#sensor-ws-controls {
     display: flex;
     align-items: center;
     gap: 8px;
 }
-#sensor-real-controls button {
+#sensor-real-controls button,
+#sensor-ws-controls button {
     padding: 6px 10px;
     font-size: 0.88rem;
     cursor: pointer;
 }
-#sensor-real-controls button:disabled {
+#sensor-real-controls button:disabled,
+#sensor-ws-controls button:disabled {
     opacity: 0.5;
     cursor: not-allowed;
 }
-#serial-status {
+#serial-status,
+#ws-status {
     font-size: 0.85rem;
     font-weight: 500;
 }
-.status-connected { color: #27ae60; }
+#ws-sensor-label {
+    font-size: 0.8rem;
+    color: #555;
+}
+.status-connected    { color: #27ae60; }
 .status-disconnected { color: #c0392b; }
-.status-error { color: #e67e22; }
+.status-error        { color: #e67e22; }
+.status-connecting   { color: #7f8ba5; }
 #serial-sensor-label {
     font-size: 0.8rem;
     color: #555;

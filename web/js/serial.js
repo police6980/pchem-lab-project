@@ -447,8 +447,8 @@ function createSensorManager(initialPressure = 101.3) {
                 await this.source.connect();
             } else if (mode === "ws") {
                 // WebSocket(에뮬레이터) — 사용자 제스처 불필요, 즉시 접속.
-                // 에뮬레이터 미기동 시 onerror 경로로 에러 이벤트가 올라감.
-                try { await this.source.connect(); } catch (_) {}
+                // 접속 실패는 호출자(UI click handler .catch)가 받아서 처리.
+                await this.source.connect();
             }
             // Real: wait for user to click [🔌 포트 연결].
         },

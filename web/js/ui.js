@@ -49,14 +49,19 @@ function createDevPressureSlider(onChange) {
 // updates all live here.
 function initSensorPanel(sensorManager) {
     const btnMock         = document.getElementById("btn-mode-mock");
+    const btnWs           = document.getElementById("btn-mode-ws");
     const btnReal         = document.getElementById("btn-mode-real");
     const realControls    = document.getElementById("sensor-real-controls");
+    const wsControls      = document.getElementById("sensor-ws-controls");
     const btnConnect      = document.getElementById("btn-serial-connect");
     const btnDisconnect   = document.getElementById("btn-serial-disconnect");
     const btnCalib        = document.getElementById("btn-serial-calib");
     const statusEl        = document.getElementById("serial-status");
     const sensorLabelEl   = document.getElementById("serial-sensor-label");
     const errorEl         = document.getElementById("serial-error");
+    const wsStatusEl      = document.getElementById("ws-status");
+    const wsSensorLabelEl = document.getElementById("ws-sensor-label");
+    const btnWsCalib      = document.getElementById("btn-ws-calib");
 
     if (!btnMock || !btnReal) return;
 
@@ -66,14 +71,13 @@ function initSensorPanel(sensorManager) {
         btnReal.title = "Chrome/Edge에서만 지원됩니다";
     }
 
-    function showRealControls(show) {
-        realControls.classList.toggle("hidden", !show);
-    }
-
     function setModeUI(mode) {
         btnMock.classList.toggle("active", mode === "mock");
+        btnWs.classList.toggle("active",   mode === "ws");
         btnReal.classList.toggle("active", mode === "real");
-        showRealControls(mode === "real");
+        realControls.classList.toggle("hidden", mode !== "real");
+        wsControls.classList.toggle("hidden",   mode !== "ws");
+        if (mode === "ws") resetWsUI("connecting");
     }
 
     function resetRealUI() {
@@ -86,14 +90,41 @@ function initSensorPanel(sensorManager) {
         if (errorEl) errorEl.textContent = "";
     }
 
+    // phase: "connecting" | "disconnected"
+    function resetWsUI(phase) {
+        if (phase === "connecting") {
+            wsStatusEl.textContent = "연결 중...";
+            wsStatusEl.className = "status-connecting";
+        } else {
+            wsStatusEl.textContent = "연결 끊김";
+            wsStatusEl.className = "status-disconnected";
+        }
+        wsSensorLabelEl.textContent = "";
+        btnWsCalib.disabled = true;
+    }
+
     btnMock.addEventListener("click", () => {
+        if (sensorManager.mode === "mock") return;
         setModeUI("mock");
         resetRealUI();
         sensorManager.setMode("mock");
     });
 
+    btnWs.addEventListener("click", () => {
+        if (sensorManager.mode === "ws") return;
+        setModeUI("ws");
+        sensorManager.setMode("ws").catch(() => {
+            // Connect failure: on("error") below will render the detailed
+            // message; fallback text here covers the case where the error
+            // event fires before/after this path (race is fine, last write wins).
+            wsStatusEl.textContent = "연결 실패 (에뮬레이터가 실행 중인지 확인)";
+            wsStatusEl.className = "status-error";
+        });
+    });
+
     btnReal.addEventListener("click", () => {
         if (btnReal.disabled) return;
+        if (sensorManager.mode === "real") return;
         setModeUI("real");
         resetRealUI();
         sensorManager.setMode("real");
@@ -115,10 +146,25 @@ function initSensorPanel(sensorManager) {
         sensorManager.sendCalib();
     });
 
+    btnWsCalib.addEventListener("click", () => {
+        sensorManager.sendCalib();
+    });
+
     // Event subscriptions survive mode switches (manager re-attaches them).
     sensorManager.on("connect", (info) => {
-        // Mock's connect shouldn't light up the real-sensor status badge.
-        if (info?.version === "mock") return;
+        if (info?.version === "mock") return;  // Mock mode ignores status badge.
+
+        if (sensorManager.mode === "ws") {
+            wsStatusEl.textContent = "● 연결됨";
+            wsStatusEl.className = "status-connected";
+            wsSensorLabelEl.textContent = info?.sensor
+                ? `${info.sensor}${info.fw ? ` (fw ${info.fw})` : ""}`
+                : `v${info?.version || "?"}`;
+            btnWsCalib.disabled = false;
+            return;
+        }
+
+        // Real (WebSerial) path.
         statusEl.textContent = "● 연결됨";
         statusEl.className = "status-connected";
         sensorLabelEl.textContent = info?.sensor
@@ -130,20 +176,31 @@ function initSensorPanel(sensorManager) {
     });
 
     sensorManager.on("disconnect", () => {
-        // Only update real UI if we're currently in real mode.
+        if (sensorManager.mode === "ws") {
+            resetWsUI("disconnected");
+            return;
+        }
         if (sensorManager.mode !== "real") return;
         resetRealUI();
     });
 
     sensorManager.on("calibrated", (p0) => {
-        if (sensorManager.mode !== "real") return;
         const n = Number(p0);
-        if (Number.isFinite(n)) {
-            sensorLabelEl.textContent = `p₀ = ${n.toFixed(1)} kPa`;
+        if (!Number.isFinite(n)) return;
+        if (sensorManager.mode === "ws") {
+            wsSensorLabelEl.textContent = `p₀ = ${n.toFixed(1)} kPa`;
+            return;
         }
+        if (sensorManager.mode !== "real") return;
+        sensorLabelEl.textContent = `p₀ = ${n.toFixed(1)} kPa`;
     });
 
     sensorManager.on("error", (msg) => {
+        if (sensorManager.mode === "ws") {
+            wsStatusEl.textContent = `⚠ ${msg}`;
+            wsStatusEl.className = "status-error";
+            return;
+        }
         if (errorEl) {
             errorEl.textContent = `⚠ ${msg}`;
             setTimeout(() => {
