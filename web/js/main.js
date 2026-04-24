@@ -21,9 +21,10 @@ const REFERENCE_RMS = DEFAULT_SPEED_SCALE * Math.sqrt(2);   // 2D M-B RMS at REF
 const REFERENCE_KE = 0.5 * REFERENCE_RMS * REFERENCE_RMS;
 const TRANSITION_TAU = 0.3;
 
-document.addEventListener("DOMContentLoaded", async () => {
-    const params = await fetch("config/params.json").then(r => r.json());
-
+// 기본 실험(boyle.html) 초기화 래퍼. DOMContentLoaded 에서
+// body.dataset.page 값이 "boyle" 이면 호출. 본문은 원래의 DOMContentLoaded
+// 핸들러 내용 그대로 — 페이지 분기를 추가하기 위해 함수로 감싸기만 했다.
+async function initBasicApp(params) {
     const box = new Box(BOX_INITIAL_X, BOX_INITIAL_Y, BOX_INITIAL_WIDTH, BOX_INITIAL_HEIGHT);
     const system = new ParticleSystem(params.particle_count, box, DEFAULT_SPEED_SCALE, params.ghost_count);
     const V0_REFERENCE_AREA = box.getArea();
@@ -306,7 +307,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             if (advRecordBtn) advRecordBtn.disabled = isPaused;
         });
     });
-});
+}
 
 // ============================================================
 // Advanced mode — mirrors basic mode's layout and reuses its drawing
@@ -771,29 +772,16 @@ function initAdvancedMode(params) {
     };
 }
 
-// Tab switching — lazy init on first advanced-mode tab click.
-// URL 파라미터 ?mode=advanced 지원: 랜딩(web/index.html) 의 "입자운동론 탐구"
-// 카드가 이 경로로 들어와 심화 탭이 바로 열리게 한다.
+// 페이지 디스패처 — body.dataset.page 값으로 어느 초기화를 실행할지 결정.
+// boyle.html(기본 실험)은 data-page="boyle", particles.html(입자운동론)은
+// data-page="particles". 랜딩(index.html)은 이 main.js 를 로드하지 않는다.
 document.addEventListener("DOMContentLoaded", async () => {
     const params = await fetch("config/params.json").then(r => r.json());
-    let advancedApi = null;
-    const urlMode = new URLSearchParams(window.location.search).get("mode");
-    const initialMode = urlMode === "advanced" ? "advanced" : "basic";
-    initModeTabs({
-        initialMode,
-        onSwitch: (mode) => {
-            if (mode === "advanced") {
-                if (!advancedApi) {
-                    advancedApi = initAdvancedMode(params);
-                } else {
-                    advancedApi.resume();
-                    // Re-check API-key availability in case the student set
-                    // it in basic mode after advanced was first opened.
-                    advancedApi.refreshTutor();
-                }
-            } else if (advancedApi) {
-                advancedApi.pause();
-            }
-        },
-    });
+    const page = document.body.dataset.page;
+    if (page === "particles") {
+        initAdvancedMode(params);
+    } else {
+        // 기본값: boyle (data-page 미지정 시 하위 호환)
+        await initBasicApp(params);
+    }
 });
