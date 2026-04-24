@@ -200,7 +200,7 @@ current += (target - current) × (dt / tau)
 
 **원칙**: dt는 update 루프 **진입점에서만** 스케일링. 내부 물리는 원래 dt 의미 그대로 받음.
 ```
-기본 탭 (main.js:79-101):
+기본 페이지(boyle.html) (main.js:79-101):
   raw dt = min(deltaTime/1000, 0.05)         // renderer.js에서 계산
   if (isPaused) return;                       // early-return
   scaledDt = dt * speedMultiplier             // 0.25 / 0.5 / 1
@@ -208,7 +208,7 @@ current += (target - current) × (dt / tau)
   box.update(scaledDt, volume_tau_seconds)
   currentSpeedRatio += ... * (scaledDt / TRANSITION_TAU)
 
-심화 탭 (main.js:494-517): 동일 + Flash.update(scaledDt)
+심화 페이지(particles.html) (main.js:494-517): 동일 + Flash.update(scaledDt)
 ```
 
 **불변성**:
@@ -278,10 +278,10 @@ V_mL = box.width / baseline_gas_width_px × baseline_volume_mL
 atm = kPa / 101.325
 표시: "101.3 kPa (1.00 atm)"
 ```
-- 심화 탭 실시간 압력 패널(`main.js:407`)과 info 패널(`ui.js:205, 1725`)에 적용
+- 심화 페이지(particles.html) 실시간 압력 패널(`main.js:407`)과 info 패널(`ui.js:205, 1725`)에 적용
 - `computeAdvPressure()`의 반환값은 여전히 kPa, `setTargetFromPressure`도 kPa 입력
 
-**물질량** (심화 탭 전용):
+**물질량** (심화 페이지(particles.html) 전용):
 ```
 n₀ = P₀V₀ / (R·T₀)
    = (101.325 kPa × 0.050 L) / (8.31446 kPa·L·mol⁻¹·K⁻¹ × 298.15 K)
@@ -289,8 +289,8 @@ n₀ = P₀V₀ / (R·T₀)
 mmol = N × 0.006815     (입자당 mmol 계수)
 표시: "300개 (2.04 mmol)"
 ```
-- 심화 탭 입자수 슬라이더 값(`main.js:420`)에만 적용
-- 기본 탭은 입자수 UI 노출 없음 → 영향 없음
+- 심화 페이지(particles.html) 입자수 슬라이더 값(`main.js:420`)에만 적용
+- 기본 페이지(boyle.html)는 입자수 UI 노출 없음 → 영향 없음
 - 기체 종류 무관 (이상기체 전제, `ADV_GAS_MASSES`는 속도 스케일 `√(m_ref/m)`에만 영향)
 
 **자가 일관성 검증**:

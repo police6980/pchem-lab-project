@@ -2,10 +2,11 @@
 
 **문서 목적**: 현재 구현 상태와 남은 작업의 마스터 트래커. 다른 설계 문서는 "어떻게 만들어졌는가"를 설명하고, 이 문서는 "어디까지 왔는가"를 기록한다.
 
-**마지막 업데이트**: 2026-04-23 (Phase 3 에뮬레이터 Step 3-1~3-3 + 펌웨어 스켈레톤·시뮬 완료)
-**현재 상태**: 보일 법칙 시뮬레이터 완성 + **심화 탐구 모드 추가** (`feature/particle-controls`) + **반응형 레이아웃 + 단위 병기 완료** (`feature/responsive-canvas`) + **Phase 3 진행 중** (`phase3-real-sensor`) — 브라우저 측 소프트웨어(Web Serial 어댑터·프로토콜 v1.1·UI 패널) 완료, **WebSocket 펌웨어 에뮬레이터 Step 3-1~3-3 완료**, **ESP32 펌웨어 스켈레톤·시뮬 버전(Wokwi 검증) 완료**. 브라우저 `WebSocketSensorSource` 통합(Step 3-4~3-5)과 실물 ESP32 + BMP280 조립·검증(Step 3-6) 대기.
-**최신 태그**: `v0.4-boyle-complete` (main), `feature/particle-controls` · `feature/responsive-canvas` · `phase3-real-sensor` 브랜치 작업 진행 (태그 미할당)
-**다음 단계**: 브라우저 `WebSocketSensorSource` + v1.1 공통 파서(Step 3-4) → UI 센서 소스 토글 Mock/WebSocket/Serial(Step 3-5) → 실물 하드웨어 조립·플래시·실험 검증(Step 3-6); `feature/particle-controls` 와 `feature/responsive-canvas` 는 추가 검증 후 main 병합 예정
+**마지막 업데이트**: 2026-04-24 (CAST 브랜딩 + 랜딩 페이지 + 3 페이지 구조 분리, Phase 3 소프트웨어 마무리)
+**프로젝트 정식명**: **CAST** (Chemistry AI-assisted Simulation & MBL Tools). 저장소 이름 `pchem-lab-project` 는 개발 초기 명칭 호환 차원에서 유지.
+**현재 상태**: 보일 법칙 실험 + 입자운동론 심화 모듈 + AI 튜터 완성. **Phase 3 소프트웨어 완성** (`phase3-real-sensor` 브랜치: 프로토콜 v1.1, 에뮬레이터 calib ACK/cfg, WebSocket/WebSerial 소스, UI 삼항 토글, AI 튜터 데이터 소스 인식 — Step 3-6 실물 조립·검증만 하드웨어 도착 대기). **랜딩 페이지 + 3 페이지 분리 완성** (`feature/landing-page` 브랜치: 랜딩/보일/입자운동 HTML 분리, body.dataset.page 디스패처, API 키 홈 일원화, PhET 레퍼런스 학술지 톤 재디자인).
+**최신 태그**: `v0.4-boyle-complete` (main). 남은 브랜치 작업 4 개 모두 main 병합 대기: `phase3-real-sensor` / `feature/landing-page` / `feature/particle-controls` / `feature/responsive-canvas`.
+**다음 단계**: (1) 실물 DFRobot Gravity 1.6MPa 입수 후 Step 3-6 검증, (2) `phase3-real-sensor` → main 병합 후 `v0.5-real-sensor` 태그, (3) `feature/landing-page` rebase 후 병합, (4) 돌턴 실험 모듈 설계 착수.
 
 ---
 
@@ -176,10 +177,13 @@ Arduino·ESP32 하드웨어 입수 전 선행 가능한 브라우저·프로토�
 
 `main` 브랜치의 보일 법칙 MVP 위에 **기본/심화** 듀얼 탭 구조를 얹고, 기본 실험도 범위 확장했다. 모든 작업은 `feature/particle-controls` 브랜치에 누적.
 
-### 탭 분리 + 심화 탐구 신규 구현
-- [x] 상단 탭 (`#mode-tabs`) — `🔬 기본 실험` / `⚗️ 심화 탐구`
+### 심화 탐구 신규 구현 (초기: 상단 탭 방식, 이후 페이지 분리로 전환)
+- [x] 상단 탭 (`#mode-tabs`) — `🔬 기본 실험` / `⚗️ 심화 탐구` *(초기 구현;
+  `feature/landing-page` 에서 3 페이지 구조로 전환되며 제거됨 — §2-G 참조)*
 - [x] `initModeTabs({ onSwitch })` — 전환 시 p5 draw 루프 pause/resume
-- [x] 탭별 독립 DOM (모든 심화 요소는 `adv-` 접두사)
+  *(현재는 호출되지 않는 dead code, 향후 재사용 여지로 정의만 유지)*
+- [x] 탭별 독립 DOM (모든 심화 요소는 `adv-` 접두사) — 현재도 유지,
+  `particles.html` 에서 동일 접두사 사용
 
 ### 심화 탐구 물리 모델
 - [x] **부피 주도** (기본과 반대): 학생이 V 슬라이더 조작 → `P = P₀·(V₀/V)·(T/T₀)·(N/N₀)` 로 압력 자동 계산
@@ -238,7 +242,7 @@ Arduino·ESP32 하드웨어 입수 전 선행 가능한 브라우저·프로토�
 
 | 브레이크포인트 | 발동 동작 |
 |---|---|
-| ≤1919px | 심화 탭 트래커 칼럼이 메인 캔버스 아래로 세로 스택 (Step 2a) |
+| ≤1919px | 심화 페이지(particles.html) 트래커 칼럼이 메인 캔버스 아래로 세로 스택 (Step 2a) |
 | ≤1599px | AI 사이드바가 push → overlay drawer 전환 (position:fixed, 우측 슬라이드) (Step 1) |
 | ≤1279px | 모든 p5 캔버스에 `max-width:100%; height:auto` (Step 2b) — 내부 해상도 불변, CSS만 축소 |
 | ≤1023px | `#section-visuals`, `#section-measurements` flex-direction column (Step 2c) |
@@ -275,18 +279,18 @@ Arduino·ESP32 하드웨어 입수 전 선행 가능한 브라우저·프로토�
 
 ### 재생 컨트롤 (슬로모션 + 일시정지)
 - **UI**: `#section-controls` / `#adv-section-controls`에 **3번째 행** `.control-row-playback` 추가 — segmented 배율 버튼 그룹 (0.25x/0.5x/1x) + 별도 일시정지 버튼
-- **전역 상태**: `main.js` 모듈 최상위 `let speedMultiplier = 1; let isPaused = false;` — 기본/심화 탭 공유
+- **전역 상태**: `main.js` 모듈 최상위 `let speedMultiplier = 1; let isPaused = false;` — 보일·입자운동 두 페이지 공유 (현재 구조에선 두 페이지가 동시 로드 안 되므로 각 페이지 독립 상태로 동작)
 - **dt 스케일링**: 업데이트 루프 진입점 2곳에서만 적용
-  - `main.js:79-101` (기본 탭): `const scaledDt = dt * speedMultiplier` → `system.update(scaledDt)`, `box.update(scaledDt, ...)`, 온도 전이도 `scaledDt / TRANSITION_TAU`
-  - `main.js:494-517` (심화 탭): 동일 패턴 + `Flash.update(scaledDt)`
+  - `main.js:79-101` (기본 페이지 — boyle.html): `const scaledDt = dt * speedMultiplier` → `system.update(scaledDt)`, `box.update(scaledDt, ...)`, 온도 전이도 `scaledDt / TRANSITION_TAU`
+  - `main.js:494-517` (심화 페이지 — particles.html): 동일 패턴 + `Flash.update(scaledDt)`
 - **일시정지**: update 콜백에서 `if (isPaused) return;` early return → 물리 상태 완전 동결 (플래시도 age 진행 안 함)
-- **양 탭 동기화**: `document.querySelectorAll('.playback-btn')`로 기본/심화 DOM 모두 탐색 → 한 번 클릭에 양쪽 CSS `.active` 동기화
+- **양 페이지 동기화**: `document.querySelectorAll('.playback-btn')`로 현재 로드된 페이지의 DOM 탐색 → CSS `.active` 갱신. 페이지 분리 후엔 각 페이지 내부 동기화만 의미 있음
 - **기록 버튼 일시정지 중 비활성**: `ui.js:380` `btn.disabled = !isStabilized || isPaused` — 안정화 setInterval이 매 50ms마다 재평가
 
 ### 충돌/초 시뮬 시간 보정
 - wall-clock 기준 충돌/초는 배율에 비례해 변동 (`hitsPerSec_wall = k × hitsPerSec_sim`) → **물리 법칙 "PV=일정" 검증을 흐리게 함**
 - 보정식 적용: `hitsPerSec_sim = hitsPerSec_wall / speedMultiplier` → 배율 무관 상수 유지
-- 수정 지점 2곳: `main.js:167` (기본 탭 250ms tick) + `main.js:706` (심화 탭 250ms tick)
+- 수정 지점 2곳: `main.js:167` (기본 페이지 250ms tick) + `main.js:706` (심화 페이지 250ms tick)
 - 라벨 변경: `"충돌/s (전체)"` → `"충돌/s (시뮬 시간)"` (`ui.js:177, 1720`)
 - mid-sample 배율 전환 시 1-tick 최대 +40% 과대 표시 → EMA α=0.15 (τ≈1.5s) 흡수
 - 속도 게이지·평균 KE는 vx²/vx 기반이라 이미 sim-time 기준 → **보정 후 모든 "시간당" 지표 통일**
@@ -304,6 +308,57 @@ Arduino·ESP32 하드웨어 입수 전 선행 가능한 브라우저·프로토�
 - 그래프 축 라벨(`ui.js:435, 439, 554, 558`), 측정표 헤더(`ui.js:275-276, 2033-2035`) — kPa 유지
 - HTML 정적 라벨(`index.html:179, 191` 슬라이더 힌트) — 기존 mL 유지
 - 이 모든 영역은 **내부 raw 값 기반이라 단위 변경이 물리 계산에 무영향**
+
+---
+
+## 2-G. 랜딩 페이지 + 3 페이지 구조 분리 + CAST 브랜딩 (`feature/landing-page`)
+
+2026-04-24 작업. 기존 `#mode-tabs` 단일 페이지 구조를 폐기하고, 실험별
+독립 HTML 페이지 + 랜딩 허브로 재편. 돌턴 등 후속 실험 추가 시 탭 누더기화
+방지 목적.
+
+### 파일 구조 변화
+- `web/index.html` — **🏠 랜딩 (신규)**: CAST 로고, 실험 3 카드(보일·입자운동·
+  돌턴 *준비 중*), API 키 입력 1회, 교실 사진 브릿지 섹션, 소속 기관 표기
+- `web/boyle.html` — 기존 `index.html` 이름 변경 + `#mode-tabs`·`#advanced-mode`
+  블록 제거. `<body data-page="boyle">`
+- `web/particles.html` — 심화 탐구 내용 이관. `<body data-page="particles">`
+- 공통 JS (`web/js/*.js`) 와 CSS (`web/css/style.css`) 는 3 페이지가 공유
+
+### 페이지 디스패처
+- `main.js` DOMContentLoaded 에서 `document.body.dataset.page` 로 분기:
+  - `"boyle"` (기본값) → `initBasicApp(params)` — 기존 basic 초기화 블록 전체
+  - `"particles"` → `initAdvancedMode(params)` — 기존 adv 초기화 함수 하나
+- `initModeTabs` 는 호출 없이 정의만 남김 (dead code, 재사용 여지 유지)
+
+### 브랜딩·UI 변경
+- [x] 프로젝트명 UI 표시: `pchem-lab` → **CAST (Chemistry AI-assisted Simulation & MBL Tools)**
+  - 내부 식별자(저장소 이름·sessionStorage 키·폴더명)는 호환 유지
+- [x] 랜딩 디자인: Georgia 세리프 헤드라인, 흰 배경, PhET/BioInteractive
+  레퍼런스의 학술지 톤. 실험 카드 썸네일에 실제 시뮬레이션 스크린샷 사용
+- [x] 소속 기관 푸터: 국립공주대학교 화학교육과 · 경인교육대학교 과학교육과
+- [x] 실험 카드 아이콘: 🔬 보일 / ⚗️→💥 입자운동 / 💨→🌀 돌턴, MBL·시뮬·AI 3색 태그
+- [x] 🏠 홈으로 네비게이션 링크 각 실험 페이지 상단
+
+### AI 튜터 정리
+- [x] API 키 입력 UI 를 실험 페이지에서 전면 제거 — 랜딩에만 배치 (sessionStorage
+  공유라 자동 반영). 설정 패널 공간 확보 → 대화 영역 여유
+- [x] 입자운동 AI 튜터 외형을 보일 AI 튜터와 통일 (설정 패널 구조·토큰
+  사용량 표시·입력 placeholder)
+- [x] 기능은 실험별 유지 원칙: 보일의 Q3 자동·Q4 마무리·보고서 docx 는 보일에만
+- [x] 스테일 문구 "기본 실험 탭" / "오른쪽 상단 설정 패널" 일괄 → "🏠 홈 페이지"
+- [x] 설정 패널 토글 버그 수정: `classList.toggle("open")` 로 통일 (CSS max-height 정합)
+
+### 수업 배포 준비
+- [x] `DEBUG_DIAGNOSTICS` 플래그로 5초 주기 `console.log` 가드 (기본 false)
+- [x] 학생 F12 Console 은 정상 동작 시 출력 없음
+
+### 브랜치 병합 주의
+- `feature/landing-page` 의 일지(`docs/10-dev-journal.md`)는 `phase3-real-sensor`
+  최신 journal 커밋 2 개(66671b8, 8f9d75b) 미반영 상태
+- 병합 순서 권장: `phase3-real-sensor` → main 먼저, `feature/landing-page`
+  rebase 후 merge. 두 브랜치의 영향 영역(센서 로직 vs 페이지 구조) 이
+  겹치지 않아 충돌 최소 예상
 
 ---
 

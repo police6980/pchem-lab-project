@@ -83,10 +83,13 @@ aiConversations = {
 
 ### 2.4 파일 구성
 
-- `web/js/ai-tutor.js`: 상태·렌더링·이벤트·더미 응답
-- `web/index.html`: 사이드바 DOM 선언
-- `web/css/style.css`: 사이드바 레이아웃·말풍선
-- `web/js/ui.js` (클로저): BYOK 설정 함수 (`verifyKey`, `clearKey`, `updateUsageDisplay`), 프롬프트 빌더 (`buildSystemPrompt`, `buildUserPrompt`, `buildDataContext`)
+- `web/js/ai-tutor.js`: 보일 전용 **풀 AI 튜터** — 상태·렌더링·이벤트·실 Anthropic API 호출·Q3 자동·Q4 마무리·보고서 docx 생성·수준 자동 감지·토큰 비용 추적
+- `web/js/ui.js createAdvAiTutor`: 입자운동(particles.html) 전용 **경량 AI 튜터** — 자체 완결된 멀티턴 채팅, 토큰 추적·보고서·Q3 자동 등 고급 기능은 의도적 미포함
+- `web/boyle.html`: 보일 페이지 AI 사이드바 DOM (`#ai-sidebar`, id prefix 없음)
+- `web/particles.html`: 입자운동 페이지 AI 사이드바 DOM (`#adv-ai-sidebar`, id `adv-*` prefix)
+- `web/index.html` (랜딩): API 키 입력·저장·삭제 UI **단일 진입점**. sessionStorage `pchem_api_key` 로 두 실험 페이지와 공유
+- `web/css/style.css`: 사이드바 레이아웃·말풍선 (3 페이지 공유)
+- `web/js/ui.js createAnalysisPanel` (클로저): 보일 측 BYOK 관련 함수 (`verifyKey`, `clearKey`, `updateUsageDisplay`) — 현재 입력 UI 가 실험 페이지에서 제거되어 이벤트 배선이 null 가드로 차단됨 (dead code, 재사용 여지 유지). 프롬프트 빌더 (`buildSystemPrompt`, `buildUserPrompt`, `buildDataContext`) 는 활성
 
 Phase 2-B에서 `ai-tutor.js`의 `fakeApiDelay` + `generateDummyAiResponse`를 Anthropic Messages API 실 호출로 교체한다.
 

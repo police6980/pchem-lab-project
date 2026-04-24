@@ -54,30 +54,45 @@ MVP 단계에선 **플랫 폴더 + 보일 전용**으로 단순성 우선.
 ```
 pchem-lab-project/
 ├── web/
-│   ├── index.html              // 섹션 5개 + 사이드바 DOM 선언
+│   ├── index.html              // 🏠 랜딩 (CAST 로고 + 실험 선택 + API 키 설정)
+│   ├── boyle.html              // 🔬 보일의 법칙 (MBL·시뮬·AI), <body data-page="boyle">
+│   ├── particles.html          // ⚗️ 입자운동론 (시뮬·AI), <body data-page="particles">
 │   ├── config/
 │   │   └── params.json         // 튜닝 가능 수치 단일 파일
 │   ├── css/
-│   │   └── style.css           // 전체 레이아웃 + 섹션별 스타일
-│   └── js/
-│       ├── simulation.js       // 물리 엔진
-│       ├── renderer.js         // p5.js 드로잉 (2개 인스턴스)
-│       ├── serial.js           // 센서 소스 추상화 (MockSensorSource)
+│   │   └── style.css           // 3 페이지 공유 전체 스타일
+│   └── js/                     // 3 페이지가 전부 공유, body.dataset.page 로 분기
+│       ├── simulation.js       // 물리 엔진 (Box, Particle, ParticleSystem)
+│       ├── renderer.js         // p5.js 드로잉 원시
+│       ├── protocol.js         // v1.1 파서 공통 모듈 (parseV11Line)
+│       ├── serial.js           // SensorSource + Mock/WebSerial/WebSocket 소스
 │       ├── logger.js           // CSV 유틸
-│       ├── ai-tutor.js         // AI 튜터 대화 UI (Part 3.5)
-│       ├── ui.js               // DOM UI 함수 모음 + BYOK 설정
-│       └── main.js             // 부팅 + 오케스트레이션
-├── firmware/                    // ESP32 펌웨어 (boyle.ino 스켈레톤·시뮬 버전, Phase 3)
+│       ├── ai-tutor.js         // 보일 전용 풀 AI 튜터 (보고서·Q3 자동 등)
+│       ├── ui.js               // DOM UI + 심화(adv-) AI 튜터·측정 패널
+│       └── main.js             // 부팅 디스패처 + initBasicApp / initAdvancedMode
+├── firmware/                    // ESP32 펌웨어 (boyle.ino, DFRobot Gravity 1.6MPa)
 ├── tools/
-│   └── firmware-emulator/       // Node.js + ws 기반 WebSocket 펌웨어 에뮬레이터 (Phase 3, ws://localhost:8787)
+│   └── firmware-emulator/       // Node.js + ws 기반 WebSocket 펌웨어 에뮬레이터 (ws://localhost:8787)
 └── docs/                        // 설계 문서
 ```
 
-스크립트 로드 순서 (`index.html`, `defer`):
+**페이지 디스패처 패턴** (`main.js` DOMContentLoaded):
+```javascript
+const page = document.body.dataset.page;
+if (page === "particles")  initAdvancedMode(params);
+else                       await initBasicApp(params);   // boyle 또는 기본값
 ```
-p5.js (CDN) → simulation.js → renderer.js → serial.js →
-logger.js → ai-tutor.js → ui.js → main.js
+- 3 페이지가 같은 `main.js` 를 로드하되 `<body data-page>` 로 해당 초기화만 실행
+- 돌턴 등 후속 실험 추가 시 `data-page="dalton"` 분기 한 줄 추가로 확장
+- 랜딩(`index.html`)은 `main.js` 를 로드하지 않음 — 자체 인라인 `<script>` 로 API 키 저장만 처리
+
+스크립트 로드 순서 (`boyle.html` / `particles.html`, `defer`):
 ```
+p5.js (CDN) → docx (CDN) → simulation.js → renderer.js → protocol.js →
+serial.js → logger.js → ai-tutor.js → ui.js → main.js
+```
+`particles.html` 에선 센서·보고서 관련 스크립트가 실제로 호출되지 않지만
+단일 CSS/JS 번들 유지를 위해 동일 로드. CDN 캐시 재사용으로 실질 비용 미미.
 
 `ai-tutor.js`는 **`ui.js`보다 앞**에 로드되어야 한다 — `ui.js`의 `buildAnalysisCSV`가 전역 `aiConversations`를 읽고, `createAnalysisPanel.clear()`가 전역 `resetAllConversations()`를 호출하기 때문.
 
@@ -229,7 +244,7 @@ logger.js → ai-tutor.js → ui.js → main.js
 #### `main.js` — 부팅 + 오케스트레이션
 
 - **모듈 상수**: `REFERENCE_TEMP_K/V_ML/P_KPA/RMS/KE`, `TRANSITION_TAU` (0.3), `CONTINUOUS_MAX_ROWS` (10000), `CONTINUOUS_SAMPLE_INTERVAL_MS` (250), `USE_MOCK_SENSOR` 플래그
-- **재생 컨트롤 전역 상태** (Phase 4.6, `feature/responsive-canvas`): `speedMultiplier` (0.25/0.5/1), `isPaused` (bool). 기본/심화 탭 공유. dt 스케일링은 각 탭의 update 루프 진입점에서만 적용 (`scaledDt = dt * speedMultiplier`). 일시정지는 update 콜백 early return. 물리 코드(`simulation.js`, `renderer.js`) 불변.
+- **재생 컨트롤 전역 상태** (Phase 4.6, `feature/responsive-canvas`): `speedMultiplier` (0.25/0.5/1), `isPaused` (bool). `main.js` 최상위 `let` 에 정의되어 보일/입자운동 두 페이지가 공유 (현재 구조에선 두 페이지가 동시 로드되지 않으므로 실질적으로 각 페이지 독립 상태). dt 스케일링은 각 페이지 update 루프 진입점에서만 적용 (`scaledDt = dt * speedMultiplier`). 일시정지는 update 콜백 early return. 물리 코드(`simulation.js`, `renderer.js`) 불변.
 - **부팅 흐름** (async DOMContentLoaded 내부): `params.json` fetch → Box/ParticleSystem 생성 → MockSensor + slider → `createRenderer` → `createInfoPanel` → `createMeasurementPanel` → 250 ms 연속 로그 `setInterval` → `createAnalysisPanel` → `createTemperatureControl` → 1 s/5 s `setInterval`
 - **상태 변수** (DOMContentLoaded 클로저): `smoothedP`, `sessionStartMs`, `currentTempCelsius`, `V0_REFERENCE_AREA`, `V0_current`, `continuousBuffer`, 전이 애니메이션 4변수, `pistonHitsAccumulator`, `continuousHitsAccumulator`, `analysisApi`
 
@@ -491,7 +506,7 @@ logger.js → ai-tutor.js → ui.js → main.js
 | 브레이크포인트 | 블록 이름 | 변경 내용 |
 |---|---|---|
 | `≥1920px` | — | 기존 push 모드 레이아웃 그대로 |
-| `≤1919px` | Step 2a | 심화 탭 `#adv-section-canvas`를 column 방향, 트래커 칼럼 가운데 정렬 |
+| `≤1919px` | Step 2a | 심화 페이지(particles.html) `#adv-section-canvas`를 column 방향, 트래커 칼럼 가운데 정렬 |
 | `≤1599px` | Step 1 | `#ai-sidebar`/`#adv-ai-sidebar`를 `position:fixed` drawer로 전환 (top:74, right:0, max-height calc, overflow:hidden, translateX 슬라이드) |
 | `≤1279px` | Step 2b | 모든 p5 `<canvas>`에 `max-width:100%; height:auto` (내부 비트맵 불변, CSS 축소만) |
 | `≤1023px` | Step 2c | `#section-visuals`, `#adv-section-visuals`, `#section-measurements`, `#adv-section-measurements` flex-direction:column |
