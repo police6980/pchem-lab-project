@@ -2477,3 +2477,223 @@ body.adv-sidebar-collapsed #adv-ai-reopen-btn {
     background: #e8743c;
     color: white;
 }
+
+/* =========================
+ * Landing page (web/index.html) — 실험 허브
+ * 기존 실험 UI 규칙과 격리되도록 .landing-page 스코프로 진입.
+ * ========================= */
+.landing-page {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 40px 20px;
+    background: #ffffff;
+    color: #222;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+.landing-header {
+    text-align: center;
+    margin-bottom: 40px;
+}
+
+.landing-header h1 {
+    font-size: 2.4rem;
+    margin: 0 0 8px;
+    letter-spacing: -0.02em;
+}
+
+.landing-header .subtitle {
+    color: #666;
+    font-size: 1.05rem;
+    margin: 0;
+}
+
+.api-key-section {
+    background: #f8f9fb;
+    border: 1px solid #e1e4ec;
+    border-radius: 8px;
+    padding: 24px;
+    margin-bottom: 32px;
+}
+
+.api-key-section h2 {
+    margin: 0 0 12px;
+    font-size: 1.2rem;
+}
+
+.api-key-description {
+    color: #555;
+    font-size: 0.95rem;
+    line-height: 1.5;
+    margin: 0 0 8px;
+}
+
+.api-key-input-row {
+    display: flex;
+    gap: 8px;
+    margin: 12px 0;
+}
+
+.api-key-input-row input {
+    flex: 1;
+    padding: 8px 12px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+    font-size: 0.95rem;
+}
+
+.api-key-input-row button {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 4px;
+    background: #2e7cf6;
+    color: white;
+    cursor: pointer;
+    font-size: 0.95rem;
+}
+
+.api-key-input-row button.secondary {
+    background: #999;
+}
+
+.api-key-input-row button:hover {
+    filter: brightness(1.05);
+}
+
+.api-key-status {
+    font-size: 0.9rem;
+    margin-top: 4px;
+}
+
+.api-key-status.saved { color: #2a7a2a; }
+.api-key-status.empty { color: #999; }
+
+.api-key-help {
+    margin-top: 12px;
+    font-size: 0.9rem;
+    color: #666;
+}
+
+.api-key-help summary {
+    cursor: pointer;
+    color: #2e7cf6;
+}
+
+.api-key-help ol {
+    margin-top: 8px;
+    padding-left: 20px;
+    line-height: 1.7;
+}
+
+.api-key-help a {
+    color: #2e7cf6;
+}
+
+.api-key-help code {
+    background: #eef1f6;
+    padding: 1px 6px;
+    border-radius: 3px;
+    font-size: 0.85em;
+}
+
+.experiments-section h2 {
+    margin: 0 0 20px;
+    font-size: 1.3rem;
+}
+
+.experiment-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 20px;
+}
+
+.experiment-card {
+    display: block;
+    background: #ffffff;
+    border: 1px solid #e1e4ec;
+    border-radius: 8px;
+    padding: 24px;
+    text-decoration: none;
+    color: inherit;
+    transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+}
+
+.experiment-card.available:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    border-color: #2e7cf6;
+}
+
+.experiment-card.disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+.experiment-icon {
+    font-size: 2.5rem;
+    line-height: 1;
+    margin-bottom: 8px;
+}
+
+.experiment-card h3 {
+    margin: 8px 0;
+    font-size: 1.25rem;
+}
+
+.experiment-desc {
+    color: #666;
+    font-size: 0.95rem;
+    margin: 0 0 12px;
+}
+
+.experiment-tags {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 12px;
+}
+
+.tag {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+
+.tag-mbl { background: #e3f2fd; color: #1565c0; }
+.tag-sim { background: #f3e5f5; color: #7b1fa2; }
+
+.experiment-detail {
+    color: #555;
+    font-size: 0.9rem;
+    line-height: 1.5;
+    margin: 0;
+}
+
+.experiment-detail em {
+    color: #999;
+    font-style: normal;
+}
+
+.experiment-detail code {
+    background: #eef1f6;
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-size: 0.85em;
+}
+
+.landing-footer {
+    text-align: center;
+    margin-top: 48px;
+    padding-top: 24px;
+    border-top: 1px solid #eee;
+    color: #999;
+    font-size: 0.9rem;
+}
+
+.landing-footer a {
+    color: #2e7cf6;
+    text-decoration: none;
+    margin: 0 8px;
+}
