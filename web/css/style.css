@@ -2703,21 +2703,26 @@ body.adv-sidebar-collapsed #adv-ai-reopen-btn {
  * ========================= */
 .page-nav {
     padding: 10px 20px;
-    border-bottom: 1px solid #eee;
-    background: #fafbfc;
+    border-bottom: 1px solid #cfd6e4;
+    background: #e8f0fe;
+    margin-bottom: 12px;
 }
 
 .nav-home {
     display: inline-block;
-    padding: 6px 14px;
+    padding: 8px 16px;
+    background: white;
     color: #2e7cf6;
+    border: 1px solid #2e7cf6;
     text-decoration: none;
     font-size: 0.95rem;
-    border-radius: 4px;
-    transition: background 0.15s;
+    font-weight: 500;
+    border-radius: 6px;
+    transition: background 0.15s, color 0.15s;
 }
 
 .nav-home:hover {
-    background: #e8f0fe;
+    background: #2e7cf6;
+    color: white;
     text-decoration: none;
 }
