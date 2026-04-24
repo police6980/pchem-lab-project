@@ -799,6 +799,10 @@ function initDaltonApp(params) {
         return;
     }
 
+    // 개발 편의: true 로 바꾸면 state 변경 시 콘솔 로그 출력.
+    // 프로덕션에서는 false 유지.
+    const DEBUG_DALTON = false;
+
     // ─────────────────────────────────────────────────────────
     // daltonState — closure 내 중앙 상태 객체
     // Step B-2, B-3 에서 필드 확장 예정 (stage, records, pressureMeasured 등)
@@ -812,6 +816,11 @@ function initDaltonApp(params) {
             gas:    cfg.syringe_b.default_gas,  // 'co2'
             volume: cfg.syringe_b.v_default,    // 100 (mL)
         },
+        // 주사기 B 센서 측정값 (atm 기준, 내부 계산용).
+        // 시뮬 모드에서는 1.00 고정 (주입 전 상태 = 대기압).
+        // 실센서 모드(Step I) 에서 실제 수신값으로 덮어씀.
+        // 결정 7: 주입 전 주사기 A 압력 = 이 값을 그대로 복사 표시.
+        pressureBSensor: 1.00,
         displayUnit: "atm",  // 'atm' | 'kPa'
         stage: "IDLE",       // Step B-3 에서 사용: IDLE | INJECTING | INJECTED | CONFIRMED
     };
@@ -829,11 +838,13 @@ function initDaltonApp(params) {
         gasASelect:    $("dalton-gas-a"),
         volumeANumber: $("dalton-volume-a-number"),
         pressureA:     $("dalton-pressure-a"),
+        pressureAHint: $("dalton-pressure-a-hint"),
 
         // 주사기 B
         gasBSelect:    $("dalton-gas-b"),
         volumeBNumber: $("dalton-volume-b-number"),
         pressureB:     $("dalton-pressure-b"),
+        pressureBHint: $("dalton-pressure-b-hint"),
 
         // 이론값
         theoryBefore: $("dalton-theory-before"),
@@ -851,6 +862,66 @@ function initDaltonApp(params) {
     // 참조 누락 경고 (개발 편의)
     for (const [key, el] of Object.entries(dom)) {
         if (!el) console.warn(`[Dalton] DOM 참조 누락: ${key}`);
+    }
+
+    // ─────────────────────────────────────────────────────────
+    // 단위 포맷 헬퍼 — atm(내부) → 표시 문자열
+    // atm: 소수 둘째 자리. kPa: 소수 첫째 자리 (일반적 관행).
+    // ─────────────────────────────────────────────────────────
+    function formatPressure(atmVal) {
+        if (daltonState.displayUnit === "kPa") {
+            return `${atmToKPa(atmVal).toFixed(1)} kPa`;
+        }
+        return `${atmVal.toFixed(2)} atm`;
+    }
+
+    // ─────────────────────────────────────────────────────────
+    // 이론값 계산 + 박스 갱신
+    // 주입 전: 항상 1.00 atm (= 대기압, 고정)
+    // 주입 후: P_total = (V_A/V_B + 1) × 1.00 atm
+    // 단위 토글 시 자동 재포맷.
+    // ─────────────────────────────────────────────────────────
+    function updateTheoryBox() {
+        const V_A = daltonState.syringeA.volume;
+        const V_B = daltonState.syringeB.volume;
+        const theoryBeforeAtm = 1.00;
+        const theoryAfterAtm  = (V_A / V_B + 1) * 1.00;
+
+        if (dom.theoryBefore) dom.theoryBefore.textContent = formatPressure(theoryBeforeAtm);
+        if (dom.theoryAfter)  dom.theoryAfter.textContent  = formatPressure(theoryAfterAtm);
+    }
+
+    // ─────────────────────────────────────────────────────────
+    // 압력 readout 갱신
+    // - 주사기 B: pressureBSensor 값을 현재 단위로 표시 (센서 실측값 자리).
+    // - 주사기 A: 결정 7 정책
+    //   . IDLE/INJECTING: B 센서값 그대로 복사, hint = "(B와 동일, 대기압)"
+    //   . INJECTED/CONFIRMED: "—" 비표시, hint 숨김 (B-3 stage 전환 시 본격 분기)
+    // 현재 B-2 시점에서는 stage 가 항상 IDLE 이므로 A는 늘 복사 모드.
+    // ─────────────────────────────────────────────────────────
+    function updatePressureReadouts() {
+        const sensorAtm = daltonState.pressureBSensor;
+
+        // 주사기 B: 센서값 표시
+        if (dom.pressureB) dom.pressureB.textContent = formatPressure(sensorAtm);
+        // B hint 는 현재 "(센서 실측)" 고정 (시뮬 모드에서도 동일 표기)
+
+        // 주사기 A: stage 별 분기
+        const stage = daltonState.stage;
+        if (stage === "IDLE" || stage === "INJECTING") {
+            if (dom.pressureA) dom.pressureA.textContent = formatPressure(sensorAtm);
+            if (dom.pressureAHint) {
+                dom.pressureAHint.textContent = "(B와 동일, 대기압)";
+                dom.pressureAHint.style.display = "";
+            }
+        } else {
+            // INJECTED / CONFIRMED: A 는 비어있음
+            if (dom.pressureA) dom.pressureA.textContent = "—";
+            if (dom.pressureAHint) {
+                dom.pressureAHint.textContent = "";
+                dom.pressureAHint.style.display = "none";
+            }
+        }
     }
 
     // ─────────────────────────────────────────────────────────
@@ -875,14 +946,19 @@ function initDaltonApp(params) {
     // Step B-2 에서 이론값·압력 업데이트 로직 추가 예정 (현재는 상태 갱신 + 로그만)
     // ─────────────────────────────────────────────────────────
     const onStateChange = debounce(() => {
-        // Step B-2 에서 이론값 박스·압력 표시 갱신 함수 호출
-        console.log("[Dalton] state changed", {
-            gasA: daltonState.syringeA.gas,
-            V_A: daltonState.syringeA.volume,
-            gasB: daltonState.syringeB.gas,
-            V_B: daltonState.syringeB.volume,
-            unit: daltonState.displayUnit,
-        });
+        updateTheoryBox();
+        updatePressureReadouts();
+
+        if (DEBUG_DALTON) {
+            console.log("[Dalton] state changed", {
+                gasA: daltonState.syringeA.gas,
+                V_A: daltonState.syringeA.volume,
+                gasB: daltonState.syringeB.gas,
+                V_B: daltonState.syringeB.volume,
+                unit: daltonState.displayUnit,
+                stage: daltonState.stage,
+            });
+        }
     }, cfg.debounce_ms);
 
     // 주사기 A — 기체 select
@@ -944,7 +1020,7 @@ function initDaltonApp(params) {
     });
 
     // ─────────────────────────────────────────────────────────
-    // 초기 상태 1회 적용 (숫자 박스 값 동기)
+    // 초기 상태 1회 적용 (숫자 박스·이론값·압력 readout 동기)
     // ─────────────────────────────────────────────────────────
     if (dom.volumeANumber) {
         dom.volumeANumber.value = daltonState.syringeA.volume;
@@ -955,8 +1031,11 @@ function initDaltonApp(params) {
     if (dom.unitToggle) {
         dom.unitToggle.textContent = `단위: ${daltonState.displayUnit}`;
     }
+    // 이론값·압력 박스 초기 동기 (비디바운스, 즉시 1회 호출)
+    updateTheoryBox();
+    updatePressureReadouts();
 
-    console.log("[Dalton] initDaltonApp B-1 완료. 이벤트 바인딩 인프라 가동.");
+    console.log("[Dalton] initDaltonApp B-2 완료. 이론값·압력 실시간 갱신 가동.");
 }
 
 // 페이지 디스패처 — body.dataset.page 값으로 어느 초기화를 실행할지 결정.
