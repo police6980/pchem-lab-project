@@ -2664,6 +2664,7 @@ body.adv-sidebar-collapsed #adv-ai-reopen-btn {
 
 .tag-mbl { background: #e3f2fd; color: #1565c0; }
 .tag-sim { background: #f3e5f5; color: #7b1fa2; }
+.tag-ai  { background: #fef3c7; color: #92400e; }
 
 .experiment-detail {
     color: #555;
