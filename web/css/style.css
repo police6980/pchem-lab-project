@@ -2697,3 +2697,27 @@ body.adv-sidebar-collapsed #adv-ai-reopen-btn {
     text-decoration: none;
     margin: 0 8px;
 }
+
+/* =========================
+ * Page navigation — 실험 페이지 상단(boyle.html 등) 의 홈 복귀 네비
+ * ========================= */
+.page-nav {
+    padding: 10px 20px;
+    border-bottom: 1px solid #eee;
+    background: #fafbfc;
+}
+
+.nav-home {
+    display: inline-block;
+    padding: 6px 14px;
+    color: #2e7cf6;
+    text-decoration: none;
+    font-size: 0.95rem;
+    border-radius: 4px;
+    transition: background 0.15s;
+}
+
+.nav-home:hover {
+    background: #e8f0fe;
+    text-decoration: none;
+}

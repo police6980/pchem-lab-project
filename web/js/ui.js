@@ -2429,7 +2429,7 @@ function createAdvMeasurementPanel({ getAdvState, onChange }) {
 // Advanced-mode tab switcher. Toggles #basic-mode / #advanced-mode visibility
 // and calls onSwitch(mode) so the caller can pause/resume simulations.
 // ============================================================
-function initModeTabs({ onSwitch }) {
+function initModeTabs({ onSwitch, initialMode = "basic" }) {
     const tabBasic = document.getElementById("tab-basic");
     const tabAdvanced = document.getElementById("tab-advanced");
     const basicPane = document.getElementById("basic-mode");
@@ -2446,4 +2446,10 @@ function initModeTabs({ onSwitch }) {
 
     tabBasic.addEventListener("click", () => activate("basic"));
     tabAdvanced.addEventListener("click", () => activate("advanced"));
+
+    // 초기 탭 적용: basic 은 HTML 기본 상태와 동일하므로 no-op.
+    // advanced 는 activate() 를 한 번 호출해 DOM 클래스 토글 + onSwitch(lazy init) 트리거.
+    if (initialMode === "advanced") {
+        activate("advanced");
+    }
 }

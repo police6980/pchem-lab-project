@@ -772,10 +772,15 @@ function initAdvancedMode(params) {
 }
 
 // Tab switching — lazy init on first advanced-mode tab click.
+// URL 파라미터 ?mode=advanced 지원: 랜딩(web/index.html) 의 "입자운동론 탐구"
+// 카드가 이 경로로 들어와 심화 탭이 바로 열리게 한다.
 document.addEventListener("DOMContentLoaded", async () => {
     const params = await fetch("config/params.json").then(r => r.json());
     let advancedApi = null;
+    const urlMode = new URLSearchParams(window.location.search).get("mode");
+    const initialMode = urlMode === "advanced" ? "advanced" : "basic";
     initModeTabs({
+        initialMode,
         onSwitch: (mode) => {
             if (mode === "advanced") {
                 if (!advancedApi) {
