@@ -34,7 +34,7 @@
 
             <!-- 주사기 A -->
             <section id="dalton-syringe-a" class="dalton-section">
-                <h2 class="dalton-section-title">주사기 A</h2>
+                <h2 class="dalton-section-title">주사기 A <span class="dalton-role-badge">능동</span></h2>
                 <div class="dalton-field">
                     <label for="dalton-gas-a">기체</label>
                     <select id="dalton-gas-a">
@@ -52,15 +52,16 @@
                     </label>
                     <input type="range" id="dalton-volume-a" min="20" max="150" step="1" value="100">
                 </div>
-                <div class="dalton-field dalton-field-static">
-                    <span class="dalton-field-label">초기 압력</span>
-                    <span class="dalton-field-value">1.00 atm (대기압)</span>
+                <div class="dalton-field dalton-field-dynamic">
+                    <span class="dalton-field-label">압력 P<sub>A</sub></span>
+                    <span class="dalton-field-value" id="dalton-pressure-a">1.00 atm</span>
+                    <span class="dalton-field-hint" id="dalton-pressure-a-hint">(B와 동일, 대기압)</span>
                 </div>
             </section>
 
             <!-- 주사기 B -->
             <section id="dalton-syringe-b" class="dalton-section">
-                <h2 class="dalton-section-title">주사기 B</h2>
+                <h2 class="dalton-section-title">주사기 B <span class="dalton-role-badge">수용·고정</span></h2>
                 <div class="dalton-field">
                     <label for="dalton-gas-b">기체</label>
                     <select id="dalton-gas-b">
@@ -71,65 +72,55 @@
                         <option value="o2">O₂ (32)</option>
                     </select>
                 </div>
-                <div class="dalton-field">
-                    <label for="dalton-volume-b">
-                        부피 V<sub>B</sub>
-                        <span class="dalton-value-readout" id="dalton-volume-b-value">100 mL</span>
-                    </label>
-                    <input type="range" id="dalton-volume-b" min="20" max="150" step="1" value="100">
+                <div class="dalton-field dalton-field-radio">
+                    <span class="dalton-field-label">부피 V<sub>B</sub> (고정, 실험 중 불변)</span>
+                    <div class="dalton-radio-group" role="radiogroup" aria-label="주사기 B 부피 프리셋">
+                        <label class="dalton-radio">
+                            <input type="radio" name="dalton-volume-b" value="50">
+                            <span>작음 50 mL</span>
+                        </label>
+                        <label class="dalton-radio">
+                            <input type="radio" name="dalton-volume-b" value="100" checked>
+                            <span>보통 100 mL</span>
+                        </label>
+                        <label class="dalton-radio">
+                            <input type="radio" name="dalton-volume-b" value="200">
+                            <span>큼 200 mL</span>
+                        </label>
+                    </div>
                 </div>
-                <div class="dalton-field dalton-field-static">
-                    <span class="dalton-field-label">초기 압력</span>
-                    <span class="dalton-field-value">1.00 atm (대기압)</span>
+                <div class="dalton-field dalton-field-dynamic">
+                    <span class="dalton-field-label">압력 P<sub>B</sub></span>
+                    <span class="dalton-field-value" id="dalton-pressure-b">1.00 atm</span>
+                    <span class="dalton-field-hint" id="dalton-pressure-b-hint">(센서 실측)</span>
                 </div>
             </section>
 
-            <!-- 중앙 용기 -->
-            <section id="dalton-central" class="dalton-section">
-                <h2 class="dalton-section-title">중앙 용기 V<sub>fixed</sub></h2>
-                <div class="dalton-radio-group" role="radiogroup" aria-label="중앙 용기 부피 프리셋">
-                    <label class="dalton-radio">
-                        <input type="radio" name="dalton-vfixed" value="50">
-                        <span>작음 50 mL</span>
-                    </label>
-                    <label class="dalton-radio">
-                        <input type="radio" name="dalton-vfixed" value="100" checked>
-                        <span>보통 100 mL</span>
-                    </label>
-                    <label class="dalton-radio">
-                        <input type="radio" name="dalton-vfixed" value="200">
-                        <span>큼 200 mL</span>
-                    </label>
-                </div>
-                <p class="dalton-help-text">실험 시작 후에는 변경할 수 없습니다.</p>
-            </section>
 
-            <!-- 이론값 박스 (Step B에서 실시간 계산) -->
+            <!-- 이론값 박스 (Step B 에서 V_A, V_B 슬라이더 변경 시 실시간 업데이트) -->
             <section id="dalton-theory-box" class="dalton-section dalton-section-theory">
                 <h2 class="dalton-section-title">이론값 (실시간)</h2>
                 <div class="dalton-theory-row">
-                    <span class="dalton-theory-label">A만 주입 시</span>
-                    <span class="dalton-theory-value" id="dalton-theory-stage1">— atm</span>
+                    <span class="dalton-theory-label">주입 전 P</span>
+                    <span class="dalton-theory-value" id="dalton-theory-before">1.00 atm</span>
                 </div>
                 <div class="dalton-theory-row">
-                    <span class="dalton-theory-label">A+B 주입 시</span>
-                    <span class="dalton-theory-value" id="dalton-theory-stage2">— atm</span>
+                    <span class="dalton-theory-label">주입 후 P<sub>total</sub></span>
+                    <span class="dalton-theory-value" id="dalton-theory-after">— atm</span>
                 </div>
+                <p class="dalton-help-text dalton-formula-hint">P<sub>total</sub> = (V<sub>A</sub> / V<sub>B</sub> + 1) × 1 atm</p>
             </section>
 
-            <!-- 제어 버튼 -->
+            <!-- 제어 버튼 (3개, 설계 §4.2 기준) -->
             <div id="dalton-controls" class="dalton-controls">
-                <button id="dalton-btn-inject-a" type="button" class="dalton-btn dalton-btn-primary">
-                    A 주입
+                <button id="dalton-btn-inject" type="button" class="dalton-btn dalton-btn-primary">
+                    주입 시작
                 </button>
-                <button id="dalton-btn-inject-b" type="button" class="dalton-btn dalton-btn-primary" disabled>
-                    B 주입
+                <button id="dalton-btn-confirm" type="button" class="dalton-btn dalton-btn-confirm" disabled>
+                    확인
                 </button>
                 <button id="dalton-btn-reset" type="button" class="dalton-btn dalton-btn-secondary">
                     초기화
-                </button>
-                <button id="dalton-btn-record" type="button" class="dalton-btn dalton-btn-record" disabled>
-                    기록
                 </button>
             </div>
         </aside>
