@@ -2838,13 +2838,35 @@ body[data-page="dalton"] #dalton-records-section {
 }
 
 body[data-page="dalton"] .dalton-section {
-    margin-bottom: 20px;
+    margin-bottom: 24px;
 }
 
 body[data-page="dalton"] .dalton-section-title {
-    font-size: 0.95rem;
-    margin: 0 0 8px 0;
+    font-size: 1.05rem;
+    font-weight: 600;
+    margin: 0 0 12px 0;
     color: #1f2937;
+}
+
+/* 공통 필드 레이아웃 — 라벨 + 값 정렬 */
+body[data-page="dalton"] .dalton-field {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+    font-size: 0.95rem;
+}
+
+body[data-page="dalton"] .dalton-field label {
+    font-weight: 500;
+    color: #374151;
+    min-width: 64px;
+}
+
+body[data-page="dalton"] .dalton-field-label {
+    font-weight: 500;
+    color: #374151;
+    min-width: 64px;
 }
 
 body[data-page="dalton"] .dalton-radio-group {
@@ -2862,13 +2884,51 @@ body[data-page="dalton"] .dalton-controls {
     display: flex;
     gap: 8px;
     flex-wrap: wrap;
-    margin-top: 12px;
+    margin-top: 16px;
 }
 
 body[data-page="dalton"] .dalton-controls .dalton-btn {
     flex: 1;
     min-width: 80px;
-    padding: 8px 12px;
+    padding: 10px 14px;
+    font-size: 0.95rem;
+    font-family: inherit;
+    font-weight: 500;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+/* primary: [주입 시작] */
+body[data-page="dalton"] .dalton-btn-primary {
+    background: #2563eb;
+    color: #fff;
+    border: 1px solid #1d4ed8;
+}
+body[data-page="dalton"] .dalton-btn-primary:hover:not(:disabled) {
+    background: #1d4ed8;
+}
+body[data-page="dalton"] .dalton-btn-primary:disabled {
+    background: #d1d5db;
+    color: #6b7280;
+    border-color: #d1d5db;
+    cursor: not-allowed;
+}
+
+/* secondary: [초기화] */
+body[data-page="dalton"] .dalton-btn-secondary {
+    background: #fff;
+    color: #374151;
+    border: 1px solid #d1d5db;
+}
+body[data-page="dalton"] .dalton-btn-secondary:hover:not(:disabled) {
+    background: #f9fafb;
+    border-color: #9ca3af;
+}
+body[data-page="dalton"] .dalton-btn-secondary:disabled {
+    background: #f3f4f6;
+    color: #9ca3af;
+    cursor: not-allowed;
 }
 
 body[data-page="dalton"] .dalton-pressure-readout {
@@ -3020,9 +3080,17 @@ body[data-page="dalton"] .dalton-field-dynamic {
 
 /* 필드 보조 힌트 (예: "(B와 동일, 대기압)") */
 body[data-page="dalton"] .dalton-field-hint {
-    font-size: 0.8rem;
+    font-size: 0.85rem;
     color: #6b7280;
     font-style: italic;
+}
+
+/* 도움말 텍스트 (예: "실험 시작 후에는 변경할 수 없습니다...") */
+body[data-page="dalton"] .dalton-help-text {
+    font-size: 0.85rem;
+    color: #6b7280;
+    margin: 8px 0;
+    line-height: 1.5;
 }
 
 /* [확인] 버튼 (기존 [기록] → 의미 재정의) */
@@ -3060,23 +3128,39 @@ body[data-page="dalton"] .dalton-field-number-input {
     margin-top: 4px;
 }
 body[data-page="dalton"] .dalton-field-number-input label {
-    font-size: 0.85rem;
-    color: #4b5563;
-    min-width: 72px;
+    font-size: 0.95rem;
+    font-weight: 500;
+    color: #374151;
+    min-width: 64px;
 }
 body[data-page="dalton"] .dalton-field-number-input input[type="number"] {
-    flex: 0 0 80px;
-    padding: 4px 8px;
+    flex: 0 0 100px;
+    padding: 6px 10px;
     border: 1px solid #d1d5db;
     border-radius: 4px;
-    font-size: 0.9rem;
+    font-size: 1rem;
+    font-family: inherit;
     text-align: right;
+    color: #1f2937;
+}
+body[data-page="dalton"] .dalton-field-number-input input[type="number"]:hover {
+    border-color: #9ca3af;
+}
+body[data-page="dalton"] .dalton-field-number-input input[type="number"]:focus {
+    outline: none;
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+body[data-page="dalton"] .dalton-field-number-input input[type="number"]:disabled {
+    background: #f3f4f6;
+    color: #9ca3af;
+    cursor: not-allowed;
 }
 
 /* 숫자 입력 옆 단위 */
 body[data-page="dalton"] .dalton-field-unit {
-    font-size: 0.85rem;
-    color: #6b7280;
+    font-size: 0.95rem;
+    color: #4b5563;
 }
 
 /* 프리셋 참고 힌트 */
@@ -3085,4 +3169,34 @@ body[data-page="dalton"] .dalton-preset-hint {
     font-size: 0.8rem;
     color: #6b7280;
     font-style: italic;
+}
+
+/* ============================================================
+   폼 요소 — 기체 select
+   (사전 조사에서 돌턴 스코프 select 규칙 0건 발견 → Step B-1 후속 보정)
+   ============================================================ */
+body[data-page="dalton"] .dalton-field select {
+    flex: 1;
+    min-width: 120px;
+    padding: 6px 10px;
+    font-size: 0.95rem;
+    font-family: inherit;
+    color: #1f2937;
+    background: #fff;
+    border: 1px solid #d1d5db;
+    border-radius: 4px;
+    cursor: pointer;
+}
+body[data-page="dalton"] .dalton-field select:hover {
+    border-color: #9ca3af;
+}
+body[data-page="dalton"] .dalton-field select:focus {
+    outline: none;
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+body[data-page="dalton"] .dalton-field select:disabled {
+    background: #f3f4f6;
+    color: #9ca3af;
+    cursor: not-allowed;
 }
