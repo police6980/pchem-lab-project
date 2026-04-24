@@ -780,6 +780,193 @@ function initAdvancedMode(params) {
     };
 }
 
+// ============================================================
+// Phase 5 — Dalton Experiment (돌턴의 부분압력)
+// ============================================================
+// dalton.html 의 진입점. 디스패처가 body.dataset.page === "dalton" 일 때 호출.
+// Step B-1: params.dalton 로드, daltonState 객체, 이벤트 바인딩(슬라이더·숫자·select·단위 토글).
+// 후속 Step 에서 확장:
+//   Step B-2: 이론값 박스 실시간 업데이트, 압력 표시 동적화
+//   Step B-3: 버튼 상태 머신 (IDLE → INJECTING → INJECTED → CONFIRMED)
+//   Step C~E: 시뮬 엔진 (DaltonScene) 연결, 순차 주입 애니메이션
+//   Step F~G: 부분압력 계산, 3값 병기, 안정화 카운트다운, CSV
+//   Step H: AI 튜터 단계 동기화 프롬프트
+//   Step I: 센서 연동 (에뮬레이터 / Web Serial)
+function initDaltonApp(params) {
+    const cfg = params.dalton;
+    if (!cfg) {
+        console.error("[Dalton] params.dalton 없음. config/params.json 확인 필요.");
+        return;
+    }
+
+    // ─────────────────────────────────────────────────────────
+    // daltonState — closure 내 중앙 상태 객체
+    // Step B-2, B-3 에서 필드 확장 예정 (stage, records, pressureMeasured 등)
+    // ─────────────────────────────────────────────────────────
+    const daltonState = {
+        syringeA: {
+            gas:    cfg.syringe_a.default_gas,  // 'air'
+            volume: cfg.syringe_a.v_default,    // 100 (mL)
+        },
+        syringeB: {
+            gas:    cfg.syringe_b.default_gas,  // 'co2'
+            volume: cfg.syringe_b.v_default,    // 100 (mL)
+        },
+        displayUnit: "atm",  // 'atm' | 'kPa'
+        stage: "IDLE",       // Step B-3 에서 사용: IDLE | INJECTING | INJECTED | CONFIRMED
+    };
+
+    // 외부 디버깅 편의: 브라우저 콘솔에서 window.daltonState 확인 가능
+    window.daltonState = daltonState;
+
+    // ─────────────────────────────────────────────────────────
+    // DOM 참조 — 필요 시점에 한 번 조회
+    // ─────────────────────────────────────────────────────────
+    const $ = (id) => document.getElementById(id);
+
+    const dom = {
+        // 주사기 A
+        gasASelect:   $("dalton-gas-a"),
+        volumeASlider: $("dalton-volume-a"),
+        volumeAValue:  $("dalton-volume-a-value"),
+        pressureA:     $("dalton-pressure-a"),
+
+        // 주사기 B
+        gasBSelect:    $("dalton-gas-b"),
+        volumeBSlider: $("dalton-volume-b"),
+        volumeBNumber: $("dalton-volume-b-number"),
+        volumeBValue:  $("dalton-volume-b-value"),
+        pressureB:     $("dalton-pressure-b"),
+
+        // 이론값
+        theoryBefore: $("dalton-theory-before"),
+        theoryAfter:  $("dalton-theory-after"),
+
+        // 단위 토글 (dalton.html 에 id="dalton-unit-toggle")
+        unitToggle: $("dalton-unit-toggle"),
+
+        // 버튼
+        btnInject:  $("dalton-btn-inject"),
+        btnConfirm: $("dalton-btn-confirm"),
+        btnReset:   $("dalton-btn-reset"),
+    };
+
+    // 참조 누락 경고 (개발 편의)
+    for (const [key, el] of Object.entries(dom)) {
+        if (!el) console.warn(`[Dalton] DOM 참조 누락: ${key}`);
+    }
+
+    // ─────────────────────────────────────────────────────────
+    // 기체 select 채우기 (params.dalton.gases 기반)
+    // ─────────────────────────────────────────────────────────
+    function populateGasSelect(selectEl, selectedKey) {
+        if (!selectEl) return;
+        selectEl.innerHTML = "";
+        for (const [key, g] of Object.entries(cfg.gases)) {
+            const opt = document.createElement("option");
+            opt.value = key;
+            opt.textContent = `${g.label} (${g.M})`;
+            if (key === selectedKey) opt.selected = true;
+            selectEl.appendChild(opt);
+        }
+    }
+    populateGasSelect(dom.gasASelect, daltonState.syringeA.gas);
+    populateGasSelect(dom.gasBSelect, daltonState.syringeB.gas);
+
+    // ─────────────────────────────────────────────────────────
+    // 이벤트 바인딩
+    // Step B-2 에서 이론값·압력 업데이트 로직 추가 예정 (현재는 상태 갱신 + 로그만)
+    // ─────────────────────────────────────────────────────────
+    const onStateChange = debounce(() => {
+        // Step B-2 에서 이론값 박스·압력 표시 갱신 함수 호출
+        console.log("[Dalton] state changed", {
+            gasA: daltonState.syringeA.gas,
+            V_A: daltonState.syringeA.volume,
+            gasB: daltonState.syringeB.gas,
+            V_B: daltonState.syringeB.volume,
+            unit: daltonState.displayUnit,
+        });
+    }, cfg.debounce_ms);
+
+    // 주사기 A — 기체 select
+    dom.gasASelect?.addEventListener("change", (e) => {
+        daltonState.syringeA.gas = e.target.value;
+        onStateChange();
+    });
+
+    // 주사기 A — 부피 슬라이더
+    dom.volumeASlider?.addEventListener("input", (e) => {
+        const v = parseFloat(e.target.value);
+        daltonState.syringeA.volume = v;
+        if (dom.volumeAValue) dom.volumeAValue.textContent = `${v.toFixed(0)} mL`;
+        onStateChange();
+    });
+
+    // 주사기 B — 기체 select
+    dom.gasBSelect?.addEventListener("change", (e) => {
+        daltonState.syringeB.gas = e.target.value;
+        onStateChange();
+    });
+
+    // 주사기 B — 슬라이더 ↔ 숫자 입력 양방향 동기화
+    function applyVolumeB(v, source) {
+        // clamp 50~200
+        const clamped = Math.max(cfg.syringe_b.v_min, Math.min(cfg.syringe_b.v_max, v));
+        daltonState.syringeB.volume = clamped;
+        // 양방향 동기화: source 가 아닌 쪽만 갱신 (무한루프 방지)
+        if (source !== "slider" && dom.volumeBSlider) dom.volumeBSlider.value = clamped;
+        if (source !== "number" && dom.volumeBNumber) dom.volumeBNumber.value = clamped;
+        if (dom.volumeBValue) dom.volumeBValue.textContent = `${clamped.toFixed(0)} mL`;
+        onStateChange();
+    }
+    dom.volumeBSlider?.addEventListener("input", (e) => {
+        applyVolumeB(parseFloat(e.target.value), "slider");
+    });
+    dom.volumeBNumber?.addEventListener("input", (e) => {
+        const raw = parseFloat(e.target.value);
+        if (Number.isFinite(raw)) applyVolumeB(raw, "number");
+        // NaN · 비정상 값 입력 시 무시, 슬라이더 불변
+    });
+    // 숫자 박스 blur 시 clamp 결과를 다시 반영 (사용자가 300 입력 후 포커스 이동)
+    dom.volumeBNumber?.addEventListener("blur", (e) => {
+        const v = parseFloat(e.target.value);
+        if (Number.isFinite(v)) applyVolumeB(v, "number");
+        else if (dom.volumeBNumber) dom.volumeBNumber.value = daltonState.syringeB.volume;
+    });
+
+    // 단위 토글 버튼
+    dom.unitToggle?.addEventListener("click", () => {
+        daltonState.displayUnit = (daltonState.displayUnit === "atm") ? "kPa" : "atm";
+        if (dom.unitToggle) dom.unitToggle.textContent = `단위: ${daltonState.displayUnit}`;
+        // Step B-2 에서 모든 readout 재포맷
+        onStateChange();
+    });
+
+    // ─────────────────────────────────────────────────────────
+    // 초기 상태 1회 적용 (UI readout 동기)
+    // ─────────────────────────────────────────────────────────
+    if (dom.volumeASlider) {
+        dom.volumeASlider.value = daltonState.syringeA.volume;
+        if (dom.volumeAValue) {
+            dom.volumeAValue.textContent = `${daltonState.syringeA.volume.toFixed(0)} mL`;
+        }
+    }
+    if (dom.volumeBSlider) {
+        dom.volumeBSlider.value = daltonState.syringeB.volume;
+    }
+    if (dom.volumeBNumber) {
+        dom.volumeBNumber.value = daltonState.syringeB.volume;
+    }
+    if (dom.volumeBValue) {
+        dom.volumeBValue.textContent = `${daltonState.syringeB.volume.toFixed(0)} mL`;
+    }
+    if (dom.unitToggle) {
+        dom.unitToggle.textContent = `단위: ${daltonState.displayUnit}`;
+    }
+
+    console.log("[Dalton] initDaltonApp B-1 완료. 이벤트 바인딩 인프라 가동.");
+}
+
 // 페이지 디스패처 — body.dataset.page 값으로 어느 초기화를 실행할지 결정.
 // boyle.html(기본 실험)은 data-page="boyle", particles.html(입자운동론)은
 // data-page="particles", dalton.html(돌턴 부분압력)은 data-page="dalton".

@@ -14,5 +14,30 @@
     "initial_temperature_K": 298.15,
     "piston_face": "right",
     "baseline_gas_width_px": 600,
-    "baseline_volume_mL": 50
+    "baseline_volume_mL": 50,
+
+    "dalton": {
+        "gases": {
+            "air":  { "label": "공기", "M": 29, "speedFactor": 1.00, "color": "#888888" },
+            "co2":  { "label": "CO₂",  "M": 44, "speedFactor": 0.81, "color": "#27AE60" },
+            "he":   { "label": "He",   "M": 4,  "speedFactor": 2.69, "color": "#E74C3C" },
+            "n2":   { "label": "N₂",   "M": 28, "speedFactor": 1.02, "color": "#3498DB" },
+            "o2":   { "label": "O₂",   "M": 32, "speedFactor": 0.95, "color": "#E67E22" }
+        },
+        "syringe_a": {
+            "v_min": 20,
+            "v_max": 150,
+            "v_default": 100,
+            "default_gas": "air"
+        },
+        "syringe_b": {
+            "v_min": 50,
+            "v_max": 200,
+            "v_default": 100,
+            "default_gas": "co2"
+        },
+        "debounce_ms": 300,
+        "stabilization_sec": 5,
+        "injection_animation_sec": 3
+    }
 }
