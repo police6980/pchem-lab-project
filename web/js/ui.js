@@ -432,18 +432,41 @@ function createMeasurementPanel({
     const widthHistory = [];
     let isStabilized = false;
 
-    const sliderInput = document.getElementById("dev-pressure-range");
-    if (sliderInput) {
-        sliderInput.addEventListener("input", () => {
-            pHistory.length = 0;
-            widthHistory.length = 0;
-            isStabilized = false;
-        });
+    function resetStabilizationWindow() {
+        pHistory.length = 0;
+        widthHistory.length = 0;
+        isStabilized = false;
     }
 
+    const sliderInput = document.getElementById("dev-pressure-range");
+    if (sliderInput) {
+        sliderInput.addEventListener("input", resetStabilizationWindow);
+    }
+
+    // 압력 급변 감지 임계치 (직전 샘플 대비). 2 % 선정 근거:
+    // - 안정화 판정(0.5 %) 대비 4배 → 노이즈 vs 의도적 조작 구분
+    // - 에뮬레이터 ↑ (10 kPa) ≈ 9.8 % 변화 → 확실히 감지
+    // - 에뮬레이터 → (1 kPa) ≈ 1 % 변화 → 무시(잔돌림)
+    // - main.js smoothedP EMA α=0.1 기준 한 프레임에 10 % 수렴분만 반영되므로
+    //   EMA 직후 첫 스텝에서도 임계치에 걸려 리셋 트리거 가능.
+    const SAMPLE_JUMP_THRESHOLD = 0.02;
+
     function pushSampleHistory() {
-        pHistory.push(getP());
-        widthHistory.push(getGasWidth());
+        const currentP = getP();
+        const currentW = getGasWidth();
+
+        // 압력 급변이 감지되면 기존 윈도우를 버리고 새 평형을 다시 관측.
+        // 모드(mock/ws/real) 무관하게 동일하게 작동하므로 리셋 트리거가
+        // DEV 슬라이더 input 이벤트에만 의존하지 않는다.
+        if (pHistory.length > 0) {
+            const prevP = pHistory[pHistory.length - 1];
+            if (prevP > 0 && Math.abs(currentP - prevP) / prevP > SAMPLE_JUMP_THRESHOLD) {
+                resetStabilizationWindow();
+            }
+        }
+
+        pHistory.push(currentP);
+        widthHistory.push(currentW);
         if (pHistory.length > STABILIZATION_WINDOW) pHistory.shift();
         if (widthHistory.length > STABILIZATION_WINDOW) widthHistory.shift();
     }
