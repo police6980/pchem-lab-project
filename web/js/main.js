@@ -202,6 +202,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         getCurrentTempCelsius: () => currentTempCelsius,
         getCurrentTempKelvin: currentTempKelvin,
         getSessionStart: () => sessionStartMs,
+        getCurrentMode: () => sensorManager.mode,
     });
 
     createTemperatureControl({

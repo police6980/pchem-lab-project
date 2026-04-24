@@ -602,6 +602,7 @@ async function generateReport() {
 - 한국어로 작성하세요.`;
 
     const userPrompt = `[실험 데이터]
+[데이터 소스] ${ctx.dataSource}
 온도: ${ctx.tempC}°C (${ctx.tempK}K)
 측정점: ${ctx.N}개
 평균 P·V: ${ctx.meanPV} kPa·mL

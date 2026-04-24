@@ -1146,6 +1146,7 @@ function createAnalysisPanel({
     getCurrentTempCelsius,
     getCurrentTempKelvin,
     getSessionStart,
+    getCurrentMode = () => "mock",   // "mock" | "ws" | "real"
 }) {
     const section = document.getElementById("section-analysis");
     section.innerHTML = `
@@ -1615,12 +1616,20 @@ function createAnalysisPanel({
         const data = getDatapoints();
         const mean = data.reduce((s, d) => s + d.PV, 0) / data.length;
         const maxDevPct = Math.max(...data.map(d => Math.abs(d.PV - mean))) / mean * 100;
+        // 센서 데이터 출처 — AI 튜터가 실험(실센서) vs 시뮬(Mock) vs
+        // 에뮬레이터를 구분해 맥락에 맞는 질문·피드백을 생성하도록 전달.
+        const mode = getCurrentMode();
+        const dataSource =
+            mode === "real" ? "실물 센서 (ESP32 + 압력 센서)"
+          : mode === "ws"   ? "펌웨어 에뮬레이터 (개발용 가짜 센서)"
+          :                   "시뮬레이션 (슬라이더로 압력 조작)";
         return {
             tempC: getCurrentTempCelsius().toFixed(0),
             tempK: getCurrentTempKelvin().toFixed(2),
             N: data.length,
             meanPV: mean.toFixed(1),
             maxDev: maxDevPct.toFixed(1),
+            dataSource,
             points: data.map(d => ({
                 num: d.id,
                 P: d.P.toFixed(1),
@@ -1635,12 +1644,23 @@ function createAnalysisPanel({
             ? `자유 질문 모드. 학생이 묻는 것에 직접 답해도 되지만, 답 뒤에 한 단계 더 깊은 탐구 방향을 한 문장 덧붙일 것. 오개념 발견 시 직접 교정하지 말고 실험으로 확인할 방법을 제시. 400자 이내.`
             : `현재 질문의 교육적 의도: ${QUESTION_FOCUS[level]?.[questionNum] ?? QUESTION_FOCUS["high"]?.[questionNum] ?? ""}`;
 
+        // 시스템 프롬프트는 매 API 호출마다 재생성되므로, 학생이 실험 도중 모드
+        // 전환 시에도 바로 반영됨.
+        const currentMode = getCurrentMode();
+        const sensorGuide = currentMode === "real"
+            ? `[데이터 소스 고려사항]\n사용자 [실험 데이터] 블록의 [데이터 소스] 를 항상 먼저 확인. 현재는 **실물 센서** 환경: 측정 오차·기밀 불량·온도 드리프트 등 실험 현실 요인을 질문/피드백에 적극 반영. 학생이 시린지 눈금을 직접 읽었다는 전제로 오차 원인 탐구를 유도.`
+            : currentMode === "ws"
+            ? `[데이터 소스 고려사항]\n현재는 **펌웨어 에뮬레이터**(가짜 센서) 환경: 실험 노이즈는 없으나 학생이 시린지 눈금을 직접 입력. 측정 절차를 묻는 질문은 가능하되 측정 오차·드리프트 해석은 지양.`
+            : `[데이터 소스 고려사항]\n현재는 **시뮬레이션** 환경: 이상기체 법칙이 정확히 성립하는 조건이므로 이론 중심 탐구. "실제로 관측하려면 어떻게 해야 할까?" 같은 확장 질문으로 현실과 연결 유도.`;
+
         return `당신은 영재 과학교육 튜터입니다.
 
 대상 학생: ${LEVEL_GUIDES[level]}
 
 현재 탐구 주제: 보일 법칙 (P·V = 일정, 등온 조건)
 ${focusLine}
+
+${sensorGuide}
 
 절대 원칙:
 1. 학생이 아직 생각하지 못한 답을 직접 알려주지 마세요. 학생의 답변을 인정하고 한 단계 더 깊은 질문을 던지세요.
@@ -1664,6 +1684,7 @@ ${focusLine}
 
         if (questionNum === "3_generate") {
             return `[실험 데이터]
+[데이터 소스] ${ctx.dataSource}
 온도: ${ctx.tempC}°C (${ctx.tempK}K)
 측정점: ${ctx.N}개
 평균 P·V: ${ctx.meanPV} kPa·mL
@@ -1678,6 +1699,7 @@ ${pointsText}
         }
 
         return `[실험 데이터]
+[데이터 소스] ${ctx.dataSource}
 온도: ${ctx.tempC}°C (${ctx.tempK}K)
 측정점: ${ctx.N}개
 평균 P·V: ${ctx.meanPV} kPa·mL
