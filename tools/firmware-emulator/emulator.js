@@ -26,6 +26,7 @@ const state = {
   firmware  : '1.1.0-emulator',
   pressurePa: PA_RESET,
   tempC     : 25.0,
+  p0        : null,          // calib 수신 시 현재 pressurePa 로 설정
   startedAt : Date.now(),
 };
 
@@ -80,8 +81,9 @@ process.stdin.on('keypress', (str, key) => {
 });
 
 function printState() {
+  const p0str = state.p0 !== null ? `  p0=${state.p0} Pa` : '';
   process.stdout.write(
-    `\r[emulator] p=${state.pressurePa} Pa  T=${state.tempC}°C  (↑↓±1000 ←→±100 r=리셋 q=종료)  `
+    `\r[emulator] p=${state.pressurePa} Pa  T=${state.tempC}°C${p0str}  (↑↓±1000 ←→±100 r=리셋 q=종료)  `
   );
 }
 
@@ -98,12 +100,55 @@ wss.on('connection', (ws, req) => {
 
   sendHello(ws);
 
-  const interval = setInterval(() => {
+  let interval = setInterval(() => {
     if (ws.readyState === ws.OPEN) sendData(ws);
   }, REPORT_MS);
 
   ws.on('message', (data) => {
-    console.log(`\n[emulator] ← 수신: ${data.toString()}`);
+    let msg;
+    try {
+      msg = JSON.parse(data.toString());
+    } catch {
+      console.log(`\n[emulator] ← 파싱 실패: ${data.toString().slice(0, 50)}`);
+      return;
+    }
+
+    // ping 은 빈번하므로 로그에서 제외 (조용한 keep-alive)
+    if (msg.t !== 'ping') {
+      console.log(`\n[emulator] ← 수신: ${JSON.stringify(msg)}`);
+    }
+
+    switch (msg.t) {
+      case 'ping':
+        // keep-alive — 응답 없음 (펌웨어와 동일)
+        break;
+
+      case 'calib': {
+        state.p0 = state.pressurePa;
+        ws.send(JSON.stringify({ t: 'c', p0: state.p0 }));
+        console.log(`[emulator] → calib ACK: p0=${state.p0} Pa`);
+        break;
+      }
+
+      case 'cfg': {
+        const rate = Number(msg.rate);
+        if (Number.isFinite(rate) && rate >= 50 && rate <= 5000) {
+          clearInterval(interval);
+          interval = setInterval(() => {
+            if (ws.readyState === ws.OPEN) sendData(ws);
+          }, rate);
+          console.log(`[emulator] → cfg: 주기 ${rate} ms 로 변경`);
+        } else {
+          console.log(`[emulator] → cfg 거부: rate=${msg.rate} (허용 50~5000)`);
+        }
+        break;
+      }
+
+      default:
+        console.log(`[emulator] ← 알 수 없는 타입: ${msg.t}`);
+    }
+
+    printState();
   });
 
   ws.on('close', () => {
