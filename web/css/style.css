@@ -2496,9 +2496,10 @@ body.adv-sidebar-collapsed #adv-ai-reopen-btn {
     margin-bottom: 40px;
 }
 
+/* .landing-header h1 의 font-size 는 .chemviz-logo 로 이관됨.
+   여기선 공통 margin/letter-spacing 만 유지 (신규 로고가 상속). */
 .landing-header h1 {
-    font-size: 2.4rem;
-    margin: 0 0 8px;
+    margin: 0 0 12px;
     letter-spacing: -0.02em;
 }
 
@@ -2749,4 +2750,35 @@ body.adv-sidebar-collapsed #adv-ai-reopen-btn {
 
 .api-key-hint a:hover {
     text-decoration: underline;
+}
+
+/* =========================
+ * ChemViz AI logo — 랜딩 헤더
+ * Chem(짙은 네이비) / Viz(파랑·강조) / AI(옅은 회색·보조) 삼색 구성
+ * ========================= */
+.chemviz-logo {
+    font-size: 3.5rem;
+    font-weight: 700;
+    line-height: 1.1;
+}
+
+.chemviz-logo .logo-chem {
+    color: #1a1a2e;
+}
+
+.chemviz-logo .logo-viz {
+    color: #2e7cf6;
+    font-weight: 800;
+}
+
+.chemviz-logo .logo-ai {
+    color: #9ca3af;
+    font-weight: 400;
+    margin-left: 4px;
+    font-size: 2.8rem;
+}
+
+@media (max-width: 600px) {
+    .chemviz-logo { font-size: 2.5rem; }
+    .chemviz-logo .logo-ai { font-size: 2rem; }
 }
