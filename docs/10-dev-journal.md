@@ -637,8 +637,8 @@ ADC 0~4095를 Pa 50000~200000으로 선형 매핑.
 - [x] WebSocket 에뮬레이터 스켈레톤 (Step 3-1)
 - [x] 에뮬레이터에 펌웨어 로직 JS 포팅 (Step 3-2)
 - [x] CLI 조작 인터페이스 (Step 3-3)
-- [ ] 브라우저 `WebSocketSensorSource` + v1.1 공통 파서 (Step 3-4)
-- [ ] UI 센서 소스 토글 Mock/WebSocket/Serial (Step 3-5)
+- [x] 브라우저 `WebSocketSensorSource` + v1.1 공통 파서 (Step 3-4)
+- [x] UI 센서 소스 토글 Mock/WebSocket/Serial (Step 3-5)
 - [ ] 실물 ESP32 + BMP280 조립·플래시·실험 검증 (Step 3-6)
 
 ### Phase 3 마일스톤 (예정)
