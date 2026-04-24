@@ -826,16 +826,13 @@ function initDaltonApp(params) {
 
     const dom = {
         // 주사기 A
-        gasASelect:   $("dalton-gas-a"),
-        volumeASlider: $("dalton-volume-a"),
-        volumeAValue:  $("dalton-volume-a-value"),
+        gasASelect:    $("dalton-gas-a"),
+        volumeANumber: $("dalton-volume-a-number"),
         pressureA:     $("dalton-pressure-a"),
 
         // 주사기 B
         gasBSelect:    $("dalton-gas-b"),
-        volumeBSlider: $("dalton-volume-b"),
         volumeBNumber: $("dalton-volume-b-number"),
-        volumeBValue:  $("dalton-volume-b-value"),
         pressureB:     $("dalton-pressure-b"),
 
         // 이론값
@@ -894,45 +891,49 @@ function initDaltonApp(params) {
         onStateChange();
     });
 
-    // 주사기 A — 부피 슬라이더
-    dom.volumeASlider?.addEventListener("input", (e) => {
-        const v = parseFloat(e.target.value);
-        daltonState.syringeA.volume = v;
-        if (dom.volumeAValue) dom.volumeAValue.textContent = `${v.toFixed(0)} mL`;
-        onStateChange();
-    });
-
     // 주사기 B — 기체 select
     dom.gasBSelect?.addEventListener("change", (e) => {
         daltonState.syringeB.gas = e.target.value;
         onStateChange();
     });
 
-    // 주사기 B — 슬라이더 ↔ 숫자 입력 양방향 동기화
-    function applyVolumeB(v, source) {
-        // clamp 50~200
-        const clamped = Math.max(cfg.syringe_b.v_min, Math.min(cfg.syringe_b.v_max, v));
-        daltonState.syringeB.volume = clamped;
-        // 양방향 동기화: source 가 아닌 쪽만 갱신 (무한루프 방지)
-        if (source !== "slider" && dom.volumeBSlider) dom.volumeBSlider.value = clamped;
-        if (source !== "number" && dom.volumeBNumber) dom.volumeBNumber.value = clamped;
-        if (dom.volumeBValue) dom.volumeBValue.textContent = `${clamped.toFixed(0)} mL`;
+    // 주사기 A·B — 숫자 입력 전용 공통 helper
+    // 설계서 2696628 반영: 슬라이더 제거, A·B 둘 다 숫자 박스 Enter/blur 시
+    // clamp 후 state 반영. 타이핑 중 즉시 반영하지 않음(중간값 혼란 방지).
+    function applyVolume(syringeKey, rawValue) {
+        const limits = cfg[`syringe_${syringeKey}`]; // syringe_a / syringe_b
+        const clamped = Math.max(limits.v_min, Math.min(limits.v_max, rawValue));
+        daltonState[`syringe${syringeKey.toUpperCase()}`].volume = clamped;
+        // 숫자 박스 값 재반영 (clamp 결과)
+        const input = (syringeKey === "a") ? dom.volumeANumber : dom.volumeBNumber;
+        if (input) input.value = clamped;
         onStateChange();
     }
-    dom.volumeBSlider?.addEventListener("input", (e) => {
-        applyVolumeB(parseFloat(e.target.value), "slider");
-    });
-    dom.volumeBNumber?.addEventListener("input", (e) => {
-        const raw = parseFloat(e.target.value);
-        if (Number.isFinite(raw)) applyVolumeB(raw, "number");
-        // NaN · 비정상 값 입력 시 무시, 슬라이더 불변
-    });
-    // 숫자 박스 blur 시 clamp 결과를 다시 반영 (사용자가 300 입력 후 포커스 이동)
-    dom.volumeBNumber?.addEventListener("blur", (e) => {
-        const v = parseFloat(e.target.value);
-        if (Number.isFinite(v)) applyVolumeB(v, "number");
-        else if (dom.volumeBNumber) dom.volumeBNumber.value = daltonState.syringeB.volume;
-    });
+
+    function bindVolumeNumberInput(syringeKey) {
+        const input = (syringeKey === "a") ? dom.volumeANumber : dom.volumeBNumber;
+        if (!input) return;
+        const commit = () => {
+            const raw = parseFloat(input.value);
+            if (Number.isFinite(raw)) {
+                applyVolume(syringeKey, raw);
+            } else {
+                // NaN 등 비정상 값 → 직전 상태값으로 복구
+                const stateKey = (syringeKey === "a") ? "syringeA" : "syringeB";
+                input.value = daltonState[stateKey].volume;
+            }
+        };
+        input.addEventListener("blur", commit);
+        input.addEventListener("keydown", (e) => {
+            if (e.key === "Enter") {
+                e.preventDefault();
+                commit();
+                input.blur();
+            }
+        });
+    }
+    bindVolumeNumberInput("a");
+    bindVolumeNumberInput("b");
 
     // 단위 토글 버튼
     dom.unitToggle?.addEventListener("click", () => {
@@ -943,22 +944,13 @@ function initDaltonApp(params) {
     });
 
     // ─────────────────────────────────────────────────────────
-    // 초기 상태 1회 적용 (UI readout 동기)
+    // 초기 상태 1회 적용 (숫자 박스 값 동기)
     // ─────────────────────────────────────────────────────────
-    if (dom.volumeASlider) {
-        dom.volumeASlider.value = daltonState.syringeA.volume;
-        if (dom.volumeAValue) {
-            dom.volumeAValue.textContent = `${daltonState.syringeA.volume.toFixed(0)} mL`;
-        }
-    }
-    if (dom.volumeBSlider) {
-        dom.volumeBSlider.value = daltonState.syringeB.volume;
+    if (dom.volumeANumber) {
+        dom.volumeANumber.value = daltonState.syringeA.volume;
     }
     if (dom.volumeBNumber) {
         dom.volumeBNumber.value = daltonState.syringeB.volume;
-    }
-    if (dom.volumeBValue) {
-        dom.volumeBValue.textContent = `${daltonState.syringeB.volume.toFixed(0)} mL`;
     }
     if (dom.unitToggle) {
         dom.unitToggle.textContent = `단위: ${daltonState.displayUnit}`;

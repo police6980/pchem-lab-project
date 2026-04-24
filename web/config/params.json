@@ -25,15 +25,15 @@
             "o2":   { "label": "O₂",   "M": 32, "speedFactor": 0.95, "color": "#E67E22" }
         },
         "syringe_a": {
-            "v_min": 20,
-            "v_max": 150,
-            "v_default": 100,
+            "v_min": 10,
+            "v_max": 100,
+            "v_default": 50,
             "default_gas": "air"
         },
         "syringe_b": {
-            "v_min": 50,
-            "v_max": 200,
-            "v_default": 100,
+            "v_min": 10,
+            "v_max": 100,
+            "v_default": 50,
             "default_gas": "co2"
         },
         "debounce_ms": 300,
