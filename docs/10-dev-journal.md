@@ -629,6 +629,141 @@ ADC 0~4095를 Pa 50000~200000으로 선형 매핑.
 - 프로젝트 README에 섞어 쓰기: README는 외부 독자용. 내부 에이전트 지침과 관객이 다름
 - Git hooks로 강제: 자연어 규약(톤·스타일)은 훅으로 검증 불가
 
+### 2026-04-23 — 브라우저 수신 경로 완성 (Step 3-4, 3-5)
+
+#### 한 일
+- `web/js/protocol.js` 신규: v1.1 파서 공통 모듈 (`parseV11Line`).
+  v1.1 타입 라우팅(`d`/`s`/`c`/`e`) + v1.0 fallback + Pa→kPa 변환 일괄 처리
+- `web/js/serial.js`: `WebSocketSensorSource` 클래스 추가 (`ws://localhost:8787` 연결).
+  `WebSerialSensorSource._parseLine` 도 공통 파서로 리팩터
+- `createSensorManager.setMode` 삼항 분기 (`mock`/`ws`/`real`)
+- 센서 토글 UI 3버튼화: 🖥 시뮬레이션 / 🔌 에뮬레이터 / ⚡ 실센서
+- `sensor-ws-controls` 신설 + 상태 배지 + 에뮬레이터 전용 캘리브 버튼
+- `setModeUI` 삼항 분기, connect/disconnect/error/calibrated 이벤트 처리 분리
+- Node 기반 라이브 회귀 테스트 통과 (hello+19 프레임, calib ACK, disconnect)
+
+#### 결정: 공통 파서를 classic 스크립트 + 전역 함수로 노출 (ESM 도미노 회피)
+
+**배경**: `protocol.js`를 ES module(`export`)로 만들고 `serial.js`가 `import`
+하려 했으나, 현재 index.html 모든 `web/js/*.js`가 classic `<script defer>`로
+로드되고 `main.js`가 `createSensorManager`를 전역 참조 중.
+
+**결정**: `protocol.js`를 classic 스크립트로 두고 `parseV11Line`을 전역 함수로
+노출. `serial.js`는 `import` 없이 전역 함수 호출.
+
+**근거**:
+- serial.js를 `type="module"`로 바꾸면 `createSensorManager`가 전역에서 사라져
+  main.js 즉시 `ReferenceError`
+- 이를 수습하려면 main.js·ui.js·ai-tutor.js·simulation.js까지 ESM 전환 도미노
+- Step 3-4 범위(공통 파서 분리)를 크게 이탈, 성능·기능 이득 없음
+
+**배제된 대안**:
+- 전면 ESM 전환: 4~5개 파일 리팩터 필요, 현재 로딩 순서·defer 동작에 영향
+
+#### 결정: `SensorSource` 추상 구조 유지로 모드 추가 비용 최소화
+
+**배경**: 새 `WebSocketSensorSource`를 추가하면서 기존 구조를 얼마나 건드릴지.
+
+**결정**: 기존 `SensorSource` 베이스 클래스(`onData`/`on`/`_emit`/`_emitEvent`)
+그대로 활용. WebSocket 소스는 WebSerial과 똑같은 형제로 추가. main.js의
+센서 연결 지점(`main.js:59-73`)은 **한 줄도 수정 없음**.
+
+**근거**: 초기 설계(Phase 0)에서 잡은 인터페이스-구현 분리가 의도대로 작동 —
+새 트랜스포트 추가 시 소스 클래스 하나만 상속하면 끝. 이 설계 목표가
+Step 3-4에서 실제로 검증됨.
+
+### 2026-04-23 — Phase 3 후속 개선 (에뮬레이터 ACK · UI 가드 · 범위 통일 · 안정화)
+
+#### 한 일
+- 에뮬레이터 `calib` 수신 시 현재 압력을 `p0`으로 저장하고
+  `{"t":"c","p0":...}` ACK 송신. `cfg` 수신 시 리포트 주기 변경
+- Mock/Real 전용 패턴 제거: DEV 슬라이더를 Mock 전용으로 숨김,
+  WS/Real 모드에 "시린지 눈금 입력" 배지 상시 표시
+- [기록] 가드: `studentEdited` 플래그 대신 `lastRecordedV` 비교로 변경.
+  WS/Real 모드 첫 기록 / 이전 V와 동일 / V 비어있음 세 케이스 분기
+- WS/Real 모드에서 vInput 자동 채움 중단 (모드 전환 시 vInput 비움 +
+  placeholder "시린지 눈금(mL)")
+- 압력 범위 통일: 에뮬레이터·펌웨어·Mock 슬라이더 모두 81–400 kPa
+- 안정화 윈도우 리셋: 기존 DEV 슬라이더 input 이벤트 단일 트리거에서
+  `pushSampleHistory`의 직전 샘플 대비 2% 급변 감지로 교체
+
+#### 결정: WS/Real 모드에서 vInput 자동 채움 금지
+
+**배경**: 센서 압력(`onData`)이 `box.setTargetFromPressure` 호출로 박스 폭을
+이상기체 방정식대로 움직임 → 학생 입력 없는 vInput이 시뮬 박스 폭에서 역산된
+"이상기체 예측 V"로 자동 채워짐. 학생이 그대로 [기록] 누르면 PV=일정이
+**동어반복으로 성립**, 실험의 검증적 의미 소실.
+
+**결정**: Mock 모드에서만 vInput 자동 채움 유지. WS/Real 모드는 vInput을
+빈 칸 + placeholder 노출. 단 박스 애니메이션은 유지 (미시-거시 대응 시각화).
+
+**근거**:
+- 실센서 실험의 핵심은 **압력(센서)·부피(시린지 눈금) 독립 측정 → PV 검증**
+- 부피를 이상기체 예측값으로 자동 채우면 "검증"이 아닌 "공식 재생"
+- 박스 애니메이션은 센서 압력의 거시 효과 시각화라 교육적 가치 유지
+
+**배제된 대안**:
+- 박스 애니메이션도 끊기 (C2): 시각 피드백 상실, 구현 범위 과대
+- placeholder만 표시 + 자동 채움 유지 (C3): 학생이 경고만으로 방어 불충분,
+  confirm 누르면 잘못된 데이터 기록됨
+
+#### 결정: [기록] 가드를 `studentEdited` 플래그 → `lastRecordedV` 비교로 교체
+
+**배경**: 초기 구현은 "한 번 편집하면 이후 경고 없음"(`studentEdited=true`
+영구 유지) 패턴. 그러나 보일 실험은 **매 측정마다** 부피가 바뀌어야 정상.
+두 번째 측정부터 학생이 V 수정 안 하고 [기록] 눌러도 경고가 사라짐.
+
+**결정**: 플래그 대신 `lastRecordedV` 추적. 직전 기록값과 현재 V가 0.05mL
+이내면 "이전과 같습니다" 경고. 첫 기록에서도 "첫 측정입니다" 경고.
+
+**근거**:
+- 실험 의도("값이 변했는가")와 일치하는 체크
+- 학생이 45→45로 덮어 기록하는 실수 방어
+- 측정점 전체 삭제·온도 변경 시 `lastRecordedV=null` 동기화로 "첫 측정"
+  상태 복원
+
+#### 결정: 압력 범위를 81–400 kPa로 통일 (기하 한계 + 현실 실험)
+
+**배경**: 초기 값 불일치 — 에뮬레이터 50-200 kPa, Mock 슬라이더 81-500 kPa,
+실센서(DFRobot Gravity 1.6MPa 버전)는 0-1600 kPa. 에뮬레이터가 너무 좁고
+Mock은 실센서보다 좁으며 하한도 제각각.
+
+**결정**:
+- 하한 81 kPa: `BOX_MAX_WIDTH=880` 시각 한계와 일치 (이하에선 박스 확장 불가)
+- 상한 400 kPa: 성인 양손 압축력(~200-300 N)과 50mL 주사기 단면적(~660 mm²)
+  으로 계산한 학생 실현 가능 최대 압력
+- 세 축(에뮬레이터/펌웨어/Mock 슬라이더) 모두 81-400 kPa로 통일
+
+**근거**:
+- 실센서 1.6MPa 상한은 안전 여유로 유지, 실사용은 현실 범위에
+- 에뮬레이터-Mock-실센서 일관 경험 확보 (모드 전환 시 이질감 없음)
+- CLI 조작 스텝 ±10 kPa / ±1 kPa로 400 kPa 범위에 적절한 해상도
+
+**배제된 대안**:
+- 50-1000 kPa: 학생이 1000 kPa 도달 불가, 박스 클램핑으로 200 kPa 이상 시각
+  변화 없음
+- 센서 전범위(0-1600 kPa) 노출: 범위 너무 넓어 슬라이더 조작 해상도 낮음
+
+#### 결정: 안정화 윈도우 리셋을 "DEV 슬라이더 input" → "압력 2% 급변 감지"로 변경
+
+**배경**: 기존 리셋 트리거가 DEV 슬라이더 `input` 이벤트 하나뿐. 에뮬레이터
+모드에선 압력이 외부에서 바뀌므로 이 이벤트가 안 와서 10초 윈도우가 이전
+값을 유지하며 "약 0초" 고정, 영구 미안정화.
+
+**결정**: `pushSampleHistory` 50ms 루프에서 직전 샘플 대비 2% 이상 변화
+감지 시 윈도우 리셋. 트리거를 모드 무관 범용 메커니즘으로 일원화.
+
+**근거**:
+- 2% 임계치: 안정화 판정(0.5%)보다 4배 큼 → 노이즈 vs 의도 조작 구분
+- 에뮬레이터 ↑ (10 kPa ≈ 9.8%) 확실히 감지, → (1 kPa ≈ 1%) 무시
+- Mock/WS/Real 모든 모드에서 동일 작동 → 별도 이벤트 배선 불필요
+- 모드 전환 직후 EMA 수렴 중 급변도 자동 감지되어 자동 복구
+
+**배제된 대안**:
+- 모드 전환 시점에 명시적 리셋 호출: `sensorManager.onModeChange` 이벤트
+  신설 필요, `createMeasurementPanel` 클로저 접근 위해 3-파일 수정
+- DEV 슬라이더 input만 유지 + 모드별 추가 배선: 트리거 분산, 유지보수 비용 상승
+
 ### Phase 3 진행 상태 (2026-04-23 기준)
 
 - [x] 프로토콜 v1.1 명세 확정
