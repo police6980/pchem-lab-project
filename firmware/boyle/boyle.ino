@@ -20,10 +20,10 @@ const char*  FIRMWARE_VER    = "1.1.0-sim";
 const unsigned long REPORT_MS = 200;     // 5Hz
 
 // 포텐셔미터 스케일링 범위
-// ADC 0 ~ 4095 를 50000 Pa ~ 200000 Pa 로 선형 매핑
-// (기준 대기압 ~101325 Pa가 중간 약간 아래에 위치)
-const long PA_MIN = 50000L;
-const long PA_MAX = 200000L;
+// ADC 0 ~ 4095 를 81000 Pa ~ 400000 Pa 로 선형 매핑
+// (박스 기하 하한 81 kPa + 학생 손 압축 현실적 상한 400 kPa)
+const long PA_MIN = 81000L;
+const long PA_MAX = 400000L;
 
 long readPressurePa() {
   int raw = analogRead(POT_PIN);  // 0..4095

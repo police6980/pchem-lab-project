@@ -5,7 +5,7 @@ function createDevPressureSlider(onChange) {
     container.id = "dev-pressure-slider";
 
     const label = document.createElement("label");
-    label.textContent = "[DEV MODE] 압력:";
+    label.textContent = "[DEV MODE] 압력: (81 ~ 400 kPa)";
     label.htmlFor = "dev-pressure-range";
 
     const sliderWrap = document.createElement("div");
@@ -15,13 +15,13 @@ function createDevPressureSlider(onChange) {
     input.type = "range";
     input.id = "dev-pressure-range";
     input.min = "81";
-    input.max = "500";
+    input.max = "400";
     input.step = "0.1";
     input.value = "101.3";
 
     const rangeHint = document.createElement("div");
     rangeHint.className = "range-hint";
-    rangeHint.textContent = "81 ~ 500 kPa";
+    rangeHint.textContent = "81 ~ 400 kPa";
 
     sliderWrap.appendChild(input);
     sliderWrap.appendChild(rangeHint);

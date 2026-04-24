@@ -224,7 +224,7 @@ Arduino·ESP32 하드웨어 입수 전 선행 가능한 브라우저·프로토�
 
 ### 미적용 / 후속 작업
 - [ ] main 병합 전 실전 검증 (수업 시뮬레이션)
-- [ ] 측정 기록 관련 리그레션 테스트 (500 kPa 범위에서 `runPVAccuracyTest` 갱신)
+- [ ] 측정 기록 관련 리그레션 테스트 (400 kPa 범위에서 `runPVAccuracyTest` 갱신)
 - [ ] AI 튜터 심화 모드 전용 프롬프트 튜닝 (기체 종류 비교 유도 등)
 - [x] 반응형 레이아웃 — **`feature/responsive-canvas` 브랜치에서 완료** (§2-F 참조)
 
@@ -313,8 +313,8 @@ Arduino·ESP32 하드웨어 입수 전 선행 가능한 브라우저·프로토�
 
 **완료 (Step 3-1~3-3, 2026-04-23)**
 - [x] ESP32 펌웨어 스켈레톤(`firmware/boyle/boyle.ino` 1.1.0-skeleton) — hello 프레임 주기 전송, Wokwi 검증 완료
-- [x] ESP32 펌웨어 시뮬 버전(1.1.0-sim) — 포텐셔미터 ADC(0..4095) → Pa(50000..200000) 선형 매핑, 5Hz `{"t":"d"}` 전송
-- [x] Node.js + WebSocket 펌웨어 에뮬레이터(`tools/firmware-emulator/`) — 연결 시 hello, 5Hz 데이터 프레임, CLI 키 조작(↑↓ ±1000 Pa, ←→ ±100 Pa, r=리셋, q=종료), 50000~200000 Pa 클램핑
+- [x] ESP32 펌웨어 시뮬 버전(1.1.0-sim) — 포텐셔미터 ADC(0..4095) → Pa(81000..400000) 선형 매핑, 5Hz `{"t":"d"}` 전송
+- [x] Node.js + WebSocket 펌웨어 에뮬레이터(`tools/firmware-emulator/`) — 연결 시 hello, 5Hz 데이터 프레임, CLI 키 조작(↑↓ ±10 kPa, ←→ ±1 kPa, r=리셋, q=종료), 81000~400000 Pa 클램핑. calib ACK / cfg 주기 변경 지원
 
 **남은 작업**
 - [ ] Step 3-4: 브라우저 `WebSocketSensorSource` + v1.1 공통 파서 (`WebSerialSensorSource`와 파싱 로직 공유)
@@ -373,7 +373,7 @@ Arduino·ESP32 하드웨어 입수 전 선행 가능한 브라우저·프로토�
 
 | 항목 | 값 | 출처 |
 |---|---|---|
-| 슬라이더 범위 (기본) | 81 ~ 500 kPa (`feature/particle-controls`), main: 81 ~ 230 | `ui.js` `createDevPressureSlider` |
+| 슬라이더 범위 (기본) | 81 ~ 400 kPa (Phase 3 에서 500→400 하향, 에뮬레이터/펌웨어와 통일) | `ui.js` `createDevPressureSlider` |
 | 부피 슬라이더 범위 (심화) | 20 ~ 80 mL | `index.html` `#adv-volume-slider` |
 | 온도 범위 (기본) | 0 ~ 77 °C | `ui.js` `createTemperatureControl` |
 | 온도 범위 (심화) | −100 ~ 500 °C | `index.html` `#adv-temp-custom-input` |

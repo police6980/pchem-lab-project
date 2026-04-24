@@ -5,8 +5,8 @@
  * Node.js 포팅본. v1.1 프로토콜 JSON을 WebSocket으로 전송.
  *
  * 현재 단계: hello + 데이터 프레임 주기 전송 + CLI 키 조작.
- *   - ↑↓: ±1000 Pa, ←→: ±100 Pa, r: 리셋, q: 종료
- *   - 브라우저 수신(WebSocketSensorSource)은 Step 3-4에서 구현
+ *   - ↑↓: ±10 kPa, ←→: ±1 kPa, r: 리셋, q: 종료
+ *   - 범위 81~400 kPa (박스 기하 하한 + 학생 손 압축 현실적 상한)
  *
  * 실행: npm start  (또는  node emulator.js)
  */
@@ -16,9 +16,9 @@ import * as readline from 'readline';
 
 const PORT      = 8787;
 const REPORT_MS = 200;   // 5Hz
-const PA_MIN    = 50_000;
-const PA_MAX    = 200_000;
-const PA_RESET  = 101_325;
+const PA_MIN    = 81_000;    // 81 kPa — 박스 시각화 하한(BOX_MAX_WIDTH=880) 과 일치
+const PA_MAX    = 400_000;   // 400 kPa — 학생 손 압축 현실적 상한 (실센서 1.6MPa 범위 내 안전)
+const PA_RESET  = 101_325;   // 표준 대기압
 
 // 공유 상태 — 모든 연결 클라이언트에 동일하게 적용
 const state = {
@@ -64,10 +64,10 @@ process.stdin.on('keypress', (str, key) => {
   if (!key) return;
 
   let delta = 0;
-  if      (key.name === 'up')    delta = +1000;
-  else if (key.name === 'down')  delta = -1000;
-  else if (key.name === 'right') delta = +100;
-  else if (key.name === 'left')  delta = -100;
+  if      (key.name === 'up')    delta = +10_000;   // +10 kPa
+  else if (key.name === 'down')  delta = -10_000;   // -10 kPa
+  else if (key.name === 'right') delta = +1_000;    // +1 kPa
+  else if (key.name === 'left')  delta = -1_000;    // -1 kPa
   else if (key.name === 'r')     { state.pressurePa = PA_RESET; printState(); return; }
   else if (key.name === 'q' || (key.ctrl && key.name === 'c')) {
     console.log('\n[emulator] 종료');
@@ -83,7 +83,7 @@ process.stdin.on('keypress', (str, key) => {
 function printState() {
   const p0str = state.p0 !== null ? `  p0=${state.p0} Pa` : '';
   process.stdout.write(
-    `\r[emulator] p=${state.pressurePa} Pa  T=${state.tempC}°C${p0str}  (↑↓±1000 ←→±100 r=리셋 q=종료)  `
+    `\r[emulator] p=${state.pressurePa} Pa  T=${state.tempC}°C${p0str}  (↑↓±10kPa ←→±1kPa r=리셋 q=종료)  `
   );
 }
 
