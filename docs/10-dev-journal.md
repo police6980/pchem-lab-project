@@ -864,7 +864,7 @@ vs "연결됨(DFRobot-1.6MPa)"로 달라짐.
 - [x] CLI 조작 인터페이스 (Step 3-3)
 - [x] 브라우저 `WebSocketSensorSource` + v1.1 공통 파서 (Step 3-4)
 - [x] UI 센서 소스 토글 Mock/WebSocket/Serial (Step 3-5)
-- [ ] 실물 ESP32 + BMP280 조립·플래시·실험 검증 (Step 3-6)
+- [ ] 실물 ESP32 + DFRobot Gravity 1.6MPa 조립·플래시·실험 검증 (Step 3-6)
 
 ### Phase 3 마일스톤 (예정)
 - **태그 예정**: `v0.5-real-sensor` — 실센서 통합 완료 시
