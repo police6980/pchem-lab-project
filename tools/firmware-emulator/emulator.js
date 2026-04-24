@@ -1,7 +1,7 @@
 /*
  * Phase 3 펌웨어 에뮬레이터 (Step 3-3)
  *
- * 실제 ESP32 + BMP280 펌웨어 (firmware/boyle/boyle.ino) 의
+ * 실제 ESP32 + DFRobot Gravity 1.6MPa 펌웨어 (firmware/boyle/boyle.ino) 의
  * Node.js 포팅본. v1.1 프로토콜 JSON을 WebSocket으로 전송.
  *
  * 현재 단계: hello + 데이터 프레임 주기 전송 + CLI 키 조작.
@@ -22,7 +22,7 @@ const PA_RESET  = 101_325;   // 표준 대기압
 
 // 공유 상태 — 모든 연결 클라이언트에 동일하게 적용
 const state = {
-  sensor    : 'BMP280',
+  sensor    : 'DFRobot-1.6MPa',   // 실펌웨어와 동일 모델명. fw 라벨로 에뮬레이터 구분.
   firmware  : '1.1.0-emulator',
   pressurePa: PA_RESET,
   tempC     : 25.0,
