@@ -422,7 +422,10 @@ function createSensorManager(initialPressure = 101.3) {
         _initialPressure: initialPressure,
 
         async setMode(mode) {
-            if (this.mode === mode) return;
+            // 같은 모드라도 연결이 끊긴(또는 Real 모드 미접속) source 라면
+            // 재생성·재접속 허용. 에뮬레이터 꺼짐/포트 끊김 이후 같은 모드
+            // 버튼 재클릭으로 복구하는 경로.
+            if (this.mode === mode && this.source?.connected) return;
             if (this.source) {
                 try { await this.source.disconnect(); } catch (_) {}
             }

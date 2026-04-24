@@ -128,15 +128,17 @@ function initSensorPanel(sensorManager) {
         btnWsCalib.disabled = true;
     }
 
+    // 같은 모드라도 연결이 끊긴 상태면 재진입 허용 (에뮬레이터 재기동·
+    // 포트 재연결 시나리오). setMode 쪽에도 동일 가드가 있어 이중 방어.
     btnMock.addEventListener("click", () => {
-        if (sensorManager.mode === "mock") return;
+        if (sensorManager.mode === "mock" && sensorManager.source?.connected) return;
         setModeUI("mock");
         resetRealUI();
         sensorManager.setMode("mock");
     });
 
     btnWs.addEventListener("click", () => {
-        if (sensorManager.mode === "ws") return;
+        if (sensorManager.mode === "ws" && sensorManager.source?.connected) return;
         setModeUI("ws");
         sensorManager.setMode("ws").catch(() => {
             // Connect failure: on("error") below will render the detailed
@@ -149,7 +151,11 @@ function initSensorPanel(sensorManager) {
 
     btnReal.addEventListener("click", () => {
         if (btnReal.disabled) return;
-        if (sensorManager.mode === "real") return;
+        // Real 모드는 source 생성 자체가 connected=false 에서 시작하고
+        // 이후 [🔌 포트 연결] 로 실접속. 따라서 가드는 (a) 같은 모드 +
+        // 실접속 확립된 경우에만 early return. 포트가 끊긴 real 모드는
+        // 재클릭으로 source 를 다시 만들어 subscribe 재배선.
+        if (sensorManager.mode === "real" && sensorManager.source?.connected) return;
         setModeUI("real");
         resetRealUI();
         sensorManager.setMode("real");
