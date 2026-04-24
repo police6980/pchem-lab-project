@@ -400,6 +400,9 @@ function createMeasurementPanel({
     let datapoints = [];
     let nextPointId = 1;
     let studentEdited = false;
+    // WS/Real 모드에서 부피 미조정 기록을 걸러내기 위한 앵커.
+    // null = 첫 기록 전. 기록 성공 시 실제 기록된 V 로 갱신.
+    let lastRecordedV = null;
 
     // Student input marks the field as owned by the student; auto-track pauses
     // until the next record or explicit reset. Blur alone does NOT re-enable
@@ -785,20 +788,37 @@ function createMeasurementPanel({
     document.getElementById("btn-record").addEventListener("click", () => {
         if (!isStabilized) return;
 
-        // 실센서 / 에뮬레이터 모드에서는 시뮬 기하값이 아니라 학생이 읽은
-        // 시린지 눈금이 V의 실제 출처. 한 번도 편집 안 한 채 기록하면
-        // 대개 무의미한 데이터이므로 재확인 받는다.
+        // 실센서 / 에뮬레이터 모드에서는 V 의 실제 출처가 시린지 눈금.
+        // 첫 기록 또는 이전 기록과 V 가 사실상 동일한 경우(≈ 부피 미조정)
+        // confirm 을 띄워 무의미 데이터 유입을 줄인다. Mock 모드는 면제.
         const mode = getCurrentMode();
-        if (mode !== "mock" && !studentEdited) {
-            const ok = window.confirm(
-                "📏 시린지 눈금을 확인하고 부피(V)를 입력하셨나요?\n\n" +
-                `현재 V 값(${vInput.value} mL)은 자동 채워진 값입니다.\n` +
-                "실측 부피가 맞다면 [확인], 수정이 필요하면 [취소]를 눌러 입력하세요."
-            );
-            if (!ok) {
+        if (mode !== "mock") {
+            const currentV = parseFloat(vInput.value);
+            let prompt = null;
+            if (!Number.isFinite(currentV)) {
+                // 입력이 비어 있거나 파싱 실패 — 기록 자체를 막는다.
+                window.alert("V(mL) 값이 비어있거나 잘못된 형식입니다. 시린지 눈금을 확인해 입력하세요.");
                 vInput.focus();
                 vInput.select();
                 return;
+            }
+            if (lastRecordedV === null) {
+                prompt = "📏 첫 측정입니다.\n\n"
+                    + `현재 V 값(${currentV.toFixed(1)} mL)이 시린지 눈금과 일치하나요?\n`
+                    + "맞으면 [확인], 수정하려면 [취소]를 눌러 입력하세요.";
+            } else if (Math.abs(currentV - lastRecordedV) < 0.05) {
+                prompt = "📏 V 값이 이전 기록("
+                    + `${lastRecordedV.toFixed(1)} mL)과 같습니다.\n\n`
+                    + "시린지 눈금을 확인하고 새 부피를 입력했나요?\n"
+                    + "같은 부피에서 재측정이면 [확인], 아니면 [취소]를 눌러 입력하세요.";
+            }
+            if (prompt !== null) {
+                const ok = window.confirm(prompt);
+                if (!ok) {
+                    vInput.focus();
+                    vInput.select();
+                    return;
+                }
             }
         }
 
@@ -833,6 +853,7 @@ function createMeasurementPanel({
         updateExportButtonState();
         onDataChange && onDataChange();
         studentEdited = false;
+        lastRecordedV = V;
     });
 
     document.getElementById("btn-clear-all").addEventListener("click", () => {
@@ -841,6 +862,7 @@ function createMeasurementPanel({
         if (datapointsEmpty && continuousEmpty) return;
         if (!window.confirm("측정점과 세션 로그를 모두 삭제합니다. 이미 다운로드한 파일은 영향 없습니다. 계속?")) return;
         datapoints = [];
+        lastRecordedV = null;
         clearContinuousBuffer();
         resetSession();
         renderTable();
@@ -963,6 +985,7 @@ function createMeasurementPanel({
         getDatapoints: () => datapoints.slice(),
         clearMeasurements: () => {
             datapoints = [];
+            lastRecordedV = null;
             renderTable();
             renderSummary();
             redrawPVPlot();
