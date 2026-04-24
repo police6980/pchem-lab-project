@@ -242,57 +242,29 @@ class WebSerialSensorSource extends SensorSource {
     }
 
     _parseLine(line) {
-        let msg;
-        try {
-            msg = JSON.parse(line);
-        } catch (e) {
-            this._emitEvent("error", `parse failed: ${line.slice(0, 80)}`);
-            return;
-        }
-
-        // v1.1 typed message
-        if (typeof msg.t === "string") {
-            switch (msg.t) {
-                case "d":
-                    this._emit({
-                        sensor: msg.sensor,
-                        value: msg.value,
-                        unit: msg.unit,
-                        timestamp: msg.timestamp,
-                    });
-                    return;
-                case "s":
-                    this.isV11 = true;
-                    this.sensorLabel = msg.sensor || null;
-                    this.firmwareVer = msg.fw || null;
-                    if (this._helloTimer) {
-                        clearTimeout(this._helloTimer);
-                        this._helloTimer = null;
-                    }
-                    this._emitEvent("connect", {
-                        version: "1.1",
-                        sensor: this.sensorLabel,
-                        fw: this.firmwareVer,
-                    });
-                    return;
-                case "c":
-                    this.p0 = typeof msg.p0 === "number" ? msg.p0 : null;
-                    this._emitEvent("calibrated", this.p0);
-                    return;
-                case "e":
-                    this._emitEvent("error", msg.msg || "unknown firmware error");
-                    return;
-                default:
-                    console.warn(`[WebSerialSensorSource] unknown message type: ${msg.t}`);
-                    return;
+        // Delegate to shared v1.1 parser (protocol.js). Hello handling needs
+        // source-specific side effects (clear fallback timer, remember label),
+        // so we capture it by intercepting the emitEvent channel.
+        let helloInfo = null;
+        const emitEvent = (type, payload) => {
+            if (type === "connect" && payload && payload.version === "1.1") {
+                helloInfo = payload;
             }
-        }
-
-        // v1.0 fallback: bare {sensor, value, unit, timestamp}
-        if (typeof msg.sensor === "string" && typeof msg.value === "number") {
-            this._emit(msg);
-        } else {
-            this._emitEvent("error", `malformed line: ${line.slice(0, 80)}`);
+            this._emitEvent(type, payload);
+        };
+        const { isHello } = parseV11Line(
+            line,
+            (frame) => this._emit(frame),
+            emitEvent
+        );
+        if (isHello) {
+            this.isV11 = true;
+            this.sensorLabel = helloInfo?.sensor || null;
+            this.firmwareVer = helloInfo?.fw || null;
+            if (this._helloTimer) {
+                clearTimeout(this._helloTimer);
+                this._helloTimer = null;
+            }
         }
     }
 
@@ -314,6 +286,130 @@ class WebSerialSensorSource extends SensorSource {
     }
 }
 
+// WebSocketSensorSource — 개발용 펌웨어 에뮬레이터 연결
+// (tools/firmware-emulator, ws://localhost:8787). v1.1 프로토콜은
+// protocol.js 공통 파서로 처리해 WebSerial 경로와 동일한 의미론을 유지.
+class WebSocketSensorSource extends SensorSource {
+    static DEFAULT_URL = "ws://localhost:8787";
+    static HELLO_TIMEOUT_MS = 3000;
+    static PING_INTERVAL_MS = 2000;
+
+    constructor(url = WebSocketSensorSource.DEFAULT_URL) {
+        super();
+        this._url = url;
+        this._ws = null;
+        this._pingTimer = null;
+        this._helloTimer = null;
+        this.connected = false;
+        this.isV11 = false;
+        this.sensorLabel = null;
+        this.firmwareVer = null;
+        this.p0 = null;
+    }
+
+    async connect() {
+        return new Promise((resolve, reject) => {
+            let settled = false;
+            try {
+                this._ws = new WebSocket(this._url);
+            } catch (e) {
+                reject(new Error(`WebSocket 생성 실패: ${e.message || e}`));
+                return;
+            }
+
+            this._helloTimer = setTimeout(() => {
+                if (!this.isV11 && this.connected) {
+                    this._emitEvent("connect", { version: "1.0", sensor: null, fw: null });
+                }
+            }, WebSocketSensorSource.HELLO_TIMEOUT_MS);
+
+            this._ws.onopen = () => {
+                this.connected = true;
+                this._pingTimer = setInterval(() => {
+                    this._sendJson({ t: "ping" });
+                }, WebSocketSensorSource.PING_INTERVAL_MS);
+                settled = true;
+                resolve();
+            };
+
+            this._ws.onmessage = (event) => {
+                const line = (typeof event.data === "string" ? event.data : "").trim();
+                if (!line) return;
+                let helloInfo = null;
+                const emitEvent = (type, payload) => {
+                    if (type === "connect" && payload && payload.version === "1.1") {
+                        helloInfo = payload;
+                    }
+                    this._emitEvent(type, payload);
+                };
+                const { isHello } = parseV11Line(
+                    line,
+                    (frame) => this._emit(frame),
+                    emitEvent
+                );
+                if (isHello) {
+                    this.isV11 = true;
+                    this.sensorLabel = helloInfo?.sensor || null;
+                    this.firmwareVer = helloInfo?.fw || null;
+                    if (this._helloTimer) {
+                        clearTimeout(this._helloTimer);
+                        this._helloTimer = null;
+                    }
+                }
+            };
+
+            this._ws.onclose = () => {
+                const wasConnected = this.connected;
+                this._clearTimers();
+                this.connected = false;
+                this._ws = null;
+                if (wasConnected) this._emitEvent("disconnect");
+            };
+
+            this._ws.onerror = () => {
+                this._clearTimers();
+                const msg = `WebSocket 연결 실패 (${this._url})`;
+                if (!settled) {
+                    settled = true;
+                    reject(new Error(msg));
+                } else {
+                    this._emitEvent("error", msg);
+                }
+            };
+        });
+    }
+
+    async disconnect() {
+        this._clearTimers();
+        if (this._ws) {
+            try { this._ws.close(); } catch (_) {}
+            this._ws = null;
+        }
+        if (this.connected) {
+            this.connected = false;
+            this._emitEvent("disconnect");
+        }
+        this.isV11 = false;
+        this.sensorLabel = null;
+        this.firmwareVer = null;
+        this.p0 = null;
+    }
+
+    _clearTimers() {
+        if (this._pingTimer) { clearInterval(this._pingTimer); this._pingTimer = null; }
+        if (this._helloTimer) { clearTimeout(this._helloTimer); this._helloTimer = null; }
+    }
+
+    _sendJson(obj) {
+        if (!this._ws || this._ws.readyState !== WebSocket.OPEN) return;
+        try { this._ws.send(JSON.stringify(obj)); } catch (_) {}
+    }
+
+    async sendPing()          { this._sendJson({ t: "ping" }); }
+    async sendCalib()         { this._sendJson({ t: "calib" }); }
+    async sendConfig(rateMs)  { this._sendJson({ t: "cfg", rate: rateMs }); }
+}
+
 // Manager wraps a swappable SensorSource. Persists onData / on(...) subscriptions
 // across mode switches so consumers register once and don't need to re-wire
 // callbacks when mock↔real toggles.
@@ -331,9 +427,13 @@ function createSensorManager(initialPressure = 101.3) {
                 try { await this.source.disconnect(); } catch (_) {}
             }
 
-            this.source = (mode === "real")
-                ? new WebSerialSensorSource()
-                : new MockSensorSource(this._initialPressure);
+            if (mode === "real") {
+                this.source = new WebSerialSensorSource();
+            } else if (mode === "ws") {
+                this.source = new WebSocketSensorSource();
+            } else {
+                this.source = new MockSensorSource(this._initialPressure);
+            }
             this.mode = mode;
 
             // Re-attach persisted subscriptions to the new source.
@@ -345,6 +445,10 @@ function createSensorManager(initialPressure = 101.3) {
             if (mode === "mock") {
                 // Mock connects immediately — no port picker.
                 await this.source.connect();
+            } else if (mode === "ws") {
+                // WebSocket(에뮬레이터) — 사용자 제스처 불필요, 즉시 접속.
+                // 에뮬레이터 미기동 시 onerror 경로로 에러 이벤트가 올라감.
+                try { await this.source.connect(); } catch (_) {}
             }
             // Real: wait for user to click [🔌 포트 연결].
         },
