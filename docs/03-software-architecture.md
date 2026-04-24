@@ -67,7 +67,9 @@ pchem-lab-project/
 │       ├── ai-tutor.js         // AI 튜터 대화 UI (Part 3.5)
 │       ├── ui.js               // DOM UI 함수 모음 + BYOK 설정
 │       └── main.js             // 부팅 + 오케스트레이션
-├── firmware/                    // (Phase 3)
+├── firmware/                    // ESP32 펌웨어 (boyle.ino 스켈레톤·시뮬 버전, Phase 3)
+├── tools/
+│   └── firmware-emulator/       // Node.js + ws 기반 WebSocket 펌웨어 에뮬레이터 (Phase 3, ws://localhost:8787)
 └── docs/                        // 설계 문서
 ```
 
