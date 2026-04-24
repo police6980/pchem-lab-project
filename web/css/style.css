@@ -1344,6 +1344,15 @@ body.sidebar-collapsed #ai-sidebar {
 .status-disconnected { color: #c0392b; }
 .status-error        { color: #e67e22; }
 .status-connecting   { color: #7f8ba5; }
+.volume-reminder {
+    margin: 4px 0 8px;
+    padding: 8px 12px;
+    background: #fff3cd;
+    border-left: 4px solid #ffc107;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    color: #856404;
+}
 #serial-sensor-label {
     font-size: 0.8rem;
     color: #555;

@@ -77,6 +77,16 @@ function initSensorPanel(sensorManager) {
         btnReal.classList.toggle("active", mode === "real");
         realControls.classList.toggle("hidden", mode !== "real");
         wsControls.classList.toggle("hidden",   mode !== "ws");
+
+        // DEV MODE 압력 슬라이더는 Mock 전용 (WS/Real 은 센서가 압력 제공).
+        const devSlider = document.getElementById("dev-pressure-slider");
+        if (devSlider) devSlider.classList.toggle("hidden", mode !== "mock");
+
+        // 부피 안내 배지: 실센서/에뮬레이터 모드에서만 노출
+        // (Mock 모드는 시뮬 기하로 자동 채움 → 학생 수동 입력 불필요).
+        const volReminder = document.getElementById("volume-input-reminder");
+        if (volReminder) volReminder.classList.toggle("hidden", mode === "mock");
+
         if (mode === "ws") resetWsUI("connecting");
     }
 
@@ -310,6 +320,7 @@ function createMeasurementPanel({
     onDataChange, onResetAll,
     getAvgSpeed = null,
     getCollisionsPerSec = null,
+    getCurrentMode = () => "mock",   // "mock" | "ws" | "real"
 }) {
     const readingBlock = document.createElement("div");
     readingBlock.id = "current-reading-block";
@@ -773,6 +784,24 @@ function createMeasurementPanel({
 
     document.getElementById("btn-record").addEventListener("click", () => {
         if (!isStabilized) return;
+
+        // 실센서 / 에뮬레이터 모드에서는 시뮬 기하값이 아니라 학생이 읽은
+        // 시린지 눈금이 V의 실제 출처. 한 번도 편집 안 한 채 기록하면
+        // 대개 무의미한 데이터이므로 재확인 받는다.
+        const mode = getCurrentMode();
+        if (mode !== "mock" && !studentEdited) {
+            const ok = window.confirm(
+                "📏 시린지 눈금을 확인하고 부피(V)를 입력하셨나요?\n\n" +
+                `현재 V 값(${vInput.value} mL)은 자동 채워진 값입니다.\n` +
+                "실측 부피가 맞다면 [확인], 수정이 필요하면 [취소]를 눌러 입력하세요."
+            );
+            if (!ok) {
+                vInput.focus();
+                vInput.select();
+                return;
+            }
+        }
+
         setSessionStart();
 
         // P: 1-second moving average. Smoothes sensor noise + guarantees the

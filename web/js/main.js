@@ -161,6 +161,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         resetSession: () => { sessionStartMs = null; },
         getAvgSpeed:        () => lastDisplayAvgSpeed,
         getCollisionsPerSec: () => lastDisplayHitsPerSec,
+        getCurrentMode:      () => sensorManager.mode,
     });
 
     setInterval(() => {
