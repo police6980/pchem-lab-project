@@ -186,14 +186,24 @@
         </section>
     </div>
 
-    <!-- AI 사이드바 토글 핸들러 (boyle 패턴 그대로) -->
+    <!-- AI 사이드바 토글 핸들러 — 뷰포트에 따라 push / drawer 모드 분기 -->
     <script>
       document.addEventListener("DOMContentLoaded", () => {
+        const isDrawerViewport = () => window.matchMedia("(max-width: 1279px)").matches;
+
         document.getElementById("btn-ai-collapse")?.addEventListener("click", () => {
-          document.body.classList.toggle("sidebar-collapsed");
+          if (isDrawerViewport()) {
+            document.body.classList.remove("sidebar-open");
+          } else {
+            document.body.classList.toggle("sidebar-collapsed");
+          }
         });
         document.getElementById("ai-reopen-btn")?.addEventListener("click", () => {
-          document.body.classList.remove("sidebar-collapsed");
+          if (isDrawerViewport()) {
+            document.body.classList.add("sidebar-open");
+          } else {
+            document.body.classList.remove("sidebar-collapsed");
+          }
         });
       });
     </script>

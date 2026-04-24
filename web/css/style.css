@@ -2906,12 +2906,68 @@ body[data-page="dalton"] .ai-sidebar {
 /* ─── 반응형 ─── */
 /* ≤1279px: AI 사이드바 숨김. drawer 화는 Phase 5.6-a 예정. */
 @media (max-width: 1279px) {
+    /* AI 사이드바를 drawer 방식으로 전환.
+       기본 숨김, 우측 상단 재열기 버튼으로 다시 펼침. */
     body[data-page="dalton"] {
         padding-right: 16px;
     }
-    body[data-page="dalton"] .ai-sidebar,
+    body[data-page="dalton"] .ai-sidebar {
+        /* 드로어 외형: 화면 오른쪽 끝에서 슬라이드.
+           기본 상태 = 숨김. body.sidebar-collapsed 이면 보임 전환 불가,
+           역으로 body 에 sidebar-collapsed 가 없을 때 drawer 펼침 상태 해석. */
+        position: fixed;
+        top: 16px;
+        right: 16px;
+        width: min(380px, calc(100vw - 32px));
+        max-height: calc(100vh - 32px);
+        overflow-y: auto;
+        z-index: 1000;
+        box-shadow: -4px 0 16px rgba(0, 0, 0, 0.15);
+        display: none;  /* 기본 숨김 */
+    }
     body[data-page="dalton"] #ai-reopen-btn {
+        /* 재열기 버튼을 drawer 트리거로 상시 노출 */
+        display: block;
+        position: fixed;
+        bottom: 24px;
+        right: 24px;
+        z-index: 999;
+        width: 56px;
+        height: 56px;
+        border-radius: 50%;
+        font-size: 1.4rem;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        border: none;
+        background: #2563eb;
+        color: #fff;
+        cursor: pointer;
+    }
+    body[data-page="dalton"] #ai-reopen-btn:hover {
+        background: #1d4ed8;
+    }
+    /* drawer 펼침 상태: body 에 sidebar-open 클래스 */
+    body[data-page="dalton"].sidebar-open .ai-sidebar {
+        display: flex;
+    }
+    body[data-page="dalton"].sidebar-open #ai-reopen-btn {
         display: none;
+    }
+}
+
+/* ============================================================
+   중간 너비(1024~1279px) — 2칼럼 유지하되 패널 축소
+   drawer 모드 (변경 1) 와 병행 동작
+   ============================================================ */
+@media (max-width: 1279px) and (min-width: 1024px) {
+    body[data-page="dalton"] #dalton-mode.dalton-layout {
+        grid-template-columns: 280px 1fr;
+        gap: 16px;
+    }
+    body[data-page="dalton"] .dalton-panel {
+        padding: 12px;
+    }
+    body[data-page="dalton"] .dalton-section-title {
+        font-size: 0.95rem;
     }
 }
 
@@ -2924,4 +2980,109 @@ body[data-page="dalton"] .ai-sidebar {
             "main"
             "records";
     }
+}
+
+/* ============================================================
+   canvas 유연화 — 모든 뷰포트에서 overflow 방지
+   ============================================================ */
+body[data-page="dalton"] #dalton-canvas,
+body[data-page="dalton"] #dalton-chart {
+    max-width: 100%;
+    height: auto;
+    display: block;
+}
+
+/* ============================================================
+   신규 클래스 정의 (87a1614·dfc6595 커밋에서 도입, CSS 미정의 해소)
+   ============================================================ */
+
+/* 주사기 A·B 제목 옆 역할 배지 */
+body[data-page="dalton"] .dalton-role-badge {
+    display: inline-block;
+    margin-left: 8px;
+    padding: 2px 8px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    background: #eef2ff;
+    color: #4338ca;
+    border-radius: 4px;
+    vertical-align: middle;
+}
+
+/* 동적 업데이트되는 필드 (압력 표시 등) */
+body[data-page="dalton"] .dalton-field-dynamic {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    padding: 4px 0;
+}
+
+/* 필드 보조 힌트 (예: "(B와 동일, 대기압)") */
+body[data-page="dalton"] .dalton-field-hint {
+    font-size: 0.8rem;
+    color: #6b7280;
+    font-style: italic;
+}
+
+/* [확인] 버튼 (기존 [기록] → 의미 재정의) */
+body[data-page="dalton"] .dalton-btn-confirm {
+    background: #059669;
+    color: #fff;
+    border: 1px solid #047857;
+}
+body[data-page="dalton"] .dalton-btn-confirm:hover:not(:disabled) {
+    background: #047857;
+}
+body[data-page="dalton"] .dalton-btn-confirm:disabled {
+    background: #d1d5db;
+    color: #6b7280;
+    border-color: #d1d5db;
+    cursor: not-allowed;
+}
+
+/* 이론값 박스 하단 공식 힌트 */
+body[data-page="dalton"] .dalton-formula-hint {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px dashed #e5e7eb;
+    font-size: 0.85rem;
+    color: #4b5563;
+    text-align: center;
+    font-family: 'Segoe UI', monospace;
+}
+
+/* 숫자 입력 필드 (주사기 B 직접 입력) */
+body[data-page="dalton"] .dalton-field-number-input {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 4px;
+}
+body[data-page="dalton"] .dalton-field-number-input label {
+    font-size: 0.85rem;
+    color: #4b5563;
+    min-width: 72px;
+}
+body[data-page="dalton"] .dalton-field-number-input input[type="number"] {
+    flex: 0 0 80px;
+    padding: 4px 8px;
+    border: 1px solid #d1d5db;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    text-align: right;
+}
+
+/* 숫자 입력 옆 단위 */
+body[data-page="dalton"] .dalton-field-unit {
+    font-size: 0.85rem;
+    color: #6b7280;
+}
+
+/* 프리셋 참고 힌트 */
+body[data-page="dalton"] .dalton-preset-hint {
+    margin-top: 4px;
+    font-size: 0.8rem;
+    color: #6b7280;
+    font-style: italic;
 }
