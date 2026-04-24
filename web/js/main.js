@@ -821,8 +821,19 @@ function initDaltonApp(params) {
         // 실센서 모드(Step I) 에서 실제 수신값으로 덮어씀.
         // 결정 7: 주입 전 주사기 A 압력 = 이 값을 그대로 복사 표시.
         pressureBSensor: 1.00,
+        // 주입 완료 후 측정된 P_total (atm). INJECTED/CONFIRMED 에서만 유효.
+        // IDLE/INJECTING 에서는 null. Step B-3 에서는 시뮬값 대신 이론값 그대로.
+        // Step C/F 에서 실제 시뮬 결과값으로 대체.
+        pressureBMeasured: null,
         displayUnit: "atm",  // 'atm' | 'kPa'
-        stage: "IDLE",       // Step B-3 에서 사용: IDLE | INJECTING | INJECTED | CONFIRMED
+        stage: "IDLE",       // IDLE | INJECTING | INJECTED | CONFIRMED
+        // Step B-3 애니메이션·카운트다운 abort 제어용.
+        // [초기화] 클릭 시 abortCurrentFlow=true 로 설정 → 진행 중 async flow 가 중단.
+        abortCurrentFlow: false,
+        // 활성 setInterval ID (카운트다운용). 초기화 시 clearInterval.
+        countdownIntervalId: null,
+        // 기록 일련번호 (1부터 증가). [확인] 클릭 시 ++
+        recordsCount: 0,
     };
 
     // 외부 디버깅 편의: 브라우저 콘솔에서 window.daltonState 확인 가능
@@ -857,6 +868,16 @@ function initDaltonApp(params) {
         btnInject:  $("dalton-btn-inject"),
         btnConfirm: $("dalton-btn-confirm"),
         btnReset:   $("dalton-btn-reset"),
+
+        // 안정화 인디케이터 (Step A 에서 준비된 placeholder)
+        stabilization: $("dalton-stabilization"),
+        stabCountdown: $("dalton-stab-countdown"),
+
+        // 기록 테이블
+        recordsTbody:  $("dalton-records"),
+        recordsEmpty:  $("dalton-records-empty"),
+        recordsToggle: $("dalton-records-toggle"),
+        recordsBody:   $("dalton-records-body"),
     };
 
     // 참조 누락 경고 (개발 편의)
@@ -921,6 +942,190 @@ function initDaltonApp(params) {
                 dom.pressureAHint.textContent = "";
                 dom.pressureAHint.style.display = "none";
             }
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────
+    // Promise 기반 대기 헬퍼 (ui.js 의 sleep 과 동일, 접근 범위 한정)
+    // ─────────────────────────────────────────────────────────
+    const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+    // ─────────────────────────────────────────────────────────
+    // 상태 머신 전환 — stage 변경 + 버튼 disabled 제어 + readout 재갱신
+    //
+    // 전환 허용 테이블:
+    //   IDLE       → INJECTING (주입 시작)
+    //   INJECTING  → INJECTED (3초 애니메이션 완료)
+    //   INJECTING  → IDLE (초기화 abort)
+    //   INJECTED   → CONFIRMED (안정화 완료 + 확인 클릭)
+    //   INJECTED   → IDLE (초기화)
+    //   CONFIRMED  → IDLE (초기화)
+    // ─────────────────────────────────────────────────────────
+    function setStage(newStage) {
+        daltonState.stage = newStage;
+
+        // 버튼 disabled 일괄 제어
+        if (dom.btnInject)  dom.btnInject.disabled  = (newStage !== "IDLE");
+        if (dom.btnConfirm) dom.btnConfirm.disabled = (newStage !== "INJECTED");
+        // reset 은 INJECTING 중에만 잠시 비활성 — abort 로직이 race condition
+        // 가능성 있어 보수적으로. 실사용에서는 INJECTING 중에도 허용해도 됨.
+        // 여기서는 학생이 3초 애니메이션 중 초기화 연타하는 걸 방지.
+        if (dom.btnReset)   dom.btnReset.disabled   = false;
+
+        // 숫자 입력·select 도 실험 진행 중에는 비활성
+        const lockInputs = (newStage !== "IDLE");
+        if (dom.gasASelect)     dom.gasASelect.disabled     = lockInputs;
+        if (dom.gasBSelect)     dom.gasBSelect.disabled     = lockInputs;
+        if (dom.volumeANumber)  dom.volumeANumber.disabled  = lockInputs;
+        if (dom.volumeBNumber)  dom.volumeBNumber.disabled  = lockInputs;
+
+        // 압력 readout 재갱신 (stage 분기 반영)
+        updatePressureReadouts();
+    }
+
+    // ─────────────────────────────────────────────────────────
+    // [주입 시작] — async 흐름
+    // IDLE → INJECTING → (3초 대기) → INJECTED → 안정화 카운트다운 시작
+    //
+    // abort 처리: startInjection 진행 중 [초기화] 클릭 시
+    // daltonState.abortCurrentFlow = true 로 바뀌고, 다음 await 이후 분기에서
+    // 반환. setStage 는 초기화 핸들러가 이미 IDLE 로 돌림.
+    // ─────────────────────────────────────────────────────────
+    async function startInjection() {
+        if (daltonState.stage !== "IDLE") return;  // 이중 클릭 방어
+        daltonState.abortCurrentFlow = false;
+        setStage("INJECTING");
+
+        // 3초 주입 애니메이션 (Step E 에서 실제 피스톤 애니메이션 연결,
+        // 여기서는 시간 대기만)
+        await sleep(cfg.injection_animation_sec * 1000);
+        if (daltonState.abortCurrentFlow) return;
+
+        // 주입 완료 시뮬 계산: P_total = (V_A/V_B + 1) × 1 atm
+        // Step C/F 에서 실제 입자 기반 계산으로 대체.
+        const V_A = daltonState.syringeA.volume;
+        const V_B = daltonState.syringeB.volume;
+        const theoryAfterAtm = (V_A / V_B + 1) * 1.00;
+        daltonState.pressureBMeasured = theoryAfterAtm;
+        daltonState.pressureBSensor   = theoryAfterAtm;  // 시뮬 모드: 센서값도 이론값 동일
+
+        setStage("INJECTED");
+
+        // 5초 안정화 카운트다운
+        await startStabilization();
+    }
+
+    // ─────────────────────────────────────────────────────────
+    // 안정화 카운트다운 — 5초 동안 "5·4·3·2·1" 갱신, 완료 시 [확인] 활성화
+    // (setStage(INJECTED) 가 이미 btnConfirm 을 활성으로 세팅하지만,
+    //  카운트다운 중에는 안정화 인디만 보여주는 UX)
+    // ─────────────────────────────────────────────────────────
+    async function startStabilization() {
+        let remaining = cfg.stabilization_sec;
+
+        // 인디케이터 노출 + 초기 값
+        if (dom.stabilization) dom.stabilization.classList.remove("hidden");
+        if (dom.stabCountdown) dom.stabCountdown.textContent = String(remaining);
+
+        // 카운트다운 동안 확인 버튼은 일단 비활성 (안정화 완료까지 기다림)
+        if (dom.btnConfirm) dom.btnConfirm.disabled = true;
+
+        return new Promise((resolve) => {
+            daltonState.countdownIntervalId = setInterval(() => {
+                if (daltonState.abortCurrentFlow) {
+                    clearInterval(daltonState.countdownIntervalId);
+                    daltonState.countdownIntervalId = null;
+                    resolve();
+                    return;
+                }
+                remaining -= 1;
+                if (remaining > 0) {
+                    if (dom.stabCountdown) dom.stabCountdown.textContent = String(remaining);
+                } else {
+                    clearInterval(daltonState.countdownIntervalId);
+                    daltonState.countdownIntervalId = null;
+                    if (dom.stabilization) dom.stabilization.classList.add("hidden");
+                    if (dom.btnConfirm) dom.btnConfirm.disabled = false;
+                    resolve();
+                }
+            }, 1000);
+        });
+    }
+
+    // ─────────────────────────────────────────────────────────
+    // [확인] — INJECTED → CONFIRMED, 기록 추가
+    // ─────────────────────────────────────────────────────────
+    function confirmMeasurement() {
+        if (daltonState.stage !== "INJECTED") return;
+        addRecord();
+        setStage("CONFIRMED");
+    }
+
+    // ─────────────────────────────────────────────────────────
+    // [초기화] — 어느 stage 에서든 IDLE 복귀
+    // - stage = IDLE
+    // - V_A, V_B 는 유지 (학생 편의, 반복 실험)
+    // - pressureBMeasured = null
+    // - 카운트다운·애니메이션 abort
+    // - 안정화 인디케이터 숨김
+    // ─────────────────────────────────────────────────────────
+    function resetExperiment() {
+        // 진행 중 async flow 중단 신호
+        daltonState.abortCurrentFlow = true;
+        if (daltonState.countdownIntervalId !== null) {
+            clearInterval(daltonState.countdownIntervalId);
+            daltonState.countdownIntervalId = null;
+        }
+
+        daltonState.pressureBMeasured = null;
+        daltonState.pressureBSensor   = 1.00;  // 시뮬 기본값 복귀
+
+        if (dom.stabilization) dom.stabilization.classList.add("hidden");
+        if (dom.stabCountdown) dom.stabCountdown.textContent = String(cfg.stabilization_sec);
+
+        setStage("IDLE");
+    }
+
+    // ─────────────────────────────────────────────────────────
+    // 기록 추가 — tbody 에 <tr> append
+    // B-3 범위: 회차·V_A·V_B·P(이론)·시간 5컬럼만 실데이터.
+    // 나머지 6컬럼 (단계·V_fixed·모드·P(시뮬)·P(실측)·오차%) 은 "—" placeholder.
+    // Step G 에서 thead 정리 + CSV 내보내기 확장.
+    // ─────────────────────────────────────────────────────────
+    function addRecord() {
+        if (!dom.recordsTbody) return;
+
+        daltonState.recordsCount += 1;
+        const n = daltonState.recordsCount;
+        const V_A = daltonState.syringeA.volume;
+        const V_B = daltonState.syringeB.volume;
+        const theoryAtm = (V_A / V_B + 1) * 1.00;
+        const timeStr = new Date().toLocaleTimeString("ko-KR", { hour12: false });
+
+        // 11컬럼 순서: 회차·단계·V_A·V_B·V_fixed·모드·P(이론)·P(시뮬)·P(실측)·오차%·시간
+        // (설계서 §10.5 기준, thead 와 일관성 유지)
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+            <td>${n}</td>
+            <td>—</td>
+            <td>${V_A}</td>
+            <td>${V_B}</td>
+            <td>—</td>
+            <td>—</td>
+            <td>${formatPressure(theoryAtm)}</td>
+            <td>—</td>
+            <td>—</td>
+            <td>—</td>
+            <td>${timeStr}</td>
+        `;
+        dom.recordsTbody.appendChild(tr);
+
+        // 첫 기록: 빈 상태 안내 숨김 + accordion 자동 열기
+        if (n === 1) {
+            if (dom.recordsEmpty) dom.recordsEmpty.classList.add("hidden");
+            if (dom.recordsBody)  dom.recordsBody.classList.remove("hidden");
+            // accordion 토글 버튼의 aria-expanded / 화살표는 Step A 의 핸들러에 맡김
+            // 여기서는 body 만 펼침
         }
     }
 
@@ -1020,6 +1225,20 @@ function initDaltonApp(params) {
     });
 
     // ─────────────────────────────────────────────────────────
+    // 버튼 이벤트 바인딩 (Step B-3)
+    // ─────────────────────────────────────────────────────────
+    dom.btnInject?.addEventListener("click", () => {
+        // async 반환값은 무시 (fire-and-forget). 내부에서 abort 플래그로 흐름 제어.
+        startInjection();
+    });
+    dom.btnConfirm?.addEventListener("click", () => {
+        confirmMeasurement();
+    });
+    dom.btnReset?.addEventListener("click", () => {
+        resetExperiment();
+    });
+
+    // ─────────────────────────────────────────────────────────
     // 초기 상태 1회 적용 (숫자 박스·이론값·압력 readout 동기)
     // ─────────────────────────────────────────────────────────
     if (dom.volumeANumber) {
@@ -1035,7 +1254,12 @@ function initDaltonApp(params) {
     updateTheoryBox();
     updatePressureReadouts();
 
-    console.log("[Dalton] initDaltonApp B-2 완료. 이론값·압력 실시간 갱신 가동.");
+    // 초기 stage 를 명시적으로 IDLE 로 세팅 — 버튼 disabled 일관성 확보
+    // (HTML 에 이미 btn-confirm 만 disabled 로 돼 있지만, setStage 를 한 번 호출해
+    //  모든 요소가 IDLE 상태와 일치하도록 보장)
+    setStage("IDLE");
+
+    console.log("[Dalton] initDaltonApp B-3 완료. 상태 머신 + 버튼 + 기록 가동.");
 }
 
 // 페이지 디스패처 — body.dataset.page 값으로 어느 초기화를 실행할지 결정.
