@@ -87,6 +87,21 @@ function initSensorPanel(sensorManager) {
         const volReminder = document.getElementById("volume-input-reminder");
         if (volReminder) volReminder.classList.toggle("hidden", mode === "mock");
 
+        // vInput: Mock 모드에선 50 ms 루프가 시뮬 기하로 자동 채우므로
+        // placeholder 불필요. WS/Real 진입 시 값 비우고 안내 placeholder 표시
+        // → 학생이 시린지 실측을 반드시 타이핑하도록 강제.
+        // (createMeasurementPanel 이후에만 존재하므로 첫 setModeUI("mock")
+        // 호출 시점엔 null, if(vi) 가드로 안전.)
+        const vi = document.getElementById("current-v");
+        if (vi) {
+            if (mode === "mock") {
+                vi.placeholder = "";
+            } else {
+                vi.value = "";
+                vi.placeholder = "시린지 눈금(mL)";
+            }
+        }
+
         if (mode === "ws") resetWsUI("connecting");
     }
 
@@ -912,7 +927,12 @@ function createMeasurementPanel({
 
     setInterval(() => {
         currentPEl.textContent = getP().toFixed(1);
-        if (!studentEdited) {
+        // Mock 모드에서만 vInput 자동 채움. WS/Real 모드에서는 센서 압력이
+        // 시뮬 박스 기하에 반영되므로, 그 값을 vInput 에 역산 넣으면
+        // 학생이 이상기체 예측값으로 기록 → PV=const 가 동어반복이 되어
+        // 실험이 아닌 시뮬 재생이 됨. 박스 애니메이션 자체는 유지
+        // (미시-거시 대응 시각화 가치).
+        if (!studentEdited && getCurrentMode() === "mock") {
             vInput.value = pixelsToML(getGasWidth()).toFixed(1);
         }
         pushSampleHistory();
