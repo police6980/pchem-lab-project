@@ -2936,14 +2936,7 @@ body[data-page="dalton"] .dalton-btn-secondary:disabled {
     cursor: not-allowed;
 }
 
-body[data-page="dalton"] .dalton-pressure-readout {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    margin-top: 12px;
-    font-family: monospace;
-    font-size: 0.9rem;
-}
+/* .dalton-pressure-readout — 좌측 패널로 기능 이전, 제거 (Step C-1 v3) */
 
 body[data-page="dalton"] .dalton-records-table {
     width: 100%;
@@ -3050,6 +3043,16 @@ body[data-page="dalton"] .ai-sidebar {
 /* ============================================================
    canvas 유연화 — 모든 뷰포트에서 overflow 방지
    ============================================================ */
+/* 캔버스 wrap 카드 스타일 — 보일/particles 의 #section-canvas / #adv-section-canvas 와 통일 (Step C-1 v3) */
+body[data-page="dalton"] #dalton-canvas-wrap {
+    display: flex;
+    justify-content: center;
+    padding: 10px;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
 /* p5 DaltonScene 이 동적 append 하는 canvas + 차트 (Step C-1 부터) */
 body[data-page="dalton"] #dalton-canvas-wrap canvas,
 body[data-page="dalton"] #dalton-chart {

@@ -1055,118 +1055,165 @@ function initDaltonApp(params) {
     }
 
     // ─────────────────────────────────────────────────────────
-    // DaltonScene 시각 상수 (Step C-1)
-    // 메인 시각화 영역에 p5 sketch 로 주사기 A·B + 노즐 그림
+    // DaltonScene 시각 상수 (Step C-1 v3 — 세로 시린지 + U자 연결)
+    //
+    // 좌표: 1000×600. 시린지 A 좌·B 우, 본체는 세로 (높이 420),
+    // 피스톤은 위에서 아래로 이동. 두 시린지 하단 노즐을 ㄷ자 튜브로 연결.
+    // 부피 V (mL) → 피스톤 Y 위치 선형 매핑 (V_min=10 → 바닥 근처,
+    // V_max=100 → 천장 근처). hatching 없음 — 시린지에 고정벽 메타포 부적합.
+    // 컬러: HSB 모드 (보일/particles 와 통일). 가스색은 회색조 옅은 톤.
     // ─────────────────────────────────────────────────────────
     const SCENE = {
-        // 캔버스 크기
-        canvasW: 600,
-        canvasH: 500,
-        // A 주사기 (좌측)
-        bodyA: { x: 80, y: 175, w: 180, h: 150 },
-        handleA: { rod: { x: 30, y: 235, w: 20, h: 30 },
-                   tip: { x: 20, y: 230, w: 10, h: 40 } },
-        // B 주사기 (우측, 대칭)
-        bodyB: { x: 340, y: 175, w: 180, h: 150 },
-        handleB: { rod: { x: 550, y: 235, w: 20, h: 30 },
-                   tip: { x: 570, y: 230, w: 10, h: 40 } },
-        // 노즐 (연결관)
-        nozzle: { x: 260, y: 240, w: 80, h: 20 },
-        // 윤곽선 색상
-        strokeColor: "#4b5563",
-        // 기체별 본체 채움 색상
+        canvasW: 1000,
+        canvasH: 600,
+        // 시린지 공통 치수
+        bodyW: 240,                 // 본체 폭 (입자 운동 가시성 확보 위해 확장)
+        bodyTop: 60,                // 본체 상단 Y
+        bodyBottom: 480,            // 본체 하단 Y (노즐 출구 직전)
+        bodyHeightPx: 420,          // = bodyBottom - bodyTop
+        wallStrokeWeight: 1.5,      // 본체 외곽선
+        // 시린지 A (좌)
+        syringeA: {
+            centerX: 280,
+            bodyLeft: 160,
+            bodyRight: 400,
+        },
+        // 시린지 B (우)
+        syringeB: {
+            centerX: 720,
+            bodyLeft: 600,
+            bodyRight: 840,
+        },
+        // 노즐 출구 (시린지 본체 하단의 좁은 통로)
+        nozzleW: 24,                // 노즐 폭
+        nozzleTop: 480,
+        nozzleBottom: 520,          // ㄷ자 튜브 수평선 시작 Y
+        // ㄷ자 튜브 (두 시린지 하단을 연결)
+        tubeY: 520,                 // 수평 튜브 윗면 Y
+        tubeH: 20,                  // 수평 튜브 두께
+        // 피스톤 (위쪽으로 손잡이가 빠져나옴)
+        pistonHeadH: 14,            // 피스톤 면 두께 (가로 직사각형)
+        pistonShaftW: 18,           // 손잡이 봉 폭 (세로)
+        pistonCapW: 60,             // 단캡 폭 (가로)
+        pistonCapH: 12,             // 단캡 두께
+        pistonCapTopMargin: 10,     // 캔버스 상단 ↔ 단캡 간격
+        // 부피 ↔ 피스톤 Y 매핑 파라미터
+        volumeMin: 10,              // mL
+        volumeMax: 100,             // mL
+        // 가스색 (HSB)
         gasColors: {
-            air:  "#dbeafe",  // 공기
-            co2:  "#d1fae5",  // CO2 (현재 결정 4 키)
-            n2:   "#ede9fe",  // N2
-            o2:   "#fce7f3",  // O2
-            he:   "#fef3c7",  // He
+            air: [210, 8, 96],
+            co2: [140, 10, 95],
+            n2:  [220, 6, 96],
+            o2:  [260, 8, 96],
+            he:  [50, 10, 96],
         },
     };
 
-    // 기체 키로 색상 lookup. 미정의 시 회색 fallback.
-    function getGasColor(gasKey) {
-        return SCENE.gasColors[gasKey] || "#e5e7eb";
+    // 부피 → 피스톤 면의 Y 좌표 (본체 안쪽)
+    function volumeToPistonY(volumeMl) {
+        const ratio = (volumeMl - SCENE.volumeMin) / (SCENE.volumeMax - SCENE.volumeMin);
+        const clamped = Math.max(0, Math.min(1, ratio));
+        // V_max=100 → bodyTop+10 (위), V_min=10 → bodyBottom-10 (아래)
+        return SCENE.bodyBottom - 10 - clamped * (SCENE.bodyHeightPx - 20);
+    }
+
+    function getGasColor(p, gasKey) {
+        const c = SCENE.gasColors[gasKey] || SCENE.gasColors.air;
+        return p.color(c[0], c[1], c[2]);
     }
 
     // ─────────────────────────────────────────────────────────
-    // DaltonScene p5 sketch (Step C-1: 정적 그림)
-    // 주사기 A·B 본체·피스톤·노즐·라벨을 1회 그림 (noLoop)
+    // DaltonScene p5 sketch (Step C-1 v3 — 세로 시린지 + U자 연결 +
+    // 슬라이더 redraw)
+    // noLoop. 부피·기체 변경 시 외부에서 daltonP5.redraw() 호출.
     // ─────────────────────────────────────────────────────────
     const daltonSketch = (p) => {
         p.setup = () => {
             p.createCanvas(SCENE.canvasW, SCENE.canvasH);
-            p.colorMode(p.RGB);  // 본 명세는 RGB 헥스 일관
-            p.noLoop();           // 정적 그림 — 매 프레임 redraw 불필요
-            drawScene(p);
+            // HSB 모드 — 보일/particles 와 통일
+            p.colorMode(p.HSB, 360, 100, 100, 255);
+            p.noLoop();
+            drawDaltonScene(p);  // 초기 1회 즉시 그림
         };
-
-        // draw 는 noLoop 이라 setup 후 1회만 실행
         p.draw = () => {
-            drawScene(p);
+            drawDaltonScene(p);
         };
     };
 
-    // 메인 그리기 함수 (setup·draw 공용, 후속 단계에서 입자 추가됨)
-    function drawScene(p) {
-        // 배경
-        p.background("#fafafa");
+    // 시린지 1개 그리기 (본체 외곽 + 노즐 출구 + 가스색 채움 + 피스톤)
+    // syr: SCENE.syringeA 또는 SCENE.syringeB
+    // gasKey: daltonState 의 gas 키
+    // volumeMl: 현재 부피 (mL)
+    function drawSyringe(p, syr, gasKey, volumeMl) {
+        const pistonY = volumeToPistonY(volumeMl);
 
-        // 1. 노즐 (먼저 그려서 주사기 본체와 겹치는 부분이 자연스럽게)
-        const n = SCENE.nozzle;
-        p.fill("#9ca3af");
-        p.stroke(SCENE.strokeColor);
-        p.strokeWeight(2);
-        p.rect(n.x, n.y, n.w, n.h);
-
-        // 2. 주사기 A 본체
-        const a = SCENE.bodyA;
-        const gasA = (daltonState.syringeA && daltonState.syringeA.gas) || "air";
-        p.fill(getGasColor(gasA));
-        p.stroke(SCENE.strokeColor);
-        p.strokeWeight(2);
-        p.rect(a.x, a.y, a.w, a.h);
-
-        // 3. 주사기 A 피스톤 손잡이 (T자, 좌측)
-        const haRod = SCENE.handleA.rod;
-        const haTip = SCENE.handleA.tip;
-        p.fill("#9ca3af");
-        p.rect(haRod.x, haRod.y, haRod.w, haRod.h);
-        p.rect(haTip.x, haTip.y, haTip.w, haTip.h);
-
-        // 4. 주사기 B 본체
-        const b = SCENE.bodyB;
-        const gasB = (daltonState.syringeB && daltonState.syringeB.gas) || "co2";
-        p.fill(getGasColor(gasB));
-        p.rect(b.x, b.y, b.w, b.h);
-
-        // 5. 주사기 B 피스톤 손잡이 (T자, 우측)
-        const hbRod = SCENE.handleB.rod;
-        const hbTip = SCENE.handleB.tip;
-        p.fill("#9ca3af");
-        p.rect(hbRod.x, hbRod.y, hbRod.w, hbRod.h);
-        p.rect(hbTip.x, hbTip.y, hbTip.w, hbTip.h);
-
-        // 6. 라벨 (주사기 A·B 위쪽 가운데)
+        // 1. 본체 안 가스색 채움 영역 (피스톤 면 ~ 본체 하단)
         p.noStroke();
-        p.fill("#1f2937");
-        p.textAlign(p.CENTER, p.BOTTOM);
-        p.textSize(18);
-        p.text("A", a.x + a.w / 2, a.y - 8);
-        p.text("B", b.x + b.w / 2, b.y - 8);
+        p.fill(getGasColor(p, gasKey));
+        p.rect(syr.bodyLeft + 2, pistonY + SCENE.pistonHeadH, SCENE.bodyW - 4, SCENE.bodyBottom - (pistonY + SCENE.pistonHeadH));
 
-        // 7. 기체명 (본체 안 위쪽)
-        p.fill("#4b5563");
-        p.textSize(12);
-        p.textAlign(p.CENTER, p.TOP);
-        p.text(gasLabel(gasA), a.x + a.w / 2, a.y + 8);
-        p.text(gasLabel(gasB), b.x + b.w / 2, b.y + 8);
+        // 2. 본체 외곽선 (직사각형, 위는 열려있음)
+        p.stroke(0, 0, 31);
+        p.strokeWeight(SCENE.wallStrokeWeight);
+        p.noFill();
+        // 좌측 벽
+        p.line(syr.bodyLeft, SCENE.bodyTop, syr.bodyLeft, SCENE.bodyBottom);
+        // 우측 벽
+        p.line(syr.bodyRight, SCENE.bodyTop, syr.bodyRight, SCENE.bodyBottom);
+        // 하단 벽 (노즐 출구 영역만 빠짐)
+        const nozzleLeft = syr.centerX - SCENE.nozzleW / 2;
+        const nozzleRight = syr.centerX + SCENE.nozzleW / 2;
+        p.line(syr.bodyLeft, SCENE.bodyBottom, nozzleLeft, SCENE.bodyBottom);
+        p.line(nozzleRight, SCENE.bodyBottom, syr.bodyRight, SCENE.bodyBottom);
+        // 노즐 좌·우 벽 (본체 하단에서 튜브 윗면까지 좁아짐)
+        p.line(nozzleLeft, SCENE.bodyBottom, nozzleLeft, SCENE.tubeY);
+        p.line(nozzleRight, SCENE.bodyBottom, nozzleRight, SCENE.tubeY);
+
+        // 3. 피스톤 (3-rect: 면 + 봉 + 단캡)
+        // 3-1. 피스톤 면 (가로 직사각형, 본체 안)
+        p.noStroke();
+        p.fill(0, 0, 48);
+        p.rect(syr.bodyLeft + 2, pistonY, SCENE.bodyW - 4, SCENE.pistonHeadH);
+        // 3-2. 손잡이 봉 (세로, 피스톤 면에서 위로 빠져나옴)
+        p.fill(0, 0, 62);
+        const shaftX = syr.centerX - SCENE.pistonShaftW / 2;
+        const shaftTop = SCENE.pistonCapTopMargin + SCENE.pistonCapH;
+        p.rect(shaftX, shaftTop, SCENE.pistonShaftW, pistonY - shaftTop);
+        // 3-3. 단캡 (가로, 봉 맨 위)
+        p.fill(0, 0, 42);
+        const capX = syr.centerX - SCENE.pistonCapW / 2;
+        p.rect(capX, SCENE.pistonCapTopMargin, SCENE.pistonCapW, SCENE.pistonCapH);
     }
 
-    // 기체 키 → 표시 라벨 (daltonState.syringe?.gas 의 한글 표기)
-    function gasLabel(gasKey) {
-        const map = { air: "공기", co2: "CO₂", n2: "N₂", o2: "O₂", he: "He" };
-        return map[gasKey] || gasKey;
+    // ㄷ자 튜브 (두 시린지 하단 연결: A 노즐 출구 → 수평 튜브 → B 노즐 출구)
+    function drawConnectorTube(p) {
+        const tubeFill = p.color(0, 0, 70);
+        const tubeStroke = p.color(0, 0, 31);
+        // 튜브 좌측 끝 (A 시린지 노즐 출구 위치) ~ 우측 끝 (B 시린지 노즐 출구 위치)
+        const xLeft = SCENE.syringeA.centerX - SCENE.nozzleW / 2;
+        const xRight = SCENE.syringeB.centerX + SCENE.nozzleW / 2;
+        // 수평 튜브
+        p.noStroke();
+        p.fill(tubeFill);
+        p.rect(xLeft, SCENE.tubeY, xRight - xLeft, SCENE.tubeH);
+        // 외곽선
+        p.stroke(tubeStroke);
+        p.strokeWeight(SCENE.wallStrokeWeight);
+        p.noFill();
+        p.rect(xLeft, SCENE.tubeY, xRight - xLeft, SCENE.tubeH);
+    }
+
+    function drawDaltonScene(p) {
+        // 배경 (HSB 거의 흰색)
+        p.background(0, 0, 98);
+
+        // 시린지 A (좌)
+        drawSyringe(p, SCENE.syringeA, daltonState.syringeA.gas, daltonState.syringeA.volume);
+        // 시린지 B (우)
+        drawSyringe(p, SCENE.syringeB, daltonState.syringeB.gas, daltonState.syringeB.volume);
+        // ㄷ자 튜브 (시린지 하단 연결)
+        drawConnectorTube(p);
     }
 
     // ─────────────────────────────────────────────────────────
@@ -1371,6 +1418,7 @@ function initDaltonApp(params) {
     const onStateChange = debounce(() => {
         updateTheoryBox();
         updatePressureReadouts();
+        daltonP5?.redraw();  // 부피·기체 변경 시 캔버스 재그림 (Step C-1 v3)
 
         if (DEBUG_DALTON) {
             console.log("[Dalton] state changed", {
