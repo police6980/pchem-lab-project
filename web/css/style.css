@@ -3133,6 +3133,11 @@ body[data-page="dalton"] .dalton-gauge-needle {
     transition: transform 0.3s ease;
 }
 
+/* 바늘 색상 변환 transition (5+ 경고 시 검정 → 빨강 부드럽게) */
+body[data-page="dalton"] .dalton-gauge-needle line {
+    transition: stroke 0.3s ease;
+}
+
 body[data-page="dalton"] .dalton-gauge-warning {
     font-size: 0.78rem;
     color: #dc2626;

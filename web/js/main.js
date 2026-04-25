@@ -935,22 +935,22 @@ function initDaltonApp(params) {
         const sensorAtm = daltonState.pressureBSensor;
         const unit = getPressureUnit();
 
-        // 주사기 B: 센서값 표시 (숫자 + 단위 + 게이지 바늘)
+        // 주사기 B: 센서값 표시 (숫자 + 단위 + 게이지 바늘 + 경고)
         if (dom.pressureB) dom.pressureB.textContent = formatPressure(sensorAtm);
         if (dom.pressureBUnit) dom.pressureBUnit.textContent = unit;
-        updateGauge(dom.gaugeB, sensorAtm);
+        updateGauge(dom.gaugeB, sensorAtm, dom.gaugeWarningB);
 
         // 주사기 A: stage 별 분기 (결정 7 정책: INJECTED 이후 A 는 "—" 표시)
         const stage = daltonState.stage;
         if (stage === "IDLE" || stage === "INJECTING") {
             if (dom.pressureA) dom.pressureA.textContent = formatPressure(sensorAtm);
             if (dom.pressureAUnit) dom.pressureAUnit.textContent = unit;
-            updateGauge(dom.gaugeA, sensorAtm);  // B 와 동일 (대기압 또는 주입 중)
+            updateGauge(dom.gaugeA, sensorAtm, dom.gaugeWarningA);  // B 와 동일 (대기압 또는 주입 중)
         } else {
             // INJECTED / CONFIRMED: A 는 비어있음 → 디지털 '—', 게이지 0 위치
             if (dom.pressureA) dom.pressureA.textContent = "—";
             if (dom.pressureAUnit) dom.pressureAUnit.textContent = "";
-            updateGauge(dom.gaugeA, 0);  // 0 atm = 좌측 9시 위치
+            updateGauge(dom.gaugeA, 0, dom.gaugeWarningA);  // 0 atm 이라 경고 자동 hidden
         }
     }
 
@@ -1029,13 +1029,29 @@ function initDaltonApp(params) {
     // svgEl: 대상 SVG 엘리먼트 (dom.gaugeA / gaugeB)
     // atmVal: 표시할 압력 (atm 단위)
     // ─────────────────────────────────────────────────────────
-    function updateGauge(svgEl, atmVal) {
+    function updateGauge(svgEl, atmVal, warningEl) {
         if (!svgEl) return;
         const needle = svgEl.querySelector('.dalton-gauge-needle');
         if (!needle) return;
+
+        // 1. 회전 (회전 중심 cx=80, cy=90 — renderGaugeStatic 좌표계와 일치)
         const angle = pressureToAngle(atmVal);
-        // 회전 중심 (cx=80, cy=90) — renderGaugeStatic 좌표계와 일치
         needle.setAttribute('transform', `rotate(${angle.toFixed(2)} 80 90)`);
+
+        // 2. 색상 분기 (5 atm 초과 시 빨강)
+        const line = needle.querySelector('line');
+        if (line) {
+            line.setAttribute('stroke', atmVal > 5 ? '#dc2626' : '#1f2937');
+        }
+
+        // 3. 경고 텍스트 표시/숨김 (warningEl 제공된 경우)
+        if (warningEl) {
+            if (atmVal > 5) {
+                warningEl.removeAttribute('hidden');
+            } else {
+                warningEl.setAttribute('hidden', '');
+            }
+        }
     }
 
     // ─────────────────────────────────────────────────────────
