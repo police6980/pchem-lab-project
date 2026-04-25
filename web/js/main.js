@@ -1119,6 +1119,9 @@ function initDaltonApp(params) {
         boxMinHeight: 30,           // V_min 시 box.height 음수 방지
         particleCountPerSyringe: 60, // 시린지당 고정 (V 변경 시 재생성 불필요 — Step C-2 보강)
         volumeLerpFactor: 0.15,     // displayedVolume 보간율 (매 frame 15% 접근, 약 0.13초 도달) — Step C-2 통합
+        // 주입 애니메이션 (Step C-3)
+        injectionStaggerSec: 2.0,   // 입자별 출발 시점 0~2초 무작위 분산
+        injectionDurationSec: 1.5,  // 입자 1개의 이주 소요 시간 (waypoint 통과)
     };
 
     // 부피 → 피스톤 면의 Y 좌표 (본체 안쪽)
@@ -1198,6 +1201,10 @@ function initDaltonApp(params) {
         const speedScale = SCENE.particleSpeedScale * (gasData.speedFactor || 1.0);
 
         const sys = new ParticleSystem(particleCount, box, speedScale, 0, SCENE.particleRadius);
+        // 입자별 gasKey 부여 (Step C-3 — 주입 후 B 안에 두 가스 공존)
+        for (const particle of sys.getParticles()) {
+            particle.gasKey = gasKey;
+        }
         if (isA) systemA = sys;
         else systemB = sys;
     }
@@ -1205,6 +1212,157 @@ function initDaltonApp(params) {
     function rebuildAllSystems() {
         rebuildParticleSystem("A");
         rebuildParticleSystem("B");
+    }
+
+    // ─────────────────────────────────────────────────────────
+    // 주입 애니메이션 (Step C-3)
+    // ─────────────────────────────────────────────────────────
+
+    // 이주 경로 waypoint (캔버스 좌표). A 박스 → ㄷ자 튜브 → B 박스
+    function getInjectionWaypoints() {
+        const aX = SCENE.syringeA.centerX;
+        const bX = SCENE.syringeB.centerX;
+        const tubeMidY = SCENE.tubeY + SCENE.tubeH / 2;  // 튜브 가운데 Y
+        return [
+            { x: aX, y: SCENE.bodyBottom + 10 },         // A 노즐 진입
+            { x: aX, y: SCENE.nozzleBottom },            // A 노즐 통과
+            { x: aX, y: tubeMidY },                      // 수평 튜브 좌측 진입
+            { x: (aX + bX) / 2, y: tubeMidY },           // 수평 튜브 가운데
+            { x: bX, y: tubeMidY },                      // 수평 튜브 우측 진출
+            { x: bX, y: SCENE.nozzleBottom },            // B 노즐 통과
+            { x: bX, y: SCENE.bodyBottom + 2 },          // B 박스 진입
+        ];
+    }
+
+    // waypoint 배열 + t (0~1) → 좌표 (선형 보간, 구간별 균등 분배)
+    function interpolateWaypoints(waypoints, t) {
+        if (t <= 0) return { x: waypoints[0].x, y: waypoints[0].y };
+        if (t >= 1) {
+            const last = waypoints[waypoints.length - 1];
+            return { x: last.x, y: last.y };
+        }
+        const segments = waypoints.length - 1;
+        const segT = t * segments;
+        const i = Math.floor(segT);
+        const localT = segT - i;
+        const a = waypoints[i];
+        const b = waypoints[i + 1];
+        return {
+            x: a.x + (b.x - a.x) * localT,
+            y: a.y + (b.y - a.y) * localT,
+        };
+    }
+
+    // 이주 중 입자 array — { particle, waypoints, startX, startY, t, duration, gasKey }
+    let migratingParticles = [];
+    let injectionAnimationActive = false;
+
+    // 주입 애니메이션 시작 — A 입자 60개를 stagger + waypoint 따라 B 로 이주
+    // 반환: Promise (완료 또는 abort 시 resolve)
+    async function runInjectionAnimation() {
+        injectionAnimationActive = true;
+
+        // 1. systemA 의 모든 입자를 migratingParticles 로 옮김
+        const waypoints = getInjectionWaypoints();
+        const particles = systemA.getParticles();
+        const gasKeyA = daltonState.syringeA.gas;
+
+        for (const particle of particles) {
+            // stagger: 출발 시점 0~SCENE.injectionStaggerSec 무작위
+            const stagger = Math.random() * SCENE.injectionStaggerSec;
+            // 시작 좌표 = 입자의 현재 위치 (A 박스 안)
+            const startX = particle.x;
+            const startY = particle.y;
+            migratingParticles.push({
+                particle,
+                waypoints,
+                startX,
+                startY,
+                t: -stagger / SCENE.injectionDurationSec,  // 음수면 아직 대기 (stagger)
+                duration: SCENE.injectionDurationSec,
+                gasKey: gasKeyA,
+            });
+        }
+        // systemA 비우기 (이주 시작과 동시에)
+        systemA.particles.length = 0;
+
+        // 2. 매 frame draw 루프가 migrating 입자 보간 처리.
+        //    이 함수는 모든 이주 완료 또는 abort 까지 대기.
+        const totalTimeoutMs = (cfg.injection_animation_sec || 3) * 1000 + 1000;  // 여유 +1초
+        const startTime = performance.now();
+
+        return new Promise((resolve) => {
+            const checkInterval = setInterval(() => {
+                if (daltonState.abortCurrentFlow) {
+                    clearInterval(checkInterval);
+                    migratingParticles = [];
+                    injectionAnimationActive = false;
+                    resolve();
+                    return;
+                }
+                if (migratingParticles.length === 0) {
+                    clearInterval(checkInterval);
+                    injectionAnimationActive = false;
+                    resolve();
+                    return;
+                }
+                if (performance.now() - startTime > totalTimeoutMs) {
+                    // 타임아웃 — 강제 도착 처리
+                    for (const m of migratingParticles) {
+                        deliverToSystemB(m);
+                    }
+                    migratingParticles = [];
+                    clearInterval(checkInterval);
+                    injectionAnimationActive = false;
+                    resolve();
+                    return;
+                }
+            }, 100);  // 100ms 간격 체크
+        });
+    }
+
+    // 이주 입자 1개를 systemB 에 합류 — A 가스 속도·gasKey 유지
+    function deliverToSystemB(migrant) {
+        const particle = migrant.particle;
+        // B 박스 안 임의 위치 (도착 직후 자연스럽게 분산)
+        particle.x = boxB.x + Math.random() * boxB.width;
+        particle.y = boxB.y + Math.random() * boxB.height;
+        // 속도 — A 가스 speedFactor 기반 (이미 systemA 생성 시 부여됨)
+        // gasKey 보존
+        particle.gasKey = migrant.gasKey;
+        systemB.particles.push(particle);
+    }
+
+    // 매 frame 호출 — 이주 중 입자 좌표 보간 (drawDaltonScene 안에서)
+    function updateMigratingParticles(dt) {
+        for (let i = migratingParticles.length - 1; i >= 0; i--) {
+            const m = migratingParticles[i];
+            m.t += dt / m.duration;
+            if (m.t >= 1) {
+                // 도착 — systemB 합류
+                deliverToSystemB(m);
+                migratingParticles.splice(i, 1);
+                continue;
+            }
+            if (m.t < 0) {
+                // 아직 대기 (stagger) — 시작 위치 유지
+                m.particle.x = m.startX;
+                m.particle.y = m.startY;
+                continue;
+            }
+            // 보간 — startPos → waypoints[0] → ... → waypoints[last] (균등 분배)
+            // t=0 ~ 0.1 = startPos → waypoints[0] (이주 진입), t=0.1~1 = waypoint 통과
+            if (m.t < 0.1) {
+                const localT = m.t / 0.1;
+                m.particle.x = m.startX + (m.waypoints[0].x - m.startX) * localT;
+                m.particle.y = m.startY + (m.waypoints[0].y - m.startY) * localT;
+            } else {
+                const wpT = (m.t - 0.1) / 0.9;  // 0~1 매핑
+                const pos = interpolateWaypoints(m.waypoints, wpT);
+                m.particle.x = pos.x;
+                m.particle.y = pos.y;
+            }
+        }
     }
 
     // ─────────────────────────────────────────────────────────
@@ -1220,6 +1378,7 @@ function initDaltonApp(params) {
             // Step C-2: noLoop 제거 → draw 루프 활성 (~60fps)
             // 입자 시스템 초기화 (V·gas 기반 입자 수·속도)
             rebuildAllSystems();
+            migratingParticles = [];   // Step C-3 — 페이지 로드 시 초기화 (방어)
             drawDaltonScene(p);  // 초기 1회 즉시 그림
         };
         p.draw = () => {
@@ -1320,20 +1479,40 @@ function initDaltonApp(params) {
             systemB.update(dt);
             systemB.clampParticlesIntoBox();
 
-            // 입자 그리기 (가스별 색)
+            // 이주 입자 좌표 보간 (Step C-3)
+            if (injectionAnimationActive) {
+                updateMigratingParticles(dt);
+            }
+
+            // 입자 그리기 (가스별 색 — 입자별 gasKey 우선)
             drawParticlesByGas(p, systemA.getParticles(), daltonState.syringeA.gas);
             drawParticlesByGas(p, systemB.getParticles(), daltonState.syringeB.gas);
+            // 이주 중 입자 그리기 (Step C-3)
+            if (migratingParticles.length > 0) {
+                drawMigratingParticles(p);
+            }
+        }
+    }
+
+    // 이주 중 입자 그리기 — 각 입자의 gasKey 색 사용
+    function drawMigratingParticles(p) {
+        p.noStroke();
+        for (const m of migratingParticles) {
+            const gasData = getGasData(m.gasKey);
+            p.fill(p.color(gasData.color || "#888888"));
+            p.circle(m.particle.x, m.particle.y, m.particle.radius * 2);
         }
     }
 
     // 입자 그리기 — 가스별 RGB 색 (params.json dalton.gases[gasKey].color)
     // p5 가 HSB 모드여도 hex 문자열을 자동 변환해 fill 처리
-    function drawParticlesByGas(p, particles, gasKey) {
-        const gasData = getGasData(gasKey);
-        const c = p.color(gasData.color || "#888888");
+    // 입자별 gasKey 우선 (Step C-3 — 주입 후 B 안에 두 가스 공존). 없으면 defaultGasKey 사용.
+    function drawParticlesByGas(p, particles, defaultGasKey) {
         p.noStroke();
-        p.fill(c);
         for (const particle of particles) {
+            const gasKey = particle.gasKey || defaultGasKey;
+            const gasData = getGasData(gasKey);
+            p.fill(p.color(gasData.color || "#888888"));
             p.circle(particle.x, particle.y, particle.radius * 2);
         }
     }
@@ -1386,7 +1565,8 @@ function initDaltonApp(params) {
 
         // 3초 주입 애니메이션 (Step E 에서 실제 피스톤 애니메이션 연결,
         // 여기서는 시간 대기만)
-        await sleep(cfg.injection_animation_sec * 1000);
+        // Step C-3: sleep → 입자 이주 애니메이션 (A 입자 60개 → 노즐 → 튜브 → B)
+        await runInjectionAnimation();
         if (daltonState.abortCurrentFlow) return;
 
         // 주입 완료 시뮬 계산: P_total = (V_A/V_B + 1) × 1 atm
@@ -1467,6 +1647,12 @@ function initDaltonApp(params) {
 
         daltonState.pressureBMeasured = null;
         daltonState.pressureBSensor   = 1.00;  // 시뮬 기본값 복귀
+
+        // Step C-3: 이주 입자 정리 + 시스템 재생성 (A 60 / B 60 복구)
+        migratingParticles = [];
+        injectionAnimationActive = false;
+        rebuildParticleSystem("A");
+        rebuildParticleSystem("B");
 
         if (dom.stabilization) dom.stabilization.classList.add("hidden");
         if (dom.stabCountdown) dom.stabCountdown.textContent = String(cfg.stabilization_sec);
