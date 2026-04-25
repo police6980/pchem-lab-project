@@ -1084,8 +1084,8 @@ function initDaltonApp(params) {
     // ─────────────────────────────────────────────────────────
     // 기록 추가 — tbody 에 <tr> append
     // B-3 범위: 회차·V_A·V_B·P(이론)·시간 5컬럼만 실데이터.
-    // 나머지 6컬럼 (단계·V_fixed·모드·P(시뮬)·P(실측)·오차%) 은 "—" placeholder.
-    // Step G 에서 thead 정리 + CSV 내보내기 확장.
+    // 나머지 5컬럼 (단계·모드·P(시뮬)·P(실측)·오차%) 은 "—" placeholder.
+    // Step F·G·I 에서 각 placeholder 실데이터로 채울 예정.
     // ─────────────────────────────────────────────────────────
     function addRecord() {
         if (!dom.recordsTbody) return;
@@ -1097,15 +1097,14 @@ function initDaltonApp(params) {
         const theoryAtm = (V_A / V_B + 1) * 1.00;
         const timeStr = new Date().toLocaleTimeString("ko-KR", { hour12: false });
 
-        // 11컬럼 순서: 회차·단계·V_A·V_B·V_fixed·모드·P(이론)·P(시뮬)·P(실측)·오차%·시간
-        // (설계서 §10.5 기준, thead 와 일관성 유지)
+        // 10컬럼 순서: 회차·단계·V_A·V_B·모드·P(이론)·P(시뮬)·P(실측)·오차%·시간
+        // (설계서 §10.5 기준, thead 와 일관성 유지. V_fixed 는 2영역 모델 전환 후 제거)
         const tr = document.createElement("tr");
         tr.innerHTML = `
             <td>${n}</td>
             <td>—</td>
             <td>${V_A}</td>
             <td>${V_B}</td>
-            <td>—</td>
             <td>—</td>
             <td>${formatPressure(theoryAtm)}</td>
             <td>—</td>
