@@ -1055,6 +1055,121 @@ function initDaltonApp(params) {
     }
 
     // ─────────────────────────────────────────────────────────
+    // DaltonScene 시각 상수 (Step C-1)
+    // 메인 시각화 영역에 p5 sketch 로 주사기 A·B + 노즐 그림
+    // ─────────────────────────────────────────────────────────
+    const SCENE = {
+        // 캔버스 크기
+        canvasW: 600,
+        canvasH: 500,
+        // A 주사기 (좌측)
+        bodyA: { x: 80, y: 175, w: 180, h: 150 },
+        handleA: { rod: { x: 30, y: 235, w: 20, h: 30 },
+                   tip: { x: 20, y: 230, w: 10, h: 40 } },
+        // B 주사기 (우측, 대칭)
+        bodyB: { x: 340, y: 175, w: 180, h: 150 },
+        handleB: { rod: { x: 550, y: 235, w: 20, h: 30 },
+                   tip: { x: 570, y: 230, w: 10, h: 40 } },
+        // 노즐 (연결관)
+        nozzle: { x: 260, y: 240, w: 80, h: 20 },
+        // 윤곽선 색상
+        strokeColor: "#4b5563",
+        // 기체별 본체 채움 색상
+        gasColors: {
+            air:  "#dbeafe",  // 공기
+            co2:  "#d1fae5",  // CO2 (현재 결정 4 키)
+            n2:   "#ede9fe",  // N2
+            o2:   "#fce7f3",  // O2
+            he:   "#fef3c7",  // He
+        },
+    };
+
+    // 기체 키로 색상 lookup. 미정의 시 회색 fallback.
+    function getGasColor(gasKey) {
+        return SCENE.gasColors[gasKey] || "#e5e7eb";
+    }
+
+    // ─────────────────────────────────────────────────────────
+    // DaltonScene p5 sketch (Step C-1: 정적 그림)
+    // 주사기 A·B 본체·피스톤·노즐·라벨을 1회 그림 (noLoop)
+    // ─────────────────────────────────────────────────────────
+    const daltonSketch = (p) => {
+        p.setup = () => {
+            p.createCanvas(SCENE.canvasW, SCENE.canvasH);
+            p.colorMode(p.RGB);  // 본 명세는 RGB 헥스 일관
+            p.noLoop();           // 정적 그림 — 매 프레임 redraw 불필요
+            drawScene(p);
+        };
+
+        // draw 는 noLoop 이라 setup 후 1회만 실행
+        p.draw = () => {
+            drawScene(p);
+        };
+    };
+
+    // 메인 그리기 함수 (setup·draw 공용, 후속 단계에서 입자 추가됨)
+    function drawScene(p) {
+        // 배경
+        p.background("#fafafa");
+
+        // 1. 노즐 (먼저 그려서 주사기 본체와 겹치는 부분이 자연스럽게)
+        const n = SCENE.nozzle;
+        p.fill("#9ca3af");
+        p.stroke(SCENE.strokeColor);
+        p.strokeWeight(2);
+        p.rect(n.x, n.y, n.w, n.h);
+
+        // 2. 주사기 A 본체
+        const a = SCENE.bodyA;
+        const gasA = (daltonState.syringeA && daltonState.syringeA.gas) || "air";
+        p.fill(getGasColor(gasA));
+        p.stroke(SCENE.strokeColor);
+        p.strokeWeight(2);
+        p.rect(a.x, a.y, a.w, a.h);
+
+        // 3. 주사기 A 피스톤 손잡이 (T자, 좌측)
+        const haRod = SCENE.handleA.rod;
+        const haTip = SCENE.handleA.tip;
+        p.fill("#9ca3af");
+        p.rect(haRod.x, haRod.y, haRod.w, haRod.h);
+        p.rect(haTip.x, haTip.y, haTip.w, haTip.h);
+
+        // 4. 주사기 B 본체
+        const b = SCENE.bodyB;
+        const gasB = (daltonState.syringeB && daltonState.syringeB.gas) || "co2";
+        p.fill(getGasColor(gasB));
+        p.rect(b.x, b.y, b.w, b.h);
+
+        // 5. 주사기 B 피스톤 손잡이 (T자, 우측)
+        const hbRod = SCENE.handleB.rod;
+        const hbTip = SCENE.handleB.tip;
+        p.fill("#9ca3af");
+        p.rect(hbRod.x, hbRod.y, hbRod.w, hbRod.h);
+        p.rect(hbTip.x, hbTip.y, hbTip.w, hbTip.h);
+
+        // 6. 라벨 (주사기 A·B 위쪽 가운데)
+        p.noStroke();
+        p.fill("#1f2937");
+        p.textAlign(p.CENTER, p.BOTTOM);
+        p.textSize(18);
+        p.text("A", a.x + a.w / 2, a.y - 8);
+        p.text("B", b.x + b.w / 2, b.y - 8);
+
+        // 7. 기체명 (본체 안 위쪽)
+        p.fill("#4b5563");
+        p.textSize(12);
+        p.textAlign(p.CENTER, p.TOP);
+        p.text(gasLabel(gasA), a.x + a.w / 2, a.y + 8);
+        p.text(gasLabel(gasB), b.x + b.w / 2, b.y + 8);
+    }
+
+    // 기체 키 → 표시 라벨 (daltonState.syringe?.gas 의 한글 표기)
+    function gasLabel(gasKey) {
+        const map = { air: "공기", co2: "CO₂", n2: "N₂", o2: "O₂", he: "He" };
+        return map[gasKey] || gasKey;
+    }
+
+    // ─────────────────────────────────────────────────────────
     // 상태 머신 전환 — stage 변경 + 버튼 disabled 제어 + readout 재갱신
     //
     // 전환 허용 테이블:
@@ -1361,6 +1476,15 @@ function initDaltonApp(params) {
     // 이론값·압력 박스 초기 동기 (비디바운스, 즉시 1회 호출)
     updateTheoryBox();
     updatePressureReadouts();
+
+    // DaltonScene p5 sketch 부착 (Step C-1: 정적 그림)
+    const sceneParent = document.getElementById("dalton-canvas-wrap");
+    let daltonP5 = null;
+    if (sceneParent) {
+        daltonP5 = new p5(daltonSketch, sceneParent);
+    } else if (DEBUG_DALTON) {
+        console.warn("[Dalton] dalton-canvas-wrap not found — p5 sketch skipped");
+    }
 
     // 초기 stage 를 명시적으로 IDLE 로 세팅 — 버튼 disabled 일관성 확보
     // (HTML 에 이미 btn-confirm 만 disabled 로 돼 있지만, setStage 를 한 번 호출해

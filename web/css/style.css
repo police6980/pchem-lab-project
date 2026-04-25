@@ -3050,7 +3050,8 @@ body[data-page="dalton"] .ai-sidebar {
 /* ============================================================
    canvas 유연화 — 모든 뷰포트에서 overflow 방지
    ============================================================ */
-body[data-page="dalton"] #dalton-canvas,
+/* p5 DaltonScene 이 동적 append 하는 canvas + 차트 (Step C-1 부터) */
+body[data-page="dalton"] #dalton-canvas-wrap canvas,
 body[data-page="dalton"] #dalton-chart {
     max-width: 100%;
     height: auto;
