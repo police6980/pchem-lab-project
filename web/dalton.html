@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CAST — 돌턴의 부분압력</title>
+    <!-- DSEG7 Classic 폰트는 style.css 의 @font-face 에서 자체 호스팅 (web/assets/fonts/) -->
     <link rel="stylesheet" href="css/style.css">
     <script src="https://cdn.jsdelivr.net/npm/p5@1.11.2/lib/p5.min.js"></script>
     <script src="https://unpkg.com/docx@8.5.0/build/index.umd.js"></script>
@@ -50,14 +51,14 @@
                     <input type="number" id="dalton-volume-a-number" min="10" max="100" step="1" value="50">
                     <span class="dalton-field-unit">mL</span>
                 </div>
-                <div class="dalton-field dalton-field-dynamic dalton-pressure-block">
-                    <span class="dalton-field-label">압력 P<sub>A</sub></span>
-                    <div class="dalton-pressure-readout-group">
-                        <svg class="dalton-pressure-gauge" id="dalton-gauge-a" viewBox="-10 0 180 100" aria-label="주사기 A 압력 게이지"></svg>
-                        <span class="dalton-field-value" id="dalton-pressure-a">1.00 atm</span>
-                        <span class="dalton-field-hint" id="dalton-pressure-a-hint">(B와 동일, 대기압)</span>
-                        <span class="dalton-gauge-warning" id="dalton-gauge-warning-a" hidden>⚠ 게이지 범위 초과 (5 atm)</span>
+                <div class="dalton-field dalton-pressure-block">
+                    <span class="dalton-field-label dalton-pressure-label">압력 P<sub>A</sub></span>
+                    <svg class="dalton-pressure-gauge" id="dalton-gauge-a" viewBox="-10 0 180 100" aria-label="주사기 A 압력 게이지"></svg>
+                    <div class="dalton-pressure-readout-line">
+                        <span class="dalton-field-value dalton-pressure-number" id="dalton-pressure-a">1.00</span>
+                        <span class="dalton-pressure-unit" id="dalton-pressure-a-unit">atm</span>
                     </div>
+                    <span class="dalton-gauge-warning" id="dalton-gauge-warning-a" hidden>⚠ 게이지 범위 초과 (5 atm)</span>
                 </div>
             </section>
 
@@ -80,14 +81,14 @@
                     <span class="dalton-field-unit">mL</span>
                 </div>
                 <p class="dalton-help-text">실험 시작 후에는 변경할 수 없습니다. 피스톤은 고정됩니다.</p>
-                <div class="dalton-field dalton-field-dynamic dalton-pressure-block">
-                    <span class="dalton-field-label">압력 P<sub>B</sub></span>
-                    <div class="dalton-pressure-readout-group">
-                        <svg class="dalton-pressure-gauge" id="dalton-gauge-b" viewBox="-10 0 180 100" aria-label="주사기 B 압력 게이지"></svg>
-                        <span class="dalton-field-value" id="dalton-pressure-b">1.00 atm</span>
-                        <span class="dalton-field-hint" id="dalton-pressure-b-hint">(센서 실측)</span>
-                        <span class="dalton-gauge-warning" id="dalton-gauge-warning-b" hidden>⚠ 게이지 범위 초과 (5 atm)</span>
+                <div class="dalton-field dalton-pressure-block">
+                    <span class="dalton-field-label dalton-pressure-label">압력 P<sub>B</sub></span>
+                    <svg class="dalton-pressure-gauge" id="dalton-gauge-b" viewBox="-10 0 180 100" aria-label="주사기 B 압력 게이지"></svg>
+                    <div class="dalton-pressure-readout-line">
+                        <span class="dalton-field-value dalton-pressure-number" id="dalton-pressure-b">1.00</span>
+                        <span class="dalton-pressure-unit" id="dalton-pressure-b-unit">atm</span>
                     </div>
+                    <span class="dalton-gauge-warning" id="dalton-gauge-warning-b" hidden>⚠ 게이지 범위 초과 (5 atm)</span>
                 </div>
             </section>
 

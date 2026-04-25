@@ -1,3 +1,14 @@
+/* DSEG7 Classic — 7-segment 디스플레이 폰트
+   출처: @fontsource/dseg7@4.5.4 (npm), 원본 keshikan/DSEG (SIL Open Font License)
+   자체 호스팅 (web/assets/fonts/) — CDN 의존 0, 학교 환경 안정성 확보 */
+@font-face {
+    font-family: 'DSEG7 Classic';
+    src: url('../assets/fonts/DSEG7Classic-Bold.woff2') format('woff2');
+    font-weight: bold;
+    font-style: normal;
+    font-display: swap;
+}
+
 /* Boyle's law experiment - layout and styling */
 
 body {
@@ -3079,24 +3090,42 @@ body[data-page="dalton"] .dalton-field-hint {
     font-style: italic;
 }
 
-/* 압력 게이지 블록 (라벨 좌측, 우측 세로 스택) */
+/* 압력 표시 블록 (라벨 윗줄, 게이지+디지털 가로 한 줄) */
 body[data-page="dalton"] .dalton-pressure-block {
-    align-items: flex-start;
-    gap: 12px;
-}
-
-body[data-page="dalton"] .dalton-pressure-readout-group {
     display: flex;
     flex-direction: column;
-    align-items: flex-start;
-    gap: 2px;
-    flex: 1;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 0;
+}
+
+body[data-page="dalton"] .dalton-pressure-label {
+    /* 라벨이 윗줄에 단독으로 표시, 가운데 정렬 */
+    min-width: auto;
+    text-align: center;
+}
+
+/* 숫자 + 단위 한 줄 묶음 (LCD 박스 + 일반 폰트 단위) */
+body[data-page="dalton"] .dalton-pressure-readout-line {
+    display: flex;
+    flex-direction: row;
+    align-items: baseline;
+    gap: 6px;
+}
+
+/* 단위 (atm / kPa) — 일반 폰트, 박스 밖 */
+body[data-page="dalton"] .dalton-pressure-unit {
+    font-family: system-ui, -apple-system, sans-serif;
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: #4b5563;
 }
 
 body[data-page="dalton"] .dalton-pressure-gauge {
     width: 160px;
     height: 89px;
     display: block;
+    flex-shrink: 0;
 }
 
 body[data-page="dalton"] .dalton-gauge-warning {
@@ -3108,6 +3137,30 @@ body[data-page="dalton"] .dalton-gauge-warning {
 
 body[data-page="dalton"] .dalton-gauge-warning[hidden] {
     display: none;
+}
+
+/* ─────────────────────────────────────────────────────────
+   압력 디지털 readout — 7-segment LCD 스타일
+   참조: 자동차 계기판/엘리베이터 LED 표시
+   ───────────────────────────────────────────────────────── */
+body[data-page="dalton"] .dalton-pressure-readout-line .dalton-field-value {
+    font-family: 'DSEG7 Classic', 'Courier New', Consolas, monospace;
+    font-size: 1.05rem;
+    font-weight: bold;
+    color: #ffffff;
+    background: #0a0a0a;
+    padding: 4px 10px;
+    border-radius: 3px;
+    border: 1px solid #2a2a2a;
+    letter-spacing: 0.05em;
+    display: inline-block;
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.5);
+    /* LED 발광 효과 */
+    text-shadow:
+        0 0 3px rgba(255, 255, 255, 0.4),
+        0 0 6px rgba(255, 255, 255, 0.2);
+    /* 폰트 로딩 전 fallback 시 시각 안정화 */
+    font-variant-numeric: tabular-nums;
 }
 
 /* 도움말 텍스트 (예: "실험 시작 후에는 변경할 수 없습니다...") */

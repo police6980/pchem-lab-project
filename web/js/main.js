@@ -849,7 +849,7 @@ function initDaltonApp(params) {
         gasASelect:    $("dalton-gas-a"),
         volumeANumber: $("dalton-volume-a-number"),
         pressureA:     $("dalton-pressure-a"),
-        pressureAHint: $("dalton-pressure-a-hint"),
+        pressureAUnit: $("dalton-pressure-a-unit"),
         gaugeA:        $("dalton-gauge-a"),
         gaugeWarningA: $("dalton-gauge-warning-a"),
 
@@ -857,7 +857,7 @@ function initDaltonApp(params) {
         gasBSelect:    $("dalton-gas-b"),
         volumeBNumber: $("dalton-volume-b-number"),
         pressureB:     $("dalton-pressure-b"),
-        pressureBHint: $("dalton-pressure-b-hint"),
+        pressureBUnit: $("dalton-pressure-b-unit"),
         gaugeB:        $("dalton-gauge-b"),
         gaugeWarningB: $("dalton-gauge-warning-b"),
 
@@ -894,10 +894,16 @@ function initDaltonApp(params) {
     // atm: 소수 둘째 자리. kPa: 소수 첫째 자리 (일반적 관행).
     // ─────────────────────────────────────────────────────────
     function formatPressure(atmVal) {
+        // 압력 readout LCD 박스용 — 숫자만 반환 (단위는 별도 span 에서 처리)
         if (daltonState.displayUnit === "kPa") {
-            return `${atmToKPa(atmVal).toFixed(1)} kPa`;
+            return atmToKPa(atmVal).toFixed(1);
         }
-        return `${atmVal.toFixed(2)} atm`;
+        return atmVal.toFixed(2);
+    }
+
+    function getPressureUnit() {
+        // 단위 텍스트 — 압력 readout 단위 span 용
+        return daltonState.displayUnit === "kPa" ? "kPa" : "atm";
     }
 
     // ─────────────────────────────────────────────────────────
@@ -911,9 +917,10 @@ function initDaltonApp(params) {
         const V_B = daltonState.syringeB.volume;
         const theoryBeforeAtm = 1.00;
         const theoryAfterAtm  = (V_A / V_B + 1) * 1.00;
+        const unit = getPressureUnit();
 
-        if (dom.theoryBefore) dom.theoryBefore.textContent = formatPressure(theoryBeforeAtm);
-        if (dom.theoryAfter)  dom.theoryAfter.textContent  = formatPressure(theoryAfterAtm);
+        if (dom.theoryBefore) dom.theoryBefore.textContent = `${formatPressure(theoryBeforeAtm)} ${unit}`;
+        if (dom.theoryAfter)  dom.theoryAfter.textContent  = `${formatPressure(theoryAfterAtm)} ${unit}`;
     }
 
     // ─────────────────────────────────────────────────────────
@@ -926,26 +933,21 @@ function initDaltonApp(params) {
     // ─────────────────────────────────────────────────────────
     function updatePressureReadouts() {
         const sensorAtm = daltonState.pressureBSensor;
+        const unit = getPressureUnit();
 
-        // 주사기 B: 센서값 표시
+        // 주사기 B: 센서값 표시 (숫자 + 단위)
         if (dom.pressureB) dom.pressureB.textContent = formatPressure(sensorAtm);
-        // B hint 는 현재 "(센서 실측)" 고정 (시뮬 모드에서도 동일 표기)
+        if (dom.pressureBUnit) dom.pressureBUnit.textContent = unit;
 
-        // 주사기 A: stage 별 분기
+        // 주사기 A: stage 별 분기 (결정 7 정책: INJECTED 이후 A 는 "—" 표시)
         const stage = daltonState.stage;
         if (stage === "IDLE" || stage === "INJECTING") {
             if (dom.pressureA) dom.pressureA.textContent = formatPressure(sensorAtm);
-            if (dom.pressureAHint) {
-                dom.pressureAHint.textContent = "(B와 동일, 대기압)";
-                dom.pressureAHint.style.display = "";
-            }
+            if (dom.pressureAUnit) dom.pressureAUnit.textContent = unit;
         } else {
             // INJECTED / CONFIRMED: A 는 비어있음
             if (dom.pressureA) dom.pressureA.textContent = "—";
-            if (dom.pressureAHint) {
-                dom.pressureAHint.textContent = "";
-                dom.pressureAHint.style.display = "none";
-            }
+            if (dom.pressureAUnit) dom.pressureAUnit.textContent = "";
         }
     }
 
@@ -1170,7 +1172,7 @@ function initDaltonApp(params) {
             <td>${V_A}</td>
             <td>${V_B}</td>
             <td>—</td>
-            <td>${formatPressure(theoryAtm)}</td>
+            <td>${formatPressure(theoryAtm)} ${getPressureUnit()}</td>
             <td>—</td>
             <td>—</td>
             <td>—</td>
