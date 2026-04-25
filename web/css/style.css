@@ -2869,17 +2869,6 @@ body[data-page="dalton"] .dalton-field-label {
     min-width: 64px;
 }
 
-body[data-page="dalton"] .dalton-radio-group {
-    display: flex;
-    gap: 12px;
-    flex-wrap: wrap;
-}
-
-body[data-page="dalton"] .dalton-radio {
-    font-size: 0.9rem;
-    cursor: pointer;
-}
-
 body[data-page="dalton"] .dalton-controls {
     display: flex;
     gap: 8px;
@@ -3161,14 +3150,6 @@ body[data-page="dalton"] .dalton-field-number-input input[type="number"]:disable
 body[data-page="dalton"] .dalton-field-unit {
     font-size: 0.95rem;
     color: #4b5563;
-}
-
-/* 프리셋 참고 힌트 */
-body[data-page="dalton"] .dalton-preset-hint {
-    margin-top: 4px;
-    font-size: 0.8rem;
-    color: #6b7280;
-    font-style: italic;
 }
 
 /* ============================================================
