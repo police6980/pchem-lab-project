@@ -1100,7 +1100,7 @@ function initDaltonApp(params) {
         // 부피 ↔ 피스톤 Y 매핑 파라미터
         volumeMin: 10,              // mL
         volumeMax: 100,             // mL
-        // 가스색 (HSB)
+        // 가스색 (HSB) — 본체 채움용 옅은 톤
         gasColors: {
             air: [210, 8, 96],
             co2: [140, 10, 95],
@@ -1108,6 +1108,11 @@ function initDaltonApp(params) {
             o2:  [260, 8, 96],
             he:  [50, 10, 96],
         },
+        // 입자 관련 (Step C-2)
+        particleSpeedScale: 90,     // 보일 120 보다 축소 — 박스 작음에 맞춤
+        particleRadius: 2.5,        // simulation.js PARTICLE_RADIUS 와 동일
+        boxMargin: 2,               // drawSyringe 의 fill margin 과 동기
+        boxMinHeight: 30,           // V_min 시 box.height 음수 방지
     };
 
     // 부피 → 피스톤 면의 Y 좌표 (본체 안쪽)
@@ -1118,22 +1123,84 @@ function initDaltonApp(params) {
         return SCENE.bodyBottom - 10 - clamped * (SCENE.bodyHeightPx - 20);
     }
 
+    // ─────────────────────────────────────────────────────────
+    // 가스 데이터 헬퍼 (Step C-2)
+    // params.json dalton.gases[gasKey] = { label, M, speedFactor, color }
+    // ─────────────────────────────────────────────────────────
+    function getGasData(gasKey) {
+        const gases = (cfg.gases) || {};
+        return gases[gasKey] || gases.air || { speedFactor: 1.0, color: "#888888" };
+    }
+
     function getGasColor(p, gasKey) {
         const c = SCENE.gasColors[gasKey] || SCENE.gasColors.air;
         return p.color(c[0], c[1], c[2]);
     }
 
     // ─────────────────────────────────────────────────────────
-    // DaltonScene p5 sketch (Step C-1 v3 — 세로 시린지 + U자 연결 +
-    // 슬라이더 redraw)
-    // noLoop. 부피·기체 변경 시 외부에서 daltonP5.redraw() 호출.
+    // 입자 시스템 (Step C-2)
+    // 시린지 A·B 각 1개의 ParticleSystem 인스턴스. 박스는 단순 객체.
+    // V·gas 변경 시 통째 재생성 (rebuildParticleSystem).
+    // ─────────────────────────────────────────────────────────
+    const boxA = { x: 0, y: 0, width: 0, height: 0 };
+    const boxB = { x: 0, y: 0, width: 0, height: 0 };
+    let systemA = null;
+    let systemB = null;
+
+    function computeBox(syr, volumeMl) {
+        const pistonY = volumeToPistonY(volumeMl);
+        const m = SCENE.boxMargin;
+        const x = syr.bodyLeft + m;
+        const y = pistonY + SCENE.pistonHeadH;
+        const width = SCENE.bodyW - 2 * m;
+        const height = Math.max(SCENE.boxMinHeight, SCENE.bodyBottom - y);
+        return { x, y, width, height };
+    }
+
+    function updateBox(box, syr, volumeMl) {
+        const next = computeBox(syr, volumeMl);
+        box.x = next.x;
+        box.y = next.y;
+        box.width = next.width;
+        box.height = next.height;
+    }
+
+    function rebuildParticleSystem(syringeKey) {
+        const isA = syringeKey === "A";
+        const syr = isA ? SCENE.syringeA : SCENE.syringeB;
+        const volumeMl = isA ? daltonState.syringeA.volume : daltonState.syringeB.volume;
+        const gasKey = isA ? daltonState.syringeA.gas : daltonState.syringeB.gas;
+        const box = isA ? boxA : boxB;
+
+        updateBox(box, syr, volumeMl);
+
+        const particleCount = Math.max(10, Math.round(volumeMl));
+        const gasData = getGasData(gasKey);
+        const speedScale = SCENE.particleSpeedScale * (gasData.speedFactor || 1.0);
+
+        const sys = new ParticleSystem(particleCount, box, speedScale, 0, SCENE.particleRadius);
+        if (isA) systemA = sys;
+        else systemB = sys;
+    }
+
+    function rebuildAllSystems() {
+        rebuildParticleSystem("A");
+        rebuildParticleSystem("B");
+    }
+
+    // ─────────────────────────────────────────────────────────
+    // DaltonScene p5 sketch (Step C-1 v3 — 세로 시린지 + U자 연결,
+    // Step C-2 — 입자 시뮬레이션)
+    // draw 루프 활성 (60fps). V·gas 변경 시 onStateChange 가 systemA/B 재생성.
     // ─────────────────────────────────────────────────────────
     const daltonSketch = (p) => {
         p.setup = () => {
             p.createCanvas(SCENE.canvasW, SCENE.canvasH);
             // HSB 모드 — 보일/particles 와 통일
             p.colorMode(p.HSB, 360, 100, 100, 255);
-            p.noLoop();
+            // Step C-2: noLoop 제거 → draw 루프 활성 (~60fps)
+            // 입자 시스템 초기화 (V·gas 기반 입자 수·속도)
+            rebuildAllSystems();
             drawDaltonScene(p);  // 초기 1회 즉시 그림
         };
         p.draw = () => {
@@ -1214,6 +1281,40 @@ function initDaltonApp(params) {
         drawSyringe(p, SCENE.syringeB, daltonState.syringeB.gas, daltonState.syringeB.volume);
         // ㄷ자 튜브 (시린지 하단 연결)
         drawConnectorTube(p);
+
+        // ─────────────────────────────────────────────────────────
+        // Step C-2: 입자 시뮬레이션 — 박스 갱신 → update → clamp → 그리기
+        // ─────────────────────────────────────────────────────────
+        if (systemA && systemB) {
+            const dt = Math.min((p.deltaTime || 0) / 1000, 0.05);
+
+            // 박스 갱신 (V 변경 시 systemA/B 재생성하므로 보통 매 frame 동일하나
+            // 안전하게 매 frame 갱신 — boxA/B 객체 자체는 재할당 없이 속성만 갱신)
+            updateBox(boxA, SCENE.syringeA, daltonState.syringeA.volume);
+            updateBox(boxB, SCENE.syringeB, daltonState.syringeB.volume);
+
+            // 입자 운동 + 박스 회수
+            systemA.update(dt);
+            systemA.clampParticlesIntoBox();
+            systemB.update(dt);
+            systemB.clampParticlesIntoBox();
+
+            // 입자 그리기 (가스별 색)
+            drawParticlesByGas(p, systemA.getParticles(), daltonState.syringeA.gas);
+            drawParticlesByGas(p, systemB.getParticles(), daltonState.syringeB.gas);
+        }
+    }
+
+    // 입자 그리기 — 가스별 RGB 색 (params.json dalton.gases[gasKey].color)
+    // p5 가 HSB 모드여도 hex 문자열을 자동 변환해 fill 처리
+    function drawParticlesByGas(p, particles, gasKey) {
+        const gasData = getGasData(gasKey);
+        const c = p.color(gasData.color || "#888888");
+        p.noStroke();
+        p.fill(c);
+        for (const particle of particles) {
+            p.circle(particle.x, particle.y, particle.radius * 2);
+        }
     }
 
     // ─────────────────────────────────────────────────────────
@@ -1418,7 +1519,9 @@ function initDaltonApp(params) {
     const onStateChange = debounce(() => {
         updateTheoryBox();
         updatePressureReadouts();
-        daltonP5?.redraw();  // 부피·기체 변경 시 캔버스 재그림 (Step C-1 v3)
+        // Step C-2: V·gas 변경 시 입자 시스템 재생성 (입자 수·박스·속도 갱신)
+        // draw 루프 활성으로 redraw 명시 호출 불필요
+        rebuildAllSystems();
 
         if (DEBUG_DALTON) {
             console.log("[Dalton] state changed", {
