@@ -1256,11 +1256,17 @@ function initDaltonApp(params) {
     // 이주 중 입자 array — { particle, waypoints, startX, startY, t, duration, gasKey }
     let migratingParticles = [];
     let injectionAnimationActive = false;
+    let injectionPistonAnimating = false;  // Step C-3 피스톤 애니: A 의 V 50→0 보간 중 (drawDaltonScene 에서 displayedVolume 직접 덮어쓰기)
 
     // 주입 애니메이션 시작 — A 입자 60개를 stagger + waypoint 따라 B 로 이주
     // 반환: Promise (완료 또는 abort 시 resolve)
     async function runInjectionAnimation() {
         injectionAnimationActive = true;
+
+        // Step C-3 피스톤 애니: A 의 V 점진 감소 시작 (현재 V 기록 + 시작 시각)
+        daltonState.syringeA.injectionStartVolume = daltonState.syringeA.displayedVolume;
+        daltonState.syringeA.injectionStartTime = performance.now();
+        injectionPistonAnimating = true;
 
         // 1. systemA 의 모든 입자를 migratingParticles 로 옮김
         const waypoints = getInjectionWaypoints();
@@ -1297,12 +1303,15 @@ function initDaltonApp(params) {
                     clearInterval(checkInterval);
                     migratingParticles = [];
                     injectionAnimationActive = false;
+                    injectionPistonAnimating = false;  // abort 시 V 복구는 resetExperiment 가 처리
                     resolve();
                     return;
                 }
                 if (migratingParticles.length === 0) {
                     clearInterval(checkInterval);
                     injectionAnimationActive = false;
+                    // 정상 완료 — A 의 V 를 0 으로 확정
+                    finalizeInjectedVolume();
                     resolve();
                     return;
                 }
@@ -1314,11 +1323,21 @@ function initDaltonApp(params) {
                     migratingParticles = [];
                     clearInterval(checkInterval);
                     injectionAnimationActive = false;
+                    // timeout 도 V 확정 (정상 완료와 동일 처리)
+                    finalizeInjectedVolume();
                     resolve();
                     return;
                 }
             }, 100);  // 100ms 간격 체크
         });
+    }
+
+    // 주입 완료 시 A 의 V 를 0 으로 확정 (논리값·target·displayed 모두 동기)
+    function finalizeInjectedVolume() {
+        daltonState.syringeA.volume = 0;
+        daltonState.syringeA.targetVolume = 0;
+        daltonState.syringeA.displayedVolume = 0;
+        injectionPistonAnimating = false;
     }
 
     // 이주 입자 1개를 systemB 에 합류 — A 가스 속도·gasKey 유지
@@ -1455,6 +1474,15 @@ function initDaltonApp(params) {
 
         // displayedVolume 보간 (매 frame, 모든 시각 요소가 이 값 참조 — Step C-2 통합)
         lerpDisplayedVolumes();
+
+        // Step C-3 피스톤 애니: 주입 중 A 의 displayedVolume 을 직접 덮어쓰기 (lerp 결과 무시)
+        if (injectionPistonAnimating) {
+            const sA = daltonState.syringeA;
+            const elapsed = performance.now() - sA.injectionStartTime;
+            const totalMs = (cfg.injection_animation_sec || 3) * 1000;
+            const progress = Math.min(1, elapsed / totalMs);
+            sA.displayedVolume = sA.injectionStartVolume * (1 - progress);
+        }
 
         // 시린지 A (좌)
         drawSyringe(p, SCENE.syringeA, daltonState.syringeA.gas, daltonState.syringeA.displayedVolume);
@@ -1651,6 +1679,22 @@ function initDaltonApp(params) {
         // Step C-3: 이주 입자 정리 + 시스템 재생성 (A 60 / B 60 복구)
         migratingParticles = [];
         injectionAnimationActive = false;
+        injectionPistonAnimating = false;  // 피스톤 애니 정리 (Step C-3 피스톤 애니)
+        // Step C-3 피스톤 애니 보강: input UI 값에서 V 복구 (주입 완료로 V=0 확정된 경우 대비)
+        const rawA = parseFloat(dom.volumeANumber?.value);
+        const rawB = parseFloat(dom.volumeBNumber?.value);
+        const vA = Number.isFinite(rawA)
+            ? Math.max(cfg.syringe_a.v_min, Math.min(cfg.syringe_a.v_max, rawA))
+            : cfg.syringe_a.v_default;
+        const vB = Number.isFinite(rawB)
+            ? Math.max(cfg.syringe_b.v_min, Math.min(cfg.syringe_b.v_max, rawB))
+            : cfg.syringe_b.v_default;
+        daltonState.syringeA.volume = vA;
+        daltonState.syringeA.targetVolume = vA;
+        daltonState.syringeA.displayedVolume = vA;
+        daltonState.syringeB.volume = vB;
+        daltonState.syringeB.targetVolume = vB;
+        daltonState.syringeB.displayedVolume = vB;
         rebuildParticleSystem("A");
         rebuildParticleSystem("B");
 
