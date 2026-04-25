@@ -935,19 +935,22 @@ function initDaltonApp(params) {
         const sensorAtm = daltonState.pressureBSensor;
         const unit = getPressureUnit();
 
-        // 주사기 B: 센서값 표시 (숫자 + 단위)
+        // 주사기 B: 센서값 표시 (숫자 + 단위 + 게이지 바늘)
         if (dom.pressureB) dom.pressureB.textContent = formatPressure(sensorAtm);
         if (dom.pressureBUnit) dom.pressureBUnit.textContent = unit;
+        updateGauge(dom.gaugeB, sensorAtm);
 
         // 주사기 A: stage 별 분기 (결정 7 정책: INJECTED 이후 A 는 "—" 표시)
         const stage = daltonState.stage;
         if (stage === "IDLE" || stage === "INJECTING") {
             if (dom.pressureA) dom.pressureA.textContent = formatPressure(sensorAtm);
             if (dom.pressureAUnit) dom.pressureAUnit.textContent = unit;
+            updateGauge(dom.gaugeA, sensorAtm);  // B 와 동일 (대기압 또는 주입 중)
         } else {
-            // INJECTED / CONFIRMED: A 는 비어있음
+            // INJECTED / CONFIRMED: A 는 비어있음 → 디지털 '—', 게이지 0 위치
             if (dom.pressureA) dom.pressureA.textContent = "—";
             if (dom.pressureAUnit) dom.pressureAUnit.textContent = "";
+            updateGauge(dom.gaugeA, 0);  // 0 atm = 좌측 9시 위치
         }
     }
 
@@ -1009,6 +1012,30 @@ function initDaltonApp(params) {
             <circle cx="${cx}" cy="${cy}" r="5" fill="#1f2937"/>
             <circle cx="${cx}" cy="${cy}" r="2" fill="#fff"/>
         `;
+    }
+
+    // ─────────────────────────────────────────────────────────
+    // 압력값 (atm) → 게이지 바늘 회전 각도 (도)
+    // 매핑: 0 atm → -90도 (좌측 9시), 2.5 atm → 0도 (12시), 5 atm → +90도 (우측 3시)
+    // 5 atm 초과 시: +90 고정 (명세 3/4 의 경고 처리와 일관)
+    // ─────────────────────────────────────────────────────────
+    function pressureToAngle(atmVal) {
+        const clamped = Math.min(Math.max(atmVal, 0), 5);
+        return (clamped / 5) * 180 - 90;
+    }
+
+    // ─────────────────────────────────────────────────────────
+    // 단일 게이지 바늘 회전 갱신
+    // svgEl: 대상 SVG 엘리먼트 (dom.gaugeA / gaugeB)
+    // atmVal: 표시할 압력 (atm 단위)
+    // ─────────────────────────────────────────────────────────
+    function updateGauge(svgEl, atmVal) {
+        if (!svgEl) return;
+        const needle = svgEl.querySelector('.dalton-gauge-needle');
+        if (!needle) return;
+        const angle = pressureToAngle(atmVal);
+        // 회전 중심 (cx=80, cy=90) — renderGaugeStatic 좌표계와 일치
+        needle.setAttribute('transform', `rotate(${angle.toFixed(2)} 80 90)`);
     }
 
     // ─────────────────────────────────────────────────────────
@@ -1310,13 +1337,14 @@ function initDaltonApp(params) {
     if (dom.unitToggle) {
         dom.unitToggle.textContent = `단위: ${daltonState.displayUnit}`;
     }
+    // 게이지 SVG 정적 렌더 먼저 (배경 호·눈금·바늘 SVG 생성).
+    // 그 다음 압력 readout (updatePressureReadouts) 가 바늘 회전까지 일괄 갱신.
+    renderGaugeStatic(dom.gaugeA);
+    renderGaugeStatic(dom.gaugeB);
+
     // 이론값·압력 박스 초기 동기 (비디바운스, 즉시 1회 호출)
     updateTheoryBox();
     updatePressureReadouts();
-
-    // 게이지 SVG 정적 렌더 (배경 호·눈금·바늘 0 위치). 명세 2 에서 압력값 반영 회전 추가.
-    renderGaugeStatic(dom.gaugeA);
-    renderGaugeStatic(dom.gaugeB);
 
     // 초기 stage 를 명시적으로 IDLE 로 세팅 — 버튼 disabled 일관성 확보
     // (HTML 에 이미 btn-confirm 만 disabled 로 돼 있지만, setStage 를 한 번 호출해

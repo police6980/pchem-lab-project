@@ -3128,6 +3128,11 @@ body[data-page="dalton"] .dalton-pressure-gauge {
     flex-shrink: 0;
 }
 
+/* 바늘 회전 부드러운 transition (압력 변화 시 자연스럽게) */
+body[data-page="dalton"] .dalton-gauge-needle {
+    transition: transform 0.3s ease;
+}
+
 body[data-page="dalton"] .dalton-gauge-warning {
     font-size: 0.78rem;
     color: #dc2626;
