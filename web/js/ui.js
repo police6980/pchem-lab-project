@@ -285,6 +285,10 @@ const kPaToAtm = (kPa) => kPa / 101.325;
 const atmToKPa = (atm) => atm * 101.325;
 const particlesToMmol = (n) => n * 0.006815;
 
+// Promise 기반 대기 헬퍼 — 모듈 스코프, ui.js·main.js 양쪽에서 재사용.
+// ui.js 가 main.js 보다 먼저 로드되므로 다른 페이지 init 함수에서 자유 참조 가능.
+const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
 // Step B-1 신설: 간단한 디바운스 헬퍼. 슬라이더·숫자 입력 이벤트 폭주 방지.
 // 기존 코드 전반에 디바운스 없어 즉시 반응 기조였으나, 돌턴 설계서 §10.1 에
 // 300ms 디바운스 요구. 재사용 가능한 최소 구현.
@@ -997,7 +1001,6 @@ function createMeasurementPanel({
 
         const testPressures = [81, 100, 130, 160, 190, 220];
         const testIds = [];
-        const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
         console.log(`[PV test] Starting. Test pressures: ${testPressures.join(", ")} kPa`);
 
