@@ -2795,6 +2795,11 @@ body[data-page="dalton"] {
     padding-right: 412px;  /* AI 사이드바 380px + 좌우 여백 */
 }
 
+/* AI 사이드바 접힘 시: 우측 padding 풀어 본문이 자동으로 가용 폭 차지 */
+body[data-page="dalton"].sidebar-collapsed {
+    padding-right: 16px;
+}
+
 body[data-page="dalton"] .dalton-nav {
     display: flex;
     align-items: center;
