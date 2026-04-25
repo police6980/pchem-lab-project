@@ -810,11 +810,15 @@ function initDaltonApp(params) {
     const daltonState = {
         syringeA: {
             gas:    cfg.syringe_a.default_gas,  // 'air'
-            volume: cfg.syringe_a.v_default,    // 100 (mL)
+            volume: cfg.syringe_a.v_default,    // 100 (mL) — 논리 V (즉시 변경)
+            targetVolume:    cfg.syringe_a.v_default,    // V 변경 직후 즉시 갱신 (논리 target)
+            displayedVolume: cfg.syringe_a.v_default,    // 매 frame lerp — 시각 표현용
         },
         syringeB: {
             gas:    cfg.syringe_b.default_gas,  // 'co2'
-            volume: cfg.syringe_b.v_default,    // 100 (mL)
+            volume: cfg.syringe_b.v_default,    // 100 (mL) — 논리 V (즉시 변경)
+            targetVolume:    cfg.syringe_b.v_default,
+            displayedVolume: cfg.syringe_b.v_default,
         },
         // 주사기 B 센서 측정값 (atm 기준, 내부 계산용).
         // 시뮬 모드에서는 1.00 고정 (주입 전 상태 = 대기압).
@@ -1113,6 +1117,8 @@ function initDaltonApp(params) {
         particleRadius: 2.5,        // simulation.js PARTICLE_RADIUS 와 동일
         boxMargin: 2,               // drawSyringe 의 fill margin 과 동기
         boxMinHeight: 30,           // V_min 시 box.height 음수 방지
+        particleCountPerSyringe: 60, // 시린지당 고정 (V 변경 시 재생성 불필요 — Step C-2 보강)
+        volumeLerpFactor: 0.15,     // displayedVolume 보간율 (매 frame 15% 접근, 약 0.13초 도달) — Step C-2 통합
     };
 
     // 부피 → 피스톤 면의 Y 좌표 (본체 안쪽)
@@ -1142,6 +1148,7 @@ function initDaltonApp(params) {
     // 시린지 A·B 각 1개의 ParticleSystem 인스턴스. 박스는 단순 객체.
     // V·gas 변경 시 통째 재생성 (rebuildParticleSystem).
     // ─────────────────────────────────────────────────────────
+    // 박스: 단순 좌표 객체. displayedVolume 기반 매 frame 재계산.
     const boxA = { x: 0, y: 0, width: 0, height: 0 };
     const boxB = { x: 0, y: 0, width: 0, height: 0 };
     let systemA = null;
@@ -1157,12 +1164,22 @@ function initDaltonApp(params) {
         return { x, y, width, height };
     }
 
-    function updateBox(box, syr, volumeMl) {
-        const next = computeBox(syr, volumeMl);
+    // 박스 갱신 — displayedVolume 기반 매 frame 호출 (단순 직접 갱신)
+    function updateBox(box, syr, displayedVolumeMl) {
+        const next = computeBox(syr, displayedVolumeMl);
         box.x = next.x;
         box.y = next.y;
         box.width = next.width;
         box.height = next.height;
+    }
+
+    // 매 frame 호출 — daltonState 의 displayedVolume 을 targetVolume 으로 lerp
+    function lerpDisplayedVolumes() {
+        const k = SCENE.volumeLerpFactor;
+        const sA = daltonState.syringeA;
+        const sB = daltonState.syringeB;
+        sA.displayedVolume += (sA.targetVolume - sA.displayedVolume) * k;
+        sB.displayedVolume += (sB.targetVolume - sB.displayedVolume) * k;
     }
 
     function rebuildParticleSystem(syringeKey) {
@@ -1172,9 +1189,11 @@ function initDaltonApp(params) {
         const gasKey = isA ? daltonState.syringeA.gas : daltonState.syringeB.gas;
         const box = isA ? boxA : boxB;
 
+        // 재생성 시 박스 즉시 갱신 (gas 변경 시 displayedVolume 도 동기됨)
         updateBox(box, syr, volumeMl);
 
-        const particleCount = Math.max(10, Math.round(volumeMl));
+        // 입자 수 고정 (Step C-2 보강) — V 변경 시 재생성 불필요
+        const particleCount = SCENE.particleCountPerSyringe;
         const gasData = getGasData(gasKey);
         const speedScale = SCENE.particleSpeedScale * (gasData.speedFactor || 1.0);
 
@@ -1212,8 +1231,8 @@ function initDaltonApp(params) {
     // syr: SCENE.syringeA 또는 SCENE.syringeB
     // gasKey: daltonState 의 gas 키
     // volumeMl: 현재 부피 (mL)
-    function drawSyringe(p, syr, gasKey, volumeMl) {
-        const pistonY = volumeToPistonY(volumeMl);
+    function drawSyringe(p, syr, gasKey, displayedVolumeMl) {
+        const pistonY = volumeToPistonY(displayedVolumeMl);
 
         // 1. 본체 안 가스색 채움 영역 (피스톤 면 ~ 본체 하단)
         p.noStroke();
@@ -1275,10 +1294,13 @@ function initDaltonApp(params) {
         // 배경 (HSB 거의 흰색)
         p.background(0, 0, 98);
 
+        // displayedVolume 보간 (매 frame, 모든 시각 요소가 이 값 참조 — Step C-2 통합)
+        lerpDisplayedVolumes();
+
         // 시린지 A (좌)
-        drawSyringe(p, SCENE.syringeA, daltonState.syringeA.gas, daltonState.syringeA.volume);
+        drawSyringe(p, SCENE.syringeA, daltonState.syringeA.gas, daltonState.syringeA.displayedVolume);
         // 시린지 B (우)
-        drawSyringe(p, SCENE.syringeB, daltonState.syringeB.gas, daltonState.syringeB.volume);
+        drawSyringe(p, SCENE.syringeB, daltonState.syringeB.gas, daltonState.syringeB.displayedVolume);
         // ㄷ자 튜브 (시린지 하단 연결)
         drawConnectorTube(p);
 
@@ -1288,10 +1310,9 @@ function initDaltonApp(params) {
         if (systemA && systemB) {
             const dt = Math.min((p.deltaTime || 0) / 1000, 0.05);
 
-            // 박스 갱신 (V 변경 시 systemA/B 재생성하므로 보통 매 frame 동일하나
-            // 안전하게 매 frame 갱신 — boxA/B 객체 자체는 재할당 없이 속성만 갱신)
-            updateBox(boxA, SCENE.syringeA, daltonState.syringeA.volume);
-            updateBox(boxB, SCENE.syringeB, daltonState.syringeB.volume);
+            // 박스 갱신 (displayedVolume 기반 매 frame 재계산 — Step C-2 통합)
+            updateBox(boxA, SCENE.syringeA, daltonState.syringeA.displayedVolume);
+            updateBox(boxB, SCENE.syringeB, daltonState.syringeB.displayedVolume);
 
             // 입자 운동 + 박스 회수
             systemA.update(dt);
@@ -1516,12 +1537,31 @@ function initDaltonApp(params) {
     // 이벤트 바인딩
     // Step B-2 에서 이론값·압력 업데이트 로직 추가 예정 (현재는 상태 갱신 + 로그만)
     // ─────────────────────────────────────────────────────────
+    // Step C-2: gas 변경 추적 — gas 만 변경 시 재생성, V 만 변경 시 targetVolume 갱신
+    let lastGasA = daltonState.syringeA.gas;
+    let lastGasB = daltonState.syringeB.gas;
+
     const onStateChange = debounce(() => {
         updateTheoryBox();
         updatePressureReadouts();
-        // Step C-2: V·gas 변경 시 입자 시스템 재생성 (입자 수·박스·속도 갱신)
-        // draw 루프 활성으로 redraw 명시 호출 불필요
-        rebuildAllSystems();
+
+        // gas 변경 시 재생성 (입자 색·속도 변경 위해, displayedVolume 도 즉시 동기)
+        const gasChangedA = daltonState.syringeA.gas !== lastGasA;
+        const gasChangedB = daltonState.syringeB.gas !== lastGasB;
+        if (gasChangedA) {
+            daltonState.syringeA.displayedVolume = daltonState.syringeA.volume;  // 즉시 동기
+            rebuildParticleSystem("A");
+            lastGasA = daltonState.syringeA.gas;
+        }
+        if (gasChangedB) {
+            daltonState.syringeB.displayedVolume = daltonState.syringeB.volume;
+            rebuildParticleSystem("B");
+            lastGasB = daltonState.syringeB.gas;
+        }
+
+        // V 변경은 targetVolume 만 갱신 (매 frame lerpDisplayedVolumes 로 부드럽게 도달)
+        daltonState.syringeA.targetVolume = daltonState.syringeA.volume;
+        daltonState.syringeB.targetVolume = daltonState.syringeB.volume;
 
         if (DEBUG_DALTON) {
             console.log("[Dalton] state changed", {
