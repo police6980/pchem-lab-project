@@ -995,7 +995,7 @@ function initDaltonApp(params) {
 
         const ticksMarkup = ticks.map(t => `
             <line x1="${t.inner.x.toFixed(2)}" y1="${t.inner.y.toFixed(2)}" x2="${t.outer.x.toFixed(2)}" y2="${t.outer.y.toFixed(2)}" stroke="#6b7280" stroke-width="1.5"/>
-            <text x="${t.labelPos.x.toFixed(2)}" y="${(t.labelPos.y + 3).toFixed(2)}" text-anchor="middle" font-size="9" fill="#4b5563" font-family="system-ui">${t.label}</text>
+            <text x="${t.labelPos.x.toFixed(2)}" y="${(t.labelPos.y + 3).toFixed(2)}" text-anchor="middle" font-size="14" fill="#4b5563" font-family="system-ui">${t.label}</text>
         `).join('');
 
         const redDot = polar(180);
@@ -1064,25 +1064,25 @@ function initDaltonApp(params) {
     // 컬러: HSB 모드 (보일/particles 와 통일). 가스색은 회색조 옅은 톤.
     // ─────────────────────────────────────────────────────────
     const SCENE = {
-        canvasW: 1000,
+        canvasW: 1160,              // 게이지 overlay 공간 추가 확장 (좌·우 여유 200px) — v3 마무리 v4
         canvasH: 600,
         // 시린지 공통 치수
-        bodyW: 240,                 // 본체 폭 (입자 운동 가시성 확보 위해 확장)
-        bodyTop: 60,                // 본체 상단 Y
+        bodyW: 320,                 // 본체 폭 (입자 운동 가시성 확보 위해 추가 확장 — v3 마무리)
+        bodyTop: 30,                // 본체 상단 Y (피스톤 봉 짧게 — v3 마무리)
         bodyBottom: 480,            // 본체 하단 Y (노즐 출구 직전)
-        bodyHeightPx: 420,          // = bodyBottom - bodyTop
+        bodyHeightPx: 450,          // = bodyBottom 480 - bodyTop 30
         wallStrokeWeight: 1.5,      // 본체 외곽선
         // 시린지 A (좌)
         syringeA: {
-            centerX: 280,
-            bodyLeft: 160,
-            bodyRight: 400,
+            centerX: 360,
+            bodyLeft: 200,
+            bodyRight: 520,
         },
         // 시린지 B (우)
         syringeB: {
-            centerX: 720,
-            bodyLeft: 600,
-            bodyRight: 840,
+            centerX: 800,
+            bodyLeft: 640,
+            bodyRight: 960,
         },
         // 노즐 출구 (시린지 본체 하단의 좁은 통로)
         nozzleW: 24,                // 노즐 폭

@@ -3045,12 +3045,63 @@ body[data-page="dalton"] .ai-sidebar {
    ============================================================ */
 /* 캔버스 wrap 카드 스타일 — 보일/particles 의 #section-canvas / #adv-section-canvas 와 통일 (Step C-1 v3) */
 body[data-page="dalton"] #dalton-canvas-wrap {
+    position: relative;          /* absolute 자식 (게이지 overlay) 기준점 */
     display: flex;
     justify-content: center;
     padding: 10px;
     background: white;
     border-radius: 8px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    max-width: 1180px;           /* 캔버스 1160 + padding 20 — 좌·우 빈 영역 제거 (v4 마무리) */
+    margin: 0 auto;              /* 메인 영역 안 가운데 정렬 보존 */
+}
+
+/* 압력 게이지 overlay — 캔버스 wrap 안 absolute 배치 (Step C-1 v3 마무리) */
+body[data-page="dalton"] .dalton-gauge-overlay {
+    position: absolute;
+    top: 170px;                  /* 본체 가운데 정렬 (bodyTop 30 + height 450/2 - overlay 높이/2) — v3 마무리 v4 */
+    width: 200px;                /* SVG 200 수용 위해 확장 — v3 마무리 v4 */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    z-index: 2;                  /* 캔버스 위 */
+    /* 카드 배경 — 시린지와 시각 분리 (v4 디자인 개선) */
+    padding: 10px 8px;
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+
+body[data-page="dalton"] .dalton-gauge-overlay-left {
+    left: 10px;                  /* wrap padding-left 안쪽 */
+}
+
+body[data-page="dalton"] .dalton-gauge-overlay-right {
+    right: 10px;                 /* wrap padding-right 안쪽 */
+}
+
+/* overlay 안 게이지 SVG 확대 (160×89 → 200×111, viewBox 비율 유지) — v4 디자인 개선 */
+body[data-page="dalton"] .dalton-gauge-overlay .dalton-pressure-gauge {
+    width: 200px;
+    height: 111px;               /* 200 * 100/180 = 111.1 → 111 (viewBox 100/180 비율) */
+}
+
+/* overlay 안 라벨·LCD 폰트도 약간 축소 */
+/* overlay 안 라벨 ("압력 P_A") 굵게 — v4 디자인 개선 */
+body[data-page="dalton"] .dalton-gauge-overlay .dalton-pressure-label {
+    font-weight: 600;
+}
+
+body[data-page="dalton"] .dalton-gauge-overlay .dalton-pressure-readout-line .dalton-field-value {
+    font-size: 1.4rem;     /* DSEG7 LCD — overlay 안에서도 큼직하게 (가독성 보강) */
+}
+
+body[data-page="dalton"] .dalton-gauge-overlay .dalton-gauge-warning {
+    font-size: 0.78rem;     /* 원본 복원 */
+    text-align: center;
+    line-height: 1.3;
 }
 
 /* p5 DaltonScene 이 동적 append 하는 canvas + 차트 (Step C-1 부터) */

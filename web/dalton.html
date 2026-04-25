@@ -51,15 +51,7 @@
                     <input type="number" id="dalton-volume-a-number" min="10" max="100" step="1" value="50">
                     <span class="dalton-field-unit">mL</span>
                 </div>
-                <div class="dalton-field dalton-pressure-block">
-                    <span class="dalton-field-label dalton-pressure-label">압력 P<sub>A</sub></span>
-                    <svg class="dalton-pressure-gauge" id="dalton-gauge-a" viewBox="-10 0 180 100" aria-label="주사기 A 압력 게이지"></svg>
-                    <div class="dalton-pressure-readout-line">
-                        <span class="dalton-field-value dalton-pressure-number" id="dalton-pressure-a">1.00</span>
-                        <span class="dalton-pressure-unit" id="dalton-pressure-a-unit">atm</span>
-                    </div>
-                    <span class="dalton-gauge-warning" id="dalton-gauge-warning-a" hidden>⚠ 게이지 범위 초과 (5 atm)</span>
-                </div>
+                <!-- 압력 블록 캔버스 wrap 안 absolute overlay 로 이전 (Step C-1 v3 마무리) -->
             </section>
 
             <!-- 주사기 B -->
@@ -81,15 +73,7 @@
                     <span class="dalton-field-unit">mL</span>
                 </div>
                 <p class="dalton-help-text">실험 시작 후에는 변경할 수 없습니다. 피스톤은 고정됩니다.</p>
-                <div class="dalton-field dalton-pressure-block">
-                    <span class="dalton-field-label dalton-pressure-label">압력 P<sub>B</sub></span>
-                    <svg class="dalton-pressure-gauge" id="dalton-gauge-b" viewBox="-10 0 180 100" aria-label="주사기 B 압력 게이지"></svg>
-                    <div class="dalton-pressure-readout-line">
-                        <span class="dalton-field-value dalton-pressure-number" id="dalton-pressure-b">1.00</span>
-                        <span class="dalton-pressure-unit" id="dalton-pressure-b-unit">atm</span>
-                    </div>
-                    <span class="dalton-gauge-warning" id="dalton-gauge-warning-b" hidden>⚠ 게이지 범위 초과 (5 atm)</span>
-                </div>
+                <!-- 압력 블록 캔버스 wrap 안 absolute overlay 로 이전 (Step C-1 v3 마무리) -->
             </section>
 
 
@@ -125,6 +109,26 @@
         <main id="dalton-main" class="dalton-main">
             <div id="dalton-canvas-wrap">
                 <!-- p5.js DaltonScene 이 이 wrap 안에 canvas 를 동적 append (Step C-1) -->
+                <!-- 압력 게이지 P_A overlay (좌측, 시린지 A 옆) -->
+                <div class="dalton-field dalton-pressure-block dalton-gauge-overlay dalton-gauge-overlay-left">
+                    <span class="dalton-field-label dalton-pressure-label">압력 P<sub>A</sub></span>
+                    <svg class="dalton-pressure-gauge" id="dalton-gauge-a" viewBox="-10 0 180 100" aria-label="주사기 A 압력 게이지"></svg>
+                    <div class="dalton-pressure-readout-line">
+                        <span class="dalton-field-value dalton-pressure-number" id="dalton-pressure-a">1.00</span>
+                        <span class="dalton-pressure-unit" id="dalton-pressure-a-unit">atm</span>
+                    </div>
+                    <span class="dalton-gauge-warning" id="dalton-gauge-warning-a" hidden>⚠ 게이지 범위 초과 (5 atm)</span>
+                </div>
+                <!-- 압력 게이지 P_B overlay (우측, 시린지 B 옆) -->
+                <div class="dalton-field dalton-pressure-block dalton-gauge-overlay dalton-gauge-overlay-right">
+                    <span class="dalton-field-label dalton-pressure-label">압력 P<sub>B</sub></span>
+                    <svg class="dalton-pressure-gauge" id="dalton-gauge-b" viewBox="-10 0 180 100" aria-label="주사기 B 압력 게이지"></svg>
+                    <div class="dalton-pressure-readout-line">
+                        <span class="dalton-field-value dalton-pressure-number" id="dalton-pressure-b">1.00</span>
+                        <span class="dalton-pressure-unit" id="dalton-pressure-b-unit">atm</span>
+                    </div>
+                    <span class="dalton-gauge-warning" id="dalton-gauge-warning-b" hidden>⚠ 게이지 범위 초과 (5 atm)</span>
+                </div>
                 <div id="dalton-stabilization" class="dalton-stabilization hidden" aria-live="polite">
                     <span class="dalton-stab-label">측정 안정화 중</span>
                     <span class="dalton-stab-countdown" id="dalton-stab-countdown">5</span>
