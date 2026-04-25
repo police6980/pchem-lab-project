@@ -1233,17 +1233,32 @@ function initDaltonApp(params) {
 
             const region = getRegion(p.x, p.y);
 
-            // drift force (주입 중 R2/R3/R4 만)
-            if (driftAccel > 0) {
-                if (region === 2)      p.vy += driftAccel * dt;       // R2: 아래로 (R1→R3)
-                else if (region === 3) p.vx += driftAccel * dt;       // R3: 오른쪽으로
-                else if (region === 4) p.vy += -driftAccel * dt;      // R4: 위로 (R3→R5)
+            // drift force (주입 중 R2 만 — Step C-3 v4 텔레포트 모드)
+            // R3/R4 는 v4 에서 입자 미사용. R2 통과 시 즉시 R5 로 텔레포트
+            if (driftAccel > 0 && region === 2) {
+                p.vy += driftAccel * dt;
             }
 
             if (region === 1) {
+                // Step C-3 v5: boxA 높이 임계값 (50px) 미만 시 R1 입자 강제 R5 노즐 출구 텔레포트
+                // (V=0 직전 좁은 박스에서 입자 잔존·외곽 박힘 해결)
+                if (boxA.height < 50) {
+                    teleportToR5NozzleEntry(p);
+                    continue;  // 이 입자 처리 끝
+                }
                 if (p.x - r < r1Left)  { p.x = r1Left + r;  if (p.vx < 0) p.vx = -p.vx; }
                 if (p.x + r > r1Right) { p.x = r1Right - r; if (p.vx > 0) p.vx = -p.vx; }
-                if (p.y - r < r1Top)   { p.y = r1Top + r;   if (p.vy < 0) p.vy = -p.vy; }
+                // Step C-3 v4: 피스톤이 입자 위치보다 깊이 침범 시 강제 노즐 push
+                // (V=0 도달 직전 매 frame 피스톤 빠르게 내려와 입자 추월하는 케이스)
+                if (p.y < r1Top - r * 2) {
+                    // 입자가 top wall 위쪽으로 한참 들어간 경우 — 강제 R2 노즐 진입
+                    p.x = SCENE.syringeA.centerX + (Math.random() - 0.5) * SCENE.nozzleW * 0.6;
+                    p.y = r1Bottom + r + Math.random() * 5;  // R2 안 (y > bodyBottom)
+                    if (p.vy < 0) p.vy = Math.abs(p.vy);
+                } else if (p.y - r < r1Top) {
+                    p.y = r1Top + r;
+                    if (p.vy < 0) p.vy = -p.vy;
+                }
                 if (p.y + r > r1Bottom && (p.x < r2Left || p.x > r2Right)) {
                     p.y = r1Bottom - r;
                     if (p.vy > 0) p.vy = -p.vy;
@@ -1251,14 +1266,13 @@ function initDaltonApp(params) {
             } else if (region === 2) {
                 if (p.x - r < r2Left)  { p.x = r2Left + r;  if (p.vx < 0) p.vx = -p.vx; }
                 if (p.x + r > r2Right) { p.x = r2Right - r; if (p.vx > 0) p.vx = -p.vx; }
-            } else if (region === 3) {
-                if (p.y - r < r3Top)    { p.y = r3Top + r;    if (p.vy < 0) p.vy = -p.vy; }
-                if (p.y + r > r3Bottom) { p.y = r3Bottom - r; if (p.vy > 0) p.vy = -p.vy; }
-                if (p.x - r < r3Left)   { p.x = r3Left + r;   if (p.vx < 0) p.vx = -p.vx; }
-                if (p.x + r > r3Right)  { p.x = r3Right - r;  if (p.vx > 0) p.vx = -p.vx; }
-            } else if (region === 4) {
-                if (p.x - r < r4Left)  { p.x = r4Left + r;  if (p.vx < 0) p.vx = -p.vx; }
-                if (p.x + r > r4Right) { p.x = r4Right - r; if (p.vx > 0) p.vx = -p.vx; }
+                // Step C-3 v5: R3 진입 boundary 도달 시 R5 노즐 출구에서 자연 분출
+                if (p.y > SCENE.tubeY) {
+                    teleportToR5NozzleEntry(p);
+                }
+            } else if (region === 3 || region === 4) {
+                // Step C-3 v5: R3/R4 비정상 진입 시 R5 노즐 출구로 자연 분출 (보험)
+                teleportToR5NozzleEntry(p);
             } else if (region === 5) {
                 if (p.x - r < r5Left)  { p.x = r5Left + r;  if (p.vx < 0) p.vx = -p.vx; }
                 if (p.x + r > r5Right) { p.x = r5Right - r; if (p.vx > 0) p.vx = -p.vx; }
@@ -1275,6 +1289,21 @@ function initDaltonApp(params) {
                     r4Left, r4Right, r5Top, r5Left, r5Right);
             }
         }
+    }
+
+    // Step C-3 v5: B 노즐 출구에서 자연스럽게 분출 — R5 안 임의 위치 대신 노즐 입구 (R5 bottom) 에서 위로 분출
+    // 호출처: (1) R2 통과 텔레포트, (2) R1 강제 이주 (boxA.height < 50), (3) R3/R4 보험 텔레포트
+    function teleportToR5NozzleEntry(p) {
+        const r = SCENE.particleRadius;
+        // 노즐 폭 안에서 약간 분산 (±60% 노즐 폭 안)
+        p.x = SCENE.syringeB.centerX + (Math.random() - 0.5) * SCENE.nozzleW * 0.6;
+        // R5 bottom 바로 위 (노즐 입구) — bodyBottom 에서 r 만큼 위
+        p.y = SCENE.bodyBottom - r;
+        // 위로 분출: 기존 속도 크기 보존, 방향만 위쪽 ± 30° 으로
+        const speed = Math.max(50, Math.sqrt(p.vx * p.vx + p.vy * p.vy));
+        const angle = -Math.PI / 2 + (Math.random() - 0.5) * (Math.PI / 3);  // -90° ± 30°
+        p.vx = speed * Math.cos(angle);
+        p.vy = speed * Math.sin(angle);
     }
 
     // null region 입자 회수 — 좌표 기반 가까운 region 으로 강제 이주
@@ -1408,8 +1437,9 @@ function initDaltonApp(params) {
                 }
                 const elapsed = performance.now() - startTime;
                 // R1~R4 입자 0개 + 시간 도달 시 정상 종료
-                const r1to4Count = countParticlesInRegions([1, 2, 3, 4]);
-                if (elapsed >= totalTimeoutMs && r1to4Count === 0) {
+                // Step C-3 v4: R3/R4 텔레포트로 즉시 처리됨 — R1/R2 만 카운트
+                const r1r2Count = countParticlesInRegions([1, 2]);
+                if (elapsed >= totalTimeoutMs && r1r2Count === 0) {
                     clearInterval(checkInterval);
                     finalizeInjectedVolume();
                     resolve();
