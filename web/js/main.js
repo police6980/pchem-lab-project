@@ -850,12 +850,16 @@ function initDaltonApp(params) {
         volumeANumber: $("dalton-volume-a-number"),
         pressureA:     $("dalton-pressure-a"),
         pressureAHint: $("dalton-pressure-a-hint"),
+        gaugeA:        $("dalton-gauge-a"),
+        gaugeWarningA: $("dalton-gauge-warning-a"),
 
         // 주사기 B
         gasBSelect:    $("dalton-gas-b"),
         volumeBNumber: $("dalton-volume-b-number"),
         pressureB:     $("dalton-pressure-b"),
         pressureBHint: $("dalton-pressure-b-hint"),
+        gaugeB:        $("dalton-gauge-b"),
+        gaugeWarningB: $("dalton-gauge-warning-b"),
 
         // 이론값
         theoryBefore: $("dalton-theory-before"),
@@ -943,6 +947,66 @@ function initDaltonApp(params) {
                 dom.pressureAHint.style.display = "none";
             }
         }
+    }
+
+    // ─────────────────────────────────────────────────────────
+    // 게이지 정적 렌더 (한 번만 호출). 배경 호·색상 호·눈금·바늘 SVG 생성.
+    // 바늘 회전·색상 변환은 명세 2 (updateGauges) 에서 별도 처리.
+    // ─────────────────────────────────────────────────────────
+    function renderGaugeStatic(svgEl) {
+        if (!svgEl) return;
+
+        // 반원 게이지 좌표계: viewBox 160×100, 중심 (80, 90), 반지름 70
+        const cx = 80, cy = 90, r = 70;
+
+        // 극좌표 → SVG 좌표 (angle: 0 = 우측 3시, 180 = 좌측 9시, 시계 반대)
+        function polar(angle) {
+            const rad = (180 - angle) * Math.PI / 180;
+            return { x: cx + r * Math.cos(rad), y: cy - r * Math.sin(rad) };
+        }
+        function arcPath(startAngle, endAngle) {
+            const s = polar(startAngle);
+            const e = polar(endAngle);
+            const largeArc = (endAngle - startAngle) <= 180 ? 0 : 1;
+            return `M ${s.x.toFixed(2)} ${s.y.toFixed(2)} A ${r} ${r} 0 ${largeArc} 1 ${e.x.toFixed(2)} ${e.y.toFixed(2)}`;
+        }
+
+        // 0~3 atm = 0~108도 (3/5 × 180), 3~5 atm = 108~180도
+        const blueArc = arcPath(0, 108);
+        const yellowArc = arcPath(108, 180);
+
+        // 눈금 (0, 1, 2, 3, 4, 5)
+        const ticks = [];
+        for (let i = 0; i <= 5; i++) {
+            const angle = (i / 5) * 180;
+            const inner = polar(angle);
+            const outerR = r + 6;
+            const outerRad = (180 - angle) * Math.PI / 180;
+            const outer = { x: cx + outerR * Math.cos(outerRad), y: cy - outerR * Math.sin(outerRad) };
+            const labelR = r + 14;
+            const labelPos = { x: cx + labelR * Math.cos(outerRad), y: cy - labelR * Math.sin(outerRad) };
+            ticks.push({ inner, outer, label: String(i), labelPos });
+        }
+
+        const ticksMarkup = ticks.map(t => `
+            <line x1="${t.inner.x.toFixed(2)}" y1="${t.inner.y.toFixed(2)}" x2="${t.outer.x.toFixed(2)}" y2="${t.outer.y.toFixed(2)}" stroke="#6b7280" stroke-width="1.5"/>
+            <text x="${t.labelPos.x.toFixed(2)}" y="${(t.labelPos.y + 3).toFixed(2)}" text-anchor="middle" font-size="9" fill="#4b5563" font-family="system-ui">${t.label}</text>
+        `).join('');
+
+        const redDot = polar(180);
+
+        svgEl.innerHTML = `
+            <path d="${arcPath(0, 180)}" fill="none" stroke="#e5e7eb" stroke-width="14" stroke-linecap="butt"/>
+            <path d="${blueArc}" fill="none" stroke="#2563eb" stroke-width="10" stroke-linecap="butt"/>
+            <path d="${yellowArc}" fill="none" stroke="#f59e0b" stroke-width="10" stroke-linecap="butt"/>
+            <circle cx="${redDot.x.toFixed(2)}" cy="${redDot.y.toFixed(2)}" r="4" fill="#dc2626"/>
+            ${ticksMarkup}
+            <g class="dalton-gauge-needle" transform="rotate(-90 ${cx} ${cy})">
+                <line x1="${cx}" y1="${cy}" x2="${cx}" y2="${cy - r + 8}" stroke="#1f2937" stroke-width="2.5" stroke-linecap="round"/>
+            </g>
+            <circle cx="${cx}" cy="${cy}" r="5" fill="#1f2937"/>
+            <circle cx="${cx}" cy="${cy}" r="2" fill="#fff"/>
+        `;
     }
 
     // ─────────────────────────────────────────────────────────
@@ -1247,6 +1311,10 @@ function initDaltonApp(params) {
     // 이론값·압력 박스 초기 동기 (비디바운스, 즉시 1회 호출)
     updateTheoryBox();
     updatePressureReadouts();
+
+    // 게이지 SVG 정적 렌더 (배경 호·눈금·바늘 0 위치). 명세 2 에서 압력값 반영 회전 추가.
+    renderGaugeStatic(dom.gaugeA);
+    renderGaugeStatic(dom.gaugeB);
 
     // 초기 stage 를 명시적으로 IDLE 로 세팅 — 버튼 disabled 일관성 확보
     // (HTML 에 이미 btn-confirm 만 disabled 로 돼 있지만, setStage 를 한 번 호출해

@@ -3079,6 +3079,37 @@ body[data-page="dalton"] .dalton-field-hint {
     font-style: italic;
 }
 
+/* 압력 게이지 블록 (라벨 좌측, 우측 세로 스택) */
+body[data-page="dalton"] .dalton-pressure-block {
+    align-items: flex-start;
+    gap: 12px;
+}
+
+body[data-page="dalton"] .dalton-pressure-readout-group {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    flex: 1;
+}
+
+body[data-page="dalton"] .dalton-pressure-gauge {
+    width: 160px;
+    height: 89px;
+    display: block;
+}
+
+body[data-page="dalton"] .dalton-gauge-warning {
+    font-size: 0.78rem;
+    color: #dc2626;
+    font-weight: 600;
+    margin-top: 2px;
+}
+
+body[data-page="dalton"] .dalton-gauge-warning[hidden] {
+    display: none;
+}
+
 /* 도움말 텍스트 (예: "실험 시작 후에는 변경할 수 없습니다...") */
 body[data-page="dalton"] .dalton-help-text {
     font-size: 0.85rem;
