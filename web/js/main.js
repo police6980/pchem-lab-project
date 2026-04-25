@@ -1122,6 +1122,9 @@ function initDaltonApp(params) {
         // 주입 애니메이션 (Step C-3)
         injectionStaggerSec: 2.0,   // 입자별 출발 시점 0~2초 무작위 분산
         injectionDurationSec: 1.5,  // 입자 1개의 이주 소요 시간 (waypoint 통과)
+        // Step C-3 v3 — 5 region 물리 안정성·자연 흐름 강화
+        physicsSubstepMaxDtSec: 0.005,  // 한 substep max dt = 5ms (region 다중 통과 방지)
+        injectionDriftAccelPx: 600,     // 주입 중 drift force (px/s²) — R2/R3/R4 에 압력 차이 시각화
     };
 
     // 부피 → 피스톤 면의 Y 좌표 (본체 안쪽)
@@ -1191,9 +1194,19 @@ function initDaltonApp(params) {
     }
 
     // 5 region 물리 update — 입자 좌표 적분 + region 별 외곽 벽 충돌
+    // Step C-3 v3: substep 분할 (region 다중 통과 방지)
     function physicsStep(dt) {
+        const maxSub = SCENE.physicsSubstepMaxDtSec;
+        const subSteps = Math.max(1, Math.ceil(dt / maxSub));
+        const subDt = dt / subSteps;
+        for (let s = 0; s < subSteps; s++) {
+            physicsSubstep(subDt);
+        }
+    }
+
+    // 단일 substep — drift force + region 별 충돌 + null 회수
+    function physicsSubstep(dt) {
         const r = SCENE.particleRadius;
-        // R1 의 동적 좌표 (피스톤 따라 매 frame 변동)
         const r1Top    = boxA.y;
         const r1Bottom = SCENE.bodyBottom;
         const r1Left   = SCENE.syringeA.bodyLeft;
@@ -1211,11 +1224,22 @@ function initDaltonApp(params) {
         const r5Left   = SCENE.syringeB.bodyLeft;
         const r5Right  = SCENE.syringeB.bodyRight;
 
+        // 주입 중일 때만 drift accel 활성 (압력 차이 시각화)
+        const driftAccel = injectionPistonAnimating ? SCENE.injectionDriftAccelPx : 0;
+
         for (const p of allParticles) {
             p.x += p.vx * dt;
             p.y += p.vy * dt;
 
             const region = getRegion(p.x, p.y);
+
+            // drift force (주입 중 R2/R3/R4 만)
+            if (driftAccel > 0) {
+                if (region === 2)      p.vy += driftAccel * dt;       // R2: 아래로 (R1→R3)
+                else if (region === 3) p.vx += driftAccel * dt;       // R3: 오른쪽으로
+                else if (region === 4) p.vy += -driftAccel * dt;      // R4: 위로 (R3→R5)
+            }
+
             if (region === 1) {
                 if (p.x - r < r1Left)  { p.x = r1Left + r;  if (p.vx < 0) p.vx = -p.vx; }
                 if (p.x + r > r1Right) { p.x = r1Right - r; if (p.vx > 0) p.vx = -p.vx; }
@@ -1244,10 +1268,50 @@ function initDaltonApp(params) {
                     if (p.vy > 0) p.vy = -p.vy;
                 }
             } else {
-                // null region — 매우 드물게 발생 (피스톤 빠르게 내려와 입자가 영역 밖으로 밀림)
-                if (p.y > SCENE.tubeY + SCENE.tubeH) p.y = SCENE.tubeY + SCENE.tubeH - r;
-                if (p.y < r1Top) p.y = r1Top + r;
+                // null region — 빈 공간 영역별 회수 (Step C-3 v3 강화)
+                rescueParticleFromNull(p, r,
+                    r1Top, r1Left, r1Right, r2Left, r2Right,
+                    r3Top, r3Bottom, r3Left, r3Right,
+                    r4Left, r4Right, r5Top, r5Left, r5Right);
             }
+        }
+    }
+
+    // null region 입자 회수 — 좌표 기반 가까운 region 으로 강제 이주
+    function rescueParticleFromNull(p, r,
+        r1Top, r1Left, r1Right, r2Left, r2Right,
+        r3Top, r3Bottom, r3Left, r3Right,
+        r4Left, r4Right, r5Top, r5Left, r5Right) {
+        const bodyBottom = SCENE.bodyBottom;
+        const tubeY = SCENE.tubeY;
+        const tubeBot = tubeY + SCENE.tubeH;
+
+        if (p.y < bodyBottom) {
+            // 박스 라인 — x 로 가까운 박스 결정
+            if (p.x < (r2Right + r4Left) / 2) {
+                p.x = Math.max(r1Left + r, Math.min(r1Right - r, p.x));
+                p.y = Math.max(r1Top + r, Math.min(bodyBottom - r, p.y));
+            } else {
+                p.x = Math.max(r5Left + r, Math.min(r5Right - r, p.x));
+                p.y = Math.max(r5Top + r, Math.min(bodyBottom - r, p.y));
+            }
+        } else if (p.y < tubeY) {
+            // 노즐 통로 라인 — x 로 가까운 노즐 결정
+            if (p.x < (r2Right + r4Left) / 2) {
+                p.x = Math.max(r2Left + r, Math.min(r2Right - r, p.x));
+            } else {
+                p.x = Math.max(r4Left + r, Math.min(r4Right - r, p.x));
+            }
+            p.y = Math.max(bodyBottom + r, Math.min(tubeY - r, p.y));
+        } else if (p.y <= tubeBot) {
+            // R3 라인 — x clamp
+            p.x = Math.max(r3Left + r, Math.min(r3Right - r, p.x));
+            p.y = Math.max(tubeY + r, Math.min(tubeBot - r, p.y));
+        } else {
+            // 튜브 아래 — R3 안으로
+            p.x = Math.max(r3Left + r, Math.min(r3Right - r, p.x));
+            p.y = tubeBot - r;
+            if (p.vy > 0) p.vy = -p.vy;
         }
     }
 
