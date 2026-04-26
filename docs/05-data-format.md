@@ -2,7 +2,7 @@
 
 **문서 목적**: 펌웨어-브라우저 간 통신, 시뮬레이션 내부 상태, CSV 로그 파일의 데이터 포맷을 정의한다.
 
-**마지막 업데이트**: 2026-04-24 (v1.1 wire 포맷 실제 구현과 정합화). 2026-04-25 Phase 5.1 완료 영향 점검 — 돌턴도 v1.1 프로토콜 재사용, 본 문서 변경 없음.
+**마지막 업데이트**: 2026-04-26 (Phase 5.3 완료 — 돌턴 CSV 11 컬럼 신규).
 
 ---
 
@@ -385,6 +385,37 @@ Q1,2,assistant,"**좋은 관찰이에요.** 한 걸음 더 들어가볼까요?..
 - 현재(Part 3.5)는 AI 응답이 `dummy-mode` 모델의 더미. **실 Anthropic 응답은 Phase 2-B 완료 후부터 포함됨**
 - 대화 히스토리는 sessionStorage가 아닌 **메모리 내 `aiConversations`에만 존재** — 페이지 새로고침 시 손실
 - `[전체 삭제]` / 온도 변경 시 `resetAllConversations()`로 일괄 초기화 (CSV로 저장하지 않은 대화는 사라짐)
+
+### 돌턴 부분압력 CSV (Phase 5.3, 11 컬럼)
+
+**파일명**: `dalton_<YYYY-MM-DD>_<HH-MM-SS>.csv` (logger.js 의 `formatTimestampForFilename` 재사용 — 보일/입자운동 패턴 일관)
+
+**구현**: `recordsToCSVData()` (main.js) 가 `daltonState.measurementRecords` 배열 → header + rows 반환. `logger.js` 의 module-level `downloadCSV(filename, headerArr, rowsArr)` 호출.
+
+**11 컬럼 헤더**:
+```
+회차, V_A, V_B, P(이론)_atm, P(시뮬)_atm, P(공기)_atm, P(CO2)_atm, n_A, n_B, n_total, 시간
+```
+
+| 컬럼 | 단위 | 의미 |
+|---|---|---|
+| `회차` | 정수 | record.n (1-based, 행 삭제 시 빈 자리 유지) |
+| `V_A` | mL | 시린지 A 의 주입 직전 부피 (V_A_initial_cached) |
+| `V_B` | mL | 시린지 B 의 부피 (불변) |
+| `P(이론)_atm` | atm | 이론값: `(V_A / V_B + 1) × 1.0` (소수점 2자리) |
+| `P(시뮬)_atm` | atm | 시뮬레이션 결과 P_total (`pressureBSensor`) |
+| `P(공기)_atm` | atm | A 가스의 부분 압력 (`(n_A / n_total) × P_total`) |
+| `P(CO2)_atm` | atm | B 가스의 부분 압력 |
+| `n_A` | 정수 | A 가스 분자 수 (`computeMoleCount(1.00, V_A_initial)`) |
+| `n_B` | 정수 | B 가스 분자 수 (`computeMoleCount(P_B_initial_cached, V_B)`) |
+| `n_total` | 정수 | n_A + n_B |
+| `시간` | HH:MM:SS | 측정 시각 (`Date.toLocaleTimeString("ko-KR", { hour12: false })`) |
+
+**압력 단위**: `atm` 고정 (분석 표준, UI 단위 토글과 무관).
+
+**BOM**: logger.js 가 자동 추가 → Excel 한글 정상 표시.
+
+**Phase 5.3 결정 — 정적 분석 통합 X**: 비교 모드 분석 결과는 CSV 에 포함 X. CSV = 원본 측정 데이터만, 분석은 비교 모드 UI 또는 AI 튜터 시점에 동적 생성.
 
 ### 샤를·산염기 CSV (v1.1 이후)
 

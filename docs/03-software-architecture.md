@@ -40,7 +40,7 @@
 자세한 로드맵은 `docs/06-project-status.md` §4 참조. 요약:
 - **Phase 2-B** (완료): ai-tutor.js 실 Anthropic Messages API 호출. 멀티턴·비용·에러 처리·docx 보고서 생성 작동
 - **Phase 3** (진행 중, `phase3-real-sensor` 브랜치): ESP32 실센서 + Web Serial (MockSensorSource 교체). 개발용 WebSocket 펌웨어 에뮬레이터(`tools/firmware-emulator/`)로 실물 도착 전 브라우저 수신 경로 사전 구현
-- **Phase 5** (진행 중): 돌턴의 부분압력. **Phase 5.1 UI·상태머신 + Phase 5.2 시뮬 엔진 완료** (`feature/dalton-experiment` 브랜치). 5 region 물리 모델 (R1: A 박스, R2: A 노즐, R3: 수평 튜브, R4: B 노즐, R5: B 박스) + 텔레포트 모드 + 피스톤 동기 분출 + 부분 압력 시각화. Phase 5.3 그래프·CSV·AI 튜터·실센서 대기. 현재 플랫 폴더 → `experiments/` 분리 검토 시점이 Phase 5 후반으로 이연됨
+- **Phase 5** (Step I 실센서만 대기): 돌턴의 부분압력. **Phase 5.1 + 5.2 + 5.3 완료** (`feature/dalton-experiment` 브랜치). Phase 5.1 UI·상태머신 + Phase 5.2 시뮬 엔진 (5 region 물리 + 텔레포트 + 피스톤 동기 분출 + 게이지 동기 + 부분 압력 list) + **Phase 5.3 학습 기능** (`computeMoleCount` 단일 산출 함수, stacked bar 그래프, 11 컬럼 CSV, 측정 기록 비교 모드, 입자간 탄성 충돌 직접 구현 + spatial hash O(N) + 7 검증 테스트, AI 튜터 `createDaltonTutor` 자체 closure, 행 삭제). `simulation.js` 의 Particle 클래스 그대로 재사용 (수정 0). 현재 플랫 폴더 → `experiments/` 분리 검토 시점이 Phase 5 후반으로 이연됨
 - **Phase 4/6**: 비교 UX, 교사 도구
 - **Phase 7** (이전 Phase 5 계획): 샤를·게이뤼삭 법칙 확장
 
@@ -58,7 +58,7 @@ pchem-lab-project/
 │   ├── index.html              // 🏠 랜딩 (CAST 로고 + 실험 선택 + API 키 설정)
 │   ├── boyle.html              // 🔬 보일의 법칙 (MBL·시뮬·AI), <body data-page="boyle">
 │   ├── particles.html          // ⚗️ 입자운동론 (시뮬·AI), <body data-page="particles">
-│   ├── dalton.html             // 🧪 돌턴의 부분압력 (Phase 5.2 시뮬 완료), <body data-page="dalton">
+│   ├── dalton.html             // 🧪 돌턴의 부분압력 (Phase 5.3 완료), <body data-page="dalton">
 │   ├── config/
 │   │   └── params.json         // 튜닝 가능 수치 단일 파일 (`dalton` 키 포함)
 │   ├── css/
@@ -69,12 +69,15 @@ pchem-lab-project/
 │       ├── protocol.js         // v1.1 파서 공통 모듈 (parseV11Line)
 │       ├── serial.js           // SensorSource + Mock/WebSerial/WebSocket 소스
 │       ├── logger.js           // CSV 유틸
-│       ├── ai-tutor.js         // 보일 전용 풀 AI 튜터 (돌턴 프롬프트는 Phase 5.4)
+│       ├── ai-tutor.js         // 보일 전용 AI 튜터 (입자운동·돌턴은 자체 closure 패턴 — createAdvTutorPanel·createDaltonTutor)
 │       ├── ui.js               // DOM UI + 심화(adv-) AI 튜터·측정 패널
 │       └── main.js             // 부팅 디스패처 + initBasicApp / initAdvancedMode / initDaltonApp
 ├── firmware/                    // ESP32 펌웨어 (boyle.ino, DFRobot Gravity 1.6MPa)
 ├── tools/
 │   └── firmware-emulator/       // Node.js + ws 기반 WebSocket 펌웨어 에뮬레이터 (ws://localhost:8787)
+├── tests/                       // 물리 검증 테스트 (Node.js 단독 실행)
+│   ├── dalton-collision-test.js // Phase 5.3 입자간 충돌 검증 (보존 법칙·Equipartition·Graham·M-B·안정성 7 검증)
+│   └── dalton-collision-test-result.txt   // 테스트 실행 결과 (보존)
 └── docs/                        // 설계 문서 (00~11, dalton 설계서 `11-dalton-design.md` 포함)
 ```
 

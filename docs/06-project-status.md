@@ -2,11 +2,11 @@
 
 **문서 목적**: 현재 구현 상태와 남은 작업의 마스터 트래커. 다른 설계 문서는 "어떻게 만들어졌는가"를 설명하고, 이 문서는 "어디까지 왔는가"를 기록한다.
 
-**마지막 업데이트**: 2026-04-26 (Phase 5.2 시뮬 엔진 완료)
+**마지막 업데이트**: 2026-04-26 (Phase 5.3 완료 — 학습 기능 + 충돌 시뮬 정합화)
 **프로젝트 정식명**: **CAST** (Chemistry AI-assisted Simulation & MBL Tools). 저장소 이름 `pchem-lab-project` 는 개발 초기 명칭 호환 차원에서 유지.
-**현재 상태**: 보일 법칙 실험 + 입자운동론 심화 모듈 + AI 튜터 완성. **Phase 3 소프트웨어 완성** (`phase3-real-sensor` 브랜치 — Step 3-6 실물 조립·검증만 하드웨어 대기). **랜딩 페이지 + 3 페이지 분리 완성** (`feature/landing-page` 브랜치). **Phase 5.1 + 5.2 완료** (`feature/dalton-experiment` 브랜치, ahead +22 main 대비: Phase 5.1 UI·상태머신 + Phase 5.2 시뮬 엔진 — 5 region 물리 + 텔레포트 + 피스톤 동기 분출 + 게이지 P_B 매 frame 동기 + 부분 압력 list + 가스 흐림 토글. simulation.js 재사용 (수정 0). 33 commits / 3일. Phase 5.3 그래프·CSV·AI·실센서 대기).
+**현재 상태**: 보일 법칙 실험 + 입자운동론 심화 모듈 + AI 튜터 완성. **Phase 3 소프트웨어 완성** (`phase3-real-sensor` 브랜치 — Step 3-6 실물 조립·검증만 하드웨어 대기). **랜딩 페이지 + 3 페이지 분리 완성** (`feature/landing-page` 브랜치). **Phase 5.1 + 5.2 + 5.3 완료** (`feature/dalton-experiment` 브랜치): Phase 5.1 UI·상태머신 + Phase 5.2 시뮬 엔진 (5 region 물리 + 텔레포트 + 피스톤 동기 분출 + 게이지 동기 + 부분 압력 list) + **Phase 5.3 학습 기능** (분자 수 단일 산출 함수 정합화 `computeMoleCount` + stacked bar 그래프 + 11 컬럼 CSV + 측정 기록 비교 모드 + 입자간 탄성 충돌 직접 구현 + 7 검증 테스트 + AI 튜터 돌턴 특화 + 행 삭제 + 끼임 정정 v5 + 피스톤 시각 정정). 40 commits / 3일.
 **최신 태그**: `v0.4-boyle-complete` (main). 추가 브랜치 태그: `phase5.1-complete` (`feature/dalton-experiment`). 병합 대기 브랜치 5개: `phase3-real-sensor` / `feature/landing-page` / `feature/particle-controls` / `feature/responsive-canvas` / `feature/dalton-experiment`.
-**다음 단계**: (1) **Phase 5.3 Step F~I** (그래프 시계열, 기록 정리, 돌턴 AI 튜터 프롬프트, Web Serial 실센서) 또는 **Phase 7** (샤를 페이지) 분기 결정, (2) 실물 DFRobot Gravity 1.6MPa 입수 후 Step 3-6 검증, (3) 병합 대기 브랜치들 순차 main 통합.
+**다음 단계**: (1) **Step I 실센서 연결** (실물 DFRobot Gravity 1.6MPa 입수 후), (2) **Matter.js 별 브랜치 (`experiment/matter-js`)** — 직접 구현 ↔ 라이브러리 비교 자료 시도 (사용자 의향), (3) **Phase 7** (샤를 페이지) 분기 결정, (4) 실물 DFRobot Gravity 1.6MPa 입수 후 Step 3-6 검증, (5) 병합 대기 브랜치들 순차 main 통합.
 
 ---
 

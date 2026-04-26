@@ -2,7 +2,7 @@
 
 **문서 목적**: AI 튜터의 설계 철학, 구조, 프롬프트, 운영 정책을 종합 정리한다. 논문·연구 발표 시 방법론 근거 자료로 사용하며, 구현 세부는 다른 문서에 위임한다.
 
-**마지막 업데이트**: 2026-04-23. 2026-04-25 Phase 5.1 완료 영향 점검 — 현재 AI 튜터는 보일 전용 프롬프트로 동작 중. 돌턴 튜터 프롬프트는 Phase 5.4 Step H 에서 추가 예정 (본 문서 업데이트 대기).
+**마지막 업데이트**: 2026-04-26 (Phase 5.3 완료 — **돌턴 AI 튜터 추가**). 보일/입자운동/돌턴 3 페이지 모두 AI 튜터 동작. 돌턴은 `createDaltonTutor` 자체 closure (입자운동 패턴, `ai-tutor.js` 의존 X — `window.PchemTutor` 미정의 시 충돌 차단을 위해 dalton.html 에서 ai-tutor.js 로드 제거). 4 학습 목표 (분자 수 보존 / 부분 압력 / 합 = 전체 / 시뮬 ↔ 이론), Q1~Q4 × 4 학생 수준 = 16 문항, F1 비교 모드 통합 (`comparisonSelected` 2개 시 두 record 자동 주입), `[[LEVEL:xxx]]` 자동 학생 수준 갱신, MODEL_PRICING 자체 정의 (Sonnet 3/15, Opus 5/25 USD per MTok). 상세 결정: `docs/10-dev-journal.md` § Phase 5.3 의 AI 튜터 결정 2건.
 **구현 단계**: Part 3.5 완료 (대화 UI) → **Part 4 / Phase 2-B 완료** (실 Anthropic Messages API 연동, 멀티턴 대화, 비용 표시, docx 보고서, Q3 자동 생성, Q4 탭, 수준 자동 감지 원칙 9/10). 본 문서 본문의 "Part 4 예정" 표시는 설계 시점 기록 보존 차원에서 유지하며, **해당 항목 대부분은 구현 완료**됨.
 
 ---

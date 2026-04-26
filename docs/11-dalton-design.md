@@ -9,7 +9,7 @@
 ## 0. 문서 메타
 
 - **작성**: 2026-04-24 (심화 검토 + sub-phase 브랜치 전략 + A→B 수용 모델 전환 반영)
-- **최종 갱신**: 2026-04-26 (Phase 5.2 Step C 진화 결과 § 18.5 추가)
+- **최종 갱신**: 2026-04-26 (Phase 5.3 완료 — 학습 기능 + 충돌 시뮬 정합화 § 18.6 추가)
 - **저장 경로 권장**: `docs/11-dalton-design.md`
 - **브랜치 전략**: **머지 없이 선형 체인**. `feature/landing-page` 에서 sub-phase 7개 순차 분기. 상세는 §12.
 - **실행 전제**:
@@ -1581,6 +1581,67 @@ Phase 5 범위 밖이나 설계 시 염두에 둘 것:
 § 3.3 의 `dalton-sim.js` 별도 파일 가정은 `main.js` 통합으로 변경됨 (시뮬 함수 25개가 `initDaltonApp` closure 안).
 
 상세 결정 기록은 `docs/10-dev-journal.md` 의 Phase 5 Step C 섹션 (241 lines, 결정 7건).
+
+---
+
+### 18.6 Phase 5.3 학습 기능 + 충돌 시뮬 정합화 (2026-04-26 추가)
+
+Phase 5.2 종료 후 1일 집중 세션. 8 commits, 누적 +1830/-153, 결정 11건.
+
+**핵심 추가 기능**:
+
+1. **분자 수 단일 산출 함수 정합화** (`computeMoleCount(P, V)`)
+   - 시각 입자 / 측정 row / 좌측 패널 모두 동일 함수 — Single Source of Truth
+   - `SCENE.particleCountPerSyringe = 60` 폐기 (Step C-2 결정 번복)
+   - 시각 입자 수 = V 비례 (PV=nRT 직관 학습)
+   - 좌측 패널 이론값 박스 + 측정 row + CSV (8→11 컬럼) 에 n_A/n_B/n_total 추가
+
+2. **stacked bar 그래프** (Step F polish)
+   - 시계열 line plot → stacked bar 로 변경 (각 막대 = 1 회차, 높이 = P_total, 분할 = P_air + P_CO₂)
+   - chart canvas dynamic resize (ResizeObserver) — 카드 폭 따라 자동 fit
+   - grid 1fr:1.4fr (그래프 ↔ 표 영역 비율)
+
+3. **CSV export** (Step G) — `logger.js` 의 `downloadCSV` / `formatTimestampForFilename` 재사용 (보일/입자운동 패턴 일관). 11 컬럼 (회차 / V_A / V_B / P이론 / P시뮬 / P공기 / P_CO₂ / n_A / n_B / n_total / 시간).
+
+4. **측정 기록 비교 모드**
+   - 체크박스 FIFO 2 row 선택 (3번째 누르면 가장 옛 자동 해제)
+   - 4 변수 차이 분석 (V_A, V_B, P_total, n_total) + 배수 + 4 분기 해석 (V_B 일정 / V_A 일정 / 둘 다 일정 / 둘 다 변화)
+   - **정적 규칙 기반** (LLM 미사용) — 결정적 결과, 비용 0, 응답 즉시
+   - AI 튜터 통합 (F1) — `comparisonSelected.length === 2` 시 system prompt 에 두 record 자동 주입
+
+5. **입자간 탄성 충돌 (직접 구현)**
+   - `resolveCollision`: 1D 탄성 충돌 (m1, m2 다른 경우 정확 식 + 위치 분리 W4-simple)
+   - spatial hash O(N) — 격자 = 입자 직경 × 2 = 12 px
+   - 입자에 `M` 속성 부여 (gasData.M, 돌턴 한정 — `simulation.js` 무영향)
+   - R1 + R5 만 적용 (R2/R3/R4 텔레포트 모드라 입자 부재)
+   - **물리 검증** (`tests/dalton-collision-test.js`) — 7 검증 (보존 법칙 / Equipartition / Graham 법칙 √M 비율 / M-B 분포 / 안정성)
+   - 라이브러리 (Matter.js) 도입 검토 → 별 브랜치 (`experiment/matter-js`) 추후 시도 의향 (논문 1차 자료)
+
+6. **끼임 정정 v1~v5 누적**
+   - v3: `clampParticleInRegion` (단순 x 분류)
+   - v4: `getRegionBoxLimits` + W4-simple (위치 분리량 박스 한정)
+   - **v5 (안착)**: `volumeToPistonY` 정확 비례 매핑 + `computeBox` Math.max 제거 + 입자 생성 안전 마진 + 텔레포트 안전장치 (`stage === "INJECTING"` 검사) + `rescueParticleToHomeRegion`
+   - V 변경 시 displayedVolume 즉시 동기 (gas 분기와 일관)
+   - resetExperiment cache 초기화 (V_A_initial_cached, gasA_cached, pressureBInitial_cached)
+
+7. **AI 튜터 (Step H)** — 돌턴 부분 압력 법칙 특화
+   - `createDaltonTutor` 자체 closure (입자운동 패턴, `ai-tutor.js` 의존 X)
+   - system prompt: 4 학습 목표 (분자 수 보존 / 부분 압력 / 합 = 전체 / 시뮬 ↔ 이론), Graham 법칙은 학생 질문 시만
+   - Q1~Q4 × 4 학생 수준 (elem/middle/high/univ) = 16 문항 신규
+   - F1 비교 모드 통합 + `[[LEVEL:xxx]]` 자동 학생 수준 갱신
+   - 토큰/비용 누적 표시 (MODEL_PRICING 자체 정의, USD_TO_KRW = 1400)
+   - dalton.html 의 ai-tutor.js 로드 제거 (PchemTutor 의존 충돌 차단)
+
+8. **측정 기록 UI 정리**
+   - accordion 토글 (▲/▼) 폐기 — 표 항상 펼침, 단순 `<h3>측정 기록</h3>`
+   - thead 11 → 12 컬럼 (마지막 "삭제" 컬럼 추가)
+   - addRecord tr 마지막 td `🗑️` 버튼 (data-record-n)
+   - `setupRecordDeleteHandler` event delegation + confirm 다이얼로그
+   - **회차 번호 빈 자리 유지** (재정렬 X — 학생 측정 시간 순서 학습 정합)
+
+9. **마무리** — `drawSyringe` pistonY clamp (V=0 시 본체 침범 차단), `#ai-reopen-btn` CSS 보일 형식 통일
+
+상세 결정 기록 (11건) 은 `docs/10-dev-journal.md` 의 Phase 5.3 섹션 (362 lines).
 
 ---
 

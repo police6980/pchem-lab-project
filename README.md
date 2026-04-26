@@ -34,7 +34,7 @@
 | `/web/` (index.html) | 🏠 랜딩 페이지 — 실험 선택 + API 키 설정 (sessionStorage) |
 | `/web/boyle.html` | 보일의 법칙 실험 — 센서 3모드(Mock/WS/Real) + AI 튜터 |
 | `/web/particles.html` | 입자운동론 탐구 — V·T·N·기체 조작 + AI 튜터 |
-| `/web/dalton.html` | 돌턴의 부분압력 (Phase 5.2 시뮬 완료) — 주사기 A→B 수용, 5 region 물리 + 피스톤 동기 분출 + 부분 압력 list. |
+| `/web/dalton.html` | 돌턴의 부분압력 (Phase 5.3 완료) — 주사기 A→B 수용, 5 region 물리 + 입자간 탄성 충돌 + 부분 압력 list + 분자 수 표시 + stacked bar 그래프 + 측정 기록 비교 모드 + AI 튜터. |
 
 랜딩에서 API 키를 한 번 저장하면 실험 페이지가 sessionStorage 를 공유해
 자동 인식. 각 실험 페이지 상단의 [🏠 홈으로] 로 복귀.
@@ -105,10 +105,11 @@ CLI 에서 `↑↓` (±10 kPa) / `←→` (±1 kPa) / `r` (리셋) / `q` (종료
   - 프로젝트명 CAST 정식 채택, 학술지 톤 디자인 (Georgia 세리프, PhET 레퍼런스)
 - **Phase 4.5 심화 탐구 모드** (`feature/particle-controls`, 병합 대기)
 - **반응형 레이아웃** (`feature/responsive-canvas`, 병합 대기)
-- **Phase 5.1+5.2 돌턴** (`feature/dalton-experiment`, ahead +22)
+- **Phase 5.1+5.2+5.3 돌턴 완료** (`feature/dalton-experiment`)
   - ✅ Phase 5.1: HTML·CSS·이벤트·이론값·상태 머신 (Step A·B)
-  - ✅ Phase 5.2: p5.js `DaltonScene` 시뮬 엔진 (Step C-1~C-3) — 5 region 물리 + 피스톤 동기 분출 + 게이지 P_B 매 frame 동기 + 부분 압력 list (체크박스 + 가스 흐림 토글)
-  - ⏳ **Phase 5.3 Step F~I**: 그래프, CSV, 돌턴 AI 튜터, Web Serial 실센서
+  - ✅ Phase 5.2: p5.js `DaltonScene` 시뮬 엔진 (Step C-1~C-3) — 5 region 물리 + 피스톤 동기 분출 + 게이지 P_B 매 frame 동기 + 부분 압력 list
+  - ✅ Phase 5.3: stacked bar 그래프 + CSV (11 컬럼) + 분자 수 표시 + 비교 모드 + 입자간 탄성 충돌 (직접 구현, 7 검증) + AI 튜터 (돌턴 특화) + 측정 기록 정리 (토글 폐기·행 삭제) + 끼임 정정 v5
+  - ⏳ Step I 실센서 연결 (실물 DFRobot Gravity 1.6MPa 입수 후)
 
 상세 로드맵: `docs/09-roadmap.md`, 진행 상태 마스터: `docs/06-project-status.md`.
 

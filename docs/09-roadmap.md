@@ -2,7 +2,7 @@
 
 **문서 목적**: Phase 2-B 이후 모든 개발 단계 통합 계획. 우선순위·의존관계·예상 소요·결정 이슈 기록. **06**이 "현재 상태"라면 **09**는 "미래 방향".
 
-**마지막 업데이트**: 2026-04-26 (Phase 5.2 시뮬 엔진 완료 — Step C-1~C-3, 5 region 물리 + 피스톤 동기 + 부분 압력)
+**마지막 업데이트**: 2026-04-26 (Phase 5.3 완료 — 학습 기능 + 입자간 충돌 + AI 튜터 + 끼임 정정 v5)
 **기준 상태**: Phase 1 MVP 완료, Phase 2-A/2-B 완료 (v0.4-boyle-complete), **Phase 3 진행 중** (소프트웨어 완료, Step 3-6 실물 대기 — `phase3-real-sensor` 브랜치), **Phase 4.5 심화 탐구 모드 완료** (`feature/particle-controls`, 병합 대기), **반응형 레이아웃 + 단위 병기 완료** (`feature/responsive-canvas`, 병합 대기), **Phase 5.1 돌턴 부분압력 UI·상태머신 완료** (`feature/dalton-experiment` — 설계 3→2영역 전환, 부피 입력 숫자 전용 10~100mL 통일, 태그 `phase5.1-complete`, 시뮬 엔진은 Phase 5.2 Step C 대기)
 
 ---
@@ -16,7 +16,7 @@
 - [계획] **Phase 4**: Mock ↔ 실센서 비교 UX
 - [완료·병합 대기] **Phase 4.5**: 심화 탐구 모드 (`feature/particle-controls`)
 - [완료·병합 대기] **반응형 레이아웃 + 단위 병기**: `feature/responsive-canvas` (§4.6 참조)
-- [일부 완료] **Phase 5**: 돌턴의 부분압력 (Phase 5.1·5.2 완료, Phase 5.3 그래프·CSV·AI·실센서 대기)
+- [거의 완료] **Phase 5**: 돌턴의 부분압력 (Phase 5.1·5.2·5.3 완료, Step I 실센서만 대기)
 - [계획] **Phase 6**: 교사 도구 (대시보드, 다중 사용자)
 - [계획] **Phase 7**: 다른 법칙 확장 (샤를, 게이뤼삭) — 기존 Phase 5 에서 이연
 - [장기] **Phase 8+**: 배포·상용화·연구 발표
@@ -242,14 +242,24 @@ Phase 5 목표를 **돌턴 부분압력** 으로 재정의. 샤를·게이뤼삭
 - 신규 함수 25개. main.js +1346 lines
 - 14 commits / 1일 (2026-04-25~26)
 
-### 5-4. Phase 5.3: 센서·AI 튜터 (예정, Step F~I)
-- Step F: 그래프 시계열 + 부분압력 차트
-- Step G: 기록 컬럼 정리 (V_fixed 삭제) + CSV 내보내기
-- Step H: AI 튜터 돌턴 프롬프트 (Q1~Q3 stage 동기화)
-- Step I: Web Serial + WebSocket 실센서 연동 (pressureBSensor 실측값)
+### 5-4. Phase 5.3: 학습 기능 + 충돌 시뮬 정합화 (완료, 2026-04-26, 8 commits)
+- ✅ Step F polish: stacked bar 그래프 (Dalton 법칙 시각화) + chart canvas dynamic resize (ResizeObserver)
+- ✅ Step G: CSV export (logger.js 의 downloadCSV / formatTimestampForFilename 재사용, 11 컬럼)
+- ✅ 분자 수 단일 산출 함수 정합화 (`computeMoleCount(P, V)`, V 비례 입자, particleCountPerSyringe 폐기)
+- ✅ 측정 기록 비교 모드 (체크박스 FIFO 2 row + 정적 규칙 4 변수 차이 분석, LLM 미사용)
+- ✅ 입자간 탄성 충돌 (직접 구현, spatial hash O(N) + 1D 탄성 충돌 + 위치 분리 W4-simple, R1+R5 만)
+- ✅ 끼임 정정 v1~v5 누적 (volumeToPistonY 정확 비례, computeBox Math.max 제거, 입자 안전 마진, 텔레포트 stage 검사, rescue 함수)
+- ✅ Step H: AI 튜터 돌턴 특화 (`createDaltonTutor` 자체 closure, 4 학습 목표, Q1~Q4×4 수준=16, F1 비교 모드 통합)
+- ✅ 측정 기록 정리 (accordion 토글 폐기, 행 삭제 🗑️, 회차 번호 빈 자리 유지)
+- ✅ 피스톤 시각 정정 (V=0 시 본체 침범 차단), `#ai-reopen-btn` 보일 형식 통일
+- ✅ 물리 검증 테스트 (`tests/dalton-collision-test.js` 7 검증 — 보존 법칙 / Equipartition / M-B 분포 / 안정성)
+- ⏳ Step I: Web Serial + WebSocket 실센서 연동 (pressureBSensor 실측값) — 실물 DFRobot 입수 후
 
 ### 5-5. 예상 소요
-Phase 5.2 (시뮬 엔진): **완료** (3일, 33 commits 누적). Phase 5.3 (센서·AI): 1~2주.
+Phase 5.2 (시뮬 엔진): 완료 (3일, 14 commits). Phase 5.3 (학습 기능): 완료 (1일, 8 commits). Step I (실센서): 하드웨어 입수 시 1~2일.
+
+### 5-6. 별 브랜치 후보
+- **`experiment/matter-js`** — 입자간 충돌을 Matter.js 라이브러리로 재구현 (직접 구현 ↔ 라이브러리 비교 자료, 논문 강력한 1차 자료가 될 수 있음). 사용자 의향 후 시도.
 
 ---
 
