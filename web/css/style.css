@@ -3206,22 +3206,6 @@ body[data-page="dalton"] .dalton-role-badge {
     vertical-align: middle;
 }
 
-/* 동적 업데이트되는 필드 (압력 표시 등) */
-body[data-page="dalton"] .dalton-field-dynamic {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    flex-wrap: wrap;
-    padding: 4px 0;
-}
-
-/* 필드 보조 힌트 (예: "(B와 동일, 대기압)") */
-body[data-page="dalton"] .dalton-field-hint {
-    font-size: 0.85rem;
-    color: #6b7280;
-    font-style: italic;
-}
-
 /* 압력 표시 블록 (라벨 윗줄, 게이지+디지털 가로 한 줄) */
 body[data-page="dalton"] .dalton-pressure-block {
     display: flex;

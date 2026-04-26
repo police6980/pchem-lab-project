@@ -1176,12 +1176,8 @@ function initDaltonApp(params) {
         boxMinHeight: 30,           // V_min 시 box.height 음수 방지
         particleCountPerSyringe: 60, // 시린지당 고정 (V 변경 시 재생성 불필요 — Step C-2 보강)
         volumeLerpFactor: 0.15,     // displayedVolume 보간율 (매 frame 15% 접근, 약 0.13초 도달) — Step C-2 통합
-        // 주입 애니메이션 (Step C-3)
-        injectionStaggerSec: 2.0,   // 입자별 출발 시점 0~2초 무작위 분산
-        injectionDurationSec: 1.5,  // 입자 1개의 이주 소요 시간 (waypoint 통과)
-        // Step C-3 v3 — 5 region 물리 안정성·자연 흐름 강화
+        // Step C-3 v3 — 5 region 물리 안정성 (substep)
         physicsSubstepMaxDtSec: 0.005,  // 한 substep max dt = 5ms (region 다중 통과 방지)
-        injectionDriftAccelPx: 600,     // 주입 중 drift force (px/s²) — R2/R3/R4 에 압력 차이 시각화
     };
 
     // 부피 → 피스톤 면의 Y 좌표 (본체 안쪽)
@@ -1280,9 +1276,6 @@ function initDaltonApp(params) {
         const r5Bottom = SCENE.bodyBottom;
         const r5Left   = SCENE.syringeB.bodyLeft;
         const r5Right  = SCENE.syringeB.bodyRight;
-
-        // 주입 중일 때만 drift accel 활성 (압력 차이 시각화)
-        const driftAccel = injectionPistonAnimating ? SCENE.injectionDriftAccelPx : 0;
 
         for (const p of allParticles) {
             p.x += p.vx * dt;
