@@ -88,6 +88,10 @@
                     <span class="dalton-theory-label">주입 후 P<sub>total</sub></span>
                     <span class="dalton-theory-value" id="dalton-theory-after">— atm</span>
                 </div>
+                <div class="dalton-theory-row">
+                    <span class="dalton-theory-label">분자 수 n<sub>total</sub></span>
+                    <span class="dalton-theory-value" id="dalton-theory-n">—</span>
+                </div>
                 <p class="dalton-help-text dalton-formula-hint">P<sub>total</sub> = (V<sub>A</sub> / V<sub>B</sub> + 1) × 1 atm</p>
             </section>
 
@@ -142,34 +146,32 @@
 
         <!-- Step F 정정: chart-wrap 을 main 밖 grid 직속 자식으로 (records 와 2 column 동행) -->
         <!-- p5 의 createCanvas 가 자체 canvas 동적 생성 + parent("dalton-chart-wrap") — placeholder canvas 불필요 (Step F 정정 재) -->
-        <div id="dalton-chart-wrap" class="hidden"></div>
+        <div id="dalton-chart-wrap"></div>
 
         <!-- ─── 하단: 측정 기록 accordion ─── -->
         <section id="dalton-records-section" class="dalton-records-section">
             <button id="dalton-records-toggle"
                     class="dalton-accordion-header"
                     type="button"
-                    aria-expanded="false"
+                    aria-expanded="true"
                     aria-controls="dalton-records-body">
                 <span>측정 기록</span>
-                <span class="dalton-accordion-arrow">▼</span>
+                <span class="dalton-accordion-arrow">▲</span>
             </button>
-            <div id="dalton-records-body" class="dalton-accordion-body hidden">
+            <div id="dalton-records-body" class="dalton-accordion-body">
                 <table class="dalton-records-table">
                     <thead>
                         <tr>
                             <th>회차</th>
-                            <th>단계</th>
                             <th>V<sub>A</sub></th>
                             <th>V<sub>B</sub></th>
-                            <th>모드</th>
                             <th>P(이론)</th>
                             <th>P(시뮬)</th>
                             <th>P<sub>공기</sub></th>
                             <th>P<sub>CO₂</sub></th>
-                            <th>P(실측)</th>
-                            <th>오차%</th>
-                            <th>시간</th>
+                            <th>n<sub>A</sub></th>
+                            <th>n<sub>B</sub></th>
+                            <th>n<sub>total</sub></th>
                         </tr>
                     </thead>
                     <tbody id="dalton-records"></tbody>

@@ -849,6 +849,7 @@ function initDaltonApp(params) {
         // (V_A 가 finalize 후 0 으로 변경되므로 직접 사용 시 theoryAtm 계산 오류)
         V_A_initial_cached: null,
         gasA_cached: null,  // 부분 압력 계산 시 어느 가스가 A 였는지 보존
+        pressureBInitial_cached: null,  // Phase 5.3: 주입 전 P_B 보존 (평형값으로 변하기 전, n_B 산출용)
     };
 
     // 외부 디버깅 편의: 브라우저 콘솔에서 window.daltonState 확인 가능
@@ -879,6 +880,7 @@ function initDaltonApp(params) {
         // 이론값
         theoryBefore: $("dalton-theory-before"),
         theoryAfter:  $("dalton-theory-after"),
+        theoryN:      $("dalton-theory-n"),
 
         // 단위 토글 (dalton.html 에 id="dalton-unit-toggle")
         unitToggle: $("dalton-unit-toggle"),
@@ -942,6 +944,12 @@ function initDaltonApp(params) {
 
         if (dom.theoryBefore) dom.theoryBefore.textContent = `${formatPressure(theoryBeforeAtm)} ${unit}`;
         if (dom.theoryAfter)  dom.theoryAfter.textContent  = `${formatPressure(theoryAfterAtm)} ${unit}`;
+        // 분자 수 n_total — 단일 산출 함수 (IDLE 시점만 의미 있음, INJECTING 이후 슬라이더 lock)
+        if (dom.theoryN) {
+            const n_A_now = computeMoleCount(1.00, daltonState.syringeA.volume);
+            const n_B_now = computeMoleCount(daltonState.pressureBSensor, daltonState.syringeB.volume);
+            dom.theoryN.textContent = `${n_A_now + n_B_now}`;
+        }
     }
 
     // ─────────────────────────────────────────────────────────
@@ -957,10 +965,11 @@ function initDaltonApp(params) {
         const unit = getPressureUnit();
         const stage = daltonState.stage;
 
-        // Step F 정정: 평형 상태에서만 압력 표시 (비평형 = "—")
+        // Step F 정정 (재): 평형 상태 압력 표시 — P_B 진행률 동기 복원 (사용자 요청)
         // - IDLE: P_A = P_B = 대기압 (sensorAtm = 1.00)
-        // - INJECTING/STABILIZING: 비평형 — P_A, P_B 둘 다 LCD "—", 게이지 바늘 1.00 유지
-        // - INJECTED/CONFIRMED: 평형 도달 — P_A = "—" (V_A=0), P_B = sensorAtm 정상 표시
+        // - INJECTING: P_A "—" (피스톤 비평형), P_B: 분자 들어오는 중에도 분자 수 비례 (진행률 동기, 교육적 효과)
+        // - STABILIZING: P_A "—" (V_A=0 의미 X), P_B = sensorAtm (평형 도달)
+        // - INJECTED/CONFIRMED: 평형 — P_A "—", P_B = sensorAtm 정상 표시
         if (stage === "IDLE") {
             // IDLE: A = B (대기 압력)
             if (dom.pressureA) dom.pressureA.textContent = formatPressure(sensorAtm);
@@ -969,14 +978,23 @@ function initDaltonApp(params) {
             if (dom.pressureB) dom.pressureB.textContent = formatPressure(sensorAtm);
             if (dom.pressureBUnit) dom.pressureBUnit.textContent = unit;
             updateGauge(dom.gaugeB, sensorAtm, dom.gaugeWarningB);
-        } else if (stage === "INJECTING" || stage === "STABILIZING") {
-            // 비평형 — LCD "—", 게이지 바늘 1.00 (직전 평형값) 유지
+        } else if (stage === "INJECTING") {
+            // P_A 비평형 — LCD "—", 게이지 1.00 유지
+            // P_B 는 분자 수 비례 (진행률 동기) — 사용자 요청, 교육적 효과
             if (dom.pressureA) dom.pressureA.textContent = "—";
             if (dom.pressureAUnit) dom.pressureAUnit.textContent = "";
             updateGauge(dom.gaugeA, 1.00, dom.gaugeWarningA);
-            if (dom.pressureB) dom.pressureB.textContent = "—";
-            if (dom.pressureBUnit) dom.pressureBUnit.textContent = "";
-            updateGauge(dom.gaugeB, 1.00, dom.gaugeWarningB);
+            if (dom.pressureB) dom.pressureB.textContent = formatPressure(sensorAtm);
+            if (dom.pressureBUnit) dom.pressureBUnit.textContent = unit;
+            updateGauge(dom.gaugeB, sensorAtm, dom.gaugeWarningB);
+        } else if (stage === "STABILIZING") {
+            // P_A 의미 X (V_A=0) → "—", P_B 평형값 도달 정상 표시
+            if (dom.pressureA) dom.pressureA.textContent = "—";
+            if (dom.pressureAUnit) dom.pressureAUnit.textContent = "";
+            updateGauge(dom.gaugeA, 0, dom.gaugeWarningA);
+            if (dom.pressureB) dom.pressureB.textContent = formatPressure(sensorAtm);
+            if (dom.pressureBUnit) dom.pressureBUnit.textContent = unit;
+            updateGauge(dom.gaugeB, sensorAtm, dom.gaugeWarningB);
         } else {
             // INJECTED / CONFIRMED: 평형 도달 — A 비어 ("—"), B 정상 표시
             if (dom.pressureA) dom.pressureA.textContent = "—";
@@ -1188,11 +1206,17 @@ function initDaltonApp(params) {
         particleRadius: 3.0,        // Step C-3 v8: 2.5 → 3.0 (입자 가시성 ↑)
         boxMargin: 2,               // drawSyringe 의 fill margin 과 동기
         boxMinHeight: 30,           // V_min 시 box.height 음수 방지
-        particleCountPerSyringe: 60, // 시린지당 고정 (V 변경 시 재생성 불필요 — Step C-2 보강)
+        // particleCountPerSyringe 폐기 — Phase 5.3: 시각 입자 = 분자 수 (computeMoleCount 사용)
         volumeLerpFactor: 0.15,     // displayedVolume 보간율 (매 frame 15% 접근, 약 0.13초 도달) — Step C-2 통합
         // Step C-3 v3 — 5 region 물리 안정성 (substep)
         physicsSubstepMaxDtSec: 0.005,  // 한 substep max dt = 5ms (region 다중 통과 방지)
     };
+
+    // 분자 수 단일 산출 함수 — 이상기체 n ∝ P × V (T 일정 가정, 학습용 정규화 단위)
+    // 1 atm·mL = 1 분자 단위. 시각 입자 / 측정 row / 좌측 패널 모두 이 함수 사용.
+    function computeMoleCount(pressureAtm, volumeMl) {
+        return Math.round(pressureAtm * volumeMl);
+    }
 
     // 부피 → 피스톤 면의 Y 좌표 (본체 안쪽)
     function volumeToPistonY(volumeMl) {
@@ -1376,9 +1400,15 @@ function initDaltonApp(params) {
             allParticles.push(p);
             releasedCount++;
         }
-        // Step F 정정: 매 frame P_B 진행률 동기 폐기
-        // (INJECTING 동안 비평형 — LCD "—" 표시되므로 갱신 의미 없음)
-        // pressureBSensor 는 finalizeInjectedVolume 에서 평형값으로 한 번에 설정
+        // Step F 정정 (재): P_B 진행률 동기 복원 — 사용자 요청
+        // (B 측은 분자 들어오면서 입자 수 비례 압력 증가 교육적 효과)
+        // 기존 progress 변수는 피스톤 진행률 — 분출 진행률은 별도 계산 (releasedCount / total)
+        const V_A_initial = sA.injectionStartVolume;
+        const V_B = daltonState.syringeB.volume;
+        const theoryAfterAtm = V_B > 0 ? (V_A_initial / V_B + 1) * 1.00 : 1.00;
+        const progress2 = total > 0 ? Math.max(0, Math.min(1, releasedCount / total)) : 0;
+        daltonState.pressureBSensor = 1.00 + progress2 * (theoryAfterAtm - 1.00);
+        updatePressureReadouts();
     }
 
     // Step C-3 v5: B 노즐 출구에서 자연스럽게 분출 — R5 안 임의 위치 대신 노즐 입구 (R5 bottom) 에서 위로 분출
@@ -1466,8 +1496,13 @@ function initDaltonApp(params) {
         // 해당 region (R1 또는 R5) 안 기존 입자 제거
         allParticles = allParticles.filter((p) => getRegion(p.x, p.y) !== targetRegion);
 
-        // 입자 수 고정 (Step C-2 보강) — V 변경 시 재생성 불필요
-        const particleCount = SCENE.particleCountPerSyringe;
+        // 입자 수 = 분자 수 (Phase 5.3: Step C-2 결정 번복 — V 비례)
+        // A: P_initial = 1.00 (대기압), V = syringeA.volume 현재값
+        // B: P_initial = pressureBSensor (IDLE 시점 = 사용자 설정 또는 평형 후 cached 값)
+        //    단 INJECTING 이후 호출되면 안 됨 (rebuildParticleSystem 호출 위치는 IDLE 한정)
+        const P_initial = isA ? 1.00 : daltonState.pressureBSensor;
+        const V_for_count = isA ? daltonState.syringeA.volume : daltonState.syringeB.volume;
+        const particleCount = computeMoleCount(P_initial, V_for_count);
         const gasData = getGasData(gasKey);
         const speedScale = SCENE.particleSpeedScale * (gasData.speedFactor || 1.0);
 
@@ -1797,7 +1832,7 @@ function initDaltonApp(params) {
         p.draw = function () {
             p.background(255);
             const records = daltonState.measurementRecords;
-            if (records.length === 0) return;
+            // Step F finishing: records 0개 시에도 axes + tick + 라벨 표시 (placeholder)
 
             // 좌표 영역
             const plotX = padding.left;
@@ -1813,11 +1848,11 @@ function initDaltonApp(params) {
             const barW = slotW * 0.6;
             const barOffset = (slotW - barW) / 2;
 
-            // Y 범위 (압력 0 ~ max P_total + 0.5)
+            // Y 범위 — records 0개 시 default 3 atm
             let maxP = 0;
             for (const r of records) maxP = Math.max(maxP, r.P_total);
             const yMin = 0;
-            const yMax = Math.max(maxP + 0.5, 3.0);  // 최소 3 atm
+            const yMax = N > 0 ? Math.max(maxP + 0.5, 3.0) : 3.0;
 
             // 좌표 변환 헬퍼
             const yToPx = (y) => plotY + plotH - (y - yMin) / (yMax - yMin) * plotH;
@@ -1861,6 +1896,15 @@ function initDaltonApp(params) {
             p.rotate(-p.HALF_PI);
             p.text("압력 (atm)", 0, 0);
             p.pop();
+
+            // Step F finishing: records 0개 시 placeholder text + return (막대·범례 생략)
+            if (N === 0) {
+                p.textAlign(p.CENTER, p.CENTER);
+                p.textSize(13);
+                p.fill(0, 0, 60);
+                p.text("측정 후 결과가 여기 표시됩니다", plotX + plotW / 2, plotY + plotH / 2);
+                return;
+            }
 
             // 막대 그리기 (각 회차)
             p.textSize(10);
@@ -1968,6 +2012,8 @@ function initDaltonApp(params) {
         // Step F: addRecord 에서 사용 (V_A_initial 보존)
         daltonState.V_A_initial_cached = V_A_initial;
         daltonState.gasA_cached = daltonState.syringeA.gas;
+        // Phase 5.3: 주입 전 P_B 보존 (평형값으로 변하기 전 — n_B 산출용)
+        daltonState.pressureBInitial_cached = daltonState.pressureBSensor;
 
         setStage("INJECTING");
 
@@ -2111,6 +2157,11 @@ function initDaltonApp(params) {
         const timeStr = new Date().toLocaleTimeString("ko-KR", { hour12: false });
         const unit = getPressureUnit();
 
+        // 분자 수 — 단일 산출 함수 + 주입 전 값 (보존량)
+        const n_A = computeMoleCount(1.00, V_A_initial);
+        const n_B = computeMoleCount(daltonState.pressureBInitial_cached, V_B);
+        const n_total = n_A + n_B;
+
         // record array (그래프 + CSV 위함)
         const record = {
             n: n,
@@ -2122,38 +2173,37 @@ function initDaltonApp(params) {
             P_co2: P_B_partial,
             gasA: gasA,
             gasB: gasB,
+            n_A: n_A,
+            n_B: n_B,
+            n_total: n_total,
             time: timeStr,
         };
         daltonState.measurementRecords.push(record);
 
-        // 12컬럼 순서: 회차·단계·V_A·V_B·모드·P(이론)·P(시뮬)·P_공기·P_CO₂·P(실측)·오차%·시간
+        // 10컬럼 순서: 회차·V_A·V_B·P(이론)·P(시뮬)·P_공기·P_CO₂·n_A·n_B·n_total
+        // (timeStr 은 record array 에 보존, CSV 위함)
         const tr = document.createElement("tr");
         tr.innerHTML = `
             <td>${n}</td>
-            <td>—</td>
             <td>${V_A_initial}</td>
             <td>${V_B}</td>
-            <td>—</td>
             <td>${formatPressure(theoryAtm)} ${unit}</td>
             <td>${formatPressure(P_total)} ${unit}</td>
             <td>${formatPressure(P_A_partial)} ${unit}</td>
             <td>${formatPressure(P_B_partial)} ${unit}</td>
-            <td>—</td>
-            <td>—</td>
-            <td>${timeStr}</td>
+            <td>${n_A}</td>
+            <td>${n_B}</td>
+            <td>${n_total}</td>
         `;
         dom.recordsTbody.appendChild(tr);
 
-        // 첫 기록: 빈 상태 안내 숨김 + accordion 자동 열기
+        // Step F finishing: 첫 기록 시 "아직 기록된 측정이 없습니다" 안내만 숨김
+        // (accordion-body 와 chart-wrap 은 페이지 로드 시부터 표시 — unhide 호출 폐기)
         if (n === 1) {
             if (dom.recordsEmpty) dom.recordsEmpty.classList.add("hidden");
-            if (dom.recordsBody)  dom.recordsBody.classList.remove("hidden");
-            // accordion 토글 버튼의 aria-expanded / 화살표는 Step A 의 핸들러에 맡김
-            // 여기서는 body 만 펼침
         }
 
-        // Step F: 그래프 활성화 + redraw
-        if (dom.chartWrap) dom.chartWrap.classList.remove("hidden");
+        // Step F finishing: chart-wrap 은 페이지 로드 시부터 표시 — redraw 만
         if (daltonChartP5Instance) {
             daltonChartP5Instance.redraw();
         }
@@ -2167,20 +2217,19 @@ function initDaltonApp(params) {
         const records = daltonState.measurementRecords;
         if (!records || records.length === 0) return null;
 
-        // 12 컬럼 — 측정 기록 테이블과 일관 (단위 atm 고정 — 분석 표준)
-        const header = ["회차", "단계", "V_A", "V_B", "모드", "P(이론)_atm", "P(시뮬)_atm", "P(공기)_atm", "P(CO2)_atm", "P(실측)_atm", "오차%", "시간"];
+        // 11 컬럼 — 측정 기록 테이블 10 + 시간 (분석용, 단위 atm 고정)
+        const header = ["회차", "V_A", "V_B", "P(이론)_atm", "P(시뮬)_atm", "P(공기)_atm", "P(CO2)_atm", "n_A", "n_B", "n_total", "시간"];
         const rows = records.map(r => [
             r.n,
-            "—",
             r.V_A_initial,
             r.V_B,
-            "—",
             r.theoryAtm.toFixed(2),
             r.P_total.toFixed(2),
             r.P_air.toFixed(2),
             r.P_co2.toFixed(2),
-            "—",
-            "—",
+            r.n_A,
+            r.n_B,
+            r.n_total,
             r.time,
         ]);
         return { header, rows };
@@ -2219,8 +2268,11 @@ function initDaltonApp(params) {
     // Step B-2 에서 이론값·압력 업데이트 로직 추가 예정 (현재는 상태 갱신 + 로그만)
     // ─────────────────────────────────────────────────────────
     // Step C-2: gas 변경 추적 — gas 만 변경 시 재생성, V 만 변경 시 targetVolume 갱신
+    // Phase 5.3: V 변경 시에도 재생성 (시각 입자 = 분자 수 — Step C-2 결정 번복)
     let lastGasA = daltonState.syringeA.gas;
     let lastGasB = daltonState.syringeB.gas;
+    let lastV_A = daltonState.syringeA.volume;
+    let lastV_B = daltonState.syringeB.volume;
 
     const onStateChange = debounce(() => {
         updateTheoryBox();
@@ -2233,14 +2285,28 @@ function initDaltonApp(params) {
             daltonState.syringeA.displayedVolume = daltonState.syringeA.volume;  // 즉시 동기
             rebuildParticleSystem("A");
             lastGasA = daltonState.syringeA.gas;
+            lastV_A = daltonState.syringeA.volume;  // V 도 동기 (V 트리거 중복 호출 회피)
         }
         if (gasChangedB) {
             daltonState.syringeB.displayedVolume = daltonState.syringeB.volume;
             rebuildParticleSystem("B");
             lastGasB = daltonState.syringeB.gas;
+            lastV_B = daltonState.syringeB.volume;
         }
 
-        // V 변경은 targetVolume 만 갱신 (매 frame lerpDisplayedVolumes 로 부드럽게 도달)
+        // Phase 5.3: V 변경 시 재생성 (시각 입자 = 분자 수 V 비례)
+        const vChangedA = daltonState.syringeA.volume !== lastV_A;
+        const vChangedB = daltonState.syringeB.volume !== lastV_B;
+        if (vChangedA) {
+            rebuildParticleSystem("A");
+            lastV_A = daltonState.syringeA.volume;
+        }
+        if (vChangedB) {
+            rebuildParticleSystem("B");
+            lastV_B = daltonState.syringeB.volume;
+        }
+
+        // V 변경 시 targetVolume 도 갱신 (매 frame lerpDisplayedVolumes 로 부드럽게 도달)
         daltonState.syringeA.targetVolume = daltonState.syringeA.volume;
         daltonState.syringeB.targetVolume = daltonState.syringeB.volume;
 
