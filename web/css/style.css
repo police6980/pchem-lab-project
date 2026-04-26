@@ -3056,6 +3056,34 @@ body[data-page="dalton"] #dalton-canvas-wrap {
     margin: 0 auto;              /* 메인 영역 안 가운데 정렬 보존 */
 }
 
+/* Step C-3 v10: 안정화 indicator — absolute 카드 (정상 흐름 밖, layout 흔들림 방지) */
+body[data-page="dalton"] .dalton-stabilization {
+    position: absolute;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    padding: 8px 16px;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    white-space: nowrap;            /* 가로 배치 강제 */
+    font-size: 0.95rem;
+    color: #374151;
+    z-index: 3;                     /* 게이지 overlay (z-index 2) 보다 위 */
+}
+body[data-page="dalton"] .dalton-stab-label {
+    font-weight: 500;
+}
+body[data-page="dalton"] .dalton-stab-countdown {
+    font-weight: 700;
+    color: #1F2937;
+    font-variant-numeric: tabular-nums;
+}
+
 /* 압력 게이지 overlay — 캔버스 wrap 안 absolute 배치 (Step C-1 v3 마무리) */
 body[data-page="dalton"] .dalton-gauge-overlay {
     position: absolute;
@@ -3072,6 +3100,55 @@ body[data-page="dalton"] .dalton-gauge-overlay {
     border: 1px solid #e5e7eb;
     border-radius: 8px;
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+
+/* Step C-3 v14: 부분 압력 list (INJECTED 후 표시) */
+body[data-page="dalton"] .dalton-partial-pressure-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-top: 6px;
+    padding-top: 6px;
+    border-top: 1px solid #e5e7eb;
+    width: 100%;
+}
+body[data-page="dalton"] .dalton-partial-pressure-list[hidden] {
+    display: none;
+}
+body[data-page="dalton"] .dalton-partial-pressure-line {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    padding: 2px 4px;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    transition: opacity 0.15s, background 0.15s;
+    user-select: none;
+}
+body[data-page="dalton"] .dalton-partial-pressure-line:hover {
+    background: #f3f4f6;
+}
+body[data-page="dalton"] .dalton-partial-pressure-line.gas-hidden {
+    /* Step C-3 v15 + v16: 흐림 더 강화 — 0.4 → 0.25 → 0.15 */
+    opacity: 0.15;
+}
+/* Step C-3 v15: dot → checkbox 교체 */
+body[data-page="dalton"] .dalton-partial-pressure-checkbox {
+    width: 14px;
+    height: 14px;
+    margin: 0;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+body[data-page="dalton"] .dalton-partial-pressure-label {
+    flex-grow: 1;
+    color: #374151;
+}
+body[data-page="dalton"] .dalton-partial-pressure-value {
+    font-variant-numeric: tabular-nums;
+    color: #1F2937;
+    font-weight: 500;
 }
 
 body[data-page="dalton"] .dalton-gauge-overlay-left {

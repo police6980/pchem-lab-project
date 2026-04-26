@@ -18,7 +18,7 @@
 
     "dalton": {
         "gases": {
-            "air":  { "label": "공기", "M": 29, "speedFactor": 1.00, "color": "#888888" },
+            "air":  { "label": "공기", "M": 29, "speedFactor": 1.00, "color": "#1F2937" },
             "co2":  { "label": "CO₂",  "M": 44, "speedFactor": 0.81, "color": "#27AE60" },
             "he":   { "label": "He",   "M": 4,  "speedFactor": 2.69, "color": "#E74C3C" },
             "n2":   { "label": "N₂",   "M": 28, "speedFactor": 1.02, "color": "#3498DB" },

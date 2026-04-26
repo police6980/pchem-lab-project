@@ -813,6 +813,9 @@ function initDaltonApp(params) {
             volume: cfg.syringe_a.v_default,    // 100 (mL) — 논리 V (즉시 변경)
             targetVolume:    cfg.syringe_a.v_default,    // V 변경 직후 즉시 갱신 (논리 target)
             displayedVolume: cfg.syringe_a.v_default,    // 매 frame lerp — 시각 표현용
+            // Step C-3 v10: P_A 점진 감소 계산용 초기값 (방어 — runInjectionAnimation 시 갱신)
+            injectionStartVolume: cfg.syringe_a.v_default,
+            injectionStartTime: 0,
         },
         syringeB: {
             gas:    cfg.syringe_b.default_gas,  // 'co2'
@@ -838,6 +841,8 @@ function initDaltonApp(params) {
         countdownIntervalId: null,
         // 기록 일련번호 (1부터 증가). [확인] 클릭 시 ++
         recordsCount: 0,
+        // Step C-3 v14: 가스별 입자 표시 가시성 (false 시 alpha 0.4)
+        gasVisibility: { air: true, co2: true, n2: true, o2: true, he: true },
     };
 
     // 외부 디버깅 편의: 브라우저 콘솔에서 window.daltonState 확인 가능
@@ -880,6 +885,8 @@ function initDaltonApp(params) {
         // 안정화 인디케이터 (Step A 에서 준비된 placeholder)
         stabilization: $("dalton-stabilization"),
         stabCountdown: $("dalton-stab-countdown"),
+        // Step C-3 v14
+        partialPressureList: $("dalton-partial-pressure-list"),
 
         // 기록 테이블
         recordsTbody:  $("dalton-records"),
@@ -946,16 +953,66 @@ function initDaltonApp(params) {
 
         // 주사기 A: stage 별 분기 (결정 7 정책: INJECTED 이후 A 는 "—" 표시)
         const stage = daltonState.stage;
-        if (stage === "IDLE" || stage === "INJECTING") {
+        if (stage === "IDLE") {
+            // IDLE: A = B (대기 압력)
             if (dom.pressureA) dom.pressureA.textContent = formatPressure(sensorAtm);
             if (dom.pressureAUnit) dom.pressureAUnit.textContent = unit;
-            updateGauge(dom.gaugeA, sensorAtm, dom.gaugeWarningA);  // B 와 동일 (대기압 또는 주입 중)
+            updateGauge(dom.gaugeA, sensorAtm, dom.gaugeWarningA);
+        } else if (stage === "INJECTING") {
+            // Step C-3 v10: INJECTING 시 A 압력 점진 감소 (1.00 → 0, V_A 비율 기반)
+            const sA = daltonState.syringeA;
+            const startV = sA.injectionStartVolume || sA.volume || 1;
+            const pA = startV > 0 ? Math.max(0, sA.displayedVolume / startV) * 1.00 : 0;
+            if (dom.pressureA) dom.pressureA.textContent = formatPressure(pA);
+            if (dom.pressureAUnit) dom.pressureAUnit.textContent = unit;
+            updateGauge(dom.gaugeA, pA, dom.gaugeWarningA);
         } else {
             // INJECTED / CONFIRMED: A 는 비어있음 → 디지털 '—', 게이지 0 위치
             if (dom.pressureA) dom.pressureA.textContent = "—";
             if (dom.pressureAUnit) dom.pressureAUnit.textContent = "";
             updateGauge(dom.gaugeA, 0, dom.gaugeWarningA);  // 0 atm 이라 경고 자동 hidden
+            // Step C-3 v14: 부분 압력 list 갱신·표시
+            updatePartialPressureList();
         }
+        // INJECTED/CONFIRMED 외 (IDLE/INJECTING) — list 숨김
+        if (stage !== "INJECTED" && stage !== "CONFIRMED") {
+            const list = dom.partialPressureList;
+            if (list) list.hidden = true;
+        }
+    }
+
+    // Step C-3 v14: 부분 압력 list 동적 갱신
+    function updatePartialPressureList() {
+        const list = dom.partialPressureList;
+        if (!list) return;
+        const totalAtm = daltonState.pressureBSensor;
+        const counts = countR5ParticlesByGas();
+        const totalCount = Object.values(counts).reduce((s, n) => s + n, 0);
+        if (totalCount === 0) {
+            list.hidden = true;
+            return;
+        }
+        list.hidden = false;
+        const lines = [];
+        const gasOrder = Object.keys(counts).sort();
+        for (const gasKey of gasOrder) {
+            const gasData = getGasData(gasKey);
+            const ratio = counts[gasKey] / totalCount;
+            const partialAtm = ratio * totalAtm;
+            const visible = daltonState.gasVisibility?.[gasKey] !== false;
+            const hiddenClass = visible ? "" : " gas-hidden";
+            const label = gasData.label || gasKey;
+            const color = gasData.color || "#888888";
+            const unit = getPressureUnit();
+            lines.push(
+                `<label class="dalton-partial-pressure-line${hiddenClass}" data-gas="${gasKey}">` +
+                `<input type="checkbox" class="dalton-partial-pressure-checkbox" data-gas="${gasKey}" ${visible ? "checked" : ""} style="accent-color:${color}">` +
+                `<span class="dalton-partial-pressure-label">${label}</span>` +
+                `<span class="dalton-partial-pressure-value">${formatPressure(partialAtm)} ${unit}</span>` +
+                `</label>`
+            );
+        }
+        list.innerHTML = lines.join("");
     }
 
     // ─────────────────────────────────────────────────────────
@@ -1114,7 +1171,7 @@ function initDaltonApp(params) {
         },
         // 입자 관련 (Step C-2)
         particleSpeedScale: 90,     // 보일 120 보다 축소 — 박스 작음에 맞춤
-        particleRadius: 2.5,        // simulation.js PARTICLE_RADIUS 와 동일
+        particleRadius: 3.0,        // Step C-3 v8: 2.5 → 3.0 (입자 가시성 ↑)
         boxMargin: 2,               // drawSyringe 의 fill margin 과 동기
         boxMinHeight: 30,           // V_min 시 box.height 음수 방지
         particleCountPerSyringe: 60, // 시린지당 고정 (V 변경 시 재생성 불필요 — Step C-2 보강)
@@ -1233,43 +1290,32 @@ function initDaltonApp(params) {
 
             const region = getRegion(p.x, p.y);
 
-            // drift force (주입 중 R2 만 — Step C-3 v4 텔레포트 모드)
-            // R3/R4 는 v4 에서 입자 미사용. R2 통과 시 즉시 R5 로 텔레포트
-            if (driftAccel > 0 && region === 2) {
-                p.vy += driftAccel * dt;
-            }
+            // Step C-3 v6: drift force 폐기 — R1 입자가 즉시 pending 으로 옮겨지므로 R2 진입 자체 없음
 
             if (region === 1) {
-                // Step C-3 v5: boxA 높이 임계값 (50px) 미만 시 R1 입자 강제 R5 노즐 출구 텔레포트
-                // (V=0 직전 좁은 박스에서 입자 잔존·외곽 박힘 해결)
-                if (boxA.height < 50) {
-                    teleportToR5NozzleEntry(p);
-                    continue;  // 이 입자 처리 끝
-                }
+                // Step C-3 v6: R1 입자는 주입 시작 시 pending 으로 옮겨지므로 일반적으로 분기 진입 없음.
+                //              초기 상태 (대기 / 평형) 의 R1 입자만 처리.
                 if (p.x - r < r1Left)  { p.x = r1Left + r;  if (p.vx < 0) p.vx = -p.vx; }
                 if (p.x + r > r1Right) { p.x = r1Right - r; if (p.vx > 0) p.vx = -p.vx; }
-                // Step C-3 v4: 피스톤이 입자 위치보다 깊이 침범 시 강제 노즐 push
-                // (V=0 도달 직전 매 frame 피스톤 빠르게 내려와 입자 추월하는 케이스)
-                if (p.y < r1Top - r * 2) {
-                    // 입자가 top wall 위쪽으로 한참 들어간 경우 — 강제 R2 노즐 진입
-                    p.x = SCENE.syringeA.centerX + (Math.random() - 0.5) * SCENE.nozzleW * 0.6;
-                    p.y = r1Bottom + r + Math.random() * 5;  // R2 안 (y > bodyBottom)
-                    if (p.vy < 0) p.vy = Math.abs(p.vy);
-                } else if (p.y - r < r1Top) {
+                // Step C-3 v6: 피스톤 강제 push 폐기 — R1 입자 0 으로 상황 발생 안 함.
+                //              일반 top wall 충돌만 유지 (대기 상태에서의 brownian).
+                if (p.y - r < r1Top) {
                     p.y = r1Top + r;
                     if (p.vy < 0) p.vy = -p.vy;
                 }
-                if (p.y + r > r1Bottom && (p.x < r2Left || p.x > r2Right)) {
-                    p.y = r1Bottom - r;
-                    if (p.vy > 0) p.vy = -p.vy;
+                // Step C-3 v12: IDLE 시 R2 진입 영역에서도 bottom 차단
+                //               (입자 자동 R5 이주 방지). 주입 중에만 R2 통과 허용.
+                const blockR2Entry = !injectionPistonAnimating;
+                if (p.y + r > r1Bottom) {
+                    if (blockR2Entry || (p.x < r2Left || p.x > r2Right)) {
+                        p.y = r1Bottom - r;
+                        if (p.vy > 0) p.vy = -p.vy;
+                    }
                 }
             } else if (region === 2) {
+                // Step C-3 v6: R2 진입 자체가 없음 (R1 입자가 pending 으로 옮겨짐). 보험 충돌만 유지.
                 if (p.x - r < r2Left)  { p.x = r2Left + r;  if (p.vx < 0) p.vx = -p.vx; }
                 if (p.x + r > r2Right) { p.x = r2Right - r; if (p.vx > 0) p.vx = -p.vx; }
-                // Step C-3 v5: R3 진입 boundary 도달 시 R5 노즐 출구에서 자연 분출
-                if (p.y > SCENE.tubeY) {
-                    teleportToR5NozzleEntry(p);
-                }
             } else if (region === 3 || region === 4) {
                 // Step C-3 v5: R3/R4 비정상 진입 시 R5 노즐 출구로 자연 분출 (보험)
                 teleportToR5NozzleEntry(p);
@@ -1277,7 +1323,9 @@ function initDaltonApp(params) {
                 if (p.x - r < r5Left)  { p.x = r5Left + r;  if (p.vx < 0) p.vx = -p.vx; }
                 if (p.x + r > r5Right) { p.x = r5Right - r; if (p.vx > 0) p.vx = -p.vx; }
                 if (p.y - r < r5Top)   { p.y = r5Top + r;   if (p.vy < 0) p.vy = -p.vy; }
-                if (p.y + r > r5Bottom && (p.x < r4Left || p.x > r4Right)) {
+                // Step C-3 v12: R5 의 bottom 영구 차단 (R4 영역 포함).
+                //               B 입자가 R4 통과 → 텔레포트로 다시 R5 진입하는 순환 차단.
+                if (p.y + r > r5Bottom) {
                     p.y = r5Bottom - r;
                     if (p.vy > 0) p.vy = -p.vy;
                 }
@@ -1289,6 +1337,46 @@ function initDaltonApp(params) {
                     r4Left, r4Right, r5Top, r5Left, r5Right);
             }
         }
+    }
+
+    // Step C-3 v6: 주입 시작 시 R1 입자를 pending 으로 옮김 (시각 비표시)
+    function startInjectionTransfer() {
+        pendingTransferParticles = [];
+        releasedCount = 0;
+        // R1 안 입자를 모두 pending 으로 splice (allParticles 에서 제거)
+        for (let i = allParticles.length - 1; i >= 0; i--) {
+            if (getRegion(allParticles[i].x, allParticles[i].y) === 1) {
+                pendingTransferParticles.push(allParticles.splice(i, 1)[0]);
+            }
+        }
+    }
+
+    // Step C-3 v6: 매 frame 피스톤 진행률에 비례해 pending → R5 분출
+    // Step C-3 v7: 분출 누적 수 비례 게이지 P_B 점진 갱신
+    function updateInjectionTransfer() {
+        if (!injectionPistonAnimating) return;
+        const sA = daltonState.syringeA;
+        const total = pendingTransferParticles.length + releasedCount;
+        if (total === 0) return;
+        // 진행률 0~1 (피스톤 하강 비율)
+        const startV = sA.injectionStartVolume;
+        const progress = startV > 0 ? (1 - sA.displayedVolume / startV) : 1;
+        const targetReleased = Math.floor(total * Math.max(0, Math.min(1, progress)));
+        // pending 에서 한 개씩 꺼내 R5 분출 (releasedCount 가 targetReleased 까지)
+        while (releasedCount < targetReleased && pendingTransferParticles.length > 0) {
+            const p = pendingTransferParticles.shift();
+            teleportToR5NozzleEntry(p);
+            allParticles.push(p);
+            releasedCount++;
+        }
+        // Step C-3 v7: 게이지 P_B 진행률 동기
+        // P_B = 1.0 + (releasedCount / total) × (theoryAfterAtm - 1.0)
+        const V_A_initial = sA.injectionStartVolume;
+        const V_B = daltonState.syringeB.volume;
+        const theoryAfterAtm = V_B > 0 ? (V_A_initial / V_B + 1) * 1.00 : 1.00;
+        const ratio = total > 0 ? releasedCount / total : 0;
+        daltonState.pressureBSensor = 1.00 + Math.max(0, Math.min(1, ratio)) * (theoryAfterAtm - 1.00);
+        updatePressureReadouts();  // 게이지·LCD 갱신 트리거
     }
 
     // Step C-3 v5: B 노즐 출구에서 자연스럽게 분출 — R5 안 임의 위치 대신 노즐 입구 (R5 bottom) 에서 위로 분출
@@ -1410,6 +1498,9 @@ function initDaltonApp(params) {
 
     // Step C-3 v2: migratingParticles / injectionAnimationActive 폐기 — 5 region 모드에서 단일 allParticles 로 통합
     let injectionPistonAnimating = false;  // A 의 V 50→0 보간 중 (drawDaltonScene 에서 displayedVolume 직접 덮어쓰기)
+    // Step C-3 v6: 피스톤 동기 분출 — A 입자가 즉시 pending 으로 옮겨지고 진행률에 따라 B 분출
+    let pendingTransferParticles = [];  // 주입 시작 시 R1 입자가 옮겨질 array (시각 비표시)
+    let releasedCount = 0;              // 이번 주입에서 B 로 분출된 입자 수 (누적)
 
     // 주입 애니메이션 시작 — 5 region 물리 모드 (waypoint 폐기, 피스톤 압축으로 자연 흐름)
     // 반환: Promise (완료 또는 abort 시 resolve)
@@ -1419,9 +1510,9 @@ function initDaltonApp(params) {
         daltonState.syringeA.injectionStartTime = performance.now();
         injectionPistonAnimating = true;
 
-        // 입자는 그대로 둠 (피스톤 압축으로 자연스럽게 R1 → R2 → R3 → R4 → R5 이주)
-        // 매 frame physicsStep 이 입자 운동·충돌 처리.
-        // 이 함수는 finalize 조건 (시간 + 상태) 까지 대기.
+        // Step C-3 v6: A 입자를 pending 으로 즉시 옮김 (시각 비표시).
+        // 매 frame updateInjectionTransfer 가 피스톤 진행률에 따라 B 노즐 출구로 분출
+        startInjectionTransfer();
 
         const totalTimeoutMs = (cfg.injection_animation_sec || 3) * 1000;
         const safetyTimeoutMs = totalTimeoutMs + 1000;  // +1초 여유
@@ -1437,16 +1528,23 @@ function initDaltonApp(params) {
                 }
                 const elapsed = performance.now() - startTime;
                 // R1~R4 입자 0개 + 시간 도달 시 정상 종료
-                // Step C-3 v4: R3/R4 텔레포트로 즉시 처리됨 — R1/R2 만 카운트
+                // Step C-3 v6: pending 분출 완료 + 시간 도달 시 finalize
+                const pendingLeft = pendingTransferParticles.length;
                 const r1r2Count = countParticlesInRegions([1, 2]);
-                if (elapsed >= totalTimeoutMs && r1r2Count === 0) {
+                if (elapsed >= totalTimeoutMs && pendingLeft === 0 && r1r2Count === 0) {
                     clearInterval(checkInterval);
                     finalizeInjectedVolume();
                     resolve();
                     return;
                 }
-                // safety timeout: 강제 R5 이주 후 종료
+                // safety timeout: pending 잔여 강제 분출 + 강제 R5 이주
                 if (elapsed >= safetyTimeoutMs) {
+                    while (pendingTransferParticles.length > 0) {
+                        const p = pendingTransferParticles.shift();
+                        teleportToR5NozzleEntry(p);
+                        allParticles.push(p);
+                        releasedCount++;
+                    }
                     forceRemainingToR5();
                     clearInterval(checkInterval);
                     finalizeInjectedVolume();
@@ -1464,6 +1562,18 @@ function initDaltonApp(params) {
             if (regions.includes(getRegion(p.x, p.y))) count++;
         }
         return count;
+    }
+
+    // Step C-3 v14: R5 안 가스별 입자 수 카운트 (부분 압력 계산용)
+    // 반환: { air: 60, co2: 60, ... } (R5 region 만)
+    function countR5ParticlesByGas() {
+        const counts = {};
+        for (const p of allParticles) {
+            if (getRegion(p.x, p.y) !== 5) continue;
+            const key = p.gasKey || "unknown";
+            counts[key] = (counts[key] || 0) + 1;
+        }
+        return counts;
     }
 
     // safety timeout 시 R1~R4 입자를 강제로 R5 안 임의 위치로 이주
@@ -1515,9 +1625,10 @@ function initDaltonApp(params) {
         const pistonY = volumeToPistonY(displayedVolumeMl);
 
         // 1. 본체 안 가스색 채움 영역 (피스톤 면 ~ 본체 하단)
+        // Step C-3 v8 → v12 → v13: 마진 2 → 6 → 3 → 0 (외벽 stroke 안쪽까지 완전 채움)
         p.noStroke();
         p.fill(getGasColor(p, gasKey));
-        p.rect(syr.bodyLeft + 2, pistonY + SCENE.pistonHeadH, SCENE.bodyW - 4, SCENE.bodyBottom - (pistonY + SCENE.pistonHeadH));
+        p.rect(syr.bodyLeft, pistonY + SCENE.pistonHeadH, SCENE.bodyW, SCENE.bodyBottom - (pistonY + SCENE.pistonHeadH));
 
         // 2. 본체 외곽선 (직사각형, 위는 열려있음)
         p.stroke(0, 0, 31);
@@ -1532,15 +1643,14 @@ function initDaltonApp(params) {
         const nozzleRight = syr.centerX + SCENE.nozzleW / 2;
         p.line(syr.bodyLeft, SCENE.bodyBottom, nozzleLeft, SCENE.bodyBottom);
         p.line(nozzleRight, SCENE.bodyBottom, syr.bodyRight, SCENE.bodyBottom);
-        // 노즐 좌·우 벽 (본체 하단에서 튜브 윗면까지 좁아짐)
-        p.line(nozzleLeft, SCENE.bodyBottom, nozzleLeft, SCENE.tubeY);
-        p.line(nozzleRight, SCENE.bodyBottom, nozzleRight, SCENE.tubeY);
+        // Step C-3 v14: 노즐 좌·우 벽은 drawConnectorTube 가 처리 (ㄷ자 통합)
 
         // 3. 피스톤 (3-rect: 면 + 봉 + 단캡)
         // 3-1. 피스톤 면 (가로 직사각형, 본체 안)
+        // Step C-3 v8 → v12 → v13: 마진 2 → 6 → 3 → 0 (외벽 stroke 안쪽까지 완전 채움)
         p.noStroke();
         p.fill(0, 0, 48);
-        p.rect(syr.bodyLeft + 2, pistonY, SCENE.bodyW - 4, SCENE.pistonHeadH);
+        p.rect(syr.bodyLeft, pistonY, SCENE.bodyW, SCENE.pistonHeadH);
         // 3-2. 손잡이 봉 (세로, 피스톤 면에서 위로 빠져나옴)
         p.fill(0, 0, 62);
         const shaftX = syr.centerX - SCENE.pistonShaftW / 2;
@@ -1554,20 +1664,23 @@ function initDaltonApp(params) {
 
     // ㄷ자 튜브 (두 시린지 하단 연결: A 노즐 출구 → 수평 튜브 → B 노즐 출구)
     function drawConnectorTube(p) {
-        const tubeFill = p.color(0, 0, 70);
-        const tubeStroke = p.color(0, 0, 31);
-        // 튜브 좌측 끝 (A 시린지 노즐 출구 위치) ~ 우측 끝 (B 시린지 노즐 출구 위치)
-        const xLeft = SCENE.syringeA.centerX - SCENE.nozzleW / 2;
-        const xRight = SCENE.syringeB.centerX + SCENE.nozzleW / 2;
-        // 수평 튜브
+        // Step C-3 v14: ㄷ자 통합 — 좌 노즐 통로 + 수평 튜브 + 우 노즐 통로 (단일 함수에서 자연 연결)
+        const tubeFill = p.color(0, 0, 92);
+        const aLeft = SCENE.syringeA.centerX - SCENE.nozzleW / 2;
+        const aRight = SCENE.syringeA.centerX + SCENE.nozzleW / 2;
+        const bLeft = SCENE.syringeB.centerX - SCENE.nozzleW / 2;
+        const bRight = SCENE.syringeB.centerX + SCENE.nozzleW / 2;
+        // Step C-3 v15: 노즐 top 을 본체 외벽 stroke 바깥쪽까지로 (실린더 침범 방지)
+        const nozzleTopY = SCENE.bodyBottom + SCENE.wallStrokeWeight / 2;
+        const adjustedNozzleH = SCENE.tubeY - nozzleTopY;
         p.noStroke();
         p.fill(tubeFill);
-        p.rect(xLeft, SCENE.tubeY, xRight - xLeft, SCENE.tubeH);
-        // 외곽선
-        p.stroke(tubeStroke);
-        p.strokeWeight(SCENE.wallStrokeWeight);
-        p.noFill();
-        p.rect(xLeft, SCENE.tubeY, xRight - xLeft, SCENE.tubeH);
+        // 좌 노즐 통로 (수직)
+        p.rect(aLeft, nozzleTopY, SCENE.nozzleW, adjustedNozzleH);
+        // 수평 튜브
+        p.rect(aLeft, SCENE.tubeY, bRight - aLeft, SCENE.tubeH);
+        // 우 노즐 통로 (수직)
+        p.rect(bLeft, nozzleTopY, SCENE.nozzleW, adjustedNozzleH);
     }
 
     function drawDaltonScene(p) {
@@ -1584,6 +1697,8 @@ function initDaltonApp(params) {
             const totalMs = (cfg.injection_animation_sec || 3) * 1000;
             const progress = Math.min(1, elapsed / totalMs);
             sA.displayedVolume = sA.injectionStartVolume * (1 - progress);
+            // Step C-3 v6: 피스톤 진행률에 따라 pending → B 분출
+            updateInjectionTransfer();
         }
 
         // 시린지 A (좌)
@@ -1614,12 +1729,17 @@ function initDaltonApp(params) {
     // 입자 그리기 — 가스별 RGB 색 (params.json dalton.gases[gasKey].color)
     // p5 가 HSB 모드여도 hex 문자열을 자동 변환해 fill 처리
     // 입자별 gasKey 우선 (Step C-3 — 주입 후 B 안에 두 가스 공존). 없으면 defaultGasKey 사용.
+    // Step C-3 v14: gasVisibility 보고 흐릿 처리 (alpha 0.4 → HSB 모드 102/255)
     function drawParticlesByGas(p, particles, defaultGasKey) {
         p.noStroke();
         for (const particle of particles) {
             const gasKey = particle.gasKey || defaultGasKey;
             const gasData = getGasData(gasKey);
-            p.fill(p.color(gasData.color || "#888888"));
+            const visible = daltonState.gasVisibility?.[gasKey] !== false;
+            const c = p.color(gasData.color || "#888888");
+            // Step C-3 v15 + v16: 흐림 더 강화 — 0.4 → 0.15 → 0.08
+            c.setAlpha(visible ? 255 : 20);
+            p.fill(c);
             p.circle(particle.x, particle.y, particle.radius * 2);
         }
     }
@@ -1668,19 +1788,20 @@ function initDaltonApp(params) {
     async function startInjection() {
         if (daltonState.stage !== "IDLE") return;  // 이중 클릭 방어
         daltonState.abortCurrentFlow = false;
+
+        // Step C-3 v9: V_A 와 theoryAfterAtm 을 주입 시작 전 캐시
+        // (finalize 후 V_A=0 으로 변경되므로 0/V_B+1=1 으로 잘못 계산되는 문제 해결)
+        const V_A_initial = daltonState.syringeA.volume;
+        const V_B = daltonState.syringeB.volume;
+        const theoryAfterAtm = V_B > 0 ? (V_A_initial / V_B + 1) * 1.00 : 1.00;
+
         setStage("INJECTING");
 
-        // 3초 주입 애니메이션 (Step E 에서 실제 피스톤 애니메이션 연결,
-        // 여기서는 시간 대기만)
         // Step C-3: sleep → 입자 이주 애니메이션 (A 입자 60개 → 노즐 → 튜브 → B)
         await runInjectionAnimation();
         if (daltonState.abortCurrentFlow) return;
 
-        // 주입 완료 시뮬 계산: P_total = (V_A/V_B + 1) × 1 atm
-        // Step C/F 에서 실제 입자 기반 계산으로 대체.
-        const V_A = daltonState.syringeA.volume;
-        const V_B = daltonState.syringeB.volume;
-        const theoryAfterAtm = (V_A / V_B + 1) * 1.00;
+        // 주입 완료 시뮬 계산: 캐시된 theoryAfterAtm 사용 (Step C-3 v9)
         daltonState.pressureBMeasured = theoryAfterAtm;
         daltonState.pressureBSensor   = theoryAfterAtm;  // 시뮬 모드: 센서값도 이론값 동일
 
@@ -1757,6 +1878,8 @@ function initDaltonApp(params) {
 
         // Step C-3 v2: 입자 정리 + 시스템 재생성 (A 60 / B 60 복구)
         injectionPistonAnimating = false;  // 피스톤 애니 정리 (Step C-3 piston / v2)
+        pendingTransferParticles = [];     // Step C-3 v6: 주입 중 abort 시 pending 정리
+        releasedCount = 0;                 // Step C-3 v6: 다음 주입을 위해 0 으로
         // Step C-3 피스톤 애니 보강: input UI 값에서 V 복구 (주입 완료로 V=0 확정된 경우 대비)
         const rawA = parseFloat(dom.volumeANumber?.value);
         const rawB = parseFloat(dom.volumeBNumber?.value);
@@ -1953,6 +2076,19 @@ function initDaltonApp(params) {
     dom.btnReset?.addEventListener("click", () => {
         resetExperiment();
     });
+
+    // Step C-3 v15: 부분 압력 라인 안 체크박스 change → 가스 가시성 토글
+    if (dom.partialPressureList) {
+        dom.partialPressureList.addEventListener("change", (event) => {
+            const checkbox = event.target.closest(".dalton-partial-pressure-checkbox");
+            if (!checkbox) return;
+            const gasKey = checkbox.dataset.gas;
+            if (!gasKey) return;
+            if (!daltonState.gasVisibility) daltonState.gasVisibility = {};
+            daltonState.gasVisibility[gasKey] = checkbox.checked;
+            updatePartialPressureList();
+        });
+    }
 
     // ─────────────────────────────────────────────────────────
     // 초기 상태 1회 적용 (숫자 박스·이론값·압력 readout 동기)
