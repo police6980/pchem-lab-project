@@ -2832,16 +2832,18 @@ body[data-page="dalton"] .dalton-page-utilities {
 /* 메인 그리드 — 좌측 패널 + 중앙 메인 (≥1280px). 기록 테이블은 두 칼럼 가로질러. */
 body[data-page="dalton"] #dalton-mode.dalton-layout {
     display: grid;
-    grid-template-columns: 320px 1fr;
+    grid-template-columns: 320px 1fr 1fr;
     grid-template-areas:
-        "panel main"
-        "records records";
+        "panel main main"
+        "panel chart records";
     gap: 20px;
     align-items: start;
 }
 
 body[data-page="dalton"] #dalton-control-panel { grid-area: panel; }
 body[data-page="dalton"] #dalton-main { grid-area: main; }
+/* Step F 정정: chart 영역 매핑 */
+body[data-page="dalton"] #dalton-chart-wrap { grid-area: chart; }
 body[data-page="dalton"] #dalton-records-section { grid-area: records; }
 
 body[data-page="dalton"] #dalton-control-panel,
@@ -2938,6 +2940,11 @@ body[data-page="dalton"] .dalton-btn-secondary:disabled {
 
 /* .dalton-pressure-readout — 좌측 패널로 기능 이전, 제거 (Step C-1 v3) */
 
+/* Step F 정정 (재): 좁은 폭에서 12 컬럼 가로 스크롤 */
+body[data-page="dalton"] .dalton-accordion-body {
+    overflow-x: auto;
+}
+
 body[data-page="dalton"] .dalton-records-table {
     width: 100%;
     font-size: 0.8rem;
@@ -3018,7 +3025,8 @@ body[data-page="dalton"] .ai-sidebar {
    ============================================================ */
 @media (max-width: 1279px) and (min-width: 1024px) {
     body[data-page="dalton"] #dalton-mode.dalton-layout {
-        grid-template-columns: 280px 1fr;
+        /* Step F 정정: 3 칼럼 (panel + chart + records) 유지, panel 만 축소 */
+        grid-template-columns: 280px 1fr 1fr;
         gap: 16px;
     }
     body[data-page="dalton"] .dalton-panel {
@@ -3029,13 +3037,14 @@ body[data-page="dalton"] .ai-sidebar {
     }
 }
 
-/* ≤1023px: 패널 + 메인 단일 칼럼 */
+/* ≤1023px: 패널 + 메인 + 그래프 + 기록 단일 칼럼 stack */
 @media (max-width: 1023px) {
     body[data-page="dalton"] #dalton-mode.dalton-layout {
         grid-template-columns: 1fr;
         grid-template-areas:
             "panel"
             "main"
+            "chart"
             "records";
     }
 }
@@ -3187,6 +3196,24 @@ body[data-page="dalton"] #dalton-chart {
     max-width: 100%;
     height: auto;
     display: block;
+}
+
+/* Step F 정정 (재): 그래프 영역 — grid 자식 (chart area), 카드 스타일 */
+body[data-page="dalton"] #dalton-chart-wrap {
+    display: flex;
+    justify-content: center;
+    padding: 16px;
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+body[data-page="dalton"] #dalton-chart-wrap.hidden {
+    display: none;
+}
+body[data-page="dalton"] #dalton-chart-wrap canvas {
+    max-width: 100%;
+    height: auto;
 }
 
 /* ============================================================

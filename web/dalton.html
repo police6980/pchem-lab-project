@@ -138,10 +138,12 @@
                 </div>
             </div>
             <!-- pressure readout 좌측 패널의 dalton-pressure-block 으로 이전 (Phase 5 Step A 완료) — stale DOM 제거 (Step C-1 v3) -->
-            <div id="dalton-chart-wrap" class="hidden">
-                <canvas id="dalton-chart" width="640" height="220"></canvas>
-            </div>
         </main>
+
+        <!-- Step F 정정: chart-wrap 을 main 밖 grid 직속 자식으로 (records 와 2 column 동행) -->
+        <div id="dalton-chart-wrap" class="hidden">
+            <canvas id="dalton-chart" width="640" height="220"></canvas>
+        </div>
 
         <!-- ─── 하단: 측정 기록 accordion ─── -->
         <section id="dalton-records-section" class="dalton-records-section">
@@ -164,6 +166,8 @@
                             <th>모드</th>
                             <th>P(이론)</th>
                             <th>P(시뮬)</th>
+                            <th>P<sub>공기</sub></th>
+                            <th>P<sub>CO₂</sub></th>
                             <th>P(실측)</th>
                             <th>오차%</th>
                             <th>시간</th>

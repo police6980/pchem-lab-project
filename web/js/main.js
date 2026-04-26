@@ -843,6 +843,12 @@ function initDaltonApp(params) {
         recordsCount: 0,
         // Step C-3 v14: 가스별 입자 표시 가시성 (false 시 alpha 0.4)
         gasVisibility: { air: true, co2: true, n2: true, o2: true, he: true },
+        // Step F: 측정 기록 array (그래프 + CSV 위함)
+        measurementRecords: [],
+        // Step F: V_A_initial 캐시 (startInjection 에서 저장, addRecord 에서 사용)
+        // (V_A 가 finalize 후 0 으로 변경되므로 직접 사용 시 theoryAtm 계산 오류)
+        V_A_initial_cached: null,
+        gasA_cached: null,  // 부분 압력 계산 시 어느 가스가 A 였는지 보존
     };
 
     // 외부 디버깅 편의: 브라우저 콘솔에서 window.daltonState 확인 가능
@@ -887,6 +893,8 @@ function initDaltonApp(params) {
         stabCountdown: $("dalton-stab-countdown"),
         // Step C-3 v14
         partialPressureList: $("dalton-partial-pressure-list"),
+        // Step F
+        chartWrap: $("dalton-chart-wrap"),
 
         // 기록 테이블
         recordsTbody:  $("dalton-records"),
@@ -945,36 +953,40 @@ function initDaltonApp(params) {
     function updatePressureReadouts() {
         const sensorAtm = daltonState.pressureBSensor;
         const unit = getPressureUnit();
-
-        // 주사기 B: 센서값 표시 (숫자 + 단위 + 게이지 바늘 + 경고)
-        if (dom.pressureB) dom.pressureB.textContent = formatPressure(sensorAtm);
-        if (dom.pressureBUnit) dom.pressureBUnit.textContent = unit;
-        updateGauge(dom.gaugeB, sensorAtm, dom.gaugeWarningB);
-
-        // 주사기 A: stage 별 분기 (결정 7 정책: INJECTED 이후 A 는 "—" 표시)
         const stage = daltonState.stage;
+
+        // Step F 정정: 평형 상태에서만 압력 표시 (비평형 = "—")
+        // - IDLE: P_A = P_B = 대기압 (sensorAtm = 1.00)
+        // - INJECTING/STABILIZING: 비평형 — P_A, P_B 둘 다 LCD "—", 게이지 바늘 1.00 유지
+        // - INJECTED/CONFIRMED: 평형 도달 — P_A = "—" (V_A=0), P_B = sensorAtm 정상 표시
         if (stage === "IDLE") {
             // IDLE: A = B (대기 압력)
             if (dom.pressureA) dom.pressureA.textContent = formatPressure(sensorAtm);
             if (dom.pressureAUnit) dom.pressureAUnit.textContent = unit;
             updateGauge(dom.gaugeA, sensorAtm, dom.gaugeWarningA);
-        } else if (stage === "INJECTING") {
-            // Step C-3 v10: INJECTING 시 A 압력 점진 감소 (1.00 → 0, V_A 비율 기반)
-            const sA = daltonState.syringeA;
-            const startV = sA.injectionStartVolume || sA.volume || 1;
-            const pA = startV > 0 ? Math.max(0, sA.displayedVolume / startV) * 1.00 : 0;
-            if (dom.pressureA) dom.pressureA.textContent = formatPressure(pA);
-            if (dom.pressureAUnit) dom.pressureAUnit.textContent = unit;
-            updateGauge(dom.gaugeA, pA, dom.gaugeWarningA);
+            if (dom.pressureB) dom.pressureB.textContent = formatPressure(sensorAtm);
+            if (dom.pressureBUnit) dom.pressureBUnit.textContent = unit;
+            updateGauge(dom.gaugeB, sensorAtm, dom.gaugeWarningB);
+        } else if (stage === "INJECTING" || stage === "STABILIZING") {
+            // 비평형 — LCD "—", 게이지 바늘 1.00 (직전 평형값) 유지
+            if (dom.pressureA) dom.pressureA.textContent = "—";
+            if (dom.pressureAUnit) dom.pressureAUnit.textContent = "";
+            updateGauge(dom.gaugeA, 1.00, dom.gaugeWarningA);
+            if (dom.pressureB) dom.pressureB.textContent = "—";
+            if (dom.pressureBUnit) dom.pressureBUnit.textContent = "";
+            updateGauge(dom.gaugeB, 1.00, dom.gaugeWarningB);
         } else {
-            // INJECTED / CONFIRMED: A 는 비어있음 → 디지털 '—', 게이지 0 위치
+            // INJECTED / CONFIRMED: 평형 도달 — A 비어 ("—"), B 정상 표시
             if (dom.pressureA) dom.pressureA.textContent = "—";
             if (dom.pressureAUnit) dom.pressureAUnit.textContent = "";
             updateGauge(dom.gaugeA, 0, dom.gaugeWarningA);  // 0 atm 이라 경고 자동 hidden
+            if (dom.pressureB) dom.pressureB.textContent = formatPressure(sensorAtm);
+            if (dom.pressureBUnit) dom.pressureBUnit.textContent = unit;
+            updateGauge(dom.gaugeB, sensorAtm, dom.gaugeWarningB);
             // Step C-3 v14: 부분 압력 list 갱신·표시
             updatePartialPressureList();
         }
-        // INJECTED/CONFIRMED 외 (IDLE/INJECTING) — list 숨김
+        // INJECTED/CONFIRMED 외 — list 숨김
         if (stage !== "INJECTED" && stage !== "CONFIRMED") {
             const list = dom.partialPressureList;
             if (list) list.hidden = true;
@@ -1362,14 +1374,9 @@ function initDaltonApp(params) {
             allParticles.push(p);
             releasedCount++;
         }
-        // Step C-3 v7: 게이지 P_B 진행률 동기
-        // P_B = 1.0 + (releasedCount / total) × (theoryAfterAtm - 1.0)
-        const V_A_initial = sA.injectionStartVolume;
-        const V_B = daltonState.syringeB.volume;
-        const theoryAfterAtm = V_B > 0 ? (V_A_initial / V_B + 1) * 1.00 : 1.00;
-        const ratio = total > 0 ? releasedCount / total : 0;
-        daltonState.pressureBSensor = 1.00 + Math.max(0, Math.min(1, ratio)) * (theoryAfterAtm - 1.00);
-        updatePressureReadouts();  // 게이지·LCD 갱신 트리거
+        // Step F 정정: 매 frame P_B 진행률 동기 폐기
+        // (INJECTING 동안 비평형 — LCD "—" 표시되므로 갱신 의미 없음)
+        // pressureBSensor 는 finalizeInjectedVolume 에서 평형값으로 한 번에 설정
     }
 
     // Step C-3 v5: B 노즐 출구에서 자연스럽게 분출 — R5 안 임의 위치 대신 노즐 입구 (R5 bottom) 에서 위로 분출
@@ -1586,6 +1593,12 @@ function initDaltonApp(params) {
         daltonState.syringeA.targetVolume = 0;
         daltonState.syringeA.displayedVolume = 0;
         injectionPistonAnimating = false;
+        // Step F 정정: finalize 시점에 평형 압력 확정 (INJECTED stage 진입 후 표시됨)
+        // V_A_initial_cached + 현재 V_B 로 이론 평형 압력 재계산
+        const V_A_initial = daltonState.V_A_initial_cached || 0;
+        const V_B = daltonState.syringeB.volume;
+        const theoryAfterAtm = V_B > 0 ? (V_A_initial / V_B + 1) * 1.00 : 1.00;
+        daltonState.pressureBSensor = theoryAfterAtm;
     }
 
     // Step C-3 v2: deliverToSystemB / updateMigratingParticles / drawMigratingParticles 폐기 — 5 region 물리 모드로 대체
@@ -1737,6 +1750,141 @@ function initDaltonApp(params) {
         }
     }
 
+    // Step F: 그래프 시계열 — p5 sketch (noLoop, 측정 추가 시 redraw)
+    let daltonChartP5Instance = null;
+
+    function daltonChartSketch(p) {
+        const W = 800;
+        const H = 280;
+        const padding = { top: 30, right: 30, bottom: 50, left: 60 };
+
+        p.setup = function () {
+            const canvas = p.createCanvas(W, H);
+            canvas.parent("dalton-chart-wrap");
+            p.noLoop();
+        };
+
+        p.draw = function () {
+            p.background(255);
+            const records = daltonState.measurementRecords;
+            if (records.length === 0) return;
+
+            // 좌표 영역
+            const plotX = padding.left;
+            const plotY = padding.top;
+            const plotW = W - padding.left - padding.right;
+            const plotH = H - padding.top - padding.bottom;
+
+            // 막대 폭 + 간격
+            const N = records.length;
+            const minBars = 5;  // 최소 5 막대 폭 기준
+            const slotCount = Math.max(N, minBars);
+            const slotW = plotW / slotCount;
+            const barW = slotW * 0.6;
+            const barOffset = (slotW - barW) / 2;
+
+            // Y 범위 (압력 0 ~ max P_total + 0.5)
+            let maxP = 0;
+            for (const r of records) maxP = Math.max(maxP, r.P_total);
+            const yMin = 0;
+            const yMax = Math.max(maxP + 0.5, 3.0);  // 최소 3 atm
+
+            // 좌표 변환 헬퍼
+            const yToPx = (y) => plotY + plotH - (y - yMin) / (yMax - yMin) * plotH;
+
+            // axes
+            p.stroke(0, 0, 30);
+            p.strokeWeight(1);
+            p.line(plotX, plotY, plotX, plotY + plotH);              // Y axis
+            p.line(plotX, plotY + plotH, plotX + plotW, plotY + plotH);  // X axis
+
+            // X tick (회차)
+            p.fill(0, 0, 30);
+            p.noStroke();
+            p.textSize(11);
+            p.textAlign(p.CENTER, p.TOP);
+            for (let i = 0; i < slotCount; i++) {
+                const slotX = plotX + i * slotW + slotW / 2;
+                const label = i < N ? records[i].n : (i + 1);
+                p.fill(0, 0, i < N ? 30 : 75);  // 데이터 있는 회차 짙게
+                p.text(label, slotX, plotY + plotH + 6);
+            }
+
+            // Y tick (압력)
+            p.textAlign(p.RIGHT, p.CENTER);
+            p.fill(0, 0, 30);
+            const yTicks = 5;
+            for (let i = 0; i <= yTicks; i++) {
+                const yVal = yMin + (yMax - yMin) * i / yTicks;
+                const py = yToPx(yVal);
+                p.text(yVal.toFixed(1), plotX - 8, py);
+                p.stroke(0, 0, 90);
+                p.line(plotX - 4, py, plotX, py);
+                p.noStroke();
+            }
+            // 축 라벨
+            p.textAlign(p.CENTER, p.BOTTOM);
+            p.textSize(12);
+            p.text("회차", plotX + plotW / 2, H - 8);
+            p.push();
+            p.translate(16, plotY + plotH / 2);
+            p.rotate(-p.HALF_PI);
+            p.text("압력 (atm)", 0, 0);
+            p.pop();
+
+            // 막대 그리기 (각 회차)
+            p.textSize(10);
+            for (let i = 0; i < N; i++) {
+                const r = records[i];
+                const slotX = plotX + i * slotW;
+                const barX = slotX + barOffset;
+                const baseY = yToPx(0);
+
+                // 가스 A (P_air) — 막대 하단
+                const gasAColor = (r.gasA && cfg.gases[r.gasA]) ? cfg.gases[r.gasA].color : "#1F2937";
+                const airTopY = yToPx(r.P_air);
+                p.fill(gasAColor);
+                p.noStroke();
+                p.rect(barX, airTopY, barW, baseY - airTopY);
+
+                // 가스 B (P_co2) — 막대 상단 (P_air 위에 stack)
+                const gasBColor = (r.gasB && cfg.gases[r.gasB]) ? cfg.gases[r.gasB].color : "#27AE60";
+                const co2TopY = yToPx(r.P_air + r.P_co2);  // = P_total
+                p.fill(gasBColor);
+                p.rect(barX, co2TopY, barW, airTopY - co2TopY);
+
+                // P_total 값 막대 위 표기
+                p.fill(0, 0, 20);
+                p.textAlign(p.CENTER, p.BOTTOM);
+                p.text(r.P_total.toFixed(2), barX + barW / 2, co2TopY - 2);
+            }
+
+            // 범례 (우상단)
+            p.textAlign(p.LEFT, p.CENTER);
+            p.textSize(11);
+            const legendX = plotX + plotW - 110;
+            const legendY = plotY + 10;
+
+            // 첫 record 의 가스 색 사용 (가스 종류는 라운드별 가변 가능 — 첫 라운드 표시)
+            const firstR = records[0];
+            const gasAColor0 = (firstR.gasA && cfg.gases[firstR.gasA]) ? cfg.gases[firstR.gasA].color : "#1F2937";
+            const gasBColor0 = (firstR.gasB && cfg.gases[firstR.gasB]) ? cfg.gases[firstR.gasB].color : "#27AE60";
+            const labelA = (cfg.gases[firstR.gasA] || {}).label || "A";
+            const labelB = (cfg.gases[firstR.gasB] || {}).label || "B";
+
+            p.fill(gasBColor0);
+            p.noStroke();
+            p.rect(legendX, legendY - 5, 12, 12);
+            p.fill(0, 0, 20);
+            p.text(labelB, legendX + 18, legendY + 1);
+
+            p.fill(gasAColor0);
+            p.rect(legendX, legendY + 13, 12, 12);
+            p.fill(0, 0, 20);
+            p.text(labelA, legendX + 18, legendY + 19);
+        };
+    }
+
     // ─────────────────────────────────────────────────────────
     // 상태 머신 전환 — stage 변경 + 버튼 disabled 제어 + readout 재갱신
     //
@@ -1787,21 +1935,29 @@ function initDaltonApp(params) {
         const V_A_initial = daltonState.syringeA.volume;
         const V_B = daltonState.syringeB.volume;
         const theoryAfterAtm = V_B > 0 ? (V_A_initial / V_B + 1) * 1.00 : 1.00;
+        // Step F: addRecord 에서 사용 (V_A_initial 보존)
+        daltonState.V_A_initial_cached = V_A_initial;
+        daltonState.gasA_cached = daltonState.syringeA.gas;
 
         setStage("INJECTING");
 
-        // Step C-3: sleep → 입자 이주 애니메이션 (A 입자 60개 → 노즐 → 튜브 → B)
+        // Step C-3: 입자 이주 애니메이션 (A 입자 60개 → 노즐 → 튜브 → B)
+        // finalizeInjectedVolume() 안에서 pressureBSensor = theoryAfterAtm 설정 (Step F 정정)
         await runInjectionAnimation();
         if (daltonState.abortCurrentFlow) return;
 
-        // 주입 완료 시뮬 계산: 캐시된 theoryAfterAtm 사용 (Step C-3 v9)
+        // 주입 완료 — 기록용 이론값 보존 (pressureBSensor 는 finalize 가 이미 설정)
         daltonState.pressureBMeasured = theoryAfterAtm;
-        daltonState.pressureBSensor   = theoryAfterAtm;  // 시뮬 모드: 센서값도 이론값 동일
 
-        setStage("INJECTED");
-
-        // 5초 안정화 카운트다운
+        // Step F 정정: 안정화 동안 비평형 — STABILIZING stage 도입
+        // (LCD "—" 유지, 5초 후 INJECTED 진입 시점에 평형 표시)
+        setStage("STABILIZING");
         await startStabilization();
+        if (daltonState.abortCurrentFlow) return;
+
+        // Step F 정정: 안정화 완료 — 평형 도달, INJECTED 진입
+        // (setStage 마지막의 updatePressureReadouts() 자동 호출 → P_B 정상 표시)
+        setStage("INJECTED");
     }
 
     // ─────────────────────────────────────────────────────────
@@ -1908,22 +2064,50 @@ function initDaltonApp(params) {
 
         daltonState.recordsCount += 1;
         const n = daltonState.recordsCount;
-        const V_A = daltonState.syringeA.volume;
+        // Step F: V_A_initial_cached 사용 (V_A=0 버그 회피)
+        const V_A_initial = daltonState.V_A_initial_cached !== null
+            ? daltonState.V_A_initial_cached
+            : daltonState.syringeA.volume;
         const V_B = daltonState.syringeB.volume;
-        const theoryAtm = (V_A / V_B + 1) * 1.00;
+        const theoryAtm = V_B > 0 ? (V_A_initial / V_B + 1) * 1.00 : 1.00;
+        const P_total = daltonState.pressureBSensor;
+        // Step F: 부분 압력 계산 (R5 안 가스별 입자 수 비율 × P_total)
+        const counts = countR5ParticlesByGas();
+        const totalCount = Object.values(counts).reduce((s, c) => s + c, 0);
+        const gasA = daltonState.gasA_cached || daltonState.syringeA.gas;
+        const gasB = daltonState.syringeB.gas;
+        const P_A_partial = totalCount > 0 ? (counts[gasA] || 0) / totalCount * P_total : 0;
+        const P_B_partial = totalCount > 0 ? (counts[gasB] || 0) / totalCount * P_total : 0;
         const timeStr = new Date().toLocaleTimeString("ko-KR", { hour12: false });
+        const unit = getPressureUnit();
 
-        // 10컬럼 순서: 회차·단계·V_A·V_B·모드·P(이론)·P(시뮬)·P(실측)·오차%·시간
-        // (설계서 §10.5 기준, thead 와 일관성 유지. V_fixed 는 2영역 모델 전환 후 제거)
+        // record array (그래프 + CSV 위함)
+        const record = {
+            n: n,
+            V_A_initial: V_A_initial,
+            V_B: V_B,
+            theoryAtm: theoryAtm,
+            P_total: P_total,
+            P_air: P_A_partial,
+            P_co2: P_B_partial,
+            gasA: gasA,
+            gasB: gasB,
+            time: timeStr,
+        };
+        daltonState.measurementRecords.push(record);
+
+        // 12컬럼 순서: 회차·단계·V_A·V_B·모드·P(이론)·P(시뮬)·P_공기·P_CO₂·P(실측)·오차%·시간
         const tr = document.createElement("tr");
         tr.innerHTML = `
             <td>${n}</td>
             <td>—</td>
-            <td>${V_A}</td>
+            <td>${V_A_initial}</td>
             <td>${V_B}</td>
             <td>—</td>
-            <td>${formatPressure(theoryAtm)} ${getPressureUnit()}</td>
-            <td>—</td>
+            <td>${formatPressure(theoryAtm)} ${unit}</td>
+            <td>${formatPressure(P_total)} ${unit}</td>
+            <td>${formatPressure(P_A_partial)} ${unit}</td>
+            <td>${formatPressure(P_B_partial)} ${unit}</td>
             <td>—</td>
             <td>—</td>
             <td>${timeStr}</td>
@@ -1936,6 +2120,12 @@ function initDaltonApp(params) {
             if (dom.recordsBody)  dom.recordsBody.classList.remove("hidden");
             // accordion 토글 버튼의 aria-expanded / 화살표는 Step A 의 핸들러에 맡김
             // 여기서는 body 만 펼침
+        }
+
+        // Step F: 그래프 활성화 + redraw
+        if (dom.chartWrap) dom.chartWrap.classList.remove("hidden");
+        if (daltonChartP5Instance) {
+            daltonChartP5Instance.redraw();
         }
     }
 
@@ -2111,6 +2301,12 @@ function initDaltonApp(params) {
         daltonP5 = new p5(daltonSketch, sceneParent);
     } else if (DEBUG_DALTON) {
         console.warn("[Dalton] dalton-canvas-wrap not found — p5 sketch skipped");
+    }
+
+    // Step F: 그래프 sketch 부착 (noLoop, addRecord 시 redraw)
+    const chartParent = document.getElementById("dalton-chart-wrap");
+    if (chartParent) {
+        daltonChartP5Instance = new p5(daltonChartSketch, chartParent);
     }
 
     // 초기 stage 를 명시적으로 IDLE 로 세팅 — 버튼 disabled 일관성 확보
