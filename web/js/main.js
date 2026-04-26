@@ -1224,11 +1224,14 @@ function initDaltonApp(params) {
     }
 
     // 부피 → 피스톤 면의 Y 좌표 (본체 안쪽)
+    // Phase 5.3 정정 v5 (X1): 정확 비례 매핑.
+    // V=10 → 박스 ≈ 45 px (실제 10%), V=100 → 박스 = 450 px (100%) — 시각 비율 = 실제 V 비율 일치 (학습 정합).
+    // 끼임은 computeBox 의 Math.max 제거 (정정 v4) + 입자 생성 안전 마진 (정정 v5) 으로 차단.
     function volumeToPistonY(volumeMl) {
-        const ratio = (volumeMl - SCENE.volumeMin) / (SCENE.volumeMax - SCENE.volumeMin);
-        const clamped = Math.max(0, Math.min(1, ratio));
-        // V_max=100 → bodyTop+10 (위), V_min=10 → bodyBottom-10 (아래)
-        return SCENE.bodyBottom - 10 - clamped * (SCENE.bodyHeightPx - 20);
+        const V_max = SCENE.volumeMax;
+        const clamped = Math.max(0, Math.min(V_max, volumeMl));
+        const boxHeight = (clamped / V_max) * SCENE.bodyHeightPx;
+        return SCENE.bodyBottom - boxHeight;
     }
 
     // ─────────────────────────────────────────────────────────
@@ -1262,7 +1265,8 @@ function initDaltonApp(params) {
         const x = syr.bodyLeft + m;
         const y = pistonY + SCENE.pistonHeadH;
         const width = SCENE.bodyW - 2 * m;
-        const height = Math.max(SCENE.boxMinHeight, SCENE.bodyBottom - y);
+        // Phase 5.3 정정 v4: volumeToPistonY 의 0.20 보장 매핑으로 height 항상 양수 (V_min 시 ≈ 76 px)
+        const height = SCENE.bodyBottom - y;
         return { x, y, width, height };
     }
 
@@ -1298,6 +1302,150 @@ function initDaltonApp(params) {
         for (let s = 0; s < subSteps; s++) {
             physicsSubstep(subDt);
         }
+    }
+
+    // ─────────────────────────────────────────────────────────
+    // Phase 5.3: 입자간 탄성 충돌 — spatial hash O(N) + 1D 탄성 충돌 (질량 다른 경우 정확 식)
+    // ─────────────────────────────────────────────────────────
+    const COLLISION_GRID_SIZE = SCENE.particleRadius * 4;  // 격자 = 직경 × 2 = 12 px
+
+    function buildSpatialHash(particles) {
+        const hash = new Map();  // key = "gx,gy", value = [particle, ...]
+        for (const p of particles) {
+            const gx = Math.floor(p.x / COLLISION_GRID_SIZE);
+            const gy = Math.floor(p.y / COLLISION_GRID_SIZE);
+            const key = `${gx},${gy}`;
+            if (!hash.has(key)) hash.set(key, []);
+            hash.get(key).push(p);
+        }
+        return hash;
+    }
+
+    function getNearbyParticles(p, hash) {
+        const gx = Math.floor(p.x / COLLISION_GRID_SIZE);
+        const gy = Math.floor(p.y / COLLISION_GRID_SIZE);
+        const result = [];
+        for (let dx = -1; dx <= 1; dx++) {
+            for (let dy = -1; dy <= 1; dy++) {
+                const key = `${gx + dx},${gy + dy}`;
+                const cell = hash.get(key);
+                if (cell) result.push(...cell);
+            }
+        }
+        return result;
+    }
+
+    // Phase 5.3 정정 (재): 입자의 현재 region 에 해당하는 박스 4 변 좌표 반환
+    // R1 → 시린지 A 박스, R5 → 시린지 B 박스. 그 외 region (2/3/4) → null (충돌 처리 X)
+    function getRegionBoxLimits(p) {
+        const r = p.radius;
+        const reg = getRegion(p.x, p.y);
+        if (reg === 1) {
+            return {
+                left:   SCENE.syringeA.bodyLeft + r,
+                right:  SCENE.syringeA.bodyRight - r,
+                top:    volumeToPistonY(daltonState.syringeA.displayedVolume) + SCENE.pistonHeadH + r,
+                bottom: SCENE.bodyBottom - r,
+            };
+        } else if (reg === 5) {
+            return {
+                left:   SCENE.syringeB.bodyLeft + r,
+                right:  SCENE.syringeB.bodyRight - r,
+                top:    volumeToPistonY(daltonState.syringeB.displayedVolume) + SCENE.pistonHeadH + r,
+                bottom: SCENE.bodyBottom - r,
+            };
+        }
+        return null;
+    }
+
+    // 1D 탄성 충돌 (m1, m2 다른 경우 정확 식) + 위치 분리 (positional correction)
+    function resolveCollision(p1, p2) {
+        const dx = p2.x - p1.x;
+        const dy = p2.y - p1.y;
+        const distSq = dx * dx + dy * dy;
+        const minDist = p1.radius + p2.radius;
+        if (distSq >= minDist * minDist || distSq < 1e-9) return false;
+
+        const dist = Math.sqrt(distSq);
+        const nx = dx / dist;
+        const ny = dy / dist;
+
+        // Phase 5.3 정정 (W4-simple): 위치 분리량을 박스 안 한정 — 박스 밖으로 나가는 양은 다음 frame 자연 분리
+        const overlap = minDist - dist;
+        const m1 = p1.M || 1;
+        const m2 = p2.M || 1;
+        const totalMass = m1 + m2;
+
+        // 정상 분리량 (벡터)
+        let dx1 = -nx * overlap * (m2 / totalMass);
+        let dy1 = -ny * overlap * (m2 / totalMass);
+        let dx2 =  nx * overlap * (m1 / totalMass);
+        let dy2 =  ny * overlap * (m1 / totalMass);
+
+        // 박스 한계 사전 검사 (region 기반 — R1/R5 만, R3/R4 는 null)
+        const limit1 = getRegionBoxLimits(p1);
+        const limit2 = getRegionBoxLimits(p2);
+
+        if (limit1) {
+            const newX1 = p1.x + dx1, newY1 = p1.y + dy1;
+            if (newX1 < limit1.left)   dx1 = limit1.left   - p1.x;
+            if (newX1 > limit1.right)  dx1 = limit1.right  - p1.x;
+            if (newY1 < limit1.top)    dy1 = limit1.top    - p1.y;
+            if (newY1 > limit1.bottom) dy1 = limit1.bottom - p1.y;
+        }
+        if (limit2) {
+            const newX2 = p2.x + dx2, newY2 = p2.y + dy2;
+            if (newX2 < limit2.left)   dx2 = limit2.left   - p2.x;
+            if (newX2 > limit2.right)  dx2 = limit2.right  - p2.x;
+            if (newY2 < limit2.top)    dy2 = limit2.top    - p2.y;
+            if (newY2 > limit2.bottom) dy2 = limit2.bottom - p2.y;
+        }
+
+        p1.x += dx1;
+        p1.y += dy1;
+        p2.x += dx2;
+        p2.y += dy2;
+
+        // 상대 속도의 법선 성분
+        const dvx = p2.vx - p1.vx;
+        const dvy = p2.vy - p1.vy;
+        const vRelN = dvx * nx + dvy * ny;
+        if (vRelN > 0) return false;  // 이미 분리 중 — 다시 충돌 처리 X
+
+        // 1D 탄성 충돌 충격량: J = -2 × vRelN / (1/m1 + 1/m2)
+        const J = (-2 * vRelN) / (1 / m1 + 1 / m2);
+        p1.vx -= (J * nx) / m1;
+        p1.vy -= (J * ny) / m1;
+        p2.vx += (J * nx) / m2;
+        p2.vy += (J * ny) / m2;
+
+        return true;
+    }
+
+    // Phase 5.3 정정 v4: R3/R4 비정상 진입 입자를 가까운 박스 안 임의 위치로 복귀
+    // x 좌표 + gasKey 보조로 가까운 박스 결정 (텔레포트는 INJECTING 한정)
+    function rescueParticleToHomeRegion(p) {
+        const r = p.radius;
+        const r1Limits = {
+            left:   SCENE.syringeA.bodyLeft + r,
+            right:  SCENE.syringeA.bodyRight - r,
+            top:    volumeToPistonY(daltonState.syringeA.displayedVolume) + SCENE.pistonHeadH + r,
+            bottom: SCENE.bodyBottom - r,
+        };
+        const r5Limits = {
+            left:   SCENE.syringeB.bodyLeft + r,
+            right:  SCENE.syringeB.bodyRight - r,
+            top:    volumeToPistonY(daltonState.syringeB.displayedVolume) + SCENE.pistonHeadH + r,
+            bottom: SCENE.bodyBottom - r,
+        };
+        const r1Center = (r1Limits.left + r1Limits.right) / 2;
+        const r5Center = (r5Limits.left + r5Limits.right) / 2;
+        const distToR1 = Math.abs(p.x - r1Center);
+        const distToR5 = Math.abs(p.x - r5Center);
+        const targetLimits = (distToR1 < distToR5) ? r1Limits : r5Limits;
+        p.x = targetLimits.left + Math.random() * (targetLimits.right - targetLimits.left);
+        p.y = targetLimits.top + Math.random() * (targetLimits.bottom - targetLimits.top);
+        // 속도 보존 (운동량 영향 X)
     }
 
     // 단일 substep — drift force + region 별 충돌 + null 회수
@@ -1353,8 +1501,14 @@ function initDaltonApp(params) {
                 if (p.x - r < r2Left)  { p.x = r2Left + r;  if (p.vx < 0) p.vx = -p.vx; }
                 if (p.x + r > r2Right) { p.x = r2Right - r; if (p.vx > 0) p.vx = -p.vx; }
             } else if (region === 3 || region === 4) {
-                // Step C-3 v5: R3/R4 비정상 진입 시 R5 노즐 출구로 자연 분출 (보험)
-                teleportToR5NozzleEntry(p);
+                // Phase 5.3 정정 v4: 텔레포트는 INJECTING stage 에서만 발동
+                // IDLE/STABILIZING/INJECTED/CONFIRMED 시 R3/R4 진입 = 비정상 (박스 외부 침범)
+                // → 가까운 박스 (R1 또는 R5) 안전 위치로 복귀
+                if (daltonState.stage === "INJECTING") {
+                    teleportToR5NozzleEntry(p);
+                } else {
+                    rescueParticleToHomeRegion(p);
+                }
             } else if (region === 5) {
                 if (p.x - r < r5Left)  { p.x = r5Left + r;  if (p.vx < 0) p.vx = -p.vx; }
                 if (p.x + r > r5Right) { p.x = r5Right - r; if (p.vx > 0) p.vx = -p.vx; }
@@ -1371,6 +1525,30 @@ function initDaltonApp(params) {
                     r1Top, r1Left, r1Right, r2Left, r2Right,
                     r3Top, r3Bottom, r3Left, r3Right,
                     r4Left, r4Right, r5Top, r5Left, r5Right);
+            }
+        }
+
+        // Phase 5.3: 입자간 탄성 충돌 — R1 + R5 만 처리 (R2/R3/R4 는 텔레포트 모드라 입자 거의 없음)
+        // spatial hash 로 인접 셀 (3×3=9 칸) 만 검사 → O(N) 평균
+        const collidableParticles = [];
+        for (const p of allParticles) {
+            const reg = getRegion(p.x, p.y);
+            if (reg === 1 || reg === 5) collidableParticles.push(p);
+        }
+        // 임시 인덱스 부여 — indexOf O(N) 회피
+        for (let i = 0; i < collidableParticles.length; i++) {
+            collidableParticles[i]._idx = i;
+        }
+        const hash = buildSpatialHash(collidableParticles);
+        for (let i = 0; i < collidableParticles.length; i++) {
+            const p1 = collidableParticles[i];
+            const p1Region = getRegion(p1.x, p1.y);
+            const nearby = getNearbyParticles(p1, hash);
+            for (const p2 of nearby) {
+                if (p2._idx <= p1._idx) continue;  // 중복 처리 방지 (i < j 만)
+                // 같은 region 끼리만 충돌 (R1 ↔ R5 거리 큼, 어차피 충돌 X)
+                if (getRegion(p2.x, p2.y) !== p1Region) continue;
+                resolveCollision(p1, p2);
             }
         }
     }
@@ -1512,9 +1690,13 @@ function initDaltonApp(params) {
         const speedScale = SCENE.particleSpeedScale * (gasData.speedFactor || 1.0);
 
         // 입자 생성: 박스 안 임의 위치 + 정규분포 속도 (Box-Muller)
+        // Phase 5.3 정정 v5: radius 안전 마진 — V=10 박스 작을 때 입자가 벽 침범 회피
+        const r = SCENE.particleRadius;
+        const safeWidth = Math.max(0, box.width - 2 * r);
+        const safeHeight = Math.max(0, box.height - 2 * r);
         for (let i = 0; i < particleCount; i++) {
-            const x = box.x + Math.random() * box.width;
-            const y = box.y + Math.random() * box.height;
+            const x = box.x + r + Math.random() * safeWidth;
+            const y = box.y + r + Math.random() * safeHeight;
             const u1 = Math.max(0.0001, Math.random());
             const u2 = Math.random();
             const angle = u2 * Math.PI * 2;
@@ -1523,6 +1705,7 @@ function initDaltonApp(params) {
             const vy = mag * Math.sin(angle);
             const particle = new Particle(x, y, vx, vy, SCENE.particleRadius);
             particle.gasKey = gasKey;
+            particle.M = gasData.M || 1;  // Phase 5.3: 입자간 충돌 운동량 교환용 (돌턴 한정 — simulation.js mass=1 보존)
             allParticles.push(particle);
         }
     }
@@ -2105,6 +2288,10 @@ function initDaltonApp(params) {
 
         daltonState.pressureBMeasured = null;
         daltonState.pressureBSensor   = 1.00;  // 시뮬 기본값 복귀
+        // Phase 5.3 정정: cache 미초기화 정합 (다음 측정 영향 회피)
+        daltonState.V_A_initial_cached      = null;
+        daltonState.gasA_cached             = null;
+        daltonState.pressureBInitial_cached = null;
         // Phase 5.3 기능 4: 비교 상태 초기화 (record 자체는 유지 — 학생 편의 정책)
         daltonState.comparisonSelected = [];
         if (dom.comparisonResult) dom.comparisonResult.classList.add("hidden");
@@ -2413,10 +2600,13 @@ function initDaltonApp(params) {
         const vChangedA = daltonState.syringeA.volume !== lastV_A;
         const vChangedB = daltonState.syringeB.volume !== lastV_B;
         if (vChangedA) {
+            // Phase 5.3 정정: displayedVolume 즉시 동기 (gas 분기와 일관 — 박스 lerp 중 입자 깔림 방지)
+            daltonState.syringeA.displayedVolume = daltonState.syringeA.volume;
             rebuildParticleSystem("A");
             lastV_A = daltonState.syringeA.volume;
         }
         if (vChangedB) {
+            daltonState.syringeB.displayedVolume = daltonState.syringeB.volume;
             rebuildParticleSystem("B");
             lastV_B = daltonState.syringeB.volume;
         }
