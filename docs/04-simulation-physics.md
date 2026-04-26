@@ -2,6 +2,8 @@
 
 **문서 목적**: 시뮬레이션의 물리 모델, 박스 기하, 충돌 규칙, 시각화 규칙, 측정 UX 규칙을 정의한다. 구현의 기준이 된다.
 
+**마지막 업데이트**: 2026-04-26 (Phase 5.3 — 돌턴 입자간 충돌 § 4.5 추가, 분자 수 단일 산출 함수 § 2.4 추가).
+
 ---
 
 ## 1. 핵심 설계 철학
@@ -53,6 +55,29 @@ REFERENCE_KE  = ½ × REFERENCE_RMS²          ≈ 14400
 v_theory(T)   = REFERENCE_RMS × √(T / REFERENCE_TEMP_K)
 KE_theory(T)  = REFERENCE_KE × (T / REFERENCE_TEMP_K)
 ```
+
+### 2.4 돌턴 페이지 분자 수 단일 산출 함수 (Phase 5.3 신규)
+
+돌턴 페이지는 **시각 입자 수 = 분자 수 (1:1 매핑)** — V 비례. PV=nRT 직관 학습 정합.
+
+**`computeMoleCount(pressureAtm, volumeMl)`** (main.js):
+```js
+return Math.round(pressureAtm × volumeMl);   // 1 atm·mL = 1 분자 (학습용 정규화 단위)
+```
+
+**3 곳 동일 함수 사용 (Single Source of Truth)**:
+1. **시각 입자 생성** — `rebuildParticleSystem` 안 `particleCount = computeMoleCount(P_initial, V)`. A: P_initial = 1.00 (대기압), B: P_initial = `pressureBSensor`.
+2. **측정 row** — `addRecord` 안 `n_A = computeMoleCount(1.00, V_A_initial)`, `n_B = computeMoleCount(pressureBInitial_cached, V_B)`, `n_total = n_A + n_B` (분자 수 보존, 평형 후 P_B 변하더라도 n 불변).
+3. **좌측 패널 이론값 박스** — `updateTheoryBox` 안 동일 호출.
+
+**이전 결정 번복**: Step C-2 의 `SCENE.particleCountPerSyringe = 60` 고정 (V 변경 시 입자 재생성 불필요) 결정은 Phase 5.3 에서 **분자 수 학습 목표와 충돌 → 번복**. V 변경 시 `rebuildParticleSystem` 트리거 추가 (`onStateChange` 의 vChangedA/B 분기).
+
+**박스 자연 산출** (정정 v5):
+- `volumeToPistonY(V) = bodyBottom - (V / V_max) × bodyHeightPx` — 정확 비례 매핑 (V 시각 비율 = 실제 V 비율, 학습 정합)
+- `computeBox` 의 `Math.max(boxMinHeight, ...)` 강제 폐기 — 박스 자연 산출 (V_min=10 시 박스 ≈ 45 px, 입자 직경 6 px → 충분 수용)
+- 입자 생성 시 `radius` 안전 마진 (`box.x + r ~ box.x + width - r`)
+
+상세 결정 기록 (분자 수 정합화 / 끼임 정정 X1) 은 `docs/10-dev-journal.md` § Phase 5.3.
 
 ---
 
@@ -165,6 +190,31 @@ for i < j in particles:
 ```
 
 `ParticleSystem.update`에서 `isPiston: true`인 충돌만 `lastPistonCollisions` 배열에 누적. 이 배열이 **충돌 섬광 생성** + **진단 로그 / 연속 로그의 piston_collisions_per_s** 소스.
+
+### 4.5 돌턴 페이지 입자간 탄성 충돌 (Phase 5.3 신규, m1 ≠ m2 정확 식)
+
+**돌턴 페이지 한정**. 보일/입자운동의 등질량 충돌 (§ 4.3) 과 별개. `simulation.js` 무영향.
+
+**구현 위치**: `web/js/main.js` 의 `initDaltonApp` closure 안 `resolveCollision` 함수.
+
+**알고리즘**:
+1. **Spatial hash O(N)** — 격자 = 입자 직경 × 2 = 12 px. R1 + R5 의 입자만 검사 (R2/R3/R4 텔레포트 모드라 입자 부재).
+2. **위치 분리 W4-simple** — 겹친 입자를 질량비대로 분리 (가벼운 입자가 더 많이 밀려남). 분리량은 region 박스 안 한정 (`getRegionBoxLimits` 가 R1/R5 박스 4 변 반환, 박스 밖으로 나가는 양은 다음 frame 자연 분리).
+3. **1D 탄성 충돌 (m1 ≠ m2 정확 식)**:
+   ```
+   J = -2 × (v_rel · n) / (1/m1 + 1/m2)
+   v1 -= (J/m1) × n
+   v2 += (J/m2) × n
+   ```
+   m1, m2 같은 경우 § 4.3 의 임펄스 swap 식과 동치.
+
+**입자 질량**: 가스별 분자량 — `params.json dalton.gases[gasKey].M` (air=29, CO₂=44, He=4, N₂=28, O₂=32). 입자 객체에 `particle.M = gasData.M` 부여 (rebuildParticleSystem 시점).
+
+**Graham 법칙 (1/√M) 정합**: 초기 속도 = `speedFactor × baseScale`. speedFactor 정의 (params.json): air 1.00, CO₂ 0.81, He 2.69, N₂ 1.02, O₂ 0.95 — 1/√(M/29) 정확 일치 (소수 둘째자리). 등온 평형 시 무거운 가스가 느리게, 가벼운 가스가 빠르게 운동.
+
+**텔레포트 안전장치** (Phase 5.3 정정 v4): R3/R4 region 입자 처리 분기에 `daltonState.stage === "INJECTING"` 검사 추가. INJECTING 시만 `teleportToR5NozzleEntry` 발동, 그 외 stage 시 `rescueParticleToHomeRegion` (가까운 박스 안전 위치 복귀).
+
+**정량 검증**: `tests/dalton-collision-test.js` 7 검증 (보존 법칙 / Equipartition / Graham 법칙 √M 비율 / M-B 분포 / 안정성). 상세는 `docs/08-physics-validation.md` § 9.
 
 ---
 
