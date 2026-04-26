@@ -162,6 +162,7 @@
                 <table class="dalton-records-table">
                     <thead>
                         <tr>
+                            <th class="compare-col">비교</th>
                             <th>회차</th>
                             <th>V<sub>A</sub></th>
                             <th>V<sub>B</sub></th>
@@ -179,6 +180,11 @@
                 <p class="dalton-records-empty" id="dalton-records-empty">
                     아직 기록된 측정이 없습니다.
                 </p>
+                <!-- Phase 5.3 기능 4: 비교 결과 영역 (체크박스 2개 선택 시 표시) -->
+                <div id="dalton-comparison-result" class="dalton-comparison-result hidden">
+                    <div class="comparison-header">📊 비교 분석</div>
+                    <div class="comparison-body" id="dalton-comparison-body"></div>
+                </div>
             </div>
         </section>
     </div>

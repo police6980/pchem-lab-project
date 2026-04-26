@@ -850,6 +850,7 @@ function initDaltonApp(params) {
         V_A_initial_cached: null,
         gasA_cached: null,  // 부분 압력 계산 시 어느 가스가 A 였는지 보존
         pressureBInitial_cached: null,  // Phase 5.3: 주입 전 P_B 보존 (평형값으로 변하기 전, n_B 산출용)
+        comparisonSelected: [],         // Phase 5.3 기능 4: 비교 선택 record.n 배열 (FIFO 최대 2)
     };
 
     // 외부 디버깅 편의: 브라우저 콘솔에서 window.daltonState 확인 가능
@@ -905,6 +906,10 @@ function initDaltonApp(params) {
         recordsEmpty:  $("dalton-records-empty"),
         recordsToggle: $("dalton-records-toggle"),
         recordsBody:   $("dalton-records-body"),
+
+        // Phase 5.3 기능 4: 비교 모드
+        comparisonResult: $("dalton-comparison-result"),
+        comparisonBody:   $("dalton-comparison-body"),
     };
 
     // 참조 누락 경고 (개발 편의)
@@ -2100,6 +2105,14 @@ function initDaltonApp(params) {
 
         daltonState.pressureBMeasured = null;
         daltonState.pressureBSensor   = 1.00;  // 시뮬 기본값 복귀
+        // Phase 5.3 기능 4: 비교 상태 초기화 (record 자체는 유지 — 학생 편의 정책)
+        daltonState.comparisonSelected = [];
+        if (dom.comparisonResult) dom.comparisonResult.classList.add("hidden");
+        if (dom.comparisonBody) dom.comparisonBody.innerHTML = "";
+        if (dom.recordsTbody) {
+            const checkboxes = dom.recordsTbody.querySelectorAll("input.compare-checkbox");
+            checkboxes.forEach((cb) => { cb.checked = false; });
+        }
 
         // Step C-3 v2: 입자 정리 + 시스템 재생성 (A 60 / B 60 복구)
         injectionPistonAnimating = false;  // 피스톤 애니 정리 (Step C-3 piston / v2)
@@ -2184,6 +2197,7 @@ function initDaltonApp(params) {
         // (timeStr 은 record array 에 보존, CSV 위함)
         const tr = document.createElement("tr");
         tr.innerHTML = `
+            <td class="compare-cell"><input type="checkbox" class="compare-checkbox" data-record-n="${n}"></td>
             <td>${n}</td>
             <td>${V_A_initial}</td>
             <td>${V_B}</td>
@@ -2207,6 +2221,107 @@ function initDaltonApp(params) {
         if (daltonChartP5Instance) {
             daltonChartP5Instance.redraw();
         }
+    }
+
+    // ─────────────────────────────────────────────────────────
+    // Phase 5.3 기능 4: 비교 모드 (FIFO 최대 2 row 선택 + 차이 분석)
+    // ─────────────────────────────────────────────────────────
+    function setupComparisonHandler() {
+        if (!dom.recordsTbody) return;
+        dom.recordsTbody.addEventListener("change", (e) => {
+            const target = e.target;
+            if (!target.classList.contains("compare-checkbox")) return;
+            const recordN = parseInt(target.dataset.recordN, 10);
+            handleComparisonToggle(recordN, target.checked);
+        });
+    }
+
+    function handleComparisonToggle(recordN, isChecked) {
+        const selected = daltonState.comparisonSelected;
+
+        if (isChecked) {
+            // 추가. 이미 2개면 가장 옛 (selected[0]) 자동 해제 (FIFO)
+            if (selected.length >= 2) {
+                const removedN = selected.shift();
+                const removedCheckbox = dom.recordsTbody.querySelector(
+                    `input.compare-checkbox[data-record-n="${removedN}"]`
+                );
+                if (removedCheckbox) removedCheckbox.checked = false;
+            }
+            selected.push(recordN);
+        } else {
+            const idx = selected.indexOf(recordN);
+            if (idx >= 0) selected.splice(idx, 1);
+        }
+
+        renderComparisonResult();
+    }
+
+    // 비교 분석 — 정적 규칙 (4 변수 + 배수 + 해석)
+    function computeComparison(rec1, rec2) {
+        const ratio = (a, b) => (b === 0 ? null : a / b);
+        const fmtRatio = (r) => {
+            if (r === null) return "—";
+            if (Math.abs(r - 1) < 0.01) return "변화 없음";
+            return `${r.toFixed(2)}배`;
+        };
+
+        const vA = { from: rec1.V_A_initial, to: rec2.V_A_initial, ratio: ratio(rec2.V_A_initial, rec1.V_A_initial) };
+        const vB = { from: rec1.V_B, to: rec2.V_B, ratio: ratio(rec2.V_B, rec1.V_B) };
+        const pT = { from: rec1.P_total, to: rec2.P_total, ratio: ratio(rec2.P_total, rec1.P_total) };
+        const nT = { from: rec1.n_total, to: rec2.n_total, ratio: ratio(rec2.n_total, rec1.n_total) };
+
+        // 해석 — V_A / V_B 변화 패턴 분기
+        let interp = "";
+        const vBSame = vB.ratio !== null && Math.abs(vB.ratio - 1) < 0.01;
+        const vASame = vA.ratio !== null && Math.abs(vA.ratio - 1) < 0.01;
+
+        if (vBSame && !vASame) {
+            interp = `V<sub>B</sub> 일정, V<sub>A</sub> 가 ${fmtRatio(vA.ratio)} 변화 → 분자 수 (n<sub>total</sub>) 와 압력 (P<sub>total</sub>) 모두 ${fmtRatio(nT.ratio)} 변화. <br>(V<sub>B</sub> 일정 시 P<sub>total</sub> ∝ n<sub>total</sub> — 돌턴 법칙 핵심)`;
+        } else if (vASame && !vBSame) {
+            interp = `V<sub>A</sub> 일정, V<sub>B</sub> 가 ${fmtRatio(vB.ratio)} 변화 → 분자 수 보존이지만 부피 변화로 압력은 ${fmtRatio(pT.ratio)} 변화. <br>(n 일정 시 P ∝ 1/V — 보일 법칙 적용)`;
+        } else if (vASame && vBSame) {
+            interp = "두 측정 조건 동일 (V<sub>A</sub>, V<sub>B</sub> 변화 없음). 시뮬레이션 재현성 확인 가능.";
+        } else {
+            interp = `V<sub>A</sub>, V<sub>B</sub> 모두 변화. 압력 변화 = ${fmtRatio(pT.ratio)}, 분자 수 변화 = ${fmtRatio(nT.ratio)}. <br>(P<sub>total</sub> = n<sub>total</sub> / V<sub>B</sub> 관계로 두 효과 합성)`;
+        }
+
+        return { vA, vB, pT, nT, interp };
+    }
+
+    function renderComparisonResult() {
+        const selected = daltonState.comparisonSelected;
+        const records = daltonState.measurementRecords;
+
+        if (selected.length !== 2) {
+            if (dom.comparisonResult) dom.comparisonResult.classList.add("hidden");
+            return;
+        }
+
+        const [n1, n2] = selected;
+        const rec1 = records.find((r) => r.n === n1);
+        const rec2 = records.find((r) => r.n === n2);
+        if (!rec1 || !rec2) {
+            if (dom.comparisonResult) dom.comparisonResult.classList.add("hidden");
+            return;
+        }
+
+        const cmp = computeComparison(rec1, rec2);
+        const unit = daltonState.displayUnit || "atm";
+
+        const html = `
+            <table>
+                <tr><th>변수</th><th>회차 ${n1}</th><th>→</th><th>회차 ${n2}</th><th>배수</th></tr>
+                <tr><td>V<sub>A</sub></td><td>${cmp.vA.from} mL</td><td>→</td><td>${cmp.vA.to} mL</td><td>${cmp.vA.ratio.toFixed(2)}배</td></tr>
+                <tr><td>V<sub>B</sub></td><td>${cmp.vB.from} mL</td><td>→</td><td>${cmp.vB.to} mL</td><td>${cmp.vB.ratio.toFixed(2)}배</td></tr>
+                <tr><td>P<sub>total</sub></td><td>${cmp.pT.from.toFixed(2)} ${unit}</td><td>→</td><td>${cmp.pT.to.toFixed(2)} ${unit}</td><td>${cmp.pT.ratio.toFixed(2)}배</td></tr>
+                <tr><td>n<sub>total</sub></td><td>${cmp.nT.from}</td><td>→</td><td>${cmp.nT.to}</td><td>${cmp.nT.ratio.toFixed(2)}배</td></tr>
+            </table>
+            <div class="interpretation">→ ${cmp.interp}</div>
+        `;
+
+        if (dom.comparisonBody) dom.comparisonBody.innerHTML = html;
+        if (dom.comparisonResult) dom.comparisonResult.classList.remove("hidden");
     }
 
     // ─────────────────────────────────────────────────────────
@@ -2408,6 +2523,9 @@ function initDaltonApp(params) {
             updatePartialPressureList();
         });
     }
+
+    // Phase 5.3 기능 4: 비교 모드 — tbody 의 체크박스 change delegation 등록 (init 1회)
+    setupComparisonHandler();
 
     // ─────────────────────────────────────────────────────────
     // 초기 상태 1회 적용 (숫자 박스·이론값·압력 readout 동기)

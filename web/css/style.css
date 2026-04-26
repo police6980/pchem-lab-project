@@ -2967,6 +2967,55 @@ body[data-page="dalton"] .dalton-records-table td {
     text-align: right;
 }
 
+/* Phase 5.3 기능 4: 비교 모드 — 체크박스 컬럼 + 비교 결과 영역 */
+body[data-page="dalton"] .dalton-records-table .compare-col {
+    width: 32px;
+    text-align: center;
+}
+body[data-page="dalton"] .dalton-records-table .compare-cell {
+    text-align: center;
+}
+body[data-page="dalton"] .dalton-records-table .compare-cell input[type="checkbox"] {
+    cursor: pointer;
+    margin: 0;
+}
+body[data-page="dalton"] .dalton-comparison-result {
+    margin-top: 16px;
+    padding: 12px 16px;
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    font-size: 0.85rem;
+}
+body[data-page="dalton"] .dalton-comparison-result.hidden {
+    display: none;
+}
+body[data-page="dalton"] .dalton-comparison-result .comparison-header {
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: #111827;
+}
+body[data-page="dalton"] .dalton-comparison-result .comparison-body {
+    color: #374151;
+    line-height: 1.6;
+}
+body[data-page="dalton"] .dalton-comparison-result .comparison-body table {
+    border-collapse: collapse;
+    margin: 4px 0 8px 0;
+}
+body[data-page="dalton"] .dalton-comparison-result .comparison-body th,
+body[data-page="dalton"] .dalton-comparison-result .comparison-body td {
+    padding: 2px 12px 2px 0;
+    text-align: left;
+    border-bottom: none;
+}
+body[data-page="dalton"] .dalton-comparison-result .interpretation {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px dashed #d1d5db;
+    color: #1f2937;
+}
+
 /* AI 사이드바 — 돌턴 페이지 한정 fixed 위치 (boyle/particles 무영향) */
 body[data-page="dalton"] .ai-sidebar {
     position: fixed;
