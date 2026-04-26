@@ -887,6 +887,8 @@ function initDaltonApp(params) {
         btnInject:  $("dalton-btn-inject"),
         btnConfirm: $("dalton-btn-confirm"),
         btnReset:   $("dalton-btn-reset"),
+        // Step G: CSV 다운로드 (HTML 의 id="dalton-csv-download" 가 기존 ID)
+        btnCsv:     $("dalton-csv-download"),
 
         // 안정화 인디케이터 (Step A 에서 준비된 placeholder)
         stabilization: $("dalton-stabilization"),
@@ -1758,10 +1760,38 @@ function initDaltonApp(params) {
         const H = 280;
         const padding = { top: 30, right: 30, bottom: 50, left: 60 };
 
+        // Step F 정정 (재): 카드 폭 추적 위함 — setup + windowResized 공유 헬퍼
+        function getTargetWidth() {
+            const wrap = document.getElementById("dalton-chart-wrap");
+            if (!wrap) return W;
+            const wrapW = Math.max(wrap.clientWidth - 32, 320);  // padding 16×2 차감, 최소 320
+            return Math.min(wrapW, W);  // 최대 W (=800)
+        }
+
         p.setup = function () {
-            const canvas = p.createCanvas(W, H);
+            // 첫 setup 시 chart-wrap 이 hidden 일 수 있음 → getTargetWidth() 가 320 반환
+            // ResizeObserver 가 unhide 시점에 자동 재조정
+            const canvas = p.createCanvas(getTargetWidth(), H);
             canvas.parent("dalton-chart-wrap");
             p.noLoop();
+
+            // Step F 정정 (재): 카드 폭 변화 (unhide / window resize) 자동 감지
+            const wrap = document.getElementById("dalton-chart-wrap");
+            if (wrap && typeof ResizeObserver !== "undefined") {
+                const resizeObserver = new ResizeObserver(() => {
+                    const targetW = getTargetWidth();
+                    if (targetW !== p.width) {
+                        p.resizeCanvas(targetW, H);
+                        p.redraw();
+                    }
+                });
+                resizeObserver.observe(wrap);
+            }
+        };
+
+        p.windowResized = function () {
+            p.resizeCanvas(getTargetWidth(), H);
+            p.redraw();
         };
 
         p.draw = function () {
@@ -1772,7 +1802,7 @@ function initDaltonApp(params) {
             // 좌표 영역
             const plotX = padding.left;
             const plotY = padding.top;
-            const plotW = W - padding.left - padding.right;
+            const plotW = p.width - padding.left - padding.right;
             const plotH = H - padding.top - padding.bottom;
 
             // 막대 폭 + 간격
@@ -2130,6 +2160,44 @@ function initDaltonApp(params) {
     }
 
     // ─────────────────────────────────────────────────────────
+    // Step G: 측정 기록을 CSV header + rows 로 변환
+    // (logger.js 의 module-level downloadCSV / formatTimestampForFilename 재사용 — 보일·입자운동과 패턴 일관)
+    // ─────────────────────────────────────────────────────────
+    function recordsToCSVData() {
+        const records = daltonState.measurementRecords;
+        if (!records || records.length === 0) return null;
+
+        // 12 컬럼 — 측정 기록 테이블과 일관 (단위 atm 고정 — 분석 표준)
+        const header = ["회차", "단계", "V_A", "V_B", "모드", "P(이론)_atm", "P(시뮬)_atm", "P(공기)_atm", "P(CO2)_atm", "P(실측)_atm", "오차%", "시간"];
+        const rows = records.map(r => [
+            r.n,
+            "—",
+            r.V_A_initial,
+            r.V_B,
+            "—",
+            r.theoryAtm.toFixed(2),
+            r.P_total.toFixed(2),
+            r.P_air.toFixed(2),
+            r.P_co2.toFixed(2),
+            "—",
+            "—",
+            r.time,
+        ]);
+        return { header, rows };
+    }
+
+    // Step G: CSV 파일 다운로드 (logger.js 의 downloadCSV 재사용)
+    function exportRecordsCSV() {
+        const data = recordsToCSVData();
+        if (!data) {
+            alert("측정 기록이 없습니다. 먼저 측정을 진행해 주세요.");
+            return;
+        }
+        const filename = `dalton_${formatTimestampForFilename(new Date())}.csv`;
+        downloadCSV(filename, data.header, data.rows);
+    }
+
+    // ─────────────────────────────────────────────────────────
     // 기체 select 채우기 (params.dalton.gases 기반)
     // ─────────────────────────────────────────────────────────
     function populateGasSelect(selectEl, selectedKey) {
@@ -2259,6 +2327,8 @@ function initDaltonApp(params) {
     dom.btnReset?.addEventListener("click", () => {
         resetExperiment();
     });
+    // Step G: CSV 다운로드 버튼
+    dom.btnCsv?.addEventListener("click", exportRecordsCSV);
 
     // Step C-3 v15: 부분 압력 라인 안 체크박스 change → 가스 가시성 토글
     if (dom.partialPressureList) {

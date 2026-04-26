@@ -2832,7 +2832,7 @@ body[data-page="dalton"] .dalton-page-utilities {
 /* 메인 그리드 — 좌측 패널 + 중앙 메인 (≥1280px). 기록 테이블은 두 칼럼 가로질러. */
 body[data-page="dalton"] #dalton-mode.dalton-layout {
     display: grid;
-    grid-template-columns: 320px 1fr 1fr;
+    grid-template-columns: 320px 1fr 1.4fr;
     grid-template-areas:
         "panel main main"
         "panel chart records";
@@ -2845,6 +2845,14 @@ body[data-page="dalton"] #dalton-main { grid-area: main; }
 /* Step F 정정: chart 영역 매핑 */
 body[data-page="dalton"] #dalton-chart-wrap { grid-area: chart; }
 body[data-page="dalton"] #dalton-records-section { grid-area: records; }
+
+/* Step F 정정 (재): grid 자식의 min-width: auto (= 컨텐츠 본래 폭) 함정 차단 */
+/* fr 분배 정상화 — chart/records 칼럼이 자식 컨텐츠에 의해 부풀어오르지 않도록 */
+body[data-page="dalton"] #dalton-chart-wrap,
+body[data-page="dalton"] #dalton-records-section,
+body[data-page="dalton"] #dalton-main {
+    min-width: 0;
+}
 
 body[data-page="dalton"] #dalton-control-panel,
 body[data-page="dalton"] #dalton-main,
@@ -3025,8 +3033,8 @@ body[data-page="dalton"] .ai-sidebar {
    ============================================================ */
 @media (max-width: 1279px) and (min-width: 1024px) {
     body[data-page="dalton"] #dalton-mode.dalton-layout {
-        /* Step F 정정: 3 칼럼 (panel + chart + records) 유지, panel 만 축소 */
-        grid-template-columns: 280px 1fr 1fr;
+        /* Step F 정정 (재): 3 칼럼 + 비율 1fr:1.4fr (메인 룰과 일관) */
+        grid-template-columns: 280px 1fr 1.4fr;
         gap: 16px;
     }
     body[data-page="dalton"] .dalton-panel {
@@ -3211,7 +3219,10 @@ body[data-page="dalton"] #dalton-chart-wrap {
 body[data-page="dalton"] #dalton-chart-wrap.hidden {
     display: none;
 }
+/* Step F 정정 (재): 캔버스 가운데 정렬 (flex justify-center 안전장치) */
 body[data-page="dalton"] #dalton-chart-wrap canvas {
+    display: block;
+    margin: 0 auto;
     max-width: 100%;
     height: auto;
 }
