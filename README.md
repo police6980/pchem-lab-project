@@ -4,8 +4,9 @@
 화학 탐구 교육 플랫폼. 중·고등 과학 영재 학생을 대상으로 이론(기체 법칙)·
 실험(압력 센서)·탐구(AI 튜터 대화)의 연속성을 제공한다.
 
-현재 **보일의 법칙**·**입자운동론** 두 실험 모듈이 완성 단계이고,
-**돌턴의 부분압력** 은 Phase 5.1 (UI·상태머신) 완료, 시뮬 엔진 진행 중.
+현재 **보일의 법칙**·**입자운동론**·**돌턴의 부분압력** 3 실험 모듈.
+보일·입자운동은 완성, 돌턴은 Phase 5.2 시뮬 엔진까지 완료
+(실센서·돌턴 AI 튜터는 Phase 5.3 대기).
 
 > 저장소 이름(`pchem-lab-project`)과 내부 식별자는 개발 초기 명칭을 유지한다.
 > UI·공개 문서에서는 정식 브랜드명 **CAST** 로 표기.
@@ -33,7 +34,7 @@
 | `/web/` (index.html) | 🏠 랜딩 페이지 — 실험 선택 + API 키 설정 (sessionStorage) |
 | `/web/boyle.html` | 보일의 법칙 실험 — 센서 3모드(Mock/WS/Real) + AI 튜터 |
 | `/web/particles.html` | 입자운동론 탐구 — V·T·N·기체 조작 + AI 튜터 |
-| `/web/dalton.html` | 돌턴의 부분압력 (Phase 5.1) — 주사기 A→B 수용 모델, 이론값 실시간, 상태 머신. 시뮬 엔진은 Phase 5.2 대기 |
+| `/web/dalton.html` | 돌턴의 부분압력 (Phase 5.2 시뮬 완료) — 주사기 A→B 수용, 5 region 물리 + 피스톤 동기 분출 + 부분 압력 list. |
 
 랜딩에서 API 키를 한 번 저장하면 실험 페이지가 sessionStorage 를 공유해
 자동 인식. 각 실험 페이지 상단의 [🏠 홈으로] 로 복귀.
@@ -104,10 +105,10 @@ CLI 에서 `↑↓` (±10 kPa) / `←→` (±1 kPa) / `r` (리셋) / `q` (종료
   - 프로젝트명 CAST 정식 채택, 학술지 톤 디자인 (Georgia 세리프, PhET 레퍼런스)
 - **Phase 4.5 심화 탐구 모드** (`feature/particle-controls`, 병합 대기)
 - **반응형 레이아웃** (`feature/responsive-canvas`, 병합 대기)
-- **Phase 5.1 돌턴 부분압력 UI·상태머신** (`feature/dalton-experiment`, 태그 `phase5.1-complete`)
-  - ✅ 설계 3영역 → 2영역(A→B 수용) 전환, 부피 입력 숫자 전용 10~100mL 통일
-  - ✅ Step A (HTML·CSS·반응형 drawer), Step B (이벤트·이론값·상태 머신)
-  - ⏳ **Phase 5.2 Step C**: p5.js `DaltonScene` 시뮬 엔진, 피스톤 애니메이션 (다음 작업)
+- **Phase 5.1+5.2 돌턴** (`feature/dalton-experiment`, ahead +22)
+  - ✅ Phase 5.1: HTML·CSS·이벤트·이론값·상태 머신 (Step A·B)
+  - ✅ Phase 5.2: p5.js `DaltonScene` 시뮬 엔진 (Step C-1~C-3) — 5 region 물리 + 피스톤 동기 분출 + 게이지 P_B 매 frame 동기 + 부분 압력 list (체크박스 + 가스 흐림 토글)
+  - ⏳ **Phase 5.3 Step F~I**: 그래프, CSV, 돌턴 AI 튜터, Web Serial 실센서
 
 상세 로드맵: `docs/09-roadmap.md`, 진행 상태 마스터: `docs/06-project-status.md`.
 
@@ -136,7 +137,7 @@ pchem-lab-project/
 │   ├── index.html            # 🏠 랜딩 (CAST 로고 + 실험 선택 + API 키 설정)
 │   ├── boyle.html            # 🔬 보일의 법칙 (MBL·시뮬·AI)
 │   ├── particles.html        # ⚗️ 입자운동론 (시뮬·AI)
-│   ├── dalton.html           # 🧪 돌턴의 부분압력 (Phase 5.1 UI 완료)
+│   ├── dalton.html           # 🧪 돌턴의 부분압력 (Phase 5.2 시뮬 완료)
 │   ├── config/params.json
 │   ├── css/style.css
 │   └── js/ {simulation, renderer, serial, protocol, logger,

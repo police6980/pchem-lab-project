@@ -40,7 +40,7 @@
 자세한 로드맵은 `docs/06-project-status.md` §4 참조. 요약:
 - **Phase 2-B** (완료): ai-tutor.js 실 Anthropic Messages API 호출. 멀티턴·비용·에러 처리·docx 보고서 생성 작동
 - **Phase 3** (진행 중, `phase3-real-sensor` 브랜치): ESP32 실센서 + Web Serial (MockSensorSource 교체). 개발용 WebSocket 펌웨어 에뮬레이터(`tools/firmware-emulator/`)로 실물 도착 전 브라우저 수신 경로 사전 구현
-- **Phase 5** (진행 중): 돌턴의 부분압력 확장 (Phase 5.1 UI·상태머신 완료 — `feature/dalton-experiment` 브랜치, 태그 `phase5.1-complete`). Phase 5.2 p5.js `DaltonScene` 시뮬 엔진 대기. 현재 플랫 폴더 → `experiments/` 분리 검토 시점이 Phase 5 후반으로 이연됨
+- **Phase 5** (진행 중): 돌턴의 부분압력. **Phase 5.1 UI·상태머신 + Phase 5.2 시뮬 엔진 완료** (`feature/dalton-experiment` 브랜치). 5 region 물리 모델 (R1: A 박스, R2: A 노즐, R3: 수평 튜브, R4: B 노즐, R5: B 박스) + 텔레포트 모드 + 피스톤 동기 분출 + 부분 압력 시각화. Phase 5.3 그래프·CSV·AI 튜터·실센서 대기. 현재 플랫 폴더 → `experiments/` 분리 검토 시점이 Phase 5 후반으로 이연됨
 - **Phase 4/6**: 비교 UX, 교사 도구
 - **Phase 7** (이전 Phase 5 계획): 샤를·게이뤼삭 법칙 확장
 
@@ -58,7 +58,7 @@ pchem-lab-project/
 │   ├── index.html              // 🏠 랜딩 (CAST 로고 + 실험 선택 + API 키 설정)
 │   ├── boyle.html              // 🔬 보일의 법칙 (MBL·시뮬·AI), <body data-page="boyle">
 │   ├── particles.html          // ⚗️ 입자운동론 (시뮬·AI), <body data-page="particles">
-│   ├── dalton.html             // 🧪 돌턴의 부분압력 (Phase 5.1), <body data-page="dalton">
+│   ├── dalton.html             // 🧪 돌턴의 부분압력 (Phase 5.2 시뮬 완료), <body data-page="dalton">
 │   ├── config/
 │   │   └── params.json         // 튜닝 가능 수치 단일 파일 (`dalton` 키 포함)
 │   ├── css/
@@ -250,6 +250,17 @@ serial.js → logger.js → ai-tutor.js → ui.js → main.js
 - **재생 컨트롤 전역 상태** (Phase 4.6, `feature/responsive-canvas`): `speedMultiplier` (0.25/0.5/1), `isPaused` (bool). `main.js` 최상위 `let` 에 정의되어 보일/입자운동 두 페이지가 공유 (현재 구조에선 두 페이지가 동시 로드되지 않으므로 실질적으로 각 페이지 독립 상태). dt 스케일링은 각 페이지 update 루프 진입점에서만 적용 (`scaledDt = dt * speedMultiplier`). 일시정지는 update 콜백 early return. 물리 코드(`simulation.js`, `renderer.js`) 불변.
 - **부팅 흐름** (async DOMContentLoaded 내부): `params.json` fetch → Box/ParticleSystem 생성 → MockSensor + slider → `createRenderer` → `createInfoPanel` → `createMeasurementPanel` → 250 ms 연속 로그 `setInterval` → `createAnalysisPanel` → `createTemperatureControl` → 1 s/5 s `setInterval`
 - **상태 변수** (DOMContentLoaded 클로저): `smoothedP`, `sessionStartMs`, `currentTempCelsius`, `V0_REFERENCE_AREA`, `V0_current`, `continuousBuffer`, 전이 애니메이션 4변수, `pistonHitsAccumulator`, `continuousHitsAccumulator`, `analysisApi`
+
+**dalton 영역 신규 함수 25개** (Phase 5.2 Step C-1~C-3, `initDaltonApp` closure 안):
+- 물리: `physicsStep`, `physicsSubstep`, `getRegion`, `rescueParticleFromNull`
+- 시각: `drawDaltonScene`, `drawSyringe`, `drawConnectorTube`, `drawParticlesByGas`
+- 주입: `runInjectionAnimation`, `startInjectionTransfer`, `updateInjectionTransfer`, `teleportToR5NozzleEntry`, `finalizeInjectedVolume`, `forceRemainingToR5`
+- 부분 압력: `countR5ParticlesByGas`, `updatePartialPressureList`
+- 박스·보간: `computeBox`, `updateBox`, `lerpDisplayedVolumes`, `volumeToPistonY`
+- 가스: `getGasData`, `getGasColor`, `rebuildParticleSystem`, `rebuildAllSystems`
+- 카운트: `countParticlesInRegions`
+
+**simulation.js 재사용 패턴**: dalton 은 `Particle` 클래스 (위치·속도·반지름·gasKey) 만 재사용. `ParticleSystem` 미사용 — 5 region 모델은 boyle 의 1 region 과 본질 다름. dalton 자체 `physicsStep`/`physicsSubstep` 으로 처리.
 
 ---
 

@@ -2,7 +2,7 @@
 
 **문서 목적**: Phase 2-B 이후 모든 개발 단계 통합 계획. 우선순위·의존관계·예상 소요·결정 이슈 기록. **06**이 "현재 상태"라면 **09**는 "미래 방향".
 
-**마지막 업데이트**: 2026-04-25 (Phase 5 재정의: 돌턴 부분압력. Phase 5.1 UI·상태머신 완료)
+**마지막 업데이트**: 2026-04-26 (Phase 5.2 시뮬 엔진 완료 — Step C-1~C-3, 5 region 물리 + 피스톤 동기 + 부분 압력)
 **기준 상태**: Phase 1 MVP 완료, Phase 2-A/2-B 완료 (v0.4-boyle-complete), **Phase 3 진행 중** (소프트웨어 완료, Step 3-6 실물 대기 — `phase3-real-sensor` 브랜치), **Phase 4.5 심화 탐구 모드 완료** (`feature/particle-controls`, 병합 대기), **반응형 레이아웃 + 단위 병기 완료** (`feature/responsive-canvas`, 병합 대기), **Phase 5.1 돌턴 부분압력 UI·상태머신 완료** (`feature/dalton-experiment` — 설계 3→2영역 전환, 부피 입력 숫자 전용 10~100mL 통일, 태그 `phase5.1-complete`, 시뮬 엔진은 Phase 5.2 Step C 대기)
 
 ---
@@ -16,7 +16,7 @@
 - [계획] **Phase 4**: Mock ↔ 실센서 비교 UX
 - [완료·병합 대기] **Phase 4.5**: 심화 탐구 모드 (`feature/particle-controls`)
 - [완료·병합 대기] **반응형 레이아웃 + 단위 병기**: `feature/responsive-canvas` (§4.6 참조)
-- [진행] **Phase 5**: 돌턴의 부분압력 (Phase 5.1 UI·상태머신 완료, Phase 5.2~ 시뮬·센서·AI 튜터 대기)
+- [일부 완료] **Phase 5**: 돌턴의 부분압력 (Phase 5.1·5.2 완료, Phase 5.3 그래프·CSV·AI·실센서 대기)
 - [계획] **Phase 6**: 교사 도구 (대시보드, 다중 사용자)
 - [계획] **Phase 7**: 다른 법칙 확장 (샤를, 게이뤼삭) — 기존 Phase 5 에서 이연
 - [장기] **Phase 8+**: 배포·상용화·연구 발표
@@ -231,11 +231,16 @@ Phase 5 목표를 **돌턴 부분압력** 으로 재정의. 샤를·게이뤼삭
 - Step B-3: 상태 머신 (IDLE → INJECTING → INJECTED → CONFIRMED) + 3버튼 + 안정화 카운트다운 + 기록 추가
 - 태그: `phase5.1-stepA-complete`, `phase5.1-complete` (로컬·원격 모두)
 
-### 5-3. Phase 5.2: 시뮬 엔진 (예정, Step C~E)
-- `DaltonScene` p5.js 스케치 — 주사기 A·B 입자 시뮬 + 피스톤 애니메이션
-- 혼합 입자 시각화 (A·B 기체 색상 구분 + 분자량 기반 속도 차등)
-- 3초 주입 애니메이션을 현재 `sleep(3000)` placeholder 에서 실제 피스톤 이동으로 교체
-- 벽 충돌 카운트 → 부분압력 실시간 표시 (pressureBSensor 실제 계산값)
+### 5-3. Phase 5.2 시뮬 엔진 (완료, Step C-1~C-3, 2026-04-26)
+- ✅ Step C-1: 정적 시린지 + ㄷ자 튜브 + 게이지 overlay (1160×600 캔버스)
+- ✅ Step C-2: 입자 brownian (시린지당 60개) + 부피 보간 (lerp 0.15)
+- ✅ Step C-3: 주입 애니메이션 — 11 versions 진화
+  - waypoint → 5 region 물리 → 텔레포트 → 피스톤 동기 분출
+  - 게이지 P_B 매 frame 진행률 동기 (releasedCount/total)
+  - 부분 압력 list (체크박스 + 가스 흐림 토글, alpha 0.08)
+- ✅ simulation.js Particle 재사용 (수정 0)
+- 신규 함수 25개. main.js +1346 lines
+- 14 commits / 1일 (2026-04-25~26)
 
 ### 5-4. Phase 5.3: 센서·AI 튜터 (예정, Step F~I)
 - Step F: 그래프 시계열 + 부분압력 차트
@@ -244,7 +249,7 @@ Phase 5 목표를 **돌턴 부분압력** 으로 재정의. 샤를·게이뤼삭
 - Step I: Web Serial + WebSocket 실센서 연동 (pressureBSensor 실측값)
 
 ### 5-5. 예상 소요
-Phase 5.2 (시뮬 엔진): 1~2주. Phase 5.3 (센서·AI): 1~2주. 총 2~4주.
+Phase 5.2 (시뮬 엔진): **완료** (3일, 33 commits 누적). Phase 5.3 (센서·AI): 1~2주.
 
 ---
 
