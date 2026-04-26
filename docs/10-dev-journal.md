@@ -1340,3 +1340,365 @@ closure 스코프라 재사용 불가).
 - 마지막 commit: `281254f` (cleanup, ahead +20)
 - 다음: Step C-4 (sleep 교체 — UI 흐름 통합) 또는 Phase 6 (샤를 페이지)
 
+---
+
+## Phase 5.3 — 돌턴 부분 압력 페이지 학습 기능 + 충돌 시뮬 정합화 (2026-04-26)
+
+Phase 5.2 (Step F 통합 — 그래프 + 부분 압력 record + 비평형 표시) 이후
+1일 집중 세션으로 Phase 5.3 진행. 7 commits, 누적 +1468/-117.
+
+핵심 추가 기능 = ① 분자 수 직접 표시 + 단일 산출 함수 정합화, ② 측정
+기록 비교 모드, ③ 입자간 탄성 충돌 (직접 구현), ④ AI 튜터 (돌턴 특화),
+⑤ 측정 기록 UI 정리 (토글 폐기 + 행 삭제). 끼임 버그 정정 v1~v5 누적
+시도, Matter.js 도입은 별 브랜치로 보류.
+
+### 2026-04-26 — Step F polish + Step G (캔버스 resize + CSV)
+
+#### 한 일
+- chart canvas dynamic resize (ResizeObserver)
+- CSV export (logger.js 의 downloadCSV / formatTimestampForFilename 재사용)
+- grid 1fr:1.4fr (그래프 ↔ 측정 기록 표 영역 비율)
+- 8 컬럼 CSV (회차 / V_A / V_B / P이론 / P시뮬 / P공기 / P_CO₂ / 시간)
+- commit: 1830e4f
+
+### 2026-04-26 — Step F+ 분자 수 표시 + 단일 산출 함수 정합화
+
+#### 한 일
+- 측정 기록 표 thead 7 → 10 컬럼 (n_A, n_B, n_total 추가)
+- 좌측 패널 이론값 박스에 분자 수 row 추가
+- record array 에 n_A, n_B, n_total 필드 추가
+- CSV 8 → 11 컬럼
+- `computeMoleCount(P, V)` 단일 산출 함수 신규 — 시각 입자 / 측정 row /
+  좌측 패널 모두 동일 함수 사용
+- `SCENE.particleCountPerSyringe = 60` 폐기
+- 시각 입자 수 = 분자 수 (1:1 매핑) — V 비례
+- `daltonState.pressureBInitial_cached` 추가 (주입 전 P_B 보존)
+- `rebuildParticleSystem` 의 V 변경 시 호출 트리거 추가 (Step C-2 결정 번복)
+- commit: a938df9
+
+#### 결정: 분자 수 단일 산출 함수 정합화
+
+**배경**: 분자 수 표시 기능 추가 시 시각 입자 (rebuildParticleSystem),
+측정 row (addRecord), 좌측 패널 (updateTheoryBox) 3 곳에서 다른 산출식
+사용. 시각 입자 = SCENE.particleCountPerSyringe = 60 고정 (V 무관, Step
+C-2 결정), 측정 row = R5 입자 카운트 또는 P×V, 좌측 패널 =
+particleCountPerSyringe × 2. V_A 슬라이더 변경 시 입자 수 변화 X →
+"V_A=80 인데 n_A=60" 같은 학생 시각 모순 발생.
+
+**결정**: 단일 산출 함수 `computeMoleCount(pressureAtm, volumeMl)` 도입
+(이상기체 n ∝ P × V, 학습용 정규화 단위 1 atm·mL = 1 분자). 시각 입자 /
+측정 row / 좌측 패널 모두 이 함수 호출. `particleCountPerSyringe = 60`
+임시방편 상수 폐기.
+
+**근거**:
+1. 학생 시각 일관성 — V 슬라이더 ↔ 입자 수 ↔ 측정 row 모두 일치해야
+   PV=nRT 직관 학습 가능.
+2. 단일 진실의 원천 (Single Source of Truth) 원칙 — 동일 물리량을 다른
+   방식으로 산출하면 오개념 유발.
+3. 분자 수 보존 원리 — n_A 는 주입 전 V_A_initial × 1.00, n_B 는 주입
+   전 V_B × P_B_initial. 평형 후 P_B 가 변하더라도 n 은 보존.
+4. Step C-2 의 "V 변경 시 입자 재생성 불필요" 결정은 시각 효율 우선
+   결정이었으나, 분자 수 학습 목표와 충돌 → 번복.
+
+**배제된 대안**:
+- 임시방편: 측정 row 만 P×V 로 정정, 시각 입자는 60 고정 유지 — 학생
+  시각 모순 잔존 (V_A=80 인데 입자 60).
+- 시각 입자만 V 비례, 측정 row 는 시뮬 입자 카운트 — 평형 후 산출
+  타이밍 불일치 발생.
+- 사용자 명시 거부: "임시방편말고 원칙대로 수정".
+
+### 2026-04-26 — Step F+ 비교 모드 (체크박스 row 선택 + 차이 분석)
+
+#### 한 일
+- 측정 기록 표 첫 컬럼에 체크박스 추가 (thead 10 → 11 컬럼)
+- FIFO 2 row 선택 (3번째 누르면 가장 옛 선택 자동 해제)
+- 비교 결과 영역 신규 (#dalton-comparison-result)
+- `computeComparison()` — 4 변수 차이 (V_A, V_B, P_total, n_total) +
+  배수 + 4 분기 해석
+- `daltonState.comparisonSelected` 배열 + `setupComparisonHandler` event
+  delegation
+- resetExperiment 시 비교 상태 초기화 (체크박스 + 영역 hide)
+- commit: b74d049
+
+#### 결정: 비교 분석 — 정적 규칙 vs LLM 호출
+
+**배경**: 측정 row 비교 시 차이 분석 텍스트 ("회차 1 vs 3: V_A 2배 →
+P_total 1.5배") 생성 방식 결정 필요. LLM 호출 가능 (자연스러운 해석) vs
+정적 규칙 (배수 계산 + if/else 해석).
+
+**결정**: 정적 규칙 기반. 4 분기 (V_B 일정 + V_A 변화 / V_A 일정 + V_B
+변화 / 둘 다 일정 / 둘 다 변화) 각각 학습 목표 (돌턴 법칙 / 보일 법칙)
+연결.
+
+**근거**:
+1. 비교 분석은 결정적 결과 (배수 = 항상 같음) — LLM 의 자연스러움이
+   필수 X.
+2. API 비용 0, 응답 시간 즉시.
+3. LLM 은 기능 3 (AI 튜터) 에서 본격 도입 — 비교 모드와 분리해 역할
+   명확.
+4. 정적 규칙 = 학생이 안정적으로 같은 결과를 재현 가능 (학습 신뢰성).
+
+**배제된 대안**:
+- LLM 호출: 비용 + 응답 지연 + 결과 비결정성. 비교 모드 단순 분석에
+  과대 적용.
+- 사용자가 변수 선택: UI 복잡, 4 변수 고정이 학습 핵심에 집중.
+
+### 2026-04-26 — Step F++ 입자간 탄성 충돌 (직접 구현) + 끼임 정정 v1~v5
+
+#### 한 일
+- `resolveCollision`: 1D 탄성 충돌 (m1, m2 다른 경우 정확 식 + 위치
+  분리)
+- spatial hash O(N): 격자 크기 = 입자 직경 × 2
+- 입자에 `M` 속성 부여 (gasData.M, 돌턴 한정 — simulation.js 무영향)
+- R1 + R5 만 적용 (R2/R3/R4 텔레포트 모드라 입자 부재)
+- 등온 평형 자연 거동 (NVE ensemble, KE 보존)
+- `clampParticleInRegion` (v3) → `getRegionBoxLimits` + W4-simple (v4) →
+  `volumeToPistonY` 정확 비례 매핑 + computeBox Math.max 제거 + 입자
+  생성 안전 마진 (v5) 정정 누적
+- 텔레포트 안전장치 (stage === "INJECTING" 시만 발동) + rescue 함수
+- V 변경 시 displayedVolume 즉시 동기 (gas 분기와 일관)
+- resetExperiment cache 초기화 (V_A_initial_cached, gasA_cached,
+  pressureBInitial_cached)
+- `tests/dalton-collision-test.js` 신규 (보존 법칙 / Equipartition / M-B
+  분포 / 안정성 7 검증)
+- commit: f273874
+
+#### 결정: 입자간 탄성 충돌 — 직접 구현 (라이브러리 도입 보류)
+
+**배경**: 입자가 서로 통과 (관통) 하는 시뮬 = 분자운동론 부정확. 학생이
+"He 가 CO₂ 와 만나도 그대로 통과" 시각 → 분자 충돌 메커니즘 학습 X.
+충돌 추가 시 직접 구현 vs Matter.js 같은 라이브러리 선택지.
+
+**결정**: 직접 구현. spatial hash + 1D 탄성 충돌 식 + W4-simple 위치
+분리.
+
+**근거** (의사결정 시점):
+1. 외부 의존성 0 — 시스템 자립성, 논문 재현성 ↑
+2. 5 region 텔레포트 모델 (Step C-3 v5) 같은 비표준 동작과 통합 자유
+3. 학생 시각 = 학습 도메인 충돌 정합
+
+**배제된 대안 (의사결정 시점)**:
+- Matter.js: MIT 라이선스 무료, 충돌/위치 분리 자동, 그러나 5 region
+  텔레포트 우회 필요. 학습 시간 비용 (~6~10시간) 추정.
+- Brute force O(N²): 150 입자 기준 충분히 가능하나 입자 수 증가 시 한계.
+- 통계적 확률 충돌: 비결정적, 학술 정합 X.
+
+**후일 재평가** (이번 세션 후): 직접 구현 시 spatial hash / 1D 탄성
+충돌 / 위치 분리 / 끼임 정정 등 라이브러리 영역 코드를 점진 직접 작성.
+끼임 정정 v1~v5 누적 = ~3시간 손실. 라이브러리 옵션을 충돌 알고리즘
+선택지에 처음부터 자동 포함하는 규칙 확립 필요. **별 브랜치
+(experiment/matter-js) 에서 추후 시도 의향** — 직접 구현 ↔ 라이브러리
+비교 자료가 논문 강력한 1차 자료가 될 수 있음.
+
+#### 결정: 끼임 정정 — V_min 매핑 (X1 정확 비례) vs ratio 0.20 보장 (A1)
+
+**배경**: V_A=10 시 박스 좌표 산출 결함으로 시린지 A 노즐 외부에 입자
+정렬 끼임 발생. 정정 v3 (W4-simple), v4 (텔레포트 안전장치 + ratio 0.20
+보장) 시도 후, 사용자가 ratio 0.20 강제의 학습 정합 깨짐 (시각 비율 ≠
+실제 V 비율) 지적.
+
+**결정**: X1 (volumeToPistonY 정확 비례 매핑) + computeBox 의 Math.max
+강제 제거 + 입자 생성 시 radius 안전 마진 추가.
+
+**근거**:
+1. 학습 정합 — 학생이 V_A=50 슬라이더 = 박스 50% 시각으로 인식해야
+   PV=nRT 직관 학습. ratio 0.20 강제 = V=10 시각 20% → 모순.
+2. 끼임의 진짜 원인 = computeBox 의 `Math.max(boxMinHeight, ...)` 가
+   height 만 보호하고 box.y 는 그대로 → V=10 시 box.y > bodyBottom →
+   본체 외부 박스 → 새 입자 외부 생성. height 자체 음수 안 나오면
+   Math.max 불필요.
+3. V=10 시 자연 박스 높이 ≈ 45 px, 입자 직경 6 px → 입자 10개 충분 수용.
+4. radius 안전 마진 (`box.x + r` ~ `box.x + width - r`) 으로 V 작을 때
+   벽 침범 차단.
+
+**배제된 대안**:
+- A1 (ratio 0.20 강제): 학습 정합 깨짐. 사용자 명시 거부.
+- A2 (V_min 자체 늘림 10 → 20): 학생 슬라이더 자유도 ↓.
+- A3 (캔버스 크기 변경): 수단 과대.
+
+#### 결정: 텔레포트 안전장치 (stage === "INJECTING" 검사)
+
+**배경**: 끼임 정정 과정에서 IDLE / CONFIRMED stage 시 입자가 R3/R4
+(노즐) 에 비정상 진입하면 무조건 R5 로 텔레포트 발동 → 시린지 A 의 He
+입자가 시린지 B 박스에 갑자기 등장. 사용자 제안: "주입 눌러야지만
+텔레포트되게".
+
+**결정**: physicsSubstep 의 R3/R4 분기에 `stage === "INJECTING"` 검사
+추가. 그 외 stage 시 `rescueParticleToHomeRegion(p)` 호출 (가까운 박스로
+복귀, gasKey 보조).
+
+**근거**:
+1. 학술 정합 — 텔레포트는 "사용자가 주입 시작" 의도된 동작. IDLE 시
+   발동 = 분자 수 보존 시각 깨짐 (실제로는 안 깨지지만 학생 시각 혼란).
+2. 이중 안전장치 — computeBox / volumeToPistonY 정정 (정정 v5) 으로
+   R3/R4 진입 자체 차단되지만, 만약의 경우 텔레포트 차단으로 추가 보호.
+3. rescue 의 위치 분리량 영향 — 위치만 변경, 속도 보존이라 운동량 보존
+   영향 0.
+
+**배제된 대안**:
+- 무처리: 입자가 R3/R4 에 정체 → 끼임 재발 위험.
+- gasKey 기반 home 복귀: A 가스 ↔ R1, B 가스 ↔ R5 단순 매핑이지만
+  텔레포트 후 R5 의 A 가스는 R5 가 home 이라 모호. → x 좌표 기반 가까운
+  박스로 단순화.
+
+### 2026-04-26 — Step H AI 튜터 (돌턴 부분 압력 법칙 특화)
+
+#### 한 일
+- `createDaltonTutor` 자체 closure (input 운동 페이지 패턴 따름,
+  ai-tutor.js 의존 X)
+- system prompt: 돌턴 부분 압력 법칙 4 학습 목표 (분자 수 보존 / 부분
+  압력 / 합 = 전체 / 시뮬 ↔ 이론), Graham 법칙은 학생 질문 시만
+- Q1~Q4 탭 × 4 학생 수준 (elem/middle/high/univ) = 16개 신규 작성
+- Q3 동적 (학생 데이터 기반 [질문 생성])
+- 자유 탭 (400자 이내)
+- F1 비교 모드 통합 — `comparisonSelected` 2개 시 두 record 자동 주입
+- 토큰 / 비용 누적 표시 (MODEL_PRICING 자체 정의, USD_TO_KRW = 1400)
+- `[[LEVEL:xxx]]` 자동 학생 수준 갱신
+- dalton.html 의 ai-tutor.js 로드 제거 (PchemTutor 의존 충돌 차단)
+- commit: a64b695
+
+#### 결정: AI 튜터 구현 패턴 — 입자운동 패턴 (자체 closure)
+
+**배경**: 보일 페이지 = `ai-tutor.js` + `window.PchemTutor` 데이터
+인터페이스 (datapoints, getCurrentTempCelsius 등 보일 전용) 의존. 입자운
+동 페이지 = 페이지별 자체 closure. 돌턴은 어느 패턴 따를지 결정 필요.
+
+**결정**: 입자운동 패턴. `createDaltonTutor` 자체 closure 신규.
+ai-tutor.js 미사용.
+
+**근거**:
+1. 페이지별 데이터 의미 차이 — 돌턴 = (V_A, V_B, P_air, P_co2, n_total,
+   gasA, gasB) vs 보일 = (P, V, T) → PchemTutor 인터페이스 호환 X.
+2. 자체 closure = 시스템 prompt + Q1~Q4 + 비교 모드 통합 자유 정의.
+3. dalton.html 의 ai-tutor.js 로드는 충돌 차단을 위해 제거 (
+   `window.PchemTutor` 미정의 시 ai-tutor.js 의 DOMContentLoaded
+   핸들러가 .ai-sidebar .tab-btn 잡아 충돌 가능성).
+
+**배제된 대안**:
+- ai-tutor.js 재사용 + PchemTutor 호환 정의 — 보일 데이터 구조 강제
+  적용, 돌턴 의미 약화.
+- 단일 모듈 리팩터링 (보일도 함께) — 큰 작업, 별 Phase 영역.
+
+#### 결정: AI 튜터 system prompt — 비교 모드 통합 (F1)
+
+**배경**: 학생이 비교 모드 (기능 4) 에서 2 row 선택 후 AI 에 "왜 이렇게
+되나" 질문 가능. AI 가 자동으로 두 record 데이터 컨텍스트 받으면 학습
+효과 ↑.
+
+**결정**: `daltonState.comparisonSelected.length === 2` 시 system prompt
+의 [현재 측정 데이터] 섹션에 두 record 의 모든 변수 자동 주입. 2개 미만
+시 최근 측정 3개 주입.
+
+**근거**:
+1. 학습 흐름 통합 — 비교 모드 + AI 튜터 분리되면 학생이 데이터 두 번
+   설명. 자동 주입 = 즉시 분석 가능.
+2. Token 비용 미미 — record 1개 ≈ 50 token, 2개 = 100 token. 시스템
+   prompt 의 1~2% 수준.
+3. 학생 수준 (elem/middle/high/univ) 따라 어휘 조정 자체는 system prompt
+   의 LEVEL_GUIDES 처리.
+
+**배제된 대안**:
+- 모든 record 주입: token 폭증, 핵심 정보 묻힘.
+- 수동 입력: UX 저하.
+
+### 2026-04-26 — Step F++ 마무리 (피스톤 시각 + reopen 버튼 통일)
+
+#### 한 일
+- `drawSyringe` 의 pistonY = `Math.min(volumeToPistonY(V), bodyBottom -
+  pistonHeadH)` clamp 추가 — V=0 시 피스톤 본체 바닥 침범 차단
+- `#ai-reopen-btn` CSS 보일 형식 통일 (vertical-rl 세로 어두운 사각형,
+  position: fixed right: 0 top: 50%) — 우하단 원형 파란 디자인 폐기
+- commit: 72f16d0
+
+#### 결정: V=0 시 피스톤 시각 — clamp (의도 보존) vs V_A 변경 폐기
+
+**배경**: 주입 후 V_A = 0 (의도된 학술 동작 — A 시린지 가스 모두 B 로
+이동). volumeToPistonY(0) = bodyBottom (480) → drawSyringe 의 piston
+rect = (..., 480, ..., 14) → Y 480~494 (본체 바닥 480 아래 14 px 침범).
+
+**결정**: drawSyringe 의 pistonY 산출에 `Math.min(volumeToPistonY(V),
+SCENE.bodyBottom - SCENE.pistonHeadH)` clamp 한 줄 추가. V=0 시 pistonY
+= 466 (본체 바닥 480 위 14 px) → 피스톤 면 정확 본체 바닥에 닿음.
+
+**근거**:
+1. 학술 의미 보존 — V_A=0 = "시린지 A 비어있음" 의도 그대로.
+2. 시각 정정 한 줄, 다른 V 영향 X (V > 0 시 volumeToPistonY < bodyBottom
+   - pistonHeadH 자연 만족).
+3. drawSyringe 의 시각 처리만 정정, 물리/산출 로직 영향 0.
+
+**배제된 대안**:
+- V_A 변경 폐기 (V_A 슬라이더 50 그대로): 학술 의미 X. 주입 ≠ A 비음.
+- V_min 강제 (V=0 → V=5): "시린지 비어있음" 시각 어색.
+
+### 2026-04-26 — 측정 기록 토글 폐기 + 행 삭제 기능 + thead 12 컬럼
+
+#### 한 일
+- accordion 토글 버튼 (▲/▼) 폐기 — 측정 기록 영역 항상 펼침
+- thead 11 → 12 컬럼 (마지막 "삭제" 컬럼 추가)
+- addRecord tr 마지막 td 에 `🗑️` 버튼 추가 (data-record-n 속성)
+- `setupRecordDeleteHandler` event delegation
+- `deleteRecord(recordN)`: measurementRecords 배열 제거 + tr 제거 +
+  비교 모드 자동 해제 + 그래프 갱신 + empty 메시지 처리
+- 회차 번호 빈 자리 유지 (재정렬 X — 학생이 측정 시간 순서 학습)
+- confirm 다이얼로그
+- commit: ccdfe22 (HTML 짝)
+
+#### 결정: 행 삭제 시 회차 번호 — 빈 자리 유지 vs 재정렬
+
+**배경**: 측정 row 삭제 시 record.n (회차 번호) 처리. 예: 회차 1, 2, 3
+중 회차 2 삭제 → 회차 1, 3 만 남음 vs 회차 1, 2 로 재정렬.
+
+**결정**: 빈 자리 유지 (재정렬 X). 그래프 X 축도 빈 회차 자리 유지.
+
+**근거**:
+1. 학습 정합 — 학생이 자기 측정의 시간 순서 + 측정 의도 (예: "1번은
+   기준, 3번은 V_A 2배") 인지. 재정렬 시 의미 손실.
+2. comparisonSelected (record.n 배열) 와 일관성 — 삭제된 회차는 자동
+   해제, 남은 회차의 record.n 그대로.
+3. 단순 — 재정렬 시 그래프 / CSV / 비교 모드 모두 갱신 필요.
+
+**배제된 대안**:
+- 재정렬 (1, 2, 3 으로 다시 매김): 학습 의미 손실 + 코드 복잡.
+- 즉시 삭제 (confirm 없음): 실수 위험.
+
+#### 결정: 측정 기록 영역 — accordion 토글 폐기
+
+**배경**: 측정 기록 영역 = "측정 기록 ▲" accordion 버튼 (펼침/접힘).
+사용자 의도: "측정기록 버튼 필요없고. 여기서 필요없는 데이터는 지우는
+기능 필요할듯".
+
+**결정**: 토글 버튼 + accordion-body 마크업 폐기. 측정 기록 영역 항상
+펼침. 단순 `<h3>측정 기록</h3>` 제목.
+
+**근거**:
+1. 학생이 측정 후 표 즉시 봐야 학습 흐름 자연스러움. 접힘 상태 = 한
+   번의 클릭 손실 + 발견성 ↓.
+2. 토글의 의도 (영역 절약) = 그래프 / 표 grid 비율 (1fr:1.4fr) 로 이미
+   해결.
+3. 행 삭제 기능과 짝 — 표 보이지 않으면 삭제 UI 도 무용.
+
+**배제된 대안**:
+- 토글 유지 + 기본 펼침: 마크업 잔재.
+- 슬라이더 / 탭 등 다른 영역 절약 UI: 학습 흐름 방해.
+
+### Phase 5.3 마일스톤 (2026-04-26 종료)
+
+- 7 commits (1830e4f → ccdfe22), ahead 8 (origin 기준)
+- 누적 +1468 / -117 (web/js/main.js +1130, web/css/style.css +126,
+  web/dalton.html +5/-42, tests/ 신규 +431)
+- 신규 파일: `tests/dalton-collision-test.js`,
+  `tests/dalton-collision-test-result.txt`
+- 학습 기능 4: 분자 수 표시 / 비교 모드 / 입자 충돌 (정확한 분자운동론)
+  / AI 튜터
+- 시각 정합화: 측정 기록 UI 정리 + 피스톤 시각 + reopen 통일
+- 끼임 정정 v1~v5 누적 시도 — Matter.js 도입은 별 브랜치 추후 시도 의향
+
+#### 다음 예정
+
+- **개발 일지 commit + push 결정** — 사용자 명시 후
+- **Step I (실센서 연결)** — 보류 (실물 DFRobot Gravity 1.6MPa 입수 후)
+- **Matter.js 별 브랜치 (`experiment/matter-js`)** — 직접 구현 ↔
+  라이브러리 비교 자료 시도 (사용자 의향)
+- **Phase 6 (샤를 페이지 또는 새 시뮬)** — 향후. 사전 결정 단계에서
+  라이브러리 옵션 자동 포함 규칙 적용 (이번 세션 학습 사례)
+
