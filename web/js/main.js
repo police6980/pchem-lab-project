@@ -904,8 +904,6 @@ function initDaltonApp(params) {
         // 기록 테이블
         recordsTbody:  $("dalton-records"),
         recordsEmpty:  $("dalton-records-empty"),
-        recordsToggle: $("dalton-records-toggle"),
-        recordsBody:   $("dalton-records-body"),
 
         // Phase 5.3 기능 4: 비교 모드
         comparisonResult: $("dalton-comparison-result"),
@@ -1853,7 +1851,11 @@ function initDaltonApp(params) {
     // gasKey: daltonState 의 gas 키
     // volumeMl: 현재 부피 (mL)
     function drawSyringe(p, syr, gasKey, displayedVolumeMl) {
-        const pistonY = volumeToPistonY(displayedVolumeMl);
+        // Phase 5.4: V=0 시 피스톤이 본체 바닥 침범 차단 (시각 안전 — 학술 의미 보존)
+        const pistonY = Math.min(
+            volumeToPistonY(displayedVolumeMl),
+            SCENE.bodyBottom - SCENE.pistonHeadH
+        );
 
         // 1. 본체 안 가스색 채움 영역 (피스톤 면 ~ 본체 하단)
         // Step C-3 v8 → v12 → v13: 마진 2 → 6 → 3 → 0 (외벽 stroke 안쪽까지 완전 채움)
@@ -2383,6 +2385,7 @@ function initDaltonApp(params) {
         // 10컬럼 순서: 회차·V_A·V_B·P(이론)·P(시뮬)·P_공기·P_CO₂·n_A·n_B·n_total
         // (timeStr 은 record array 에 보존, CSV 위함)
         const tr = document.createElement("tr");
+        tr.dataset.recordN = n;  // Phase 5.4: 행 식별 (삭제 시 사용)
         tr.innerHTML = `
             <td class="compare-cell"><input type="checkbox" class="compare-checkbox" data-record-n="${n}"></td>
             <td>${n}</td>
@@ -2395,6 +2398,7 @@ function initDaltonApp(params) {
             <td>${n_A}</td>
             <td>${n_B}</td>
             <td>${n_total}</td>
+            <td class="delete-cell"><button type="button" class="record-delete-btn" data-record-n="${n}" title="회차 ${n} 삭제">🗑️</button></td>
         `;
         dom.recordsTbody.appendChild(tr);
 
@@ -2421,6 +2425,47 @@ function initDaltonApp(params) {
             const recordN = parseInt(target.dataset.recordN, 10);
             handleComparisonToggle(recordN, target.checked);
         });
+    }
+
+    // Phase 5.4: 측정 기록 행 삭제 (event delegation + confirm)
+    function setupRecordDeleteHandler() {
+        if (!dom.recordsTbody) return;
+        dom.recordsTbody.addEventListener("click", (e) => {
+            const btn = e.target.closest(".record-delete-btn");
+            if (!btn) return;
+            const recordN = parseInt(btn.dataset.recordN, 10);
+            if (!Number.isFinite(recordN)) return;
+            if (!confirm(`회차 ${recordN} 측정 기록을 삭제할까요?`)) return;
+            deleteRecord(recordN);
+        });
+    }
+
+    function deleteRecord(recordN) {
+        // 1. measurementRecords 배열에서 제거 (회차 번호는 유지 — F1)
+        const idx = daltonState.measurementRecords.findIndex((r) => r.n === recordN);
+        if (idx < 0) return;
+        daltonState.measurementRecords.splice(idx, 1);
+
+        // 2. 표 tr 제거
+        const tr = dom.recordsTbody.querySelector(`tr[data-record-n="${recordN}"]`);
+        if (tr) tr.remove();
+
+        // 3. 비교 모드 — 삭제된 record 가 선택 중이면 해제
+        const compIdx = daltonState.comparisonSelected.indexOf(recordN);
+        if (compIdx >= 0) {
+            daltonState.comparisonSelected.splice(compIdx, 1);
+            renderComparisonResult();  // 비교 영역 갱신 (1개 이하면 hide)
+        }
+
+        // 4. 그래프 갱신 (G1: 빈 회차 자리 유지 — daltonChartSketch 가 record.n 으로 x 축 매핑)
+        if (daltonChartP5Instance) {
+            daltonChartP5Instance.redraw();
+        }
+
+        // 5. 표 비었을 때 empty 메시지 표시
+        if (daltonState.measurementRecords.length === 0) {
+            if (dom.recordsEmpty) dom.recordsEmpty.classList.remove("hidden");
+        }
     }
 
     function handleComparisonToggle(recordN, isChecked) {
@@ -3052,6 +3097,9 @@ ${dataContext}
 
     // Phase 5.3 기능 4: 비교 모드 — tbody 의 체크박스 change delegation 등록 (init 1회)
     setupComparisonHandler();
+
+    // Phase 5.4: 측정 기록 행 삭제 핸들러 (init 1회)
+    setupRecordDeleteHandler();
 
     // Phase 5.4 기능 3: AI 튜터 (돌턴 부분 압력 법칙 특화) — 자체 closure
     createDaltonTutor();

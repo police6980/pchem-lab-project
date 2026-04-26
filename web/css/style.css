@@ -2948,9 +2948,34 @@ body[data-page="dalton"] .dalton-btn-secondary:disabled {
 
 /* .dalton-pressure-readout — 좌측 패널로 기능 이전, 제거 (Step C-1 v3) */
 
-/* Step F 정정 (재): 좁은 폭에서 12 컬럼 가로 스크롤 */
-body[data-page="dalton"] .dalton-accordion-body {
+/* Phase 5.4: 측정 기록 — 토글 폐기, 항상 펼침. 좁은 폭에서 12 컬럼 가로 스크롤 */
+body[data-page="dalton"] .dalton-records-section {
     overflow-x: auto;
+}
+body[data-page="dalton"] .dalton-records-title {
+    font-size: 0.95rem;
+    font-weight: 600;
+    margin: 0 0 8px 0;
+    color: #111827;
+}
+body[data-page="dalton"] .dalton-records-table .delete-col {
+    width: 40px;
+    text-align: center;
+}
+body[data-page="dalton"] .dalton-records-table .delete-cell {
+    text-align: center;
+}
+body[data-page="dalton"] .record-delete-btn {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 2px 6px;
+    font-size: 0.95rem;
+    opacity: 0.6;
+    transition: opacity 0.15s;
+}
+body[data-page="dalton"] .record-delete-btn:hover {
+    opacity: 1.0;
 }
 
 body[data-page="dalton"] .dalton-records-table {
@@ -3047,25 +3072,30 @@ body[data-page="dalton"] .ai-sidebar {
         box-shadow: -4px 0 16px rgba(0, 0, 0, 0.15);
         display: none;  /* 기본 숨김 */
     }
+    /* Phase 5.4: 돌턴 #ai-reopen-btn 보일 형식 통일 (vertical-rl 세로 사각형) */
     body[data-page="dalton"] #ai-reopen-btn {
-        /* 재열기 버튼을 drawer 트리거로 상시 노출 */
-        display: block;
+        display: block;     /* drawer 트리거로 상시 노출 */
         position: fixed;
-        bottom: 24px;
-        right: 24px;
+        right: 0;
+        top: 50%;
+        transform: translateY(-50%);
+        bottom: auto;
+        width: auto;
+        height: auto;
         z-index: 999;
-        width: 56px;
-        height: 56px;
-        border-radius: 50%;
-        font-size: 1.4rem;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-        border: none;
-        background: #2563eb;
-        color: #fff;
+        background: #1e2433;
+        color: #cdd6f4;
+        border: 1px solid #2e3650;
+        border-right: none;
+        border-radius: 8px 0 0 8px;
+        padding: 12px 8px;
+        font-size: 18px;
         cursor: pointer;
+        writing-mode: vertical-rl;
+        box-shadow: -2px 0 8px rgba(0, 0, 0, 0.15);
     }
     body[data-page="dalton"] #ai-reopen-btn:hover {
-        background: #1d4ed8;
+        background: #2e3650;
     }
     /* drawer 펼침 상태: body 에 sidebar-open 클래스 */
     body[data-page="dalton"].sidebar-open .ai-sidebar {
