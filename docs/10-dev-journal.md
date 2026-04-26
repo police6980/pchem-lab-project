@@ -1099,3 +1099,244 @@ closure 스코프라 재사용 불가).
 다음: **Step C — p5.js 시뮬 엔진 (`DaltonScene`)**. 주사기 A·B 입자 시뮬,
 피스톤 애니메이션, 혼합 입자 시각화. Phase 5.2 범위.
 
+---
+
+### 2026-04-25 — Step B 종료 후 Step C 전 정리 (4df950a, ec5472c, 11ba5ff, 960a246)
+
+#### 한 일
+- CSS 유령 룰 3건 제거 (4df950a)
+- sleep 헬퍼 ui.js 모듈 스코프 통합 (ec5472c)
+- 사이드바 접힘 padding 버그 수정 (11ba5ff)
+- 기록 테이블 V_fixed 컬럼 제거 (960a246)
+
+#### 결정: Step C (시각화) 진입 전 코드 정리 우선
+
+**배경**: Step A+B 까지 dalton.html + main.js 의 dalton 영역이 수백 줄 누적. 사이드바 padding 버그 등 표면 문제 잔존. Step C 가 큰 작업 (p5.js 시각화 + 입자 시뮬레이션) 이라 진입 전 정리.
+
+**결정**: 4건 chore commit 으로 표면 정리 후 Step C 진입.
+
+**근거**: 시각화 단계는 코드 가독성과 표면 안정이 보장된 상태에서 진행해야 함. 죽은 코드 위에 새 코드 쌓는 것 방지.
+
+---
+
+### 2026-04-25 — 압력 게이지 시리즈 (5455aa6, d1cdfff, 4fe2006, 9df7706)
+
+#### 한 일
+- 압력 게이지 SVG 정적 삽입 (5455aa6)
+- 7-seg LCD 박스 + 단위 분리 + 가운데 정렬 재구성 (d1cdfff)
+- 게이지 바늘 회전 동기 — pressureToAngle + updateGauge (4fe2006)
+- 5+ atm 빨간 영역 경고 (9df7706)
+- DSEG7 7세그 LCD 폰트 자체 호스팅 (`web/assets/fonts/DSEG7Classic-Bold.woff2`, 5132 bytes)
+
+#### 결정: 게이지를 SVG + 자체 호스팅 폰트 조합으로
+
+**배경**: 압력값을 시각적으로 강조 + 학생 친숙도 (실험실 기기 느낌) 필요.
+
+**결정**: SVG 게이지 (반원 + 색 영역 + 바늘 회전) + DSEG7 7세그 폰트 LCD 박스 조합. 폰트는 외부 CDN 대신 자체 호스팅.
+
+**근거**:
+- SVG = 색 영역 (안전 1~3 atm 파랑, 주의 3~4 atm 주황, 위험 4~5 atm 빨강) 선언적 표현 가능
+- DSEG7 폰트 = 실험실 기기 시각 친숙도. 외부 CDN 의존 시 오프라인 환경 (학교 망) 차단 가능
+- 자체 호스팅 = 5132 bytes 작은 비용으로 안정성 확보
+
+**배제된 대안**:
+- Canvas 게이지 — SVG 보다 코드 길어짐
+- 외부 CDN 폰트 (Google Fonts 7-seg 유사품) — 오프라인 차단 위험
+
+---
+
+### 2026-04-25 — Step C-1: 정적 시린지 그림 + 게이지 overlay (f8166f8, 38e7d49, 43887a0)
+
+#### 한 일
+- p5.js 기반 `drawDaltonScene` 도입 (`web/js/main.js`)
+- 시린지 A·B 본체 + 피스톤 + ㄷ자 연결관 정적 그림
+- SCENE 좌표 상수 정의 (canvasW 1160, bodyW 320, syringeA centerX 360, syringeB centerX 800, nozzleW 24, tubeY 520)
+- 게이지 overlay 5번 시각 다듬기 (1: 좌측 패널 통합 → 5: canvas 위 absolute 카드)
+
+#### 결정: 게이지 overlay 를 canvas 위 absolute 카드로
+
+**배경**: 초기에 게이지를 좌측 패널 안에 배치. 그러나 학생 시선이 캔버스 (시린지·입자) 와 게이지 사이를 멀리 이동.
+
+**결정**: 게이지 overlay 를 캔버스 위 absolute (시린지 옆 좌·우 카드). 시선 거리 ↓.
+
+**근거**: 학생이 입자 운동을 보면서 동시에 게이지 변화를 관찰. 학습 통합도 ↑.
+
+**배제된 대안**:
+- 좌측 패널 통합 — 시선 분리, 학습 효과 ↓
+- 캔버스 안에 게이지 그리기 (p5 SVG 변환) — 게이지 디자인 자유도 ↓
+
+---
+
+### 2026-04-25 — Step C-2: 입자 brownian + 부피 보간 (15c07bc, be99ea0)
+
+#### 한 일
+- `simulation.js` 의 Particle 클래스 재사용 (수정 0). ParticleSystem 미사용
+- 시린지별 60개 입자 (`particleCountPerSyringe: 60`) + brownian random walk
+- `displayedVolume` 신규 (부피 변경 시 즉시가 아닌 점진 보간 — `volumeLerpFactor: 0.15`)
+- 박스 좌표 (boxA, boxB) 매 frame 갱신 + 입자 충돌 처리
+
+#### 결정: simulation.js 재사용. dalton 은 ParticleSystem 미사용 (별도 physicsStep)
+
+**배경**: simulation.js 는 보일 페이지의 Particle + 1 region (단일 박스) 충돌 시스템. dalton 은 5 region (R1: A 박스, R2: A 노즐, R3: 튜브, R4: B 노즐, R5: B 박스) 모델 필요.
+
+**결정**: Particle 클래스 (위치·속도·반지름) 만 재사용. dalton 자체 physicsStep 함수 도입 (Step C-3 v2 에서).
+
+**근거**:
+- Particle 클래스 단순 (위치·속도·반지름·gasKey 추가만). 재사용 안 할 이유 없음
+- 5 region 충돌은 boyle 의 1 region 과 본질 다름. ParticleSystem 의 충돌 로직 재사용 불가
+
+**배제된 대안**:
+- ParticleSystem 확장 (5 region 옵션) — 보일 코드 오염
+- Particle 도 신규 (5 region 전용) — 코드 중복
+
+#### 결정: 부피 변경 시 displayedVolume 점진 보간
+
+**배경**: 사용자 슬라이더로 V_A 50 → 30 변경 시 박스가 즉시 변동 → 시각 부자연 (점프 인상).
+
+**결정**: `displayedVolume` 신규 필드. 매 frame `lerp(displayed, target, 0.15)`. 박스·피스톤 시각이 부드럽게 변화.
+
+**근거**: 직관적 시각. 사용자가 슬라이더 조작하는 동안 시각이 부드럽게 추종.
+
+---
+
+### 2026-04-25~26 — Step C-3: 주입 애니메이션 (9 commits, 11 versions, 본 케이스의 핵심)
+
+#### 한 일
+
+본 Step 은 진화 과정이 풍부. 11 versions 의 진화:
+
+- **v1** (d2bbcf0, +piston 9564ef3): waypoint 4 점 보간 — A 박스 → 노즐 → 튜브 → B 박스 입자 이주
+- **v2** (09de8f5): waypoint 폐기 → 5 region 자연 운동 + brownian + 피스톤 압축으로 R1 → R2 자연 흐름
+- **v3** (9c9535d): substep (max dt 5ms) + drift force (R2/R3/R4) + null region rescue
+- **v4** (b8ac9ca 일부): 텔레포트 모드 — R3/R4 입자 운동 폐기, R2 통과 시 즉시 R5
+- **v5** (b8ac9ca): R5 노즐 출구에서 위로 분출 (자연 분출), R1 강제 R5 이주 (boxA.height < 50)
+- **v6** (f547cd2 일부): 피스톤 진행률 ↔ 분출 입자 수 1:1 매핑. R1 입자 즉시 pending 으로 splice
+- **v7** (f547cd2 일부): 게이지 P_B 매 frame 진행률 동기 (releasedCount/total)
+- **v8** (f547cd2 일부): 시각 다듬기 — 튜브 색·피스톤 마진·air 색·입자 반지름
+- **v9** (f547cd2 일부): startInjection 의 V_A 캐시 — finalize 후 V_A=0 으로 인한 게이지 복귀 버그 수정
+- **v10** (f547cd2 일부): 안정화 카드 absolute + INJECTING P_A 점진 감소
+- **v11~v13** (f547cd2 일부): 튜브 외곽선 옅게 → 폐기, IDLE 입자 차단, 피스톤 마진 0 (완벽 fit)
+- **v14** (f547cd2 일부): 튜브 ㄷ자 통합 (drawConnectorTube 가 좌·우 노즐도 처리), 부분 압력 list, 가스 흐림 토글
+- **v15~v16** (f547cd2 일부): 노즐 top y 보정 (실린더 침범 방지), dot → 체크박스, alpha 0.4 → 0.08
+- **v17 cleanup** (281254f): 폐기된 SCENE 상수 + 변수 + CSS 룰 제거
+
+신규 함수 25개. 핵심: `physicsStep`/`physicsSubstep` (5 region 충돌), `teleportToR5NozzleEntry` (B 노즐 분출), `startInjectionTransfer`/`updateInjectionTransfer` (피스톤 동기), `countR5ParticlesByGas` (부분 압력), `updatePartialPressureList` (가스 라인 동적).
+
+#### 결정: 입자 이주를 waypoint 보간 → 5 region 물리 → 텔레포트 + 피스톤 동기로 진화
+
+**배경**: 사용자가 본 시뮬레이션을 "학생이 분자 운동을 보면서 PV=nRT 와 P_total = ΣP_i 를 직관적으로 학습"하길 원함. 시각 자연성과 물리적 정확성 양쪽 충족 필요.
+
+**결정**: 4 단계 진화로 안착.
+1. waypoint 보간 (v1) — 학습 효과 가장 큰 시각이지만 사용자 거부 ("진공청소기 인상 — 어느 입자가 어느 방향으로 가는지 모름")
+2. 5 region 자연 운동 (v2~v3) — brownian + drift force. 물리적 정확. 그러나 R3 (수평 튜브) first passage time > 주입 시간 → 잔존 + 새어나감
+3. 텔레포트 모드 (v4~v5) — R3/R4 입자 운동 폐기. 시각 자연성 일부 잃지만 본질 해결. R5 노즐 출구에서 분출
+4. 피스톤 동기 분출 (v6) — 피스톤 진행률 ↔ 분출 입자 수 1:1 매핑. 펑 한꺼번에 → 점진적 1개씩
+
+**근거**:
+- v1: 사용자 직관 거부 — "어느 입자가 어디로?"
+- v2~v3: brownian first passage 시간이 주입 시간 (3초) 보다 길어 잔존 불가피. He 입자 + dt=0.05 시 한 frame 12.1px 이동, R3 두께 15px 자유 공간 → 통과 가능 → 새어나감
+- v4~v5: 텔레포트로 본질 해결 (잔존·새어나감 0). 단 입자가 박스 가운데 무작위로 뿅 나타나는 시각이 부자연
+- v6: 피스톤 진행률 직접 매핑. PV=nRT 시각화 정확 (V 절반 = 분자 절반 이동). 학습 효과 정점
+
+**배제된 대안**:
+- waypoint 보간 (v1): 사용자 거부
+- 5 region brownian 단독 (v2): 잔존 불가피 (first passage 시간)
+- drift force 강화 (v3): 잔존 일부 해결되나 R3 안 잔존 여전. 드래그 같은 인공 인상
+- forceRemainingToR5 강제 텔레포트 (v3 의 safety timeout): 시각 부자연 (입자 갑자기 사라짐). v6 후엔 pending 시스템과 안전망 역할로만 보존
+
+#### 결정: 게이지 P_B 의 매 frame 동기 (시간 기반 → 진행률 기반)
+
+**배경**: v6 에서 입자 점진 분출 도입 후, 게이지가 주입 중 1.00 atm 유지 → finalize 직후 즉시 2.00 점프. 시각 불일치.
+
+**결정**: `pressureBSensor` 매 frame `1.00 + (releasedCount/total) × (theoryAfterAtm - 1.00)` 갱신. `updateInjectionTransfer` 안에서 `updatePressureReadouts` 호출.
+
+**근거**:
+- 진행률 기반 = 분자 수 비율 = PV=nRT 직접 표현
+- 시간 기반보다 정확 (입자 분출 속도와 동기)
+- displayedPressureBSensor 신규 변수 불필요 — pressureBSensor 자체 갱신
+
+**배제된 대안**:
+- displayedPressureBSensor 신규 (보간 위함) — pressureBSensor 자체 갱신으로 충분
+- 시간 기반 ease-out 곡선 — 입자 수와 동기 안 됨
+
+#### 결정: V_A 캐시 (startInjection 시작 시점)
+
+**배경**: v6+v7 후 게이지가 finalize 시 1.00 으로 복귀하는 버그.
+
+**원인**: `theoryAfterAtm = (V_A / V_B + 1) × 1.00` 계산이 `await runInjectionAnimation()` 후 실행. 그 시점 V_A=0 (finalize 가 V_A=0 확정) → 0/V_B + 1 = 1.00. pressureBSensor 잘못 저장.
+
+**결정**: `startInjection` 시작 즉시 V_A_initial 캐시 + theoryAfterAtm 미리 계산.
+
+**근거**: V_A 0 시점의 계산 회피. PV=nRT 의 변수 (V_A=0 = 무한대 가능) 안전 처리.
+
+**배제된 대안**:
+- finalize 가 V_A=0 안 시킴 — V_A 의 의미 (피스톤 위치) 와 어긋남
+
+#### 결정: IDLE 상태 입자 자동 이주 차단 (R1↔R2, R5↔R4)
+
+**배경**: v6 까지 적용 후 사용자 발견 — 가만히 있는데 A 입자가 자동으로 R5 로 이주.
+
+**원인**: physicsSubstep 의 R1 분기에서 bottom wall 충돌이 R2 진입 영역 (x ∈ R2 범위) 에선 통과 허용. 자연 brownian 으로 R2 → R3/R4 OR 분기 → teleportToR5NozzleEntry → R5 합류.
+
+**결정**: R1 의 bottom 통과를 `injectionPistonAnimating` 동안만 허용. R5 의 bottom 은 영구 차단 (R5 → R4 순환 차단).
+
+**근거**: IDLE 상태 = 가만히 있어야 함. R2 진입은 주입 중에만 의미. R5 → R4 는 어느 시점에도 불필요.
+
+**배제된 대안**:
+- physics 단계에서 R1↔R2 자체 막기 — 주입 중 R2 통과 허용 필요해 모순
+
+#### 결정: 부분 압력 시각화 — 동적 list + 체크박스 토글
+
+**배경**: 돌턴 법칙 P_i = (n_i/N_total) × P_total 의 학습 효과 위해 가스별 부분 압력 명시 필요.
+
+**결정**: P_B overlay 카드 안에 부분 압력 list 동적 생성 (체크박스 + 가스 색 + 라벨 + 값). INJECTED/CONFIRMED stage 만 표시. 체크박스 해제 시 해당 가스 입자 흐림 (alpha 0.08), 라인도 흐림 (opacity 0.15). 게이지·전체 LCD 계산은 보존.
+
+**근거**:
+- 입자 수 카운트 ↔ 비율 ↔ 압력 매핑이 학생 직관
+- 흐림 토글로 가스별 강조 가능 — "공기 입자만 보기" / "CO₂ 입자만 보기"
+- 게이지 보존 = 부분 압력 = 전체 압력의 분해라는 개념 명확
+
+**배제된 대안**:
+- 게이지 P_air, P_CO₂ 추가 — 화면 복잡 (게이지 4개)
+- stacked bar — 시각 미세
+- 라벨 + dot 만 (v14) — 체크 상태 모호 (v15 에서 체크박스로 교체)
+- alpha 0.4 (v14) → 0.15 (v15) → 0.08 (v16) — 사용자 시각 검증으로 점진 약화
+
+#### 결정: 피스톤·실린더 마진 0 (외벽 stroke 위로 헤드 겹침)
+
+**배경**: V=0 도달 시 피스톤 헤드와 본체 사이 미세 빈 영역. 4 차례 마진 조정 (v8 마진 6 → v12 마진 3 → v13 마진 0).
+
+**결정**: 마진 0 (`bodyLeft + 0`, `bodyW`). 본체 외벽 stroke 1.5 (양쪽 = 3px) 가 안쪽으로 0.75px 그려짐. 헤드가 이 위로 살짝 겹쳐 시각상 딱 맞음.
+
+**근거**: stroke 의 안쪽 두께를 헤드가 덮음 → 빈 영역 0.
+
+**배제된 대안**:
+- 마진 1.5 (외벽 stroke 두께 매칭) — 여전히 0.75px 빈 영역 (사용자 인식)
+
+#### 결정: 튜브 ㄷ자 단일 함수 통합 (drawConnectorTube)
+
+**배경**: 초기 (Step C-1) 에 노즐 통로는 drawSyringe 가, 수평 튜브는 drawConnectorTube 가 그림. 이음새 분리 인상.
+
+**결정**: drawConnectorTube 가 ㄷ자 전체 (좌 노즐 수직 + 수평 + 우 노즐 수직) 단일 함수에서 그림. drawSyringe 의 노즐 stroke 제거. 노즐 top y = bodyBottom + wallStrokeWeight/2 (실린더 본체 침범 방지).
+
+**근거**: 같은 fill 색·noStroke 로 한 번에 → 자연 연결.
+
+**배제된 대안**:
+- drawSyringe 의 노즐 + drawConnectorTube 의 수평을 같은 색으로 통일 — 코드 분산 유지
+
+---
+
+### Phase 5 마일스톤 (Step C 종료 시점, 2026-04-26)
+
+- 33 commits / 3일 (2026-04-24 ~ 2026-04-26). 그 중 Step C 시리즈 (압력 게이지 + C-1 + C-2 + C-3 + cleanup) = 14 commits
+- 누적 변경: 18 files +2805/-185
+  - `web/js/main.js` +1346 (dalton 영역 신규)
+  - `web/css/style.css` +613
+  - `web/dalton.html` +285 (신규 파일)
+  - `docs/11-dalton-design.md` +376 (신규 설계서)
+  - `web/config/params.json` +27 (dalton 섹션 신규)
+- 신규 함수 25개 (dalton 영역). 기존 `simulation.js` 재사용 (수정 0)
+- 5 region 물리 모델 + 텔레포트 + 피스톤 동기 + 게이지 동기 + 부분 압력 시각화 완성
+- 마지막 commit: `281254f` (cleanup, ahead +20)
+- 다음: Step C-4 (sleep 교체 — UI 흐름 통합) 또는 Phase 6 (샤를 페이지)
+
