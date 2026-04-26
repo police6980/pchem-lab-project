@@ -148,43 +148,35 @@
         <!-- p5 의 createCanvas 가 자체 canvas 동적 생성 + parent("dalton-chart-wrap") — placeholder canvas 불필요 (Step F 정정 재) -->
         <div id="dalton-chart-wrap"></div>
 
-        <!-- ─── 하단: 측정 기록 accordion ─── -->
+        <!-- ─── 하단: 측정 기록 (Phase 5.4: 토글 폐기, 항상 펼침) ─── -->
         <section id="dalton-records-section" class="dalton-records-section">
-            <button id="dalton-records-toggle"
-                    class="dalton-accordion-header"
-                    type="button"
-                    aria-expanded="true"
-                    aria-controls="dalton-records-body">
-                <span>측정 기록</span>
-                <span class="dalton-accordion-arrow">▲</span>
-            </button>
-            <div id="dalton-records-body" class="dalton-accordion-body">
-                <table class="dalton-records-table">
-                    <thead>
-                        <tr>
-                            <th class="compare-col">비교</th>
-                            <th>회차</th>
-                            <th>V<sub>A</sub></th>
-                            <th>V<sub>B</sub></th>
-                            <th>P(이론)</th>
-                            <th>P(시뮬)</th>
-                            <th>P<sub>공기</sub></th>
-                            <th>P<sub>CO₂</sub></th>
-                            <th>n<sub>A</sub></th>
-                            <th>n<sub>B</sub></th>
-                            <th>n<sub>total</sub></th>
-                        </tr>
-                    </thead>
-                    <tbody id="dalton-records"></tbody>
-                </table>
-                <p class="dalton-records-empty" id="dalton-records-empty">
-                    아직 기록된 측정이 없습니다.
-                </p>
-                <!-- Phase 5.3 기능 4: 비교 결과 영역 (체크박스 2개 선택 시 표시) -->
-                <div id="dalton-comparison-result" class="dalton-comparison-result hidden">
-                    <div class="comparison-header">📊 비교 분석</div>
-                    <div class="comparison-body" id="dalton-comparison-body"></div>
-                </div>
+            <h3 class="dalton-records-title">측정 기록</h3>
+            <table class="dalton-records-table">
+                <thead>
+                    <tr>
+                        <th class="compare-col">비교</th>
+                        <th>회차</th>
+                        <th>V<sub>A</sub></th>
+                        <th>V<sub>B</sub></th>
+                        <th>P(이론)</th>
+                        <th>P(시뮬)</th>
+                        <th>P<sub>공기</sub></th>
+                        <th>P<sub>CO₂</sub></th>
+                        <th>n<sub>A</sub></th>
+                        <th>n<sub>B</sub></th>
+                        <th>n<sub>total</sub></th>
+                        <th class="delete-col">삭제</th>
+                    </tr>
+                </thead>
+                <tbody id="dalton-records"></tbody>
+            </table>
+            <p class="dalton-records-empty" id="dalton-records-empty">
+                아직 기록된 측정이 없습니다.
+            </p>
+            <!-- Phase 5.3 기능 4: 비교 결과 영역 (체크박스 2개 선택 시 표시) -->
+            <div id="dalton-comparison-result" class="dalton-comparison-result hidden">
+                <div class="comparison-header">📊 비교 분석</div>
+                <div class="comparison-body" id="dalton-comparison-body"></div>
             </div>
         </section>
     </div>
