@@ -3604,3 +3604,24 @@ body[data-page="dalton"] #dalton-btn-calib-all {
     padding: 4px;
     font-size: 0.82rem;
 }
+body[data-page="dalton"] .dalton-pressure-freeze-btn {
+    margin-top: 6px;
+    width: 100%;
+    padding: 6px;
+    font-size: 0.85rem;
+    border: 1px solid #d1d5db;
+    border-radius: 4px;
+    background: #fff;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+}
+body[data-page="dalton"] .dalton-pressure-freeze-btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+body[data-page="dalton"] .dalton-pressure-freeze-btn.dalton-frozen {
+    background: #fef3c7;
+    border-color: #f59e0b;
+    color: #92400e;
+    font-weight: 600;
+}

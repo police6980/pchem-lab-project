@@ -828,6 +828,16 @@ function initDaltonApp(params) {
         // ws/real 모드(Phase 5.4) 에서 실제 수신값으로 덮어씀.
         pressureASensor: 1.00,
         pressureBSensor: 1.00,
+        // Phase 5.4: EMA 평활 + 입자 수 일관성
+        emaP_A_kPa: 101.325,
+        emaP_B_kPa: 101.325,
+        lastUpdatedP_A_kPa: 101.325,
+        lastUpdatedP_B_kPa: 101.325,
+        targetParticles_A: null,
+        targetParticles_B: null,
+        pressureFrozen: false,
+        frozenP_A_kPa: null,
+        frozenP_B_kPa: null,
         // 주입 완료 후 측정된 P_total (atm). INJECTED/CONFIRMED 에서만 유효.
         // IDLE/INJECTING 에서는 null. Step B-3 에서는 시뮬값 대신 이론값 그대로.
         // Step C/F 에서 실제 시뮬 결과값으로 대체.
@@ -930,6 +940,7 @@ function initDaltonApp(params) {
         ch1Calib:          $("dalton-ch1-calib"),
         btnCalibCh1:       $("dalton-btn-calib-ch1"),
         btnCalibAll:       $("dalton-btn-calib-all"),
+        btnPressureFreeze: $("dalton-btn-pressure-freeze"),
         sensorError:       $("dalton-sensor-error"),
     };
 
@@ -951,20 +962,28 @@ function initDaltonApp(params) {
 
     // 채널별 데이터 구독 — ws/real 모드에서 센서값으로 daltonState 갱신 + 게이지 반영
     daltonSensorManager.onChannelData(0, (data) => {
-        // ch 0 = 주사기 B (수용측) → P_total
-        if (daltonSensorManager.mode !== "mock") {
-            daltonState.pressureBSensor = data.value / 101.325;  // kPa → atm
-            updatePressureReadouts();
-            updateChLive(0, data.value);
-        }
+        if (daltonSensorManager.mode === "mock") return;
+
+        daltonState.emaP_B_kPa = applyEMA(daltonState.emaP_B_kPa, data.value);
+        updateChLive(0, data.value);
+
+        if (daltonState.pressureFrozen) return;
+
+        daltonState.pressureBSensor = daltonState.emaP_B_kPa / 101.325;
+        updatePressureReadouts();
+        maybeUpdateParticleTarget("B");
     });
     daltonSensorManager.onChannelData(1, (data) => {
-        // ch 1 = 주사기 A (능동측)
-        if (daltonSensorManager.mode !== "mock") {
-            daltonState.pressureASensor = data.value / 101.325;  // kPa → atm
-            updatePressureReadouts();
-            updateChLive(1, data.value);
-        }
+        if (daltonSensorManager.mode === "mock") return;
+
+        daltonState.emaP_A_kPa = applyEMA(daltonState.emaP_A_kPa, data.value);
+        updateChLive(1, data.value);
+
+        if (daltonState.pressureFrozen) return;
+
+        daltonState.pressureASensor = daltonState.emaP_A_kPa / 101.325;
+        updatePressureReadouts();
+        maybeUpdateParticleTarget("A");
     });
 
     function updateChLive(ch, kPa) {
@@ -1039,6 +1058,10 @@ function initDaltonApp(params) {
             if (daltonSensorManager.mode === "mock" && daltonSensorManager.source?.connected) return;
             setModeUI("mock");
             resetCalibUI();
+            daltonState.pressureFrozen = false;
+            daltonState.frozenP_A_kPa = null;
+            daltonState.frozenP_B_kPa = null;
+            updatePressureFreezeUI();
             daltonSensorManager.setMode("mock");
         });
 
@@ -1096,6 +1119,17 @@ function initDaltonApp(params) {
             resetCalibUI();
             if (dom.ch0Live) dom.ch0Live.textContent = "—";
             if (dom.ch1Live) dom.ch1Live.textContent = "—";
+            // Phase 5.4: EMA / target / freeze 초기화
+            daltonState.emaP_A_kPa = 101.325;
+            daltonState.emaP_B_kPa = 101.325;
+            daltonState.lastUpdatedP_A_kPa = 101.325;
+            daltonState.lastUpdatedP_B_kPa = 101.325;
+            daltonState.targetParticles_A = null;
+            daltonState.targetParticles_B = null;
+            daltonState.pressureFrozen = false;
+            daltonState.frozenP_A_kPa = null;
+            daltonState.frozenP_B_kPa = null;
+            updatePressureFreezeUI();
         });
 
         daltonSensorManager.on("calibrated", (payload) => {
@@ -1111,9 +1145,50 @@ function initDaltonApp(params) {
             showError(msg);
         });
 
+        // 압력 확정 버튼 바인딩
+        dom.btnPressureFreeze?.addEventListener("click", togglePressureFreeze);
+
         // 초기 모드: mock
         daltonSensorManager.setMode("mock");
     })();
+
+    // ─────────────────────────────────────────────────────────
+    // Phase 5.4: 압력 확정 토글
+    // ─────────────────────────────────────────────────────────
+    function togglePressureFreeze() {
+        const stage = daltonState.stage;
+        if (stage !== "IDLE" && stage !== "STABILIZING") return;
+        if (daltonSensorManager.mode === "mock") return;
+        if (!daltonSensorManager.source?.connected) return;
+
+        if (daltonState.pressureFrozen) {
+            daltonState.pressureFrozen = false;
+            daltonState.frozenP_A_kPa = null;
+            daltonState.frozenP_B_kPa = null;
+        } else {
+            maybeUpdateParticleTarget("A", true);
+            maybeUpdateParticleTarget("B", true);
+            daltonState.frozenP_A_kPa = daltonState.emaP_A_kPa;
+            daltonState.frozenP_B_kPa = daltonState.emaP_B_kPa;
+            daltonState.pressureFrozen = true;
+        }
+        updatePressureFreezeUI();
+    }
+
+    function updatePressureFreezeUI() {
+        const btn = dom.btnPressureFreeze;
+        if (!btn) return;
+
+        const stage = daltonState.stage;
+        const enabled =
+            (stage === "IDLE" || stage === "STABILIZING") &&
+            daltonSensorManager.mode !== "mock" &&
+            !!daltonSensorManager.source?.connected;
+
+        btn.disabled = !enabled;
+        btn.textContent = daltonState.pressureFrozen ? "🔓 확정 해제" : "🔒 압력 확정";
+        btn.classList.toggle("dalton-frozen", daltonState.pressureFrozen);
+    }
 
     // ─────────────────────────────────────────────────────────
     // 단위 포맷 헬퍼 — atm(내부) → 표시 문자열
@@ -1411,6 +1486,106 @@ function initDaltonApp(params) {
     // 1 atm·mL = 1 분자 단위. 시각 입자 / 측정 row / 좌측 패널 모두 이 함수 사용.
     function computeMoleCount(pressureAtm, volumeMl) {
         return Math.round(pressureAtm * volumeMl);
+    }
+
+    // ─────────────────────────────────────────────────────────
+    // Phase 5.4: EMA 평활 + 점진적 입자 수 보정
+    // ─────────────────────────────────────────────────────────
+    const EMA_ALPHA = 0.2;
+    const PARTICLE_UPDATE_THRESHOLD_KPA = 2.0;
+    const PARTICLE_STEP_PER_FRAME = 2;
+
+    function applyEMA(prev, next) {
+        return EMA_ALPHA * next + (1 - EMA_ALPHA) * prev;
+    }
+
+    // 입자 수 헬퍼 — region 기반
+    function getParticleCountInSyringe(side) {
+        return countParticlesInRegions(side === "A" ? [1] : [5]);
+    }
+
+    function addParticleToSyringe(side) {
+        const isA = side === "A";
+        const box = isA ? boxA : boxB;
+        const gasKey = isA ? daltonState.syringeA.gas : daltonState.syringeB.gas;
+        const gasData = getGasData(gasKey);
+        const speedScale = SCENE.particleSpeedScale * (gasData.speedFactor || 1.0);
+        const r = SCENE.particleRadius;
+        const safeW = Math.max(0, box.width - 2 * r);
+        const safeH = Math.max(0, box.height - 2 * r);
+        if (safeW <= 0 || safeH <= 0) return;
+
+        for (let attempt = 0; attempt < 5; attempt++) {
+            const x = box.x + r + Math.random() * safeW;
+            const y = box.y + r + Math.random() * safeH;
+            const targetRegion = isA ? 1 : 5;
+            if (getRegion(x, y) !== targetRegion) continue;
+            const u1 = Math.max(0.0001, Math.random());
+            const angle = Math.random() * Math.PI * 2;
+            const mag = Math.sqrt(-2 * Math.log(u1)) * speedScale;
+            const p = new Particle(x, y, mag * Math.cos(angle), mag * Math.sin(angle), r);
+            p.gasKey = gasKey;
+            p.M = gasData.M || 1;
+            allParticles.push(p);
+            return;
+        }
+    }
+
+    function removeParticleFromSyringe(side) {
+        const targetRegion = side === "A" ? 1 : 5;
+        const candidates = [];
+        for (let i = allParticles.length - 1; i >= 0; i--) {
+            if (getRegion(allParticles[i].x, allParticles[i].y) === targetRegion) {
+                candidates.push(i);
+            }
+        }
+        if (candidates.length === 0) return;
+        const idx = candidates[Math.floor(Math.random() * candidates.length)];
+        allParticles.splice(idx, 1);
+    }
+
+    function maybeUpdateParticleTarget(side, force) {
+        const stage = daltonState.stage;
+        if (!force && stage !== "IDLE" && stage !== "STABILIZING") return;
+        if (!force && daltonState.pressureFrozen) return;
+
+        const emaKey = side === "A" ? "emaP_A_kPa" : "emaP_B_kPa";
+        const lastKey = side === "A" ? "lastUpdatedP_A_kPa" : "lastUpdatedP_B_kPa";
+        const ema = daltonState[emaKey];
+        const last = daltonState[lastKey];
+
+        if (!force && Math.abs(ema - last) < PARTICLE_UPDATE_THRESHOLD_KPA) return;
+
+        const volumeMl = side === "A" ? daltonState.syringeA.volume : daltonState.syringeB.volume;
+        const emaAtm = ema / 101.325;
+        const nTarget = computeMoleCount(emaAtm, volumeMl);
+
+        const targetKey = side === "A" ? "targetParticles_A" : "targetParticles_B";
+        daltonState[targetKey] = nTarget;
+        daltonState[lastKey] = ema;
+    }
+
+    function stepParticleCounts() {
+        const stage = daltonState.stage;
+        if (stage !== "IDLE" && stage !== "STABILIZING") return;
+        if (daltonState.pressureFrozen) return;
+
+        for (const side of ["A", "B"]) {
+            const targetKey = side === "A" ? "targetParticles_A" : "targetParticles_B";
+            const target = daltonState[targetKey];
+            if (target == null) return;
+
+            const current = getParticleCountInSyringe(side);
+            const diff = target - current;
+            if (diff === 0) continue;
+
+            const step = Math.sign(diff) * Math.min(PARTICLE_STEP_PER_FRAME, Math.abs(diff));
+            if (step > 0) {
+                for (let i = 0; i < step; i++) addParticleToSyringe(side);
+            } else {
+                for (let i = 0; i < -step; i++) removeParticleFromSyringe(side);
+            }
+        }
     }
 
     // 부피 → 피스톤 면의 Y 좌표 (본체 안쪽)
@@ -2143,6 +2318,9 @@ function initDaltonApp(params) {
             updateBox(boxA, SCENE.syringeA, daltonState.syringeA.displayedVolume);
             updateBox(boxB, SCENE.syringeB, daltonState.syringeB.displayedVolume);
 
+            // Phase 5.4: 점진적 입자 수 보정 (ws/real 모드, IDLE/STABILIZING)
+            stepParticleCounts();
+
             // 5 region 물리 update (입자 좌표 적분 + region 별 외곽 벽 충돌)
             physicsStep(dt);
 
@@ -2353,6 +2531,14 @@ function initDaltonApp(params) {
     //   CONFIRMED  → IDLE (초기화)
     // ─────────────────────────────────────────────────────────
     function setStage(newStage) {
+        // Phase 5.4: 압력 확정 자동 해제 (IDLE/STABILIZING 외 진입 시)
+        if (daltonState.pressureFrozen &&
+            newStage !== "IDLE" && newStage !== "STABILIZING") {
+            daltonState.pressureFrozen = false;
+            daltonState.frozenP_A_kPa = null;
+            daltonState.frozenP_B_kPa = null;
+        }
+
         daltonState.stage = newStage;
 
         // 버튼 disabled 일괄 제어
@@ -2372,6 +2558,7 @@ function initDaltonApp(params) {
 
         // 압력 readout 재갱신 (stage 분기 반영)
         updatePressureReadouts();
+        updatePressureFreezeUI();
     }
 
     // ─────────────────────────────────────────────────────────
@@ -2460,6 +2647,11 @@ function initDaltonApp(params) {
     // ─────────────────────────────────────────────────────────
     function confirmMeasurement() {
         if (daltonState.stage !== "INJECTED") return;
+        // Phase 5.4: 기록 시점 입자 수 강제 갱신 (비-freeze 시)
+        if (daltonSensorManager.mode !== "mock" && !daltonState.pressureFrozen) {
+            maybeUpdateParticleTarget("A", true);
+            maybeUpdateParticleTarget("B", true);
+        }
         addRecord();
         setStage("CONFIRMED");
     }
@@ -2481,8 +2673,18 @@ function initDaltonApp(params) {
         }
 
         daltonState.pressureBMeasured = null;
-        daltonState.pressureASensor   = 1.00;  // 시뮬 기본값 복귀
+        daltonState.pressureASensor   = 1.00;
         daltonState.pressureBSensor   = 1.00;
+        // Phase 5.4: EMA / target / freeze 초기화
+        daltonState.emaP_A_kPa = 101.325;
+        daltonState.emaP_B_kPa = 101.325;
+        daltonState.lastUpdatedP_A_kPa = 101.325;
+        daltonState.lastUpdatedP_B_kPa = 101.325;
+        daltonState.targetParticles_A = null;
+        daltonState.targetParticles_B = null;
+        daltonState.pressureFrozen = false;
+        daltonState.frozenP_A_kPa = null;
+        daltonState.frozenP_B_kPa = null;
         // Phase 5.3 정정: cache 미초기화 정합 (다음 측정 영향 회피)
         daltonState.V_A_initial_cached      = null;
         daltonState.gasA_cached             = null;
