@@ -215,7 +215,9 @@ function initSensorPanel(sensorManager) {
         resetRealUI();
     });
 
-    sensorManager.on("calibrated", (p0) => {
+    sensorManager.on("calibrated", (payload) => {
+        // v1.2: { ch, p0kPa }  v1.1 호환: number
+        const p0 = (typeof payload === "object" && payload !== null) ? payload.p0kPa : payload;
         const n = Number(p0);
         if (!Number.isFinite(n)) return;
         if (sensorManager.mode === "ws") {
@@ -226,7 +228,9 @@ function initSensorPanel(sensorManager) {
         sensorLabelEl.textContent = `p₀ = ${n.toFixed(1)} kPa`;
     });
 
-    sensorManager.on("error", (msg) => {
+    sensorManager.on("error", (payload) => {
+        // v1.2: { msg, ch? }  v1.1 호환: string
+        const msg = (typeof payload === "object" && payload !== null) ? payload.msg : payload;
         if (sensorManager.mode === "ws") {
             wsStatusEl.textContent = `⚠ ${msg}`;
             wsStatusEl.className = "status-error";

@@ -31,7 +31,42 @@
         <!-- ─── 좌측: 설정 패널 ─── -->
         <aside id="dalton-control-panel" class="dalton-panel">
 
-            <!-- 센서 모드 선택 — Phase 5.5 에서 재설계 예정 -->
+            <!-- 센서 모드 선택 (Phase 5.4: 멀티채널 v1.2) -->
+            <section id="dalton-sensor-panel" class="dalton-section dalton-sensor-panel">
+                <h2 class="dalton-section-title">센서 모드</h2>
+                <div id="dalton-sensor-mode-toggle" class="dalton-sensor-mode-toggle">
+                    <button id="dalton-btn-mode-mock" class="active">🖥 시뮬레이션</button>
+                    <button id="dalton-btn-mode-ws">🔌 에뮬레이터</button>
+                    <button id="dalton-btn-mode-real">⚡ 실센서</button>
+                </div>
+                <!-- 실센서(WebSerial) 컨트롤 -->
+                <div id="dalton-sensor-real-controls" class="dalton-sensor-controls hidden">
+                    <button id="dalton-btn-serial-connect">🔌 포트 연결</button>
+                    <button id="dalton-btn-serial-disconnect" class="hidden">✖ 연결 해제</button>
+                    <span id="dalton-serial-status">연결 안 됨</span>
+                </div>
+                <!-- 에뮬레이터(WebSocket) 컨트롤 -->
+                <div id="dalton-sensor-ws-controls" class="dalton-sensor-controls hidden">
+                    <span id="dalton-ws-status">연결 중...</span>
+                </div>
+                <!-- 채널별 상태 (v1.2 멀티채널) -->
+                <div id="dalton-channel-status" class="dalton-channel-status hidden">
+                    <div class="dalton-ch-row" data-ch="0">
+                        <span class="dalton-ch-label">ch0 (B)</span>
+                        <span class="dalton-ch-sensor" id="dalton-ch0-sensor"></span>
+                        <span class="dalton-ch-calib" id="dalton-ch0-calib">미보정</span>
+                        <button class="dalton-btn-ch-calib" id="dalton-btn-calib-ch0" disabled>🎯 영점</button>
+                    </div>
+                    <div class="dalton-ch-row" data-ch="1">
+                        <span class="dalton-ch-label">ch1 (A)</span>
+                        <span class="dalton-ch-sensor" id="dalton-ch1-sensor"></span>
+                        <span class="dalton-ch-calib" id="dalton-ch1-calib">미보정</span>
+                        <button class="dalton-btn-ch-calib" id="dalton-btn-calib-ch1" disabled>🎯 영점</button>
+                    </div>
+                    <button id="dalton-btn-calib-all" class="dalton-btn dalton-btn-secondary" disabled>🎯 전체 캘리브</button>
+                </div>
+                <div id="dalton-sensor-error" class="sensor-error"></div>
+            </section>
 
             <!-- 주사기 A -->
             <section id="dalton-syringe-a" class="dalton-section">

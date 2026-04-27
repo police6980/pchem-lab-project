@@ -1,4 +1,6 @@
-// Web Serial API communication with ESP32 firmware
+// Web Serial API communication with ESP32 firmware — v1.2 멀티채널 지원
+
+const P_ATM_KPA = 101.325;  // 표준 대기압 (캘리브 기준값)
 
 class SensorSource {
     constructor() {
@@ -33,34 +35,50 @@ class SensorSource {
         throw new Error("SensorSource.disconnect() must be implemented by subclass");
     }
 
-    async sendCalib() { /* no-op by default */ }
+    async sendCalib(ch) { /* no-op by default */ }
     async sendConfig(rateMs) { /* no-op by default */ }
+    getChannels() { return null; }
 }
 
 class MockSensorSource extends SensorSource {
-    constructor(initialPressure = 101.3) {
+    constructor(config = {}) {
         super();
-        this._pressure = initialPressure;
+        // config: number (하위 호환) 또는 { channels: [{ch, pressure, label}] }
+        if (typeof config === "number") {
+            this._channels = [{ ch: 0, pressure: config, label: "default" }];
+        } else if (config.channels) {
+            this._channels = config.channels.map(c => ({
+                ch: c.ch ?? 0,
+                pressure: c.pressure ?? 101.3,
+                label: c.label ?? `ch${c.ch ?? 0}`,
+            }));
+        } else {
+            this._channels = [{ ch: 0, pressure: config.initialPressure ?? 101.3, label: "default" }];
+        }
         this._interval = null;
         this._intervalMs = 50;
         this._noiseSigma = 0.1;
         this.connected = false;
     }
 
-    setPressure(value) {
-        this._pressure = value;
+    setPressure(value, ch = 0) {
+        const c = this._channels.find(x => x.ch === ch);
+        if (c) c.pressure = value;
     }
 
     _startInterval() {
         if (this._interval !== null) return;
         this._interval = setInterval(() => {
-            const noisy = this._pressure + this._gaussianNoise() * this._noiseSigma;
-            this._emit({
-                sensor: "pressure",
-                value: noisy,
-                unit: "kPa",
-                timestamp: performance.now()
-            });
+            for (const c of this._channels) {
+                const noisy = c.pressure + this._gaussianNoise() * this._noiseSigma;
+                this._emit({
+                    sensor: "pressure",
+                    value: noisy,
+                    unit: "kPa",
+                    timestamp: performance.now(),
+                    ch: c.ch,
+                });
+            }
         }, this._intervalMs);
     }
 
@@ -75,11 +93,11 @@ class MockSensorSource extends SensorSource {
         if (this.connected) return;
         this._startInterval();
         this.connected = true;
-        this._emitEvent("connect", {
-            version: "mock",
-            sensor: "MockSensor",
-            fw: "mock",
-        });
+        const info = { version: "mock", sensor: "MockSensor", fw: "mock" };
+        if (this._channels.length > 1) {
+            info.channels = this._channels.map(c => ({ ch: c.ch, sensor: "MockSensor", label: c.label }));
+        }
+        this._emitEvent("connect", info);
     }
 
     async disconnect() {
@@ -89,9 +107,15 @@ class MockSensorSource extends SensorSource {
         this._emitEvent("disconnect");
     }
 
-    async sendCalib() {
-        // Fake calibration: use current pressure as the zero reference.
-        this._emitEvent("calibrated", this._pressure);
+    async sendCalib(ch) {
+        if (typeof ch === "number") {
+            const c = this._channels.find(x => x.ch === ch);
+            if (c) this._emitEvent("calibrated", { ch: c.ch, p0kPa: c.pressure });
+        } else {
+            for (const c of this._channels) {
+                this._emitEvent("calibrated", { ch: c.ch, p0kPa: c.pressure });
+            }
+        }
     }
 
     async sendConfig(rateMs) {
@@ -103,8 +127,11 @@ class MockSensorSource extends SensorSource {
         }
     }
 
+    getChannels() {
+        return this._channels.map(c => ({ ch: c.ch, sensor: "MockSensor", label: c.label }));
+    }
+
     _gaussianNoise() {
-        // Box-Muller: two uniforms -> one standard-normal sample
         const u1 = Math.random() || 1e-9;
         const u2 = Math.random();
         return Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
@@ -133,23 +160,19 @@ class WebSerialSensorSource extends SensorSource {
         this.sensorLabel = null;
         this.firmwareVer = null;
         this.isV11 = false;
+        this._channels = null;
         this.p0 = null;
     }
 
-    // Control events (connect / disconnect / calibrated / error) use the base
-    // class's .on() / _emitEvent() channel. Data frames keep using onData /
-    // _emit so MockSensor and WebSerial remain drop-in compatible for data
-    // consumers.
-
     async connect() {
         if (!("serial" in navigator)) {
-            throw new Error("Web Serial API가 지원되지 않는 브라우저입니다. Chrome/Edge 최신 버전을 사용하세요.");
+            throw new Error("Web Serial API가 지원되지 않는 브라우저입니다. Chrome/Edge 최신 버전을 사용하���요.");
         }
 
         try {
             this._port = await navigator.serial.requestPort();
         } catch (e) {
-            if (e.name === "NotFoundError") return;   // user cancelled the picker
+            if (e.name === "NotFoundError") return;
             throw e;
         }
 
@@ -160,18 +183,15 @@ class WebSerialSensorSource extends SensorSource {
 
         this._readLoopPromise = this._readLoop();
 
-        // v1.0 fallback: if no "t":"s" hello within the timeout, assume legacy.
         this._helloTimer = setTimeout(() => {
             if (!this.isV11 && this.connected) {
                 this._emitEvent("connect", { version: "1.0", sensor: null, fw: null });
             }
         }, WebSerialSensorSource.HELLO_TIMEOUT_MS);
 
-        // Keep-alive ping. v1.0 firmware silently ignores unknown lines, so
-        // sending unconditionally is safe.
         this._pingTimer = setInterval(() => {
             this.sendPing().catch(err =>
-                this._emitEvent("error", `ping failed: ${err.message || err}`)
+                this._emitEvent("error", { msg: `ping failed: ${err.message || err}` })
             );
         }, WebSerialSensorSource.PING_INTERVAL_MS);
     }
@@ -204,6 +224,7 @@ class WebSerialSensorSource extends SensorSource {
         this.sensorLabel = null;
         this.firmwareVer = null;
         this.isV11 = false;
+        this._channels = null;
         this.p0 = null;
         this._lineBuffer = "";
 
@@ -219,7 +240,7 @@ class WebSerialSensorSource extends SensorSource {
             }
         } catch (err) {
             if (this.connected) {
-                this._emitEvent("error", `read loop: ${err.message || err}`);
+                this._emitEvent("error", { msg: `read loop: ${err.message || err}` });
             }
         }
     }
@@ -228,7 +249,7 @@ class WebSerialSensorSource extends SensorSource {
         this._lineBuffer += this._decoder.decode(uint8Array, { stream: true });
 
         if (this._lineBuffer.length > WebSerialSensorSource.LINE_BUFFER_MAX) {
-            this._emitEvent("error", "line buffer overflow, reset");
+            this._emitEvent("error", { msg: "line buffer overflow, reset" });
             this._lineBuffer = "";
             return;
         }
@@ -242,12 +263,10 @@ class WebSerialSensorSource extends SensorSource {
     }
 
     _parseLine(line) {
-        // Delegate to shared v1.1 parser (protocol.js). Hello handling needs
-        // source-specific side effects (clear fallback timer, remember label),
-        // so we capture it by intercepting the emitEvent channel.
         let helloInfo = null;
         const emitEvent = (type, payload) => {
-            if (type === "connect" && payload && payload.version === "1.1") {
+            if (type === "connect" && payload &&
+                (payload.version === "1.1" || payload.version === "1.2")) {
                 helloInfo = payload;
             }
             this._emitEvent(type, payload);
@@ -261,6 +280,7 @@ class WebSerialSensorSource extends SensorSource {
             this.isV11 = true;
             this.sensorLabel = helloInfo?.sensor || null;
             this.firmwareVer = helloInfo?.fw || null;
+            this._channels = helloInfo?.channels || null;
             if (this._helloTimer) {
                 clearTimeout(this._helloTimer);
                 this._helloTimer = null;
@@ -277,18 +297,20 @@ class WebSerialSensorSource extends SensorSource {
         return this._sendJson({ t: "ping" });
     }
 
-    async sendCalib() {
-        return this._sendJson({ t: "calib" });
+    async sendCalib(ch) {
+        const msg = { t: "calib" };
+        if (typeof ch === "number") msg.ch = ch;
+        return this._sendJson(msg);
     }
 
     async sendConfig(rateMs) {
         return this._sendJson({ t: "cfg", rate: rateMs });
     }
+
+    getChannels() { return this._channels; }
 }
 
 // WebSocketSensorSource — 개발용 펌웨어 에뮬레이터 연결
-// (tools/firmware-emulator, ws://localhost:8787). v1.1 프로토콜은
-// protocol.js 공통 파서로 처리해 WebSerial 경로와 동일한 의미론을 유지.
 class WebSocketSensorSource extends SensorSource {
     static DEFAULT_URL = "ws://localhost:8787";
     static HELLO_TIMEOUT_MS = 3000;
@@ -304,6 +326,7 @@ class WebSocketSensorSource extends SensorSource {
         this.isV11 = false;
         this.sensorLabel = null;
         this.firmwareVer = null;
+        this._channels = null;
         this.p0 = null;
     }
 
@@ -337,7 +360,8 @@ class WebSocketSensorSource extends SensorSource {
                 if (!line) return;
                 let helloInfo = null;
                 const emitEvent = (type, payload) => {
-                    if (type === "connect" && payload && payload.version === "1.1") {
+                    if (type === "connect" && payload &&
+                        (payload.version === "1.1" || payload.version === "1.2")) {
                         helloInfo = payload;
                     }
                     this._emitEvent(type, payload);
@@ -351,6 +375,7 @@ class WebSocketSensorSource extends SensorSource {
                     this.isV11 = true;
                     this.sensorLabel = helloInfo?.sensor || null;
                     this.firmwareVer = helloInfo?.fw || null;
+                    this._channels = helloInfo?.channels || null;
                     if (this._helloTimer) {
                         clearTimeout(this._helloTimer);
                         this._helloTimer = null;
@@ -373,7 +398,7 @@ class WebSocketSensorSource extends SensorSource {
                     settled = true;
                     reject(new Error(msg));
                 } else {
-                    this._emitEvent("error", msg);
+                    this._emitEvent("error", { msg });
                 }
             };
         });
@@ -392,6 +417,7 @@ class WebSocketSensorSource extends SensorSource {
         this.isV11 = false;
         this.sensorLabel = null;
         this.firmwareVer = null;
+        this._channels = null;
         this.p0 = null;
     }
 
@@ -406,25 +432,65 @@ class WebSocketSensorSource extends SensorSource {
     }
 
     async sendPing()          { this._sendJson({ t: "ping" }); }
-    async sendCalib()         { this._sendJson({ t: "calib" }); }
+    async sendCalib(ch) {
+        const msg = { t: "calib" };
+        if (typeof ch === "number") msg.ch = ch;
+        this._sendJson(msg);
+    }
     async sendConfig(rateMs)  { this._sendJson({ t: "cfg", rate: rateMs }); }
+    getChannels() { return this._channels; }
 }
 
-// Manager wraps a swappable SensorSource. Persists onData / on(...) subscriptions
-// across mode switches so consumers register once and don't need to re-wire
-// callbacks when mock↔real toggles.
-function createSensorManager(initialPressure = 101.3) {
+// Manager wraps a swappable SensorSource with calibration pipeline.
+// Persists onData / on(...) subscriptions across mode switches.
+// v1.2: 멀티채널 지원 + 캘리브 후처리 (zero offset).
+function createSensorManager(config = 101.3) {
+    // config: number (하위 호환) 또는 { initialPressure, channels: [...] }
+    const isLegacy = typeof config === "number";
+    const initialPressure = isLegacy ? config : (config.initialPressure ?? 101.3);
+    const channelConfig = isLegacy ? null : (config.channels || null);
+
     const manager = {
         source: null,
         mode: null,
         _dataCallbacks: [],
+        _channelCallbacks: {},   // { [ch]: [cb, ...] }
         _eventCallbacks: {},
+        _calibOffsets: {},       // { [ch]: offset_kPa }
         _initialPressure: initialPressure,
+        _channelConfig: channelConfig,
+
+        _applyCalibration(data) {
+            const ch = data.ch ?? 0;
+            const offset = this._calibOffsets[ch] ?? 0;
+            if (offset === 0) return data;
+            return {
+                ...data,
+                raw_kPa: data.value,
+                value: data.value - offset,
+            };
+        },
+
+        _dispatchData(rawData) {
+            const data = this._applyCalibration(rawData);
+            for (const cb of this._dataCallbacks) cb(data);
+            const ch = data.ch ?? 0;
+            const chCbs = this._channelCallbacks[ch];
+            if (chCbs) {
+                for (const cb of chCbs) cb(data);
+            }
+        },
+
+        _handleCalibrated(payload) {
+            // v1.2: { ch, p0kPa }  v1.1 호환: number
+            const ch = (typeof payload === "object" && payload !== null) ? (payload.ch ?? 0) : 0;
+            const p0 = (typeof payload === "object" && payload !== null) ? payload.p0kPa : payload;
+            if (typeof p0 === "number") {
+                this._calibOffsets[ch] = p0 - P_ATM_KPA;
+            }
+        },
 
         async setMode(mode) {
-            // 같은 모드라도 연결이 끊긴(또는 Real 모드 미접속) source 라면
-            // 재생성·재접속 허용. 에뮬레이터 꺼짐/포트 끊김 이후 같은 모드
-            // 버튼 재클릭으로 복구하는 경로.
             if (this.mode === mode && this.source?.connected) return;
             if (this.source) {
                 try { await this.source.disconnect(); } catch (_) {}
@@ -435,30 +501,41 @@ function createSensorManager(initialPressure = 101.3) {
             } else if (mode === "ws") {
                 this.source = new WebSocketSensorSource();
             } else {
-                this.source = new MockSensorSource(this._initialPressure);
+                this.source = channelConfig
+                    ? new MockSensorSource({ channels: channelConfig })
+                    : new MockSensorSource(this._initialPressure);
             }
             this.mode = mode;
+            this._calibOffsets = {};
 
-            // Re-attach persisted subscriptions to the new source.
-            for (const cb of this._dataCallbacks) this.source.onData(cb);
+            // Data callbacks: route through calibration pipeline
+            this.source.onData((rawData) => this._dispatchData(rawData));
+
+            // Intercept calibrated events for offset computation
+            this.source.on("calibrated", (payload) => this._handleCalibrated(payload));
+
+            // Re-attach persisted event subscriptions (except calibrated, handled above)
             for (const [type, cbs] of Object.entries(this._eventCallbacks)) {
                 for (const cb of cbs) this.source.on(type, cb);
             }
 
             if (mode === "mock") {
-                // Mock connects immediately — no port picker.
                 await this.source.connect();
             } else if (mode === "ws") {
-                // WebSocket(에뮬레이터) — 사용자 제스처 불필요, 즉시 접속.
-                // 접속 실패는 호출자(UI click handler .catch)가 받아서 처리.
                 await this.source.connect();
             }
             // Real: wait for user to click [🔌 포트 연결].
         },
 
+        // 모든 채널 데이터 수신 (보일 하위 호환)
         onData(cb) {
             this._dataCallbacks.push(cb);
-            if (this.source) this.source.onData(cb);
+        },
+
+        // 특정 채널만 필터링하여 수신
+        onChannelData(ch, cb) {
+            if (!this._channelCallbacks[ch]) this._channelCallbacks[ch] = [];
+            this._channelCallbacks[ch].push(cb);
         },
 
         on(type, cb) {
@@ -467,12 +544,24 @@ function createSensorManager(initialPressure = 101.3) {
             if (this.source) this.source.on(type, cb);
         },
 
-        async sendCalib() {
-            if (this.source) return this.source.sendCalib();
+        async sendCalib(ch) {
+            if (this.source) return this.source.sendCalib(ch);
         },
 
         async sendConfig(rateMs) {
             if (this.source) return this.source.sendConfig(rateMs);
+        },
+
+        getChannels() {
+            return this.source?.getChannels() || null;
+        },
+
+        getCalibOffset(ch = 0) {
+            return this._calibOffsets[ch] ?? 0;
+        },
+
+        isCalibrated(ch = 0) {
+            return ch in this._calibOffsets;
         },
     };
     return manager;

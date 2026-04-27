@@ -908,12 +908,198 @@ function initDaltonApp(params) {
         // Phase 5.3 기능 4: 비교 모드
         comparisonResult: $("dalton-comparison-result"),
         comparisonBody:   $("dalton-comparison-body"),
+
+        // Phase 5.4: 센서 패널
+        sensorPanel:       $("dalton-sensor-panel"),
+        btnModeMock:       $("dalton-btn-mode-mock"),
+        btnModeWs:         $("dalton-btn-mode-ws"),
+        btnModeReal:       $("dalton-btn-mode-real"),
+        realControls:      $("dalton-sensor-real-controls"),
+        wsControls:        $("dalton-sensor-ws-controls"),
+        btnSerialConnect:  $("dalton-btn-serial-connect"),
+        btnSerialDisconnect: $("dalton-btn-serial-disconnect"),
+        serialStatus:      $("dalton-serial-status"),
+        wsStatus:          $("dalton-ws-status"),
+        channelStatus:     $("dalton-channel-status"),
+        ch0Sensor:         $("dalton-ch0-sensor"),
+        ch0Calib:          $("dalton-ch0-calib"),
+        btnCalibCh0:       $("dalton-btn-calib-ch0"),
+        ch1Sensor:         $("dalton-ch1-sensor"),
+        ch1Calib:          $("dalton-ch1-calib"),
+        btnCalibCh1:       $("dalton-btn-calib-ch1"),
+        btnCalibAll:       $("dalton-btn-calib-all"),
+        sensorError:       $("dalton-sensor-error"),
     };
 
     // 참조 누락 경고 (개발 편의)
     for (const [key, el] of Object.entries(dom)) {
         if (!el) console.warn(`[Dalton] DOM 참조 누락: ${key}`);
     }
+
+    // ─────────────────────────────────────────────────────────
+    // Phase 5.4: 돌턴 센서 매니저 (멀티채널 v1.2)
+    // ─────────────────────────────────────────────────────────
+    const daltonSensorManager = createSensorManager({
+        initialPressure: 101.3,
+        channels: [
+            { ch: 0, pressure: 101.3, label: "B-receiver" },
+            { ch: 1, pressure: 101.3, label: "A-injector" },
+        ],
+    });
+
+    // 채널별 데이터 구독 — 실센서/에뮬레이터 모드에서 센서값으로 daltonState 갱신
+    daltonSensorManager.onChannelData(0, (data) => {
+        // ch 0 = 주사기 B (수용측) → P_total
+        if (daltonSensorManager.mode !== "mock") {
+            daltonState.pressureBSensor = data.value / 101.325;  // kPa → atm
+        }
+    });
+    daltonSensorManager.onChannelData(1, (data) => {
+        // ch 1 = 주사기 A (능동측) → 모니터링용
+        // 현재는 로깅만, 추후 A 센서 표시에 활용
+        if (DEBUG_DALTON) console.log(`[Dalton] ch1 A: ${data.value.toFixed(1)} kPa`);
+    });
+
+    // 센서 패널 UI 바인딩
+    (function initDaltonSensorPanel() {
+        if (!dom.btnModeMock) return;  // DOM 없으면 skip
+
+        const webSerialSupported = "serial" in navigator;
+        if (!webSerialSupported && dom.btnModeReal) {
+            dom.btnModeReal.disabled = true;
+            dom.btnModeReal.title = "Chrome/Edge에서만 지원됩니다";
+        }
+
+        function setModeUI(mode) {
+            dom.btnModeMock?.classList.toggle("active", mode === "mock");
+            dom.btnModeWs?.classList.toggle("active", mode === "ws");
+            dom.btnModeReal?.classList.toggle("active", mode === "real");
+            dom.realControls?.classList.toggle("hidden", mode !== "real");
+            dom.wsControls?.classList.toggle("hidden", mode !== "ws");
+            dom.channelStatus?.classList.toggle("hidden", mode === "mock");
+        }
+
+        function resetRealUI() {
+            if (dom.serialStatus) {
+                dom.serialStatus.textContent = "연결 안 됨";
+                dom.serialStatus.className = "status-disconnected";
+            }
+            dom.btnSerialConnect?.classList.remove("hidden");
+            dom.btnSerialDisconnect?.classList.add("hidden");
+            resetCalibUI();
+        }
+
+        function resetCalibUI() {
+            if (dom.ch0Calib) dom.ch0Calib.textContent = "미보정";
+            if (dom.ch1Calib) dom.ch1Calib.textContent = "미보정";
+            if (dom.btnCalibCh0) dom.btnCalibCh0.disabled = true;
+            if (dom.btnCalibCh1) dom.btnCalibCh1.disabled = true;
+            if (dom.btnCalibAll) dom.btnCalibAll.disabled = true;
+        }
+
+        function enableCalibButtons() {
+            if (dom.btnCalibCh0) dom.btnCalibCh0.disabled = false;
+            if (dom.btnCalibCh1) dom.btnCalibCh1.disabled = false;
+            if (dom.btnCalibAll) dom.btnCalibAll.disabled = false;
+        }
+
+        function updateChannelLabels(info) {
+            const chs = info?.channels;
+            if (chs && Array.isArray(chs)) {
+                for (const c of chs) {
+                    if (c.ch === 0 && dom.ch0Sensor) dom.ch0Sensor.textContent = c.label || c.sensor || "";
+                    if (c.ch === 1 && dom.ch1Sensor) dom.ch1Sensor.textContent = c.label || c.sensor || "";
+                }
+            }
+        }
+
+        function showError(msg) {
+            if (dom.sensorError) {
+                dom.sensorError.textContent = msg ? `⚠ ${msg}` : "";
+                if (msg) setTimeout(() => {
+                    if (dom.sensorError.textContent === `⚠ ${msg}`) dom.sensorError.textContent = "";
+                }, 5000);
+            }
+        }
+
+        // 모드 토글 클릭
+        dom.btnModeMock?.addEventListener("click", () => {
+            if (daltonSensorManager.mode === "mock" && daltonSensorManager.source?.connected) return;
+            setModeUI("mock");
+            resetCalibUI();
+            daltonSensorManager.setMode("mock");
+        });
+
+        dom.btnModeWs?.addEventListener("click", () => {
+            if (daltonSensorManager.mode === "ws" && daltonSensorManager.source?.connected) return;
+            setModeUI("ws");
+            if (dom.wsStatus) { dom.wsStatus.textContent = "연결 중..."; dom.wsStatus.className = "status-connecting"; }
+            daltonSensorManager.setMode("ws").catch(() => {
+                if (dom.wsStatus) { dom.wsStatus.textContent = "연결 실패"; dom.wsStatus.className = "status-error"; }
+            });
+        });
+
+        dom.btnModeReal?.addEventListener("click", () => {
+            if (dom.btnModeReal.disabled) return;
+            if (daltonSensorManager.mode === "real" && daltonSensorManager.source?.connected) return;
+            setModeUI("real");
+            resetRealUI();
+            daltonSensorManager.setMode("real");
+        });
+
+        // Real 모드: 포트 연결/해제
+        dom.btnSerialConnect?.addEventListener("click", () => {
+            daltonSensorManager.source?.connect().catch(err => {
+                if (dom.serialStatus) { dom.serialStatus.textContent = "연결 실패"; dom.serialStatus.className = "status-error"; }
+                showError(err.message || err);
+            });
+        });
+        dom.btnSerialDisconnect?.addEventListener("click", () => daltonSensorManager.source?.disconnect());
+
+        // 캘리브 버튼
+        dom.btnCalibCh0?.addEventListener("click", () => daltonSensorManager.sendCalib(0));
+        dom.btnCalibCh1?.addEventListener("click", () => daltonSensorManager.sendCalib(1));
+        dom.btnCalibAll?.addEventListener("click", () => daltonSensorManager.sendCalib());
+
+        // 이벤트 구독
+        daltonSensorManager.on("connect", (info) => {
+            if (info?.version === "mock") return;
+            updateChannelLabels(info);
+            enableCalibButtons();
+            if (daltonSensorManager.mode === "ws") {
+                if (dom.wsStatus) { dom.wsStatus.textContent = "● 연결됨"; dom.wsStatus.className = "status-connected"; }
+            } else if (daltonSensorManager.mode === "real") {
+                if (dom.serialStatus) { dom.serialStatus.textContent = "● 연결됨"; dom.serialStatus.className = "status-connected"; }
+                dom.btnSerialConnect?.classList.add("hidden");
+                dom.btnSerialDisconnect?.classList.remove("hidden");
+            }
+        });
+
+        daltonSensorManager.on("disconnect", () => {
+            if (daltonSensorManager.mode === "ws") {
+                if (dom.wsStatus) { dom.wsStatus.textContent = "연결 끊김"; dom.wsStatus.className = "status-disconnected"; }
+            } else if (daltonSensorManager.mode === "real") {
+                resetRealUI();
+            }
+            resetCalibUI();
+        });
+
+        daltonSensorManager.on("calibrated", (payload) => {
+            const ch = (typeof payload === "object" && payload !== null) ? (payload.ch ?? 0) : 0;
+            const p0 = (typeof payload === "object" && payload !== null) ? payload.p0kPa : payload;
+            const label = `p₀ = ${Number(p0).toFixed(1)} kPa`;
+            if (ch === 0 && dom.ch0Calib) dom.ch0Calib.textContent = label;
+            if (ch === 1 && dom.ch1Calib) dom.ch1Calib.textContent = label;
+        });
+
+        daltonSensorManager.on("error", (payload) => {
+            const msg = (typeof payload === "object" && payload !== null) ? payload.msg : payload;
+            showError(msg);
+        });
+
+        // 초기 모드: mock
+        daltonSensorManager.setMode("mock");
+    })();
 
     // ─────────────────────────────────────────────────────────
     // 단위 포맷 헬퍼 — atm(내부) → 표시 문자열
