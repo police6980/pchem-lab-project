@@ -1961,9 +1961,11 @@ function initDaltonApp(params) {
                 pendingTransferParticles.push(allParticles.splice(i, 1)[0]);
             }
         }
-        const pendingCount = pendingTransferParticles.length;
-        const nullCount = allParticles.filter((q) => getRegion(q.x, q.y) === null).length;
-        console.log(`[Dalton] INJECTING start — pending: ${pendingCount}, allParticles 잔여 null: ${nullCount}`);
+        if (DEBUG_DALTON) {
+            const pendingCount = pendingTransferParticles.length;
+            const nullCount = allParticles.filter((q) => getRegion(q.x, q.y) === null).length;
+            console.log(`[Dalton] INJECTING start — pending: ${pendingCount}, allParticles 잔여 null: ${nullCount}`);
+        }
     }
 
     // Step C-3 v6: 매 frame 피스톤 진행률에 비례해 pending → R5 분출
@@ -2241,7 +2243,7 @@ function initDaltonApp(params) {
                 teleportToR5NozzleEntry(p);
                 allParticles.push(p);
             }
-        } else {
+        } else if (DEBUG_DALTON) {
             console.log(`[Dalton] finalize — R1 잔여 없음 (정상 분출)`);
         }
         daltonState._nullRegionWarned = false;
