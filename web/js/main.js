@@ -2548,16 +2548,16 @@ function initDaltonApp(params) {
                 const barX = slotX + barOffset;
                 const baseY = yToPx(0);
 
-                // 가스 A (P_air) — 막대 하단
+                // 가스 A (P_A) — 막대 하단
                 const gasAColor = (r.gasA && cfg.gases[r.gasA]) ? cfg.gases[r.gasA].color : "#1F2937";
-                const airTopY = yToPx(r.P_air);
+                const airTopY = yToPx(r.P_A);
                 p.fill(gasAColor);
                 p.noStroke();
                 p.rect(barX, airTopY, barW, baseY - airTopY);
 
-                // 가스 B (P_co2) — 막대 상단 (P_air 위에 stack)
+                // 가스 B (P_B) — 막대 상단 (P_A 위에 stack)
                 const gasBColor = (r.gasB && cfg.gases[r.gasB]) ? cfg.gases[r.gasB].color : "#27AE60";
-                const co2TopY = yToPx(r.P_air + r.P_co2);  // = P_total
+                const co2TopY = yToPx(r.P_A + r.P_B);  // = P_total
                 p.fill(gasBColor);
                 p.rect(barX, co2TopY, barW, airTopY - co2TopY);
 
@@ -2856,8 +2856,8 @@ function initDaltonApp(params) {
             V_B: V_B,
             theoryAtm: theoryAtm,
             P_total: P_total,
-            P_air: P_A_partial,
-            P_co2: P_B_partial,
+            P_A: P_A_partial,
+            P_B: P_B_partial,
             gasA: gasA,
             gasB: gasB,
             n_A: n_A,
@@ -3213,11 +3213,11 @@ function initDaltonApp(params) {
             let dataContext = "";
             if (comparisonRecs.length === 2) {
                 dataContext = `\n[비교 중인 두 측정 (학생이 비교 모드 체크)]\n` + comparisonRecs.map((r) =>
-                    `- 회차 ${r.n}: V_A=${r.V_A_initial}, V_B=${r.V_B}, P_total=${r.P_total.toFixed(2)} atm, P_A=${r.P_air.toFixed(2)} atm, P_B=${r.P_co2.toFixed(2)} atm, n_A=${r.n_A}, n_B=${r.n_B}, n_total=${r.n_total}, gas_A=${r.gasA}, gas_B=${r.gasB}`
+                    `- 회차 ${r.n}: V_A=${r.V_A_initial}, V_B=${r.V_B}, P_total=${r.P_total.toFixed(2)} atm, P_A=${r.P_A.toFixed(2)} atm, P_B=${r.P_B.toFixed(2)} atm, n_A=${r.n_A}, n_B=${r.n_B}, n_total=${r.n_total}, gas_A=${r.gasA}, gas_B=${r.gasB}`
                 ).join("\n");
             } else if (recentRecords.length > 0) {
                 dataContext = `\n[최근 측정 ${recentRecords.length}개]\n` + recentRecords.map((r) =>
-                    `- 회차 ${r.n}: V_A=${r.V_A_initial}, V_B=${r.V_B}, P_total=${r.P_total.toFixed(2)} atm, P_A=${r.P_air.toFixed(2)} atm, P_B=${r.P_co2.toFixed(2)} atm, n_A=${r.n_A}, n_B=${r.n_B}, n_total=${r.n_total}, gas_A=${r.gasA}, gas_B=${r.gasB}`
+                    `- 회차 ${r.n}: V_A=${r.V_A_initial}, V_B=${r.V_B}, P_total=${r.P_total.toFixed(2)} atm, P_A=${r.P_A.toFixed(2)} atm, P_B=${r.P_B.toFixed(2)} atm, n_A=${r.n_A}, n_B=${r.n_B}, n_total=${r.n_total}, gas_A=${r.gasA}, gas_B=${r.gasB}`
                 ).join("\n");
             } else {
                 dataContext = "\n[측정 기록 없음 — 학생이 아직 [확인] 버튼을 누르지 않았습니다.]";
@@ -3393,8 +3393,8 @@ ${dataContext}
             r.V_B,
             r.theoryAtm.toFixed(2),
             r.P_total.toFixed(2),
-            r.P_air.toFixed(2),
-            r.P_co2.toFixed(2),
+            r.P_A.toFixed(2),
+            r.P_B.toFixed(2),
             r.n_A,
             r.n_B,
             r.n_total,
