@@ -838,10 +838,6 @@ function initDaltonApp(params) {
         pressureFrozen: false,
         frozenP_A_kPa: null,
         frozenP_B_kPa: null,
-        // 주입 완료 후 측정된 P_total (atm). INJECTED/CONFIRMED 에서만 유효.
-        // IDLE/INJECTING 에서는 null. Step B-3 에서는 시뮬값 대신 이론값 그대로.
-        // Step C/F 에서 실제 시뮬 결과값으로 대체.
-        pressureBMeasured: null,
         displayUnit: "atm",  // 'atm' | 'kPa'
         stage: "IDLE",       // IDLE | INJECTING | INJECTED | CONFIRMED
         // Step B-3 애니메이션·카운트다운 abort 제어용.
@@ -1491,7 +1487,6 @@ function initDaltonApp(params) {
         particleRadius: 3.0,        // Step C-3 v8: 2.5 → 3.0 (입자 가시성 ↑)
         boxMargin: 2,               // drawSyringe 의 fill margin 과 동기
         boxMinHeight: 30,           // V_min 시 box.height 음수 방지
-        // particleCountPerSyringe 폐기 — Phase 5.3: 시각 입자 = 분자 수 (computeMoleCount 사용)
         volumeLerpFactor: 0.15,     // displayedVolume 보간율 (매 frame 15% 접근, 약 0.13초 도달) — Step C-2 통합
         // Step C-3 v3 — 5 region 물리 안정성 (substep)
         physicsSubstepMaxDtSec: 0.005,  // 한 substep max dt = 5ms (region 다중 통과 방지)
@@ -1639,8 +1634,7 @@ function initDaltonApp(params) {
     // 박스: 단순 좌표 객체. displayedVolume 기반 매 frame 재계산.
     const boxA = { x: 0, y: 0, width: 0, height: 0 };
     const boxB = { x: 0, y: 0, width: 0, height: 0 };
-    // 5 region 물리 모드: 단일 allParticles array. systemA/B 폐기 (Step C-3 v2)
-    let allParticles = [];
+    let allParticles = [];  // 5 region 물리 모드: 단일 array
 
     function computeBox(syr, volumeMl) {
         const pistonY = volumeToPistonY(volumeMl);
@@ -1871,15 +1865,12 @@ function initDaltonApp(params) {
 
             const region = getRegion(p.x, p.y);
 
-            // Step C-3 v6: drift force 폐기 — R1 입자가 즉시 pending 으로 옮겨지므로 R2 진입 자체 없음
-
             if (region === 1) {
-                // Step C-3 v6: R1 입자는 주입 시작 시 pending 으로 옮겨지므로 일반적으로 분기 진입 없음.
-                //              초기 상태 (대기 / 평형) 의 R1 입자만 처리.
+                // R1 입자는 주입 시작 시 pending 으로 옮겨지므로 일반적으로 분기 진입 없음
+                // — 초기 상태 (대기 / 평형) 의 R1 입자만 처리.
                 if (p.x - r < r1Left)  { p.x = r1Left + r;  if (p.vx < 0) p.vx = -p.vx; }
                 if (p.x + r > r1Right) { p.x = r1Right - r; if (p.vx > 0) p.vx = -p.vx; }
-                // Step C-3 v6: 피스톤 강제 push 폐기 — R1 입자 0 으로 상황 발생 안 함.
-                //              일반 top wall 충돌만 유지 (대기 상태에서의 brownian).
+                // 일반 top wall 충돌만 (대기 상태 brownian)
                 if (p.y - r < r1Top) {
                     p.y = r1Top + r;
                     if (p.vy < 0) p.vy = -p.vy;
@@ -2134,9 +2125,6 @@ function initDaltonApp(params) {
     // 주입 애니메이션 (Step C-3)
     // ─────────────────────────────────────────────────────────
 
-    // Step C-3 v2: getInjectionWaypoints / interpolateWaypoints 폐기 — 5 region 물리 모드는 waypoint 사용 안 함
-
-    // Step C-3 v2: migratingParticles / injectionAnimationActive 폐기 — 5 region 모드에서 단일 allParticles 로 통합
     let injectionPistonAnimating = false;  // A 의 V 50→0 보간 중 (drawDaltonScene 에서 displayedVolume 직접 덮어쓰기)
     // Step C-3 v6: 피스톤 동기 분출 — A 입자가 즉시 pending 으로 옮겨지고 진행률에 따라 B 분출
     let pendingTransferParticles = [];  // 주입 시작 시 R1 입자가 옮겨질 array (시각 비표시)
@@ -2272,8 +2260,6 @@ function initDaltonApp(params) {
             daltonState.pressureBSensor = theoryAfterAtm;
         }
     }
-
-    // Step C-3 v2: deliverToSystemB / updateMigratingParticles / drawMigratingParticles 폐기 — 5 region 물리 모드로 대체
 
     // ─────────────────────────────────────────────────────────
     // DaltonScene p5 sketch (Step C-1 v3 — 세로 시린지 + U자 연결,
@@ -2694,9 +2680,6 @@ function initDaltonApp(params) {
         await runInjectionAnimation();
         if (daltonState.abortCurrentFlow) return;
 
-        // 주입 완료 — 기록용 이론값 보존 (pressureBSensor 는 finalize 가 이미 설정)
-        daltonState.pressureBMeasured = theoryAfterAtm;
-
         // Step F 정정: 안정화 동안 비평형 — STABILIZING stage 도입
         // (LCD "—" 유지, 5초 후 INJECTED 진입 시점에 평형 표시)
         setStage("STABILIZING");
@@ -2763,7 +2746,6 @@ function initDaltonApp(params) {
     // [초기화] — 어느 stage 에서든 IDLE 복귀
     // - stage = IDLE
     // - V_A, V_B 는 유지 (학생 편의, 반복 실험)
-    // - pressureBMeasured = null
     // - 카운트다운·애니메이션 abort
     // - 안정화 인디케이터 숨김
     // ─────────────────────────────────────────────────────────
@@ -2775,7 +2757,6 @@ function initDaltonApp(params) {
             daltonState.countdownIntervalId = null;
         }
 
-        daltonState.pressureBMeasured = null;
         // Phase 5.4 commit iii: mock 은 setPressureImmediate 경유 (mock source 내부 _channels 동기),
         // ws/real 은 직접 set (다음 onChannelData 수신 전까지 fallback).
         if (daltonSensorManager.mode === "mock" && daltonSensorManager.source) {
@@ -2907,8 +2888,7 @@ function initDaltonApp(params) {
         `;
         dom.recordsTbody.appendChild(tr);
 
-        // Step F finishing: 첫 기록 시 "아직 기록된 측정이 없습니다" 안내만 숨김
-        // (accordion-body 와 chart-wrap 은 페이지 로드 시부터 표시 — unhide 호출 폐기)
+        // 첫 기록 시 "아직 기록된 측정이 없습니다" 안내만 숨김
         if (n === 1) {
             if (dom.recordsEmpty) dom.recordsEmpty.classList.add("hidden");
         }
