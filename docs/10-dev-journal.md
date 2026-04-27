@@ -1850,6 +1850,44 @@ Phase 5.3 (`ccdfe22` 측정 기록 토글 폐기 + 행 삭제, `be90646` Phase 5
 
 **교훈**: 명세 [1-G] 활성 조건 검사 정확했으나, 호출 지점 명세에서 connect 이벤트 누락. 새 UI 컴포넌트 추가 시 — setMode / setStage / connect / disconnect / 리셋 / 초기화 6 지점 점검 체크리스트 적용 필요.
 
+### 2026-04-27 — Q1 결정 보완 + mock 모드 P_A 게이지 회귀 정정 (commit 4ea6a65)
+
+#### 한 일
+- INJECTING 중 게이지 "—" 표시 정책 (mock / ws/real 모드 일관) — Q1 결정 1 부분 수정
+- mock 모드 P_A 게이지 회귀 진단 (commit 8eeaea2 에서 stage 분기 보존 누락)
+- `updatePressureReadouts` stage 분기 복원 + V_A/V_B=0 검사 추가
+- 회귀 검증 통과
+
+#### 결정: INJECTING 중 게이지 "—" 표시 (Q1 — 결정 1 부분 수정)
+
+**배경**: 결정 1 ("ws/real 모드 모든 stage 실측 우선") 적용 검토 중, mock 모드 P_A 게이지 회귀 (P_A=3.94 / P_B=2.96 — 이론 P_total=2.00 모순) 진단. Phase 5.3 의 `updatePressureReadouts` stage 분기가 commit 8eeaea2 에서 보존 안 됨이 원인.
+
+**결정**: INJECTING 중에는 mock / ws/real 모드 모두 게이지 "—" 표시. ch live 라벨에는 raw kPa 값 계속 표시 (학생 데이터 인지 가능).
+
+**근거**:
+- INJECTING = 비평형 (입자 이동 중) — 게이지 표시 자체가 무의미
+- mock / ws 모드 일관 표시 — 학생 혼란 회피
+- ch live 라벨이 raw 데이터 학습 지원
+- Phase 5.3 의 비평형 표시 패턴 보존
+
+**배제된 대안**:
+- ws/real 만 실측 그대로 (결정 1 원안) — mock 과 표시 불일치, 비평형 학습 표시 모호
+- 시뮬 보간 표시 — 측정 의미 약화
+
+#### 진단 — mock 모드 P_A 게이지 회귀 (4ea6a65)
+
+**증상**: 시뮬레이션 모드에서 P_A=3.94 / P_B=2.96 atm 표시. 이론 P_total=2.00 atm 과 모순. A → B 주입 후 평형 시 P_A=P_B 여야 하는데 어긋남.
+
+**원인**: commit 8eeaea2 에서 `updatePressureReadouts` 의 게이지 입력 변수 분리 (pAatm = pressureASensor / pBatm = pressureBSensor) 적용 시, Phase 5.3 의 stage 분기 (INJECTED/CONFIRMED 시 V_A=0 → P_A "—", P_B = pressureBSensor) 보존 누락. mock 모드 시뮬 본체는 pressureBSensor 만 갱신하던 코드 그대로 → P_A 게이지 stale / 어긋난 값.
+
+**정정**: stage 분기 복원 + V_A/V_B=0 검사 추가. 모든 모드 공통:
+- IDLE: mock = 1.00 / ws/real = onChannelData 실측
+- INJECTING: 양쪽 "—"
+- STABILIZING: mock 양쪽 "—" / ws/real 실측
+- INJECTED/CONFIRMED: V_A=0 → P_A "—", P_B = pressureBSensor
+
+**교훈**: 게이지 라우팅 분리 시 기존 stage 분기 / 경계 조건 (V_A=0 같은) 동시 검토 필요. [1-H] 보고 ("mock 영향 없음") 가 잘못된 평가였음. 변경 영향 범위 추정 시 상태 분기 코드 확인 필수.
+
 ### Phase 5.4 마일스톤 (2026-04-27 종료)
 
 - 5 commits (`dc7ca57` → `fc1cedc`), `phase5-real-sensor` 브랜치
@@ -1861,8 +1899,8 @@ Phase 5.3 (`ccdfe22` 측정 기록 토글 폐기 + 행 삭제, `be90646` Phase 5
 
 #### 다음 예정
 
-- (보류) mock 모드 SensorSource 일원화
-- (보류) `docs/13` 명세 정합화 (실제 구현 반영)
+- (보류) commit iii — mock 모드 SensorSource 일원화 (변경 없음)
+- (진행 중) commit iv — docs/13 명세 정합화 (다음 commit 으로 진행)
 - (대기) Step I 본편 — 실물 센서 입수 후
-- (별 진단) 시뮬 모드 P_A vs P_B 게이지 차이 (P_A=3.94 / P_B=2.96 관찰) — 회귀 가능성
+- (해결됨) mock 모드 P_A vs P_B 게이지 차이 — 4ea6a65 에서 수정 + 회귀 검증 통과
 
