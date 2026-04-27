@@ -38,6 +38,13 @@
         },
         "debounce_ms": 300,
         "stabilization_sec": 5,
-        "injection_animation_sec": 3
+        "injection_animation_sec": 3,
+        "sensor": {
+            "ema_alpha": 0.2,
+            "particle_update_threshold_kpa": 2.0,
+            "mock_interval_ms": 50,
+            "mock_noise_sigma_kpa": 0.1,
+            "safety_timeout_extra_ms": 1000
+        }
     }
 }

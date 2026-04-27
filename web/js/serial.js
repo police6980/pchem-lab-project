@@ -43,7 +43,7 @@ class SensorSource {
 class MockSensorSource extends SensorSource {
     constructor(config = {}) {
         super();
-        // config: number (하위 호환) 또는 { channels: [{ch, pressure, label}] }
+        // config: number (하위 호환) 또는 { channels, intervalMs?, noiseSigma? }
         if (typeof config === "number") {
             this._channels = [{ ch: 0, pressure: config, label: "default" }];
         } else if (config.channels) {
@@ -56,8 +56,9 @@ class MockSensorSource extends SensorSource {
             this._channels = [{ ch: 0, pressure: config.initialPressure ?? 101.3, label: "default" }];
         }
         this._interval = null;
-        this._intervalMs = 50;
-        this._noiseSigma = 0.1;
+        // Phase 5.4 commit iv (e-4): params.dalton.sensor 외부화 (caller 가 전달)
+        this._intervalMs = (typeof config === "object" && config.intervalMs != null) ? config.intervalMs : 50;
+        this._noiseSigma = (typeof config === "object" && config.noiseSigma != null) ? config.noiseSigma : 0.1;
         this.connected = false;
     }
 
@@ -460,10 +461,13 @@ class WebSocketSensorSource extends SensorSource {
 // Persists onData / on(...) subscriptions across mode switches.
 // v1.2: 멀티채널 지원 + 캘리브 후처리 (zero offset).
 function createSensorManager(config = 101.3) {
-    // config: number (하위 호환) 또는 { initialPressure, channels: [...] }
+    // config: number (하위 호환) 또는 { initialPressure, channels: [...], mockIntervalMs?, mockNoiseSigma? }
     const isLegacy = typeof config === "number";
     const initialPressure = isLegacy ? config : (config.initialPressure ?? 101.3);
     const channelConfig = isLegacy ? null : (config.channels || null);
+    // Phase 5.4 commit iv (e-4): MockSensorSource 외부화 옵션 pass-through
+    const mockIntervalMs = isLegacy ? null : (config.mockIntervalMs ?? null);
+    const mockNoiseSigma = isLegacy ? null : (config.mockNoiseSigma ?? null);
 
     const manager = {
         source: null,
@@ -516,9 +520,15 @@ function createSensorManager(config = 101.3) {
             } else if (mode === "ws") {
                 this.source = new WebSocketSensorSource();
             } else {
+                // Phase 5.4 commit iv (e-4): mockIntervalMs / mockNoiseSigma 전달
+                const mockOpts = {};
+                if (mockIntervalMs != null) mockOpts.intervalMs = mockIntervalMs;
+                if (mockNoiseSigma != null) mockOpts.noiseSigma = mockNoiseSigma;
                 this.source = channelConfig
-                    ? new MockSensorSource({ channels: channelConfig })
-                    : new MockSensorSource(this._initialPressure);
+                    ? new MockSensorSource({ channels: channelConfig, ...mockOpts })
+                    : new MockSensorSource(typeof this._initialPressure === "number"
+                        ? this._initialPressure
+                        : { initialPressure: this._initialPressure, ...mockOpts });
             }
             this.mode = mode;
             this._calibOffsets = {};

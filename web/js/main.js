@@ -958,6 +958,9 @@ function initDaltonApp(params) {
             { ch: 0, pressure: 101.3, label: "B-receiver" },
             { ch: 1, pressure: 101.3, label: "A-injector" },
         ],
+        // Phase 5.4 commit iv (e-4): mock 외부화 옵션 (params.dalton.sensor)
+        mockIntervalMs: cfg.sensor?.mock_interval_ms,
+        mockNoiseSigma: cfg.sensor?.mock_noise_sigma_kpa,
     });
 
     // 채널별 데이터 구독 — Phase 5.4 commit iii: mock / ws/real 단일 경로 일원화.
@@ -1503,8 +1506,9 @@ function initDaltonApp(params) {
     // ─────────────────────────────────────────────────────────
     // Phase 5.4: EMA 평활 + 점진적 입자 수 보정
     // ─────────────────────────────────────────────────────────
-    const EMA_ALPHA = 0.2;
-    const PARTICLE_UPDATE_THRESHOLD_KPA = 2.0;
+    // Phase 5.4 commit iv (e-4): 5 상수 외부화 — params.dalton.sensor (실물 캘리브 대비)
+    const EMA_ALPHA = cfg.sensor?.ema_alpha ?? 0.2;
+    const PARTICLE_UPDATE_THRESHOLD_KPA = cfg.sensor?.particle_update_threshold_kpa ?? 2.0;
     const PARTICLE_STEP_PER_FRAME = 2;
 
     function applyEMA(prev, next) {
@@ -2151,7 +2155,8 @@ function initDaltonApp(params) {
         startInjectionTransfer();
 
         const totalTimeoutMs = (cfg.injection_animation_sec || 3) * 1000;
-        const safetyTimeoutMs = totalTimeoutMs + 1000;  // +1초 여유
+        // Phase 5.4 commit iv (e-4): safety 여유 외부화 (기본 1000 ms)
+        const safetyTimeoutMs = totalTimeoutMs + (cfg.sensor?.safety_timeout_extra_ms ?? 1000);
         const startTime = performance.now();
 
         return new Promise((resolve) => {
