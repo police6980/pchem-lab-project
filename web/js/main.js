@@ -1101,6 +1101,7 @@ function initDaltonApp(params) {
             if (info?.version === "mock") return;
             updateChannelLabels(info);
             enableCalibButtons();
+            updatePressureFreezeUI();
             if (daltonSensorManager.mode === "ws") {
                 if (dom.wsStatus) { dom.wsStatus.textContent = "● 연결됨"; dom.wsStatus.className = "status-connected"; }
             } else if (daltonSensorManager.mode === "real") {
