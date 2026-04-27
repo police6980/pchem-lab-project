@@ -1892,6 +1892,109 @@ Phase 5.3 (`ccdfe22` 측정 기록 토글 폐기 + 행 삭제, `be90646` Phase 5
 
 **교훈**: 게이지 라우팅 분리 시 기존 stage 분기 / 경계 조건 (V_A=0 같은) 동시 검토 필요. [1-H] 보고 ("mock 영향 없음") 가 잘못된 평가였음. 변경 영향 범위 추정 시 상태 분기 코드 확인 필수.
 
+### 2026-04-27 — Phase 5.4 후속 작업 (commits 1f1ad7b ~ 72403ca)
+
+#### 한 일
+- 표 / CSV / AI 컨텍스트 P_공기·P_CO₂ → P_A·P_B 라벨 일반화 (1f1ad7b)
+- 측정 기록 그래프 범례 동적 생성 (1b1b0cc)
+- A 박스 입자 잔여 fix — splice 좌표 보완 + finalize safety + null region 이주 보완 + 자동 검출 로그 (d4b6979)
+- mock 모드 SensorSource 일원화 — onChannelData 단일 경로 (65d97e3)
+- `.gitignore` 보강 — emulator untracked 임시 파일 (4d40791)
+- 자동 검출 로그 verbose 정리 — 정상 path DEBUG_DALTON 게이팅 (6addceb)
+- record 데이터 키 일반화 — P_air·P_co2 → P_A·P_B (d7afa1c)
+- R5 박스 입자 stuck fix — corrective clamp 안전 마진 + 진단 로그 (72403ca)
+
+#### 결정: 표시 / 데이터 키 일반화 — 모든 레벨 위치 기반
+
+**배경**: 측정 기록 표 컬럼명이 "P_공기", "P_CO₂" 로 고정. 가스 종류 변경 (예: He+CO₂, O₂+N₂) 시 컬럼명과 실제 가스 불일치 → 학생 혼란. 그래프 범례도 첫 record 의 가스 두 개로 고정.
+
+**결정**: 모든 레벨 (HTML 표 헤더 + CSV 헤더 + AI 프롬프트 + 학생 가이드 + record 데이터 키 + 그래프 범례) 을 위치 기반 (P_A, P_B) 으로 일관 변경. 가스 종류는 그래프 색으로만 표시 (Q1 = c).
+
+**근거**:
+- 다중 가스 시뮬레이션 핵심 = 부분 압력 비교. 가스명 컬럼은 다양한 조합 시 의미 없음
+- 위치 기반 = 모든 가스 조합에 일관 적용
+- 그래프 범례 동적 생성으로 가스 종류는 시각적으로 분명
+- 데이터 키 일반화는 향후 시뮬 (Phase 6/7) 과의 일관성
+
+**배제된 대안**:
+- 신규 "가스 A", "가스 B" 컬럼 추가 (a): 표 폭 증가, 정보 중복
+- "조성" 한 컬럼 (b): 정렬 / 필터 어려움
+- 옛 키 + 신규 키 alias (점진 마이그레이션): 영속성 X 라 마이그레이션 가치 X
+
+#### 결정: mock 모드 SensorSource 일원화 — 옵션 C (해석 2)
+
+**배경**: 결정 4 (mock 도 onChannelData 단일 경로) 적용 검토. mock 모드는 시뮬 본체가 daltonState 직접 갱신, ws/real 만 onChannelData 경로 → 두 경로 분리 = 코드 복잡도.
+
+**결정**: 옵션 C — 데이터 흐름 일원화 (모든 모드 onChannelData 단일 경로) + 처리 정책 모드별 차등 (mock=EMA α=1 즉시 / 임계값 우회, ws/real=EMA α=0.2 / 임계값 2 kPa).
+
+**근거**:
+- 결정 4 의 본질 = 데이터 흐름 일원화 (코드 경로 단일). 처리 정책 일원화 X
+- 해석 1 (엄격 — mock 도 EMA / 임계값 적용) 은 deterministic 시뮬 정확성 손실 (지연 + dead-band)
+- 해석 2 (실용 — 모드별 차등) 가 학습 가치 + 코드 단순화 둘 다 충족
+- `MockSensorSource.setPressureImmediate(value, ch)` 신규 API — interval 우회 + 노이즈 X (mock deterministic 보존)
+
+**배제된 대안**:
+- 옵션 A (해석 1): mock 학습 가치 손실
+- 옵션 B (MockSource 가 daltonState 직접 참조): 의존 역방향, SensorSource 추상화 깨짐
+
+#### 결정: 입자 stuck fix — 직접 구현 patch (옵션 C — Matter.js 별 브랜치 추후)
+
+**배경**: A 박스 (R1) 와 B 박스 (R5) 에 입자 boundary stuck 발견. 직접 구현한 입자간 충돌 (Phase 5.3 자산) 의 corrective clamp 가 입자를 boundary 정확 위치 (`bodyLeft + r`) 로 clamp + collision 후 vx ≈ 0 → wall reflect 의 `if (vx < 0)` 미발동 → boundary 정착 stuck.
+
+**결정**: 단기 patch fix — corrective clamp 에 0.5 px epsilon 안전 마진 추가 (R1: d4b6979 의 좌표 기반 검사 + finalize safety, R5: 72403ca 의 epsilon). Matter.js 등 물리 엔진 도입은 별 브랜치 후속.
+
+**근거**:
+- 본 세션 "실물 도착 전 정리" 목표 — 단기 안정화 우선
+- patch fix 비용 작음 (10 분), 폐기되더라도 매몰 비용 적음
+- 0.5 px epsilon = 입자 반지름 (3 px) 의 16%, 시각상 무지각
+- 에너지 보존 무영향 (위치만 이격, 충격량 식 별개)
+- 물리 엔진 도입 = 큰 작업 (라이브러리 학습 + 5-region 모델 통합 + 회귀 검증), 별 세션 적절
+
+**배제된 대안**:
+- 옵션 B (Matter.js 직행): 본 세션 범위 초과, 실물 도착 시점 가까우면 위험
+- zero-velocity kick (강제 vx 부여): 에너지 보존 위반 → 학습 정확성 손실
+- 주기적 Brownian kick: 동일 문제 + 시뮬 자연스러움 손상
+
+**향후 작업**: Phase 5.x 또는 Phase 6 신규 시뮬 작성 시 Matter.js 도입 검토. 별 브랜치 (예: `phase5-physics-engine`) 에서 5-region 모델 통합 + 회귀 검증 후 합류.
+
+#### 진단 — A 박스 입자 잔여 (d4b6979)
+
+**증상**: A → B 주입 시 가끔 (간헐적) A 박스 입자가 분출 안 됨. 피스톤 따라 내려옴. 5~10 회 중 1 회.
+
+**원인 (가설 H1)**: 입자간 탄성 충돌의 corrective 단계에서 입자 좌표가 R1 박스 boundary 외부로 미끄러짐 → `getRegion()` null 반환 → `startInjectionTransfer` 의 splice 검사 (`getRegion === 1`) 통과 못함 → `pendingTransferParticles` 누락. INJECTING 진행 중 R1 잔여 입자로 남아 피스톤 하강 시 매달림. safety timeout (4 초) 후 forceRemainingToR5 발동하지만 학생이 그 전에 인식.
+
+**정정**:
+- (a) `startInjectionTransfer` 의 splice 검사를 좌표 기반 (`isParticleInSyringeABox`) 으로 보완
+- (c) `finalizeInjectedVolume` 진입 시 R1 잔여 강제 splice + R5 이동 (다중 안전망)
+- 부수: `forceRemainingToR5` 의 `region !== null` 검사 제거 (null 입자도 이주)
+- 자동 검출 로그 영구 추가 (장기 모니터링)
+
+**검증**: 7 회 주입 모두 정상 분출 (WARN 로그 0). 단 간헐적 발생이라 장기 관찰 필요. 검출 로그 발동 시 R1 잔여 강제 splice 가 잡아냄.
+
+**교훈**: 직접 구현한 충돌 시뮬의 부동소수점 미끄러짐은 boundary 인접 region 검사 통과 못함 → 다른 region 에 영향. 좌표 기반 검사 + 다중 안전망 (sub safety) 으로 다중 보호. 근본 해결은 물리 엔진 도입.
+
+#### 진단 — R5 박스 입자 stuck (72403ca)
+
+**증상**: B 박스 (R5) 왼쪽 / 오른쪽 벽 boundary 근처에 입자 몇 개가 거의 안 움직임 (시각상 정지). 다른 입자는 정상 운동.
+
+**원인 (가설 H1 변형)**: `resolveCollision` 의 corrective clamp 가 입자를 boundary 정확 위치로 clamp (`limit.left = bodyLeft + r`). collision 후 vx 가 매우 작거나 정확 0 이면 wall reflect 의 `if (vx < 0)` 미발동 → boundary 정착 → 다음 substep 도 무동작 → stuck. R1 의 H1 fix (d4b6979) 가 R5 에는 적용 안 됨.
+
+**정정**: corrective clamp 에 0.5 px epsilon 안전 마진. R1, R5 모두 적용 (`limit1`, `limit2` 동시).
+
+**배제된 대안 (수정 측면)**:
+- zero-velocity kick (vx ≈ 0 시 강제 부여): 에너지 보존 위반
+- Brownian kick (주기적 임의 vx): 학습 가치 손상
+
+**교훈**: A 박스 H1 fix 와 동일 메커니즘이지만 region 다름. 직접 구현 시 patch fix 가 region 별로 분리 — Matter.js 도입 시 한 번에 해결 가능.
+
+#### 다음 액션 (Phase 5.4 정리 단계)
+
+- (진행 중) commit iv — params.json 점검 (e-4)
+- (진행 중) commit v — 주석 / dead code 정리 (e-5)
+- (진행 중) commit vi — README / docs 문서화 (e-6)
+- (대기) Step I 본편 — 실물 센서 입수 후
+- (대기) Phase 5.x — Matter.js 별 브랜치 (실물 작업 후 또는 병행)
+
 ### Phase 5.4 마일스톤 (2026-04-27 종료)
 
 - 5 commits (`dc7ca57` → `fc1cedc`), `phase5-real-sensor` 브랜치
