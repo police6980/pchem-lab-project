@@ -1853,26 +1853,30 @@ Phase 5.3 (`ccdfe22` 측정 기록 토글 폐기 + 행 삭제, `be90646` Phase 5
 ### 2026-04-27 — Q1 결정 보완 + mock 모드 P_A 게이지 회귀 정정 (commit 4ea6a65)
 
 #### 한 일
-- INJECTING 중 게이지 "—" 표시 정책 (mock / ws/real 모드 일관) — Q1 결정 1 부분 수정
+- INJECTING 중 게이지 표시 정책 — ws/real 양쪽 "—" / mock P_B 진행률 동기 (Q1 결정 1 부분 수정)
 - mock 모드 P_A 게이지 회귀 진단 (commit 8eeaea2 에서 stage 분기 보존 누락)
-- `updatePressureReadouts` stage 분기 복원 + V_A/V_B=0 검사 추가
+- `updatePressureReadouts` stage 분기 복원 (Phase 5.3 패턴 + Q1 ws/real 분기)
 - 회귀 검증 통과
 
-#### 결정: INJECTING 중 게이지 "—" 표시 (Q1 — 결정 1 부분 수정)
+#### 결정: INJECTING 중 게이지 표시 — ws/real 양쪽 "—", mock 진행률 동기 보존 (Q1 — 결정 1 부분 수정)
 
 **배경**: 결정 1 ("ws/real 모드 모든 stage 실측 우선") 적용 검토 중, mock 모드 P_A 게이지 회귀 (P_A=3.94 / P_B=2.96 — 이론 P_total=2.00 모순) 진단. Phase 5.3 의 `updatePressureReadouts` stage 분기가 commit 8eeaea2 에서 보존 안 됨이 원인.
 
-**결정**: INJECTING 중에는 mock / ws/real 모드 모두 게이지 "—" 표시. ch live 라벨에는 raw kPa 값 계속 표시 (학생 데이터 인지 가능).
+**결정**: INJECTING 중 게이지 표시 stage 분기:
+- P_A: 양쪽 모드 공통 "—" (V_A 가 0 으로 가는 중 — 비평형)
+- P_B: ws/real = "—" (실측 출처 없음, 시뮬 보간 X — 결정 1 원칙), mock = `pressureBSensor` (sim 본체의 주입 진행률 동기, Phase 5.3 시각화 자산)
+- ch live 라벨 (`#dalton-ch{0,1}-live`) 은 두 모드 모두 raw kPa 계속 갱신 (freeze / stage 무관)
 
 **근거**:
-- INJECTING = 비평형 (입자 이동 중) — 게이지 표시 자체가 무의미
-- mock / ws 모드 일관 표시 — 학생 혼란 회피
-- ch live 라벨이 raw 데이터 학습 지원
-- Phase 5.3 의 비평형 표시 패턴 보존
+- ws/real B 측 = 측정 출처 없는 시점에서 시뮬 보간하면 "데이터인 척" 학습 가치 훼손 → "—" 가 정직
+- mock B 측 = Phase 5.3 의 5 초 주입 동안 P_B 상승 애니메이션이 학습 핵심 (주입 = 압력 증가 직관) → 보존
+- A 측은 V_A 가 0 으로 가는 도중이라 "측정 가능한 압력" 자체가 없음 → 양쪽 모드 공통 "—"
+- ch live 라벨이 raw 데이터 인지 보장 → 게이지 "—" 라도 학생이 실제 센서 동작 관찰 가능
 
 **배제된 대안**:
-- ws/real 만 실측 그대로 (결정 1 원안) — mock 과 표시 불일치, 비평형 학습 표시 모호
-- 시뮬 보간 표시 — 측정 의미 약화
+- mock 까지 양쪽 "—" — Phase 5.3 의 주입 시각화 (P_B 상승) 학습 가치 손실
+- ws/real B 측 시뮬 보간 표시 — 측정 출처 모호화 (결정 1 원칙 위배)
+- ws/real B 측 마지막 실측값 freeze — 비평형인데 "정지된 값" 으로 보여 오해 유발
 
 #### 진단 — mock 모드 P_A 게이지 회귀 (4ea6a65)
 
@@ -1880,11 +1884,11 @@ Phase 5.3 (`ccdfe22` 측정 기록 토글 폐기 + 행 삭제, `be90646` Phase 5
 
 **원인**: commit 8eeaea2 에서 `updatePressureReadouts` 의 게이지 입력 변수 분리 (pAatm = pressureASensor / pBatm = pressureBSensor) 적용 시, Phase 5.3 의 stage 분기 (INJECTED/CONFIRMED 시 V_A=0 → P_A "—", P_B = pressureBSensor) 보존 누락. mock 모드 시뮬 본체는 pressureBSensor 만 갱신하던 코드 그대로 → P_A 게이지 stale / 어긋난 값.
 
-**정정**: stage 분기 복원 + V_A/V_B=0 검사 추가. 모든 모드 공통:
-- IDLE: mock = 1.00 / ws/real = onChannelData 실측
-- INJECTING: 양쪽 "—"
-- STABILIZING: mock 양쪽 "—" / ws/real 실측
-- INJECTED/CONFIRMED: V_A=0 → P_A "—", P_B = pressureBSensor
+**정정**: stage 분기 복원 (Phase 5.3 패턴 + Q1 ws/real 분기). 실제 적용 (`web/js/main.js:1244–1296`):
+- IDLE — P_A: mock = `pressureBSensor`, ws/real = `pressureASensor`. P_B: 양쪽 모드 = `pressureBSensor`
+- INJECTING — P_A: 양쪽 모드 "—" (비평형). P_B: mock = `pressureBSensor` (sim 진행률 동기), ws/real = "—"
+- STABILIZING — P_A: 양쪽 모드 "—" (V_A=0). P_B: 양쪽 모드 = `pressureBSensor`
+- INJECTED / CONFIRMED — P_A: 양쪽 모드 "—" (V_A=0). P_B: 양쪽 모드 = `pressureBSensor`
 
 **교훈**: 게이지 라우팅 분리 시 기존 stage 분기 / 경계 조건 (V_A=0 같은) 동시 검토 필요. [1-H] 보고 ("mock 영향 없음") 가 잘못된 평가였음. 변경 영향 범위 추정 시 상태 분기 코드 확인 필수.
 
