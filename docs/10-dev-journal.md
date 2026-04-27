@@ -2079,6 +2079,53 @@ Phase 5.3 (`ccdfe22` 측정 기록 토글 폐기 + 행 삭제, `be90646` Phase 5
 - (대기) Phase 5.x — Matter.js 별 브랜치 (실물 작업 후 또는 병행) — 직접 구현 patch 누적 패턴 한계
 - (대기) [A] AI 튜터 통합 — Phase 6/7 신규 시뮬 추가 직전 별 브랜치 (phase5-tutor-unify)
 
+### 2026-04-27 — Phase 5.4 후속 작업 — AI 튜터 + docs (commits e2f36d3, 8fe060e)
+
+#### 한 일
+- 입자운동 AI 튜터 질문 본문 level × tab 차등 — 16 신규 질문 (e2f36d3)
+- README + 5 docs (05/06/07/09) Phase 5.4 동기화 (8fe060e)
+
+#### 결정: 입자운동 [C] 16 질문 — 시뮬 기능 정확 반영
+
+**배경**: 보일/돌턴은 이미 4 levels × 4 questions 차등. 입자운동 (particles.html) 만 flat 5 tab — level 무관. 일관성 깨짐. 사용자 요청 "수준에 따라 질문도 달리해야 한다".
+
+**결정**: ADV_TUTOR_QUESTION_TEXT 구조 확장 — `{ elem, middle, high, univ } × { 1, 2, 3, 4, free }`. 16 신규 질문 작성. free 는 모든 level 공통 (ADV_TUTOR_FREE_TEXT 분리, DRY). getAdvQuestionText(level, qid) helper 신규 — level fallback high. setActiveTab + buildSystemPrompt 모두 helper 사용 → UI / AI 프롬프트 동시 차등.
+
+**근거**:
+- 시뮬 기능 사전 조사 (가스 4 종 He/N₂/Ar/CO₂, V 슬라이더, T 프리셋, N 슬라이더, P 표시 전용, PV/nT 컬럼, Maxwell-Boltzmann 히스토그램) 정확 반영 — 시뮬에 없는 기능 (P 슬라이더 / Ne·O₂·H₂ / 분자량 UI / 시계열 그래프) 가정한 질문 회피
+- 보일/돌턴 패턴 차용 — Q1 핵심 원리, Q2 변수 관계, Q3 응용/시나리오, Q4 메타 (질문 생성)
+- 학습 단계 점진: elem (직관) → middle (관계) → high (식 사용) → univ (분포 함수 / 한계)
+
+**배제된 대안**:
+- AI 자동 생성 후 검수: 시뮬 도메인 + 학습 의도 정확 반영 어려움
+- 사용자 직접 작성: 시간 비용
+- 보일/돌턴 본문 그대로 복사: 입자운동 도메인 (분자운동론) 부적합
+
+#### 결정: docs Phase 5.4 동기화 — 1차 묶음 (a/b/c/g/h)
+
+**배경**: Phase 5.4 작업 완료. 외부 진입점 (README) + 포맷 권위 (docs/05) + 현재 상태 (docs/06) + AI 튜터 (docs/07) + 로드맵 (docs/09) 갱신 필요.
+
+**결정**: 1차 묶음 — README + 5 docs 갱신 (~165 줄 추가 / 52 줄 편집). 신규 docs (15 params 가이드, 16 개발자 onboarding, 17 학생 매뉴얼, 19 Step I 체크리스트) + docs/03 큰 갱신 + docs/11/04 = 별 세션 보류.
+
+**근거**:
+- ★★★ 5 영역 = 외부 진입 / 데이터 포맷 / 현재 상태 권위 / AI 변경 / 로드맵
+- 한 commit 묶음 = "Phase 5.4 docs 동기화" 의미 일관
+- 신규 docs 는 별 세션 (분량 큰 작업)
+- docs/03 큰 갱신은 docs/15 (params 가이드) 와 함께 응집
+
+**배제된 대안**:
+- README 만 갱신 (★★★ 핵심만): 본 세션 변경 (g)(h) 누락
+- (d) docs/03 포함: 분량 ↑ + 응집도 떨어짐 (docs/15 와 함께가 자연스러움)
+- 신규 docs 본 세션 포함: 분량 큰 작업 → 본 세션 마무리 부담
+
+#### 다음 액션
+- (대기) 신규 docs/15 params 설정 가이드 — 별 세션
+- (대기) 신규 docs/16 개발자 onboarding — 별 세션
+- (대기) docs/03 mock 일원화 + multi-channel routing 큰 갱신 — docs/15 와 함께
+- (대기) Step I 본편 — 실물 센서 입수 후
+- (대기) Phase 5.x — Matter.js 별 브랜치
+- (대기) [A] AI 튜터 통합 — Phase 6/7 신규 시뮬 추가 직전
+
 ### Phase 5.4 마일스톤 (2026-04-27 종료)
 
 - 5 commits (`dc7ca57` → `fc1cedc`), `phase5-real-sensor` 브랜치
