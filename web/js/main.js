@@ -2846,7 +2846,7 @@ function initDaltonApp(params) {
         };
         daltonState.measurementRecords.push(record);
 
-        // 10컬럼 순서: 회차·V_A·V_B·P(이론)·P(시뮬)·P_공기·P_CO₂·n_A·n_B·n_total
+        // 10컬럼 순서: 회차·V_A·V_B·P(이론)·P(시뮬)·P_A·P_B·n_A·n_B·n_total
         // (timeStr 은 record array 에 보존, CSV 위함)
         const tr = document.createElement("tr");
         tr.dataset.recordN = n;  // Phase 5.4: 행 식별 (삭제 시 사용)
@@ -3046,13 +3046,13 @@ function initDaltonApp(params) {
         const QUESTION_TEXT = {
             elem: {
                 1: "주사기 두 개를 합치기 전과 후, 가스 분자 수는 어떻게 변할까요? 표의 n_A, n_B, n_total 을 직접 세보세요.",
-                2: "공기와 이산화탄소가 섞이면 각 가스가 만드는 압력은 어떻게 될까요? 표의 P_공기, P_CO₂ 를 보며 생각해보세요.",
+                2: "두 가스가 섞이면 각 가스가 만드는 압력은 어떻게 될까요? 표의 P_A, P_B 를 보며 생각해보세요.",
                 3: "📊 [질문 생성] 버튼을 눌러 내 데이터에 맞는 질문을 받아보세요.",
                 4: "다음 측정에서 V_A 를 두 배로 하면 P_total 도 두 배가 될까요? 이유는?",
             },
             middle: {
                 1: "두 시린지 결합 전후 분자 수 변화를 표의 n_A, n_B, n_total 로 확인하세요. 분자가 사라지지 않는다면 무엇이 변할까요?",
-                2: "각 가스의 부분 압력 (P_공기, P_CO₂) 이 어떻게 결정되는지 표의 V_A, V_B 와 비교해보세요.",
+                2: "각 가스의 부분 압력 (P_A, P_B) 이 어떻게 결정되는지 표의 V_A, V_B 와 비교해보세요.",
                 3: "📊 [질문 생성] 버튼을 눌러 내 데이터에 맞는 탐구 질문을 받아보세요.",
                 4: "P_total 과 부분 압력의 합을 비교해보세요. 어떤 관계가 보이나요?",
             },
@@ -3192,11 +3192,11 @@ function initDaltonApp(params) {
             let dataContext = "";
             if (comparisonRecs.length === 2) {
                 dataContext = `\n[비교 중인 두 측정 (학생이 비교 모드 체크)]\n` + comparisonRecs.map((r) =>
-                    `- 회차 ${r.n}: V_A=${r.V_A_initial}, V_B=${r.V_B}, P_total=${r.P_total.toFixed(2)} atm, P_공기=${r.P_air.toFixed(2)} atm, P_CO₂=${r.P_co2.toFixed(2)} atm, n_A=${r.n_A}, n_B=${r.n_B}, n_total=${r.n_total}, gas_A=${r.gasA}, gas_B=${r.gasB}`
+                    `- 회차 ${r.n}: V_A=${r.V_A_initial}, V_B=${r.V_B}, P_total=${r.P_total.toFixed(2)} atm, P_A=${r.P_air.toFixed(2)} atm, P_B=${r.P_co2.toFixed(2)} atm, n_A=${r.n_A}, n_B=${r.n_B}, n_total=${r.n_total}, gas_A=${r.gasA}, gas_B=${r.gasB}`
                 ).join("\n");
             } else if (recentRecords.length > 0) {
                 dataContext = `\n[최근 측정 ${recentRecords.length}개]\n` + recentRecords.map((r) =>
-                    `- 회차 ${r.n}: V_A=${r.V_A_initial}, V_B=${r.V_B}, P_total=${r.P_total.toFixed(2)} atm, P_공기=${r.P_air.toFixed(2)} atm, P_CO₂=${r.P_co2.toFixed(2)} atm, n_A=${r.n_A}, n_B=${r.n_B}, n_total=${r.n_total}, gas_A=${r.gasA}, gas_B=${r.gasB}`
+                    `- 회차 ${r.n}: V_A=${r.V_A_initial}, V_B=${r.V_B}, P_total=${r.P_total.toFixed(2)} atm, P_A=${r.P_air.toFixed(2)} atm, P_B=${r.P_co2.toFixed(2)} atm, n_A=${r.n_A}, n_B=${r.n_B}, n_total=${r.n_total}, gas_A=${r.gasA}, gas_B=${r.gasB}`
                 ).join("\n");
             } else {
                 dataContext = "\n[측정 기록 없음 — 학생이 아직 [확인] 버튼을 누르지 않았습니다.]";
@@ -3365,7 +3365,7 @@ ${dataContext}
         if (!records || records.length === 0) return null;
 
         // 11 컬럼 — 측정 기록 테이블 10 + 시간 (분석용, 단위 atm 고정)
-        const header = ["회차", "V_A", "V_B", "P(이론)_atm", "P(시뮬)_atm", "P(공기)_atm", "P(CO2)_atm", "n_A", "n_B", "n_total", "시간"];
+        const header = ["회차", "V_A", "V_B", "P(이론)_atm", "P(시뮬)_atm", "P(A)_atm", "P(B)_atm", "n_A", "n_B", "n_total", "시간"];
         const rows = records.map(r => [
             r.n,
             r.V_A_initial,
