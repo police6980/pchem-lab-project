@@ -1985,13 +1985,47 @@ function updateAdvInfoPanel(data) {
 // measurement table / data points — the context fed to the model
 // is the current V / P / T / N / gas, not a recorded point list.
 // ============================================================
+// 학생 수준(elem/middle/high/univ) × 질문 탭(1~4) 차등 본문.
+// Q4 = 메타 탭 (📊 [질문 생성]) — 보일/돌턴 패턴과 동일.
+// free 탭은 level 무관하므로 ADV_TUTOR_FREE_TEXT 별도 상수.
+const ADV_TUTOR_FREE_TEXT = "자유 질문. 실험 중 궁금한 것을 물어보세요.";
 const ADV_TUTOR_QUESTION_TEXT = {
-    1: "Q1. 같은 온도에서 부피를 줄이면 압력이 왜 커질까? 입자 운동론으로 설명해보세요.",
-    2: "Q2. 기체 종류를 바꾸면 (예: He vs CO₂) 같은 조건에서 무엇이 달라질까? 왜?",
-    3: "Q3. 온도가 달라지면 맥스웰-볼츠만 분포가 어떻게 변화하는지 관찰한 것을 설명해보세요.",
-    4: "Q4. 이상기체 법칙(PV=nRT)은 어떤 조건에서 잘 맞고, 어떤 조건에서 벗어날까?",
-    free: "자유 질문. 실험 중 궁금한 것을 물어보세요.",
+    elem: {
+        1: "박스 안 입자들이 움직이며 벽에 부딪혀요. 시뮬에서 입자 수(N)를 50에서 800으로 늘려보세요. 압력(P)이 어떻게 변하나요? 왜 그렇게 변할까요?",
+        2: "온도(T)를 -100℃ 에서 500℃ 로 바꾸면 입자 색이 어떻게 변하나요? (입자는 빠를수록 빨강, 느릴수록 파랑) 평균 속도 표시도 같이 보세요.",
+        3: "박스 부피(V)를 80 mL 에서 20 mL 로 줄이면 어떻게 될까요? 입자 움직임과 압력 변화를 시뮬에서 관찰하고 설명해보세요.",
+        4: "📊 [질문 생성] 시뮬을 보며 \"이건 왜 이렇지?\" 떠오른 궁금증을 자유롭게 적어주세요. AI 가 함께 생각해줄 거예요.",
+        free: ADV_TUTOR_FREE_TEXT,
+    },
+    middle: {
+        1: "입자 수(N)를 두 배로 하면 압력(P)도 두 배가 되나요? 시뮬에서 다른 변수(T, V)는 고정하고 N만 바꿔서 확인해보세요. 결과를 PV/nT 컬럼으로도 확인할 수 있어요.",
+        2: "온도(T)를 25℃ 에서 300℃ 로 바꾸면 (절대온도 약 2배) 평균 속도는 몇 배가 되나요? 시뮬의 평균 속도 표시로 확인하고, T 와 v 의 관계를 설명하세요.",
+        3: "같은 온도에서 He 와 CO₂ 를 비교해보세요. 평균 속도가 어느 게 더 빠른가요? 왜 그럴까요? (힌트: He 는 분자량 4, CO₂ 는 44)",
+        4: "📊 [질문 생성] 시뮬 결과 중 예상과 달랐던 부분, 또는 더 알아보고 싶은 점은 무엇인가요? 자기만의 탐구 질문을 만들어보세요.",
+        free: ADV_TUTOR_FREE_TEXT,
+    },
+    high: {
+        1: "P = (N/V)·k_B·T 식에서 N, V, T 가 압력에 어떻게 기여하는지, 시뮬의 PV/nT 값이 일정한지 확인하며 설명하세요. 이상기체 법칙이 잘 성립하나요?",
+        2: "평균 운동에너지 KE_avg = (3/2)·k_B·T 와 평균 속도 v ∝ √T 를 시뮬에서 검증해보세요. T 를 4배 (예: 75K → 300K) 로 늘릴 때 평균 속도와 KE 가 각각 몇 배인지 측정하세요.",
+        3: "같은 온도(T) 에서 He(M=4) 와 Ar(M=40) 의 평균 속도 비율 v_He / v_Ar 을 시뮬로 측정하세요. 이론값 √(M_Ar / M_He) = √10 ≈ 3.16 과 일치하나요? Graham 의 확산 법칙과 연결해보세요.",
+        4: "📊 [질문 생성] 시뮬에서 관찰한 현상을 식이나 그래프로 일반화하는 질문을 만들어보세요. 가설 + 검증 방법까지 포함하면 좋습니다 (예: \"T 와 v 의 관계는 v ∝ √T 라고 가정하면, T = 100, 200, 400 K 에서 어떻게 검증할까?\").",
+        free: ADV_TUTOR_FREE_TEXT,
+    },
+    univ: {
+        1: "분자운동론에서 P = (1/3)·(N/V)·m·⟨v²⟩ 가 거시 PV=nRT 와 같음을 시뮬로 검증해보세요. 가스 종류 (He vs CO₂) 를 바꿔도 PV/nT 가 같은 값이 나오는 이유를 분자량 m 과 평균 속도 ⟨v²⟩ 의 관계로 설명하세요.",
+        2: "Maxwell-Boltzmann 분포 (히스토그램 + 이론 곡선) 를 보며 T 변화 시 분포가 어떻게 이동·확산하는지 관찰하세요. 분포의 peak 위치 (v_p), 평균 (v_avg), RMS (v_rms) 가 √T 에 비례하는 이유를 등분배 정리로 설명해보세요.",
+        3: "시뮬은 이상기체 모델 (탄성 충돌, 입자 부피 0) 가정. 실제 기체에서 이 가정이 깨지는 조건 (고압·저온, 분자간 인력) 과 보정 (van der Waals, virial expansion) 을 논의하세요. 시뮬의 PV/nT 가 항상 일정한 이유와 실제 기체의 어긋남을 비교해보세요.",
+        4: "📊 [질문 생성] 시뮬 모델의 가정 (이상기체, 탄성 충돌, 균일 분포) 중 어느 것이 실제와 어떻게 다른지 비판적 질문을 만들어보세요. 또는 시뮬로 검증 불가능한 현상 (예: 응축, 임계점, 양자효과) 을 짚는 질문도 가능합니다.",
+        free: ADV_TUTOR_FREE_TEXT,
+    },
 };
+
+// level/tab → snippet 본문. level 미지정 또는 미지의 키 시 high 로 fallback.
+function getAdvQuestionText(level, qid) {
+    return ADV_TUTOR_QUESTION_TEXT[level]?.[qid]
+        ?? ADV_TUTOR_QUESTION_TEXT.high?.[qid]
+        ?? "";
+}
 const ADV_TUTOR_LEVEL_GUIDES = {
     elem: "초등학생. 입자를 공에 비유해 직관적으로. 수식 없이. 쉬운 단어, 칭찬 많이.",
     middle: "중학교 2-3학년 영재. 기본 분자 운동론은 알지만 통계역학은 미숙. 친근한 톤.",
@@ -2034,7 +2068,11 @@ function createAdvAiTutor({ getAdvState }) {
     // Load level/model from sessionStorage (shared with basic).
     levelSel.value = sessionStorage.getItem(SESSION_KEY_LEVEL) || "high";
     modelSel.value = sessionStorage.getItem(SESSION_KEY_MODEL) || "claude-sonnet-4-6";
-    levelSel.addEventListener("change", () => sessionStorage.setItem(SESSION_KEY_LEVEL, levelSel.value));
+    levelSel.addEventListener("change", () => {
+        sessionStorage.setItem(SESSION_KEY_LEVEL, levelSel.value);
+        // level 변경 시 현재 활성 탭 snippet 도 새 본문으로 즉시 갱신.
+        snippetEl.textContent = getAdvQuestionText(levelSel.value, activeQ);
+    });
     modelSel.addEventListener("change", () => sessionStorage.setItem(SESSION_KEY_MODEL, modelSel.value));
 
     // Input availability — mirrors basic-mode updateInputAvailability(). The
@@ -2066,7 +2104,8 @@ function createAdvAiTutor({ getAdvState }) {
     function setActiveTab(q) {
         activeQ = q;
         tabBtns.forEach(b => b.classList.toggle("active", b.dataset.q === q));
-        snippetEl.textContent = ADV_TUTOR_QUESTION_TEXT[q] || "";
+        const level = sessionStorage.getItem(SESSION_KEY_LEVEL) || "high";
+        snippetEl.textContent = getAdvQuestionText(level, q);
         render();
         updateInputAvailability();
     }
@@ -2138,7 +2177,7 @@ ${rows}`;
     function buildSystemPrompt(level, qid) {
         const focus = qid === "free"
             ? "자유 질문 모드. 직접 답해도 되지만 마지막에 한 단계 깊은 탐구 방향을 한 문장 제안. 400자 이내."
-            : `현재 질문: ${ADV_TUTOR_QUESTION_TEXT[qid]}`;
+            : `현재 질문: ${getAdvQuestionText(level, qid)}`;
         return `당신은 영재 과학교육 튜터입니다.
 
 대상 학생: ${ADV_TUTOR_LEVEL_GUIDES[level] || ADV_TUTOR_LEVEL_GUIDES.high}
