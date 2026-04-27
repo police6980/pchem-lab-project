@@ -1702,3 +1702,167 @@ SCENE.bodyBottom - SCENE.pistonHeadH)` clamp 한 줄 추가. V=0 시 pistonY
 - **Phase 6 (샤를 페이지 또는 새 시뮬)** — 향후. 사전 결정 단계에서
   라이브러리 옵션 자동 포함 규칙 적용 (이번 세션 학습 사례)
 
+---
+
+## Phase 5.4 — 돌턴 실센서 사전 준비 (2026-04-27)
+
+Phase 5.3 (`ccdfe22` 측정 기록 토글 폐기 + 행 삭제, `be90646` Phase 5.3 일지) 이후
+1 일 집중 세션. 실물 센서 입수 전 SW 사전 준비 작업. `phase5-real-sensor`
+브랜치 생성 (`feature/dalton-experiment` HEAD 분기), 5 commits 누적
+(`dc7ca57` ~ `fc1cedc`).
+
+핵심 작업: ① 멀티채널 에뮬레이터 + protocol v1.2 + 돌턴 sensor-panel 사전
+구축, ② ws/real 모드 두 센서 게이지 라우팅, ③ EMA 평활 + 임계값 + 점진적
+입자 수 보정, ④ "압력 확정" 토글 + 자동 해제. 회귀 검증 V2 ~ V6 통과.
+
+### 2026-04-27 — 사전 조사 + 5 의사결정 (commit dc7ca57, f21b659)
+
+#### 한 일
+- `phase3-real-sensor` 브랜치 SW 구조 사전 조사 (CC 보고)
+- 보일용 펌웨어 에뮬레이터 (45 줄, ws@8.20.0 단일 의존) + protocol v1.x + SensorSource 추상화 + sensor-panel UI 구조 파악
+- 작업 브랜치 `phase5-real-sensor` 생성 — `feature/dalton-experiment` HEAD 분기
+- docs 3 신규: `docs/12-protocol-v1.2.md`, `docs/13-multi-channel-interface.md`, `docs/14-calibration-pipeline.md`
+- 코드 7 파일 수정: 에뮬레이터 멀티채널화, protocol v1.2 파서, MockSensorSource 멀티채널, 돌턴 페이지 sensor-panel + initDaltonSensorPanel
+
+#### 결정: 머지 정책 — main archive, 작업은 feature 브랜치
+
+**배경**: main 은 Phase 3 SW 완성 (`e68e6fb`) 시점에서 멈춰있음. feature 브랜치 5 개 (`feature/dalton-experiment` 44 commits, `feature/landing-page` 28, `phase3-real-sensor` 20 등) 모두 main 보다 앞섬. 머지 비용 누적 중.
+
+**결정**: main 으로 머지 안 함. 각 feature 브랜치를 독립 산출물로 운영.
+
+**근거**: 논문 제출용 시연·자료는 단일 브랜치 한 곳에서 관리하면 충분. 머지 시 충돌·회귀 부담 회피. main 은 과거 마일스톤 archive.
+
+**배제된 대안**: 순차 머지 (충돌 비용), main 재설정 (태그 의미 훼손).
+
+#### 결정: 에뮬레이터 — 보일과 통합
+
+**배경**: 보일용 에뮬레이터 단일 채널 가정. 돌턴 멀티채널 (P_A, P_B) 필요.
+
+**결정**: 단일 에뮬레이터에서 `--mode dalton` 옵션으로 멀티채널 지원. 분기 X.
+
+**근거**: 본체 45 줄, 통합 비용 미미. protocol v1.x 이미 sensor 필드 보유 → 채널 추가가 schema 변경 아닌 자연스러운 확장. 파서 공통화 시 Phase 6/7 재사용.
+
+**배제된 대안**: 별도 펌웨어 빌드 (drift 위험, 컴파일 분기 부담).
+
+#### 결정: 작업 브랜치 — `phase5-real-sensor` 신규
+
+**배경**: 보일용 SensorSource 코드 활용 방법 — cherry-pick vs 신규 브랜치 vs 직접 commit.
+
+**결정**: `feature/dalton-experiment` HEAD 분기한 신규 브랜치. 기존 코드는 참조용, 멀티채널로 재작성.
+
+**근거**: cherry-pick 해도 어차피 멀티채널 리팩터링 필요. 별도 브랜치 → HEAD 보호 + 롤백 용이.
+
+**배제된 대안**: cherry-pick (이중 비용), dalton 직접 commit (격리 X).
+
+#### 결정: 하드웨어 — DFRobot SEN0257 × 2
+
+**배경**: 두 채널 압력 측정에 사용할 센서 모델.
+
+**결정**: DFRobot SEN0257 두 개. 보일과 동일 모델.
+
+**근거**: 보일 측 자산 재사용. 동일 모델 → drift cross-check 의미. 단가·확보 용이.
+
+**배제된 대안**: 모델 혼용 (캘리브 분기 + 비교 검증 약화).
+
+#### 결정: 압력 센서 모델 — 단일 (B 만) → 양쪽 (A, B 둘 다) 변경
+
+**배경**: 초기 검토 시 "A 는 주입측이라 센서 없음, B 만 측정, A 는 사용자 입력 + 이론 계산" 모델 검토. 그러나 이후 학습 가치 측면 재논의.
+
+**결정**: A, B 양쪽 모두 압력 센서 부착. 두 채널 실측.
+
+**근거**: Dalton 법칙 직접 검증 (P_A_final + P_B_final = P_total) 이 학습 핵심. 단일 센서면 A 측은 영원히 이론값. 두 센서 cross-check (drift / 오차) 도 가능. CC 가 사전 조사·구축한 멀티채널 인프라와 정합.
+
+**배제된 대안**: B 단일 센서 + A 이론 계산 (학습 가치 감소, 멀티채널 인프라 unused).
+
+### 2026-04-27 — 게이지 라우팅 + ch live 라벨 + 입자 수 일관성 + 압력 확정 (commit 8eeaea2, 0dda5bf, fc1cedc)
+
+#### 한 일
+- ws/real 모드에서 ch0 (B) → P_B 게이지, ch1 (A) → P_A 게이지 라우팅 (commit i)
+- ch live 라벨 신규 (`#dalton-ch{0,1}-live`, raw kPa 실시간 표시)
+- EMA 평활 (α=0.2) + 임계값 (2 kPa) + 점진적 입자 수 보정 (max 2 개/프레임)
+- "압력 확정" 토글 버튼 — 양쪽 동시 freeze + stage 전환 자동 해제
+- connect 이벤트 시 압력 확정 버튼 활성화 누락 수정 (fc1cedc, 1 줄 fix)
+- 회귀 검증 V2 (입자 수 점진 변화) ~ V6 (disconnect / 리셋) 통과
+
+#### 결정: 게이지 입력 우선순위 — ws/real 모드 모든 stage 실측
+
+**배경**: ws/real 모드에서 P_A / P_B 게이지가 어느 데이터 소스를 따를지 결정 필요. mock 모드는 시뮬 본체 이론값이 디폴트.
+
+**결정**: ws/real 모드는 **모든 stage 실측 우선**. INJECTING 중에도 시뮬 보간 X, 실측 그대로.
+
+**근거**: 측정 자체가 학습 핵심. 시뮬 보간으로 "보기 좋게" 만들면 측정 의미 약화. INJECTING 중 시뮬 본체의 입자 운동은 실측 P 와 동기화 (이론 이동 X).
+
+**배제된 대안**: stage 별 차등 (IDLE/측정 후 실측, INJECTING 시뮬 보간) — 데이터 출처 혼재.
+
+#### 결정: 입자 수 갱신 정책 — stage 별 + EMA + 임계값 + 점진적
+
+**배경**: 실센서 P 변화 시 입자 수 정합 (PV=nRT) 필요. 그대로 매 샘플 갱신하면 노이즈로 입자 깜박임 + 충돌 시뮬 (Phase 5.3 자산) 안정성 저하.
+
+**결정**:
+- stage 차등: IDLE / STABILIZING 만 갱신. INJECTING (시뮬 보간 우선) / INJECTED / CONFIRMED (기록값 보호) 갱신 X
+- EMA α = 0.2 (5 Hz × 5 ≈ 1 초 시간 상수)
+- 임계값 = 2 kPa (`|EMA - 마지막 갱신값| > 2 kPa` 시 target 재계산)
+- 매 프레임 max 2 개씩 추가/제거 (target 도달 시 정지)
+- 기록 시점 force 갱신
+
+**근거**: 노이즈 제거 (EMA) + 미세 변동 무시 (임계값) + 시각 부드러움 (점진적). 학습 가치 — 데이터 처리 개념 (평활 / dead-band) 자체가 학습 가능. 입자간 충돌 시뮬 무손상.
+
+**배제된 대안**:
+- 단순 deadband (단순하지만 천천히 변하는 추세 누적 후 점프)
+- throttle (빠른 변화 놓침)
+- stage 차등 + EMA + 임계값 통합 (위 결정의 단순화 버전 — 적정선)
+
+#### 결정: "압력 확정" 토글 — 양쪽 동시 freeze + 자동 해제
+
+**배경**: 노이즈 있는 측정값에서 "측정 시점 = 어느 값" 의 학생 판단 학습. 또한 라이브 데이터로 시뮬이 계속 변하면 분석 시 혼란.
+
+**결정**:
+- 한 버튼으로 양쪽 동시 freeze
+- freeze 시 게이지 + 입자 수 정지, ch live 라벨은 계속 갱신 (라이브 표시 vs 분석값 분리 학습)
+- 적용 stage: IDLE / STABILIZING 만
+- 해제: 사용자 토글 + stage 전환 자동 해제 (INJECTING / INJECTED / CONFIRMED 진입 시)
+- mock 모드 / 미연결 시 비활성
+
+**근거**: 학습 가치 — 측정 정의 (한 시점 압력) + 분석값 vs 원시값 구분. 양쪽 동시 freeze = 한쪽만 신경 쓰는 부담 회피. 자동 해제 = 학생이 freeze 풀기 잊어도 안전.
+
+**배제된 대안**:
+- 채널별 freeze 버튼 2 개 (조작 부담)
+- 자동 freeze (측정 확인 시점만, 명시 X) — 학습 가치 누락
+- 수동 해제만 (자동 해제 X) — INJECTING 진입 시 고장난 상태로 진행 위험
+
+#### 결정: 신규 헬퍼 3 개 — region 기반 점진적 입자 추가/제거
+
+**배경**: Phase 5.3 의 5-region 입자 모델은 `rebuildParticleSystem` 으로 일괄 재생성만 지원. 점진 보정엔 부적합.
+
+**결정**: `addParticleToSyringe / removeParticleFromSyringe / getParticleCountInSyringe` 3 헬퍼 신규.
+
+**근거**: 기존 `allParticles` 배열 + `getRegion` 활용. 안전 영역 + 충돌 회피 (max 5 회 재시도) + 가스 종류 일관성. 5-region 모델 + 입자간 충돌 시뮬과 호환.
+
+**배제된 대안**: `rebuildParticleSystem` 매 프레임 호출 (시뮬 안정성 파괴, 입자간 충돌 spatial hash 재생성 부담).
+
+#### 진단 — 압력 확정 버튼 connect 시 활성화 누락 (fc1cedc)
+
+**증상**: ws 연결 후 압력 확정 버튼 회색 비활성. 영점 캘리브 버튼은 활성.
+
+**원인**: `daltonSensorManager.on("connect", ...)` 핸들러에서 `enableCalibButtons()` 만 호출, `updatePressureFreezeUI()` 호출 누락. stage 전환 전까지 disabled 유지.
+
+**정정**: connect 핸들러에 `updatePressureFreezeUI()` 한 줄 추가.
+
+**교훈**: 명세 [1-G] 활성 조건 검사 정확했으나, 호출 지점 명세에서 connect 이벤트 누락. 새 UI 컴포넌트 추가 시 — setMode / setStage / connect / disconnect / 리셋 / 초기화 6 지점 점검 체크리스트 적용 필요.
+
+### Phase 5.4 마일스톤 (2026-04-27 종료)
+
+- 5 commits (`dc7ca57` → `fc1cedc`), `phase5-real-sensor` 브랜치
+- 신규 파일: `docs/12-protocol-v1.2.md`, `docs/13-multi-channel-interface.md`,
+  `docs/14-calibration-pipeline.md`
+- 수정 파일: `emulator.js`, `protocol.js`, `serial.js`, `ui.js`, `main.js`,
+  `dalton.html`, `style.css`, `package-lock.json`
+- 누적: +1062 / -185
+
+#### 다음 예정
+
+- (보류) mock 모드 SensorSource 일원화
+- (보류) `docs/13` 명세 정합화 (실제 구현 반영)
+- (대기) Step I 본편 — 실물 센서 입수 후
+- (별 진단) 시뮬 모드 P_A vs P_B 게이지 차이 (P_A=3.94 / P_B=2.96 관찰) — 회귀 가능성
+
