@@ -1698,6 +1698,8 @@ function initDaltonApp(params) {
     // Phase 5.3: 입자간 탄성 충돌 — spatial hash O(N) + 1D 탄성 충돌 (질량 다른 경우 정확 식)
     // ─────────────────────────────────────────────────────────
     const COLLISION_GRID_SIZE = SCENE.particleRadius * 4;  // 격자 = 직경 × 2 = 12 px
+    // Phase 5.4: corrective clamp 안전 마진 — boundary 정확 정착 stuck 차단 (R1, R5 모두)
+    const BOUNDARY_EPSILON = 0.5;
 
     function buildSpatialHash(particles) {
         const hash = new Map();  // key = "gx,gy", value = [particle, ...]
@@ -1776,19 +1778,20 @@ function initDaltonApp(params) {
         const limit1 = getRegionBoxLimits(p1);
         const limit2 = getRegionBoxLimits(p2);
 
+        // Phase 5.4: clamp 시 BOUNDARY_EPSILON 안전 마진 — boundary 정확 정착 stuck 차단
         if (limit1) {
             const newX1 = p1.x + dx1, newY1 = p1.y + dy1;
-            if (newX1 < limit1.left)   dx1 = limit1.left   - p1.x;
-            if (newX1 > limit1.right)  dx1 = limit1.right  - p1.x;
-            if (newY1 < limit1.top)    dy1 = limit1.top    - p1.y;
-            if (newY1 > limit1.bottom) dy1 = limit1.bottom - p1.y;
+            if (newX1 < limit1.left)   dx1 = (limit1.left   + BOUNDARY_EPSILON) - p1.x;
+            if (newX1 > limit1.right)  dx1 = (limit1.right  - BOUNDARY_EPSILON) - p1.x;
+            if (newY1 < limit1.top)    dy1 = (limit1.top    + BOUNDARY_EPSILON) - p1.y;
+            if (newY1 > limit1.bottom) dy1 = (limit1.bottom - BOUNDARY_EPSILON) - p1.y;
         }
         if (limit2) {
             const newX2 = p2.x + dx2, newY2 = p2.y + dy2;
-            if (newX2 < limit2.left)   dx2 = limit2.left   - p2.x;
-            if (newX2 > limit2.right)  dx2 = limit2.right  - p2.x;
-            if (newY2 < limit2.top)    dy2 = limit2.top    - p2.y;
-            if (newY2 > limit2.bottom) dy2 = limit2.bottom - p2.y;
+            if (newX2 < limit2.left)   dx2 = (limit2.left   + BOUNDARY_EPSILON) - p2.x;
+            if (newX2 > limit2.right)  dx2 = (limit2.right  - BOUNDARY_EPSILON) - p2.x;
+            if (newY2 < limit2.top)    dy2 = (limit2.top    + BOUNDARY_EPSILON) - p2.y;
+            if (newY2 > limit2.bottom) dy2 = (limit2.bottom - BOUNDARY_EPSILON) - p2.y;
         }
 
         p1.x += dx1;
@@ -2397,6 +2400,18 @@ function initDaltonApp(params) {
 
             // 5 region 물리 update (입자 좌표 적분 + region 별 외곽 벽 충돌)
             physicsStep(dt);
+
+            // Phase 5.4: R5 stuck 진단 로그 — 1 초/회 (DEBUG_DALTON 게이팅)
+            if (DEBUG_DALTON && p.frameCount % 60 === 0) {
+                const SLOW_THRESHOLD_PX_PER_SEC = 1.0;
+                const slowR5Count = allParticles.filter((q) =>
+                    getRegion(q.x, q.y) === 5
+                    && Math.hypot(q.vx, q.vy) < SLOW_THRESHOLD_PX_PER_SEC
+                ).length;
+                if (slowR5Count > 0) {
+                    console.log(`[Dalton] R5 slow particles: ${slowR5Count}`);
+                }
+            }
 
             // 입자별 gasKey 로 색 결정 — 단일 호출
             drawParticlesByGas(p, allParticles, daltonState.syringeA.gas);
