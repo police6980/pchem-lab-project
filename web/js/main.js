@@ -2559,23 +2559,32 @@ function initDaltonApp(params) {
             const legendX = plotX + plotW - 110;
             const legendY = plotY + 10;
 
-            // 첫 record 의 가스 색 사용 (가스 종류는 라운드별 가변 가능 — 첫 라운드 표시)
-            const firstR = records[0];
-            const gasAColor0 = (firstR.gasA && cfg.gases[firstR.gasA]) ? cfg.gases[firstR.gasA].color : "#1F2937";
-            const gasBColor0 = (firstR.gasB && cfg.gases[firstR.gasB]) ? cfg.gases[firstR.gasB].color : "#27AE60";
-            const labelA = (cfg.gases[firstR.gasA] || {}).label || "A";
-            const labelB = (cfg.gases[firstR.gasB] || {}).label || "B";
+            // Phase 5.4: records 의 unique 가스 종류로 동적 범례 생성
+            // 등장 순 — gasB 먼저 (막대 stack 상단), 그 다음 gasA (하단). 범례 위→아래 일관.
+            const uniqueGases = new Map();  // gasKey → { color, label }
+            for (const r of records) {
+                if (r.gasB && !uniqueGases.has(r.gasB)) {
+                    const def = cfg.gases[r.gasB] || {};
+                    uniqueGases.set(r.gasB, { color: def.color || "#27AE60", label: def.label || r.gasB });
+                }
+            }
+            for (const r of records) {
+                if (r.gasA && !uniqueGases.has(r.gasA)) {
+                    const def = cfg.gases[r.gasA] || {};
+                    uniqueGases.set(r.gasA, { color: def.color || "#1F2937", label: def.label || r.gasA });
+                }
+            }
 
-            p.fill(gasBColor0);
-            p.noStroke();
-            p.rect(legendX, legendY - 5, 12, 12);
-            p.fill(0, 0, 20);
-            p.text(labelB, legendX + 18, legendY + 1);
-
-            p.fill(gasAColor0);
-            p.rect(legendX, legendY + 13, 12, 12);
-            p.fill(0, 0, 20);
-            p.text(labelA, legendX + 18, legendY + 19);
+            let legendIdx = 0;
+            for (const [, def] of uniqueGases) {
+                const itemY = legendY + legendIdx * 18;
+                p.fill(def.color);
+                p.noStroke();
+                p.rect(legendX, itemY - 5, 12, 12);
+                p.fill(0, 0, 20);
+                p.text(def.label, legendX + 18, itemY + 1);
+                legendIdx++;
+            }
         };
     }
 
