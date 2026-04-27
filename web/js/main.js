@@ -960,30 +960,30 @@ function initDaltonApp(params) {
         ],
     });
 
-    // 채널별 데이터 구독 — ws/real 모드에서 센서값으로 daltonState 갱신 + 게이지 반영
+    // 채널별 데이터 구독 — Phase 5.4 commit iii: mock / ws/real 단일 경로 일원화.
+    // mock 모드: EMA α=1 (즉시 반영), 임계값 우회 (forceThreshold=true). 시뮬 본체가 setPressureImmediate emit.
+    // ws/real 모드: EMA α=0.2, 임계값 2 kPa, freeze 가드 (기존 동작 유지).
     daltonSensorManager.onChannelData(0, (data) => {
-        if (daltonSensorManager.mode === "mock") return;
-
-        daltonState.emaP_B_kPa = applyEMA(daltonState.emaP_B_kPa, data.value);
+        const isMock = daltonSensorManager.mode === "mock";
+        daltonState.emaP_B_kPa = isMock ? data.value : applyEMA(daltonState.emaP_B_kPa, data.value);
         updateChLive(0, data.value);
 
         if (daltonState.pressureFrozen) return;
 
         daltonState.pressureBSensor = daltonState.emaP_B_kPa / 101.325;
         updatePressureReadouts();
-        maybeUpdateParticleTarget("B");
+        maybeUpdateParticleTarget("B", false, isMock);
     });
     daltonSensorManager.onChannelData(1, (data) => {
-        if (daltonSensorManager.mode === "mock") return;
-
-        daltonState.emaP_A_kPa = applyEMA(daltonState.emaP_A_kPa, data.value);
+        const isMock = daltonSensorManager.mode === "mock";
+        daltonState.emaP_A_kPa = isMock ? data.value : applyEMA(daltonState.emaP_A_kPa, data.value);
         updateChLive(1, data.value);
 
         if (daltonState.pressureFrozen) return;
 
         daltonState.pressureASensor = daltonState.emaP_A_kPa / 101.325;
         updatePressureReadouts();
-        maybeUpdateParticleTarget("A");
+        maybeUpdateParticleTarget("A", false, isMock);
     });
 
     function updateChLive(ch, kPa) {
@@ -1556,7 +1556,9 @@ function initDaltonApp(params) {
         allParticles.splice(idx, 1);
     }
 
-    function maybeUpdateParticleTarget(side, force) {
+    // Phase 5.4 commit iii: forceThreshold 신규 — 임계값만 우회 (stage / freeze 검사 유지).
+    // force=true (기존) 는 stage / freeze / 임계값 모두 우회 — 기록 시점 / freeze 시점 한정.
+    function maybeUpdateParticleTarget(side, force = false, forceThreshold = false) {
         const stage = daltonState.stage;
         if (!force && stage !== "IDLE" && stage !== "STABILIZING") return;
         if (!force && daltonState.pressureFrozen) return;
@@ -1566,7 +1568,7 @@ function initDaltonApp(params) {
         const ema = daltonState[emaKey];
         const last = daltonState[lastKey];
 
-        if (!force && Math.abs(ema - last) < PARTICLE_UPDATE_THRESHOLD_KPA) return;
+        if (!force && !forceThreshold && Math.abs(ema - last) < PARTICLE_UPDATE_THRESHOLD_KPA) return;
 
         const volumeMl = side === "A" ? daltonState.syringeA.volume : daltonState.syringeB.volume;
         const emaAtm = ema / 101.325;
@@ -1985,12 +1987,17 @@ function initDaltonApp(params) {
         // Step F 정정 (재): P_B 진행률 동기 복원 — 사용자 요청
         // (B 측은 분자 들어오면서 입자 수 비례 압력 증가 교육적 효과)
         // 기존 progress 변수는 피스톤 진행률 — 분출 진행률은 별도 계산 (releasedCount / total)
+        // Phase 5.4 commit iii: mock 만 setPressureImmediate (매 frame, 60 Hz).
+        // ws/real 은 시뮬 보간 X — stage 분기 ("—") 로 표시 처리.
         const V_A_initial = sA.injectionStartVolume;
         const V_B = daltonState.syringeB.volume;
         const theoryAfterAtm = V_B > 0 ? (V_A_initial / V_B + 1) * 1.00 : 1.00;
         const progress2 = total > 0 ? Math.max(0, Math.min(1, releasedCount / total)) : 0;
-        daltonState.pressureBSensor = 1.00 + progress2 * (theoryAfterAtm - 1.00);
-        updatePressureReadouts();
+        if (daltonSensorManager.mode === "mock" && daltonSensorManager.source) {
+            const P_B_kPa = (1.00 + progress2 * (theoryAfterAtm - 1.00)) * 101.325;
+            daltonSensorManager.source.setPressureImmediate(P_B_kPa, 0);
+            // setPressureImmediate → onChannelData(0) → pressureBSensor + updatePressureReadouts
+        }
     }
 
     // Step C-3 v5: B 노즐 출구에서 자연스럽게 분출 — R5 안 임의 위치 대신 노즐 입구 (R5 bottom) 에서 위로 분출
@@ -2245,10 +2252,15 @@ function initDaltonApp(params) {
         injectionPistonAnimating = false;
         // Step F 정정: finalize 시점에 평형 압력 확정 (INJECTED stage 진입 후 표시됨)
         // V_A_initial_cached + 현재 V_B 로 이론 평형 압력 재계산
+        // Phase 5.4 commit iii: mock 은 setPressureImmediate 경유, ws/real 은 직접 set
         const V_A_initial = daltonState.V_A_initial_cached || 0;
         const V_B = daltonState.syringeB.volume;
         const theoryAfterAtm = V_B > 0 ? (V_A_initial / V_B + 1) * 1.00 : 1.00;
-        daltonState.pressureBSensor = theoryAfterAtm;
+        if (daltonSensorManager.mode === "mock" && daltonSensorManager.source) {
+            daltonSensorManager.source.setPressureImmediate(theoryAfterAtm * 101.325, 0);
+        } else {
+            daltonState.pressureBSensor = theoryAfterAtm;
+        }
     }
 
     // Step C-3 v2: deliverToSystemB / updateMigratingParticles / drawMigratingParticles 폐기 — 5 region 물리 모드로 대체
@@ -2742,8 +2754,15 @@ function initDaltonApp(params) {
         }
 
         daltonState.pressureBMeasured = null;
-        daltonState.pressureASensor   = 1.00;
-        daltonState.pressureBSensor   = 1.00;
+        // Phase 5.4 commit iii: mock 은 setPressureImmediate 경유 (mock source 내부 _channels 동기),
+        // ws/real 은 직접 set (다음 onChannelData 수신 전까지 fallback).
+        if (daltonSensorManager.mode === "mock" && daltonSensorManager.source) {
+            daltonSensorManager.source.setPressureImmediate(101.325, 0);
+            daltonSensorManager.source.setPressureImmediate(101.325, 1);
+        } else {
+            daltonState.pressureASensor = 1.00;
+            daltonState.pressureBSensor = 1.00;
+        }
         // Phase 5.4: EMA / target / freeze 초기화
         daltonState.emaP_A_kPa = 101.325;
         daltonState.emaP_B_kPa = 101.325;

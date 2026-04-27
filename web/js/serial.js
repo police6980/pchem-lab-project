@@ -66,6 +66,21 @@ class MockSensorSource extends SensorSource {
         if (c) c.pressure = value;
     }
 
+    // Phase 5.4 commit iii: 일원화 — 시뮬 본체에서 매 frame 호출.
+    // interval 우회, 즉시 1회 emit. 노이즈 추가 X (mock deterministic 보존).
+    // 노이즈는 interval 경로 (_startInterval) 에서만 적용.
+    setPressureImmediate(value, ch = 0) {
+        const c = this._channels.find(x => x.ch === ch);
+        if (c) c.pressure = value;
+        this._emit({
+            sensor: "pressure",
+            value: value,
+            unit: "kPa",
+            timestamp: performance.now(),
+            ch: ch,
+        });
+    }
+
     _startInterval() {
         if (this._interval !== null) return;
         this._interval = setInterval(() => {
