@@ -3573,6 +3573,14 @@ body[data-page="dalton"] .dalton-ch-sensor {
     color: #6b7280;
     flex: 1;
 }
+body[data-page="dalton"] .dalton-ch-live {
+    font-family: 'DSEG7Classic-Bold', monospace;
+    font-size: 0.92rem;
+    color: #374151;
+    min-width: 5rem;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
 body[data-page="dalton"] .dalton-ch-calib {
     color: #9ca3af;
     font-style: italic;

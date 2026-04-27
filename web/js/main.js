@@ -823,10 +823,10 @@ function initDaltonApp(params) {
             targetVolume:    cfg.syringe_b.v_default,
             displayedVolume: cfg.syringe_b.v_default,
         },
-        // 주사기 B 센서 측정값 (atm 기준, 내부 계산용).
+        // 주사기 A·B 센서 측정값 (atm 기준, 내부 계산용).
         // 시뮬 모드에서는 1.00 고정 (주입 전 상태 = 대기압).
-        // 실센서 모드(Step I) 에서 실제 수신값으로 덮어씀.
-        // 결정 7: 주입 전 주사기 A 압력 = 이 값을 그대로 복사 표시.
+        // ws/real 모드(Phase 5.4) 에서 실제 수신값으로 덮어씀.
+        pressureASensor: 1.00,
         pressureBSensor: 1.00,
         // 주입 완료 후 측정된 P_total (atm). INJECTED/CONFIRMED 에서만 유효.
         // IDLE/INJECTING 에서는 null. Step B-3 에서는 시뮬값 대신 이론값 그대로.
@@ -922,9 +922,11 @@ function initDaltonApp(params) {
         wsStatus:          $("dalton-ws-status"),
         channelStatus:     $("dalton-channel-status"),
         ch0Sensor:         $("dalton-ch0-sensor"),
+        ch0Live:           $("dalton-ch0-live"),
         ch0Calib:          $("dalton-ch0-calib"),
         btnCalibCh0:       $("dalton-btn-calib-ch0"),
         ch1Sensor:         $("dalton-ch1-sensor"),
+        ch1Live:           $("dalton-ch1-live"),
         ch1Calib:          $("dalton-ch1-calib"),
         btnCalibCh1:       $("dalton-btn-calib-ch1"),
         btnCalibAll:       $("dalton-btn-calib-all"),
@@ -947,18 +949,28 @@ function initDaltonApp(params) {
         ],
     });
 
-    // 채널별 데이터 구독 — 실센서/에뮬레이터 모드에서 센서값으로 daltonState 갱신
+    // 채널별 데이터 구독 — ws/real 모드에서 센서값으로 daltonState 갱신 + 게이지 반영
     daltonSensorManager.onChannelData(0, (data) => {
         // ch 0 = 주사기 B (수용측) → P_total
         if (daltonSensorManager.mode !== "mock") {
             daltonState.pressureBSensor = data.value / 101.325;  // kPa → atm
+            updatePressureReadouts();
+            updateChLive(0, data.value);
         }
     });
     daltonSensorManager.onChannelData(1, (data) => {
-        // ch 1 = 주사기 A (능동측) → 모니터링용
-        // 현재는 로깅만, 추후 A 센서 표시에 활용
-        if (DEBUG_DALTON) console.log(`[Dalton] ch1 A: ${data.value.toFixed(1)} kPa`);
+        // ch 1 = 주사기 A (능동측)
+        if (daltonSensorManager.mode !== "mock") {
+            daltonState.pressureASensor = data.value / 101.325;  // kPa → atm
+            updatePressureReadouts();
+            updateChLive(1, data.value);
+        }
     });
+
+    function updateChLive(ch, kPa) {
+        const el = ch === 0 ? dom.ch0Live : dom.ch1Live;
+        if (el) el.textContent = `${kPa.toFixed(1)} kPa`;
+    }
 
     // 센서 패널 UI 바인딩
     (function initDaltonSensorPanel() {
@@ -1082,6 +1094,8 @@ function initDaltonApp(params) {
                 resetRealUI();
             }
             resetCalibUI();
+            if (dom.ch0Live) dom.ch0Live.textContent = "—";
+            if (dom.ch1Live) dom.ch1Live.textContent = "—";
         });
 
         daltonSensorManager.on("calibrated", (payload) => {
@@ -1143,56 +1157,48 @@ function initDaltonApp(params) {
 
     // ─────────────────────────────────────────────────────────
     // 압력 readout 갱신
-    // - 주사기 B: pressureBSensor 값을 현재 단위로 표시 (센서 실측값 자리).
-    // - 주사기 A: 결정 7 정책
-    //   . IDLE/INJECTING: B 센서값 그대로 복사, hint = "(B와 동일, 대기압)"
-    //   . INJECTED/CONFIRMED: "—" 비표시, hint 숨김 (B-3 stage 전환 시 본격 분기)
-    // 현재 B-2 시점에서는 stage 가 항상 IDLE 이므로 A는 늘 복사 모드.
+    // Phase 5.4: P_A = pressureASensor, P_B = pressureBSensor 분리.
+    // mock 모드: 시뮬 본체�� 두 값을 직접 갱신.
+    // ws/real 모드: onChannelData 콜백이 센서값으로 갱신.
+    // stage 별 표시 정책:
+    //   IDLE: A·B 모두 센서값 표시
+    //   INJECTING: A "—" (비평형), B 진행률 동기
+    //   STABILIZING~CONFIRMED: A "—", B 센서값
     // ─────────────────────────────────────────────────────────
     function updatePressureReadouts() {
-        const sensorAtm = daltonState.pressureBSensor;
+        const pAatm = daltonState.pressureASensor;
+        const pBatm = daltonState.pressureBSensor;
         const unit = getPressureUnit();
         const stage = daltonState.stage;
 
-        // Step F 정정 (재): 평형 상태 압력 표시 — P_B 진행률 동기 복원 (사용자 요청)
-        // - IDLE: P_A = P_B = 대기압 (sensorAtm = 1.00)
-        // - INJECTING: P_A "—" (피스톤 비평형), P_B: 분자 들어오는 중에도 분자 수 비례 (진행률 동기, 교육적 효과)
-        // - STABILIZING: P_A "—" (V_A=0 의미 X), P_B = sensorAtm (평형 도달)
-        // - INJECTED/CONFIRMED: 평형 — P_A "—", P_B = sensorAtm 정상 표시
         if (stage === "IDLE") {
-            // IDLE: A = B (대기 압력)
-            if (dom.pressureA) dom.pressureA.textContent = formatPressure(sensorAtm);
+            if (dom.pressureA) dom.pressureA.textContent = formatPressure(pAatm);
             if (dom.pressureAUnit) dom.pressureAUnit.textContent = unit;
-            updateGauge(dom.gaugeA, sensorAtm, dom.gaugeWarningA);
-            if (dom.pressureB) dom.pressureB.textContent = formatPressure(sensorAtm);
+            updateGauge(dom.gaugeA, pAatm, dom.gaugeWarningA);
+            if (dom.pressureB) dom.pressureB.textContent = formatPressure(pBatm);
             if (dom.pressureBUnit) dom.pressureBUnit.textContent = unit;
-            updateGauge(dom.gaugeB, sensorAtm, dom.gaugeWarningB);
+            updateGauge(dom.gaugeB, pBatm, dom.gaugeWarningB);
         } else if (stage === "INJECTING") {
-            // P_A 비평형 — LCD "—", 게이지 1.00 유지
-            // P_B 는 분자 수 비례 (진행률 동기) — 사용자 요청, 교육적 효과
             if (dom.pressureA) dom.pressureA.textContent = "—";
             if (dom.pressureAUnit) dom.pressureAUnit.textContent = "";
             updateGauge(dom.gaugeA, 1.00, dom.gaugeWarningA);
-            if (dom.pressureB) dom.pressureB.textContent = formatPressure(sensorAtm);
+            if (dom.pressureB) dom.pressureB.textContent = formatPressure(pBatm);
             if (dom.pressureBUnit) dom.pressureBUnit.textContent = unit;
-            updateGauge(dom.gaugeB, sensorAtm, dom.gaugeWarningB);
+            updateGauge(dom.gaugeB, pBatm, dom.gaugeWarningB);
         } else if (stage === "STABILIZING") {
-            // P_A 의미 X (V_A=0) → "—", P_B 평형값 도달 정상 표시
             if (dom.pressureA) dom.pressureA.textContent = "—";
             if (dom.pressureAUnit) dom.pressureAUnit.textContent = "";
             updateGauge(dom.gaugeA, 0, dom.gaugeWarningA);
-            if (dom.pressureB) dom.pressureB.textContent = formatPressure(sensorAtm);
+            if (dom.pressureB) dom.pressureB.textContent = formatPressure(pBatm);
             if (dom.pressureBUnit) dom.pressureBUnit.textContent = unit;
-            updateGauge(dom.gaugeB, sensorAtm, dom.gaugeWarningB);
+            updateGauge(dom.gaugeB, pBatm, dom.gaugeWarningB);
         } else {
-            // INJECTED / CONFIRMED: 평형 도달 — A 비어 ("—"), B 정상 표시
             if (dom.pressureA) dom.pressureA.textContent = "—";
             if (dom.pressureAUnit) dom.pressureAUnit.textContent = "";
-            updateGauge(dom.gaugeA, 0, dom.gaugeWarningA);  // 0 atm 이라 경고 자동 hidden
-            if (dom.pressureB) dom.pressureB.textContent = formatPressure(sensorAtm);
+            updateGauge(dom.gaugeA, 0, dom.gaugeWarningA);
+            if (dom.pressureB) dom.pressureB.textContent = formatPressure(pBatm);
             if (dom.pressureBUnit) dom.pressureBUnit.textContent = unit;
-            updateGauge(dom.gaugeB, sensorAtm, dom.gaugeWarningB);
-            // Step C-3 v14: 부분 압력 list 갱신·표시
+            updateGauge(dom.gaugeB, pBatm, dom.gaugeWarningB);
             updatePartialPressureList();
         }
         // INJECTED/CONFIRMED 외 — list 숨김
@@ -2475,7 +2481,8 @@ function initDaltonApp(params) {
         }
 
         daltonState.pressureBMeasured = null;
-        daltonState.pressureBSensor   = 1.00;  // 시뮬 기본값 복귀
+        daltonState.pressureASensor   = 1.00;  // 시뮬 기본값 복귀
+        daltonState.pressureBSensor   = 1.00;
         // Phase 5.3 정정: cache 미초기화 정합 (다음 측정 영향 회피)
         daltonState.V_A_initial_cached      = null;
         daltonState.gasA_cached             = null;
