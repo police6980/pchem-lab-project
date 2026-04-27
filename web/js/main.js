@@ -1242,26 +1242,36 @@ function initDaltonApp(params) {
     //   STABILIZING~CONFIRMED: A "—", B 센서값
     // ─────────────────────────────────────────────────────────
     function updatePressureReadouts() {
-        const pAatm = daltonState.pressureASensor;
-        const pBatm = daltonState.pressureBSensor;
-        const unit = getPressureUnit();
         const stage = daltonState.stage;
+        const unit = getPressureUnit();
+        const isMock = daltonSensorManager.mode === "mock";
+        const pBatm = daltonState.pressureBSensor;
 
         if (stage === "IDLE") {
-            if (dom.pressureA) dom.pressureA.textContent = formatPressure(pAatm);
+            // mock: P_A = P_B = pBatm (Phase 5.3 패턴). ws/real: 각 채널 실측.
+            const pA = isMock ? pBatm : daltonState.pressureASensor;
+            if (dom.pressureA) dom.pressureA.textContent = formatPressure(pA);
             if (dom.pressureAUnit) dom.pressureAUnit.textContent = unit;
-            updateGauge(dom.gaugeA, pAatm, dom.gaugeWarningA);
+            updateGauge(dom.gaugeA, pA, dom.gaugeWarningA);
             if (dom.pressureB) dom.pressureB.textContent = formatPressure(pBatm);
             if (dom.pressureBUnit) dom.pressureBUnit.textContent = unit;
             updateGauge(dom.gaugeB, pBatm, dom.gaugeWarningB);
         } else if (stage === "INJECTING") {
+            // P_A "—" (비평형). P_B: mock=진행률 동기, ws/real="—"
             if (dom.pressureA) dom.pressureA.textContent = "—";
             if (dom.pressureAUnit) dom.pressureAUnit.textContent = "";
             updateGauge(dom.gaugeA, 1.00, dom.gaugeWarningA);
-            if (dom.pressureB) dom.pressureB.textContent = formatPressure(pBatm);
-            if (dom.pressureBUnit) dom.pressureBUnit.textContent = unit;
-            updateGauge(dom.gaugeB, pBatm, dom.gaugeWarningB);
+            if (isMock) {
+                if (dom.pressureB) dom.pressureB.textContent = formatPressure(pBatm);
+                if (dom.pressureBUnit) dom.pressureBUnit.textContent = unit;
+                updateGauge(dom.gaugeB, pBatm, dom.gaugeWarningB);
+            } else {
+                if (dom.pressureB) dom.pressureB.textContent = "—";
+                if (dom.pressureBUnit) dom.pressureBUnit.textContent = "";
+                updateGauge(dom.gaugeB, 1.00, dom.gaugeWarningB);
+            }
         } else if (stage === "STABILIZING") {
+            // P_A "—" (V_A=0). P_B = 평형값.
             if (dom.pressureA) dom.pressureA.textContent = "—";
             if (dom.pressureAUnit) dom.pressureAUnit.textContent = "";
             updateGauge(dom.gaugeA, 0, dom.gaugeWarningA);
@@ -1269,6 +1279,7 @@ function initDaltonApp(params) {
             if (dom.pressureBUnit) dom.pressureBUnit.textContent = unit;
             updateGauge(dom.gaugeB, pBatm, dom.gaugeWarningB);
         } else {
+            // INJECTED / CONFIRMED: P_A "—" (V_A=0), P_B = 평형값
             if (dom.pressureA) dom.pressureA.textContent = "—";
             if (dom.pressureAUnit) dom.pressureAUnit.textContent = "";
             updateGauge(dom.gaugeA, 0, dom.gaugeWarningA);
