@@ -55,9 +55,9 @@ const SOFT_TURN_LIMIT = 8;
 
 let activeQuestion = "free";
 
-// Q3 first turn is AI-initiated (student clicks "질문 생성"). Tracks whether
+// Q4 first turn is AI-initiated (student clicks "질문 생성"). Tracks whether
 // the synthetic prompt-and-answer pair has been produced.
-let q3QuestionGenerated = false;
+let q4QuestionGenerated = false;
 
 // QUESTION_TEXT is owned by ui.js (createAnalysisPanel closure) and accessed
 // via window.PchemTutor.getQuestionText(level, qid). Uses optional chaining
@@ -108,12 +108,12 @@ function renderConversation(questionId) {
                 '아래 입력창에 자유롭게 질문해보세요.<br><br>' +
                 '<small style="color:#999">예: "왜 입자 색깔이 다른가요?"<br>' +
                 '"온도가 더 높으면 어떻게 되나요?"</small>';
-        } else if (questionId === "3" && !q3QuestionGenerated) {
+        } else if (questionId === "4" && !q4QuestionGenerated) {
             emptyEl.innerHTML =
                 '<p>AI가 내 측정 데이터를 분석해서<br>탐구 질문을 만들어줍니다.</p>' +
-                '<button id="btn-generate-q3" class="btn-generate-question">🔍 질문 생성</button>';
-            const genBtn = emptyEl.querySelector("#btn-generate-q3");
-            if (genBtn) genBtn.addEventListener("click", generateQ3Question);
+                '<button id="btn-generate-q4" class="btn-generate-question">🔍 질문 생성</button>';
+            const genBtn = emptyEl.querySelector("#btn-generate-q4");
+            if (genBtn) genBtn.addEventListener("click", generateQ4Question);
         } else {
             emptyEl.innerHTML =
                 '<div class="prompt-question">' +
@@ -247,7 +247,7 @@ function resetAllConversations() {
         updateTabClosedLabel(q);
         clearTabNew(q);
     });
-    q3QuestionGenerated = false;
+    q4QuestionGenerated = false;
     renderConversation(activeQuestion);
     updateInputAvailability();
     updateEndControlsVisibility();
@@ -258,7 +258,7 @@ function resetQuestion(qid) {
     aiConversations[qid] = {
         messages: [], tokensIn: 0, tokensOut: 0, contextSnapshot: null, isClosed: false,
     };
-    if (String(qid) === "3") q3QuestionGenerated = false;
+    if (String(qid) === "4") q4QuestionGenerated = false;
     updateTabClosedLabel(qid);
     clearTabNew(qid);
     if (String(activeQuestion) === String(qid)) {
@@ -398,28 +398,28 @@ async function closeQuestion(qid) {
     }
 }
 
-// Q3 AI-generated question: AI produces the opening question from student
+// Q4 AI-generated question: AI produces the opening question from student
 // data; stored as [synthetic user prompt (hidden) + assistant response].
-async function generateQ3Question() {
+async function generateQ4Question() {
     const T = window.PchemTutor;
     if (!T) return;
 
     const ctx = T.buildDataContext();
     const level = T.getLevel();
-    const systemPrompt = T.buildSystemPrompt(level, "3");
-    const userMsgContent = T.buildUserPrompt("3_generate", null, ctx, T.getLevel());
+    const systemPrompt = T.buildSystemPrompt(level, "4");
+    const userMsgContent = T.buildUserPrompt("4_generate", null, ctx, T.getLevel());
 
     // Synthetic user message — sent to API, hidden from display
-    aiConversations["3"].messages.push({
+    aiConversations["4"].messages.push({
         role: "user",
         content: "",
         apiContent: userMsgContent,
         timestamp: Date.now(),
         isPromptInternal: true,
     });
-    aiConversations["3"].contextSnapshot = ctx;
+    aiConversations["4"].contextSnapshot = ctx;
 
-    const btn = document.getElementById("btn-generate-q3");
+    const btn = document.getElementById("btn-generate-q4");
     if (btn) btn.disabled = true;
 
     showTypingIndicator();
@@ -430,7 +430,7 @@ async function generateQ3Question() {
         );
         hideTypingIndicator();
 
-        aiConversations["3"].messages.push({
+        aiConversations["4"].messages.push({
             role: "assistant",
             content: result.content,
             timestamp: Date.now(),
@@ -438,34 +438,34 @@ async function generateQ3Question() {
             tokensOut: result.outputTokens,
             model:     result.model,
         });
-        aiConversations["3"].tokensIn  += result.inputTokens;
-        aiConversations["3"].tokensOut += result.outputTokens;
+        aiConversations["4"].tokensIn  += result.inputTokens;
+        aiConversations["4"].tokensOut += result.outputTokens;
         T.addTokens(result.inputTokens, result.outputTokens);
 
-        q3QuestionGenerated = true;
-        if (String(activeQuestion) === "3") {
-            renderConversation("3");
+        q4QuestionGenerated = true;
+        if (String(activeQuestion) === "4") {
+            renderConversation("4");
             updateInputAvailability();
         } else {
-            markTabNew("3");
+            markTabNew("4");
         }
         updateReportButtonState();
     } catch (e) {
         hideTypingIndicator();
         // Roll back the synthetic user message so retry shows the generate button again
-        aiConversations["3"].messages.pop();
+        aiConversations["4"].messages.pop();
 
         // If the student navigated away, don't touch the current view; surface
-        // the error later by flagging Q3 as having new activity.
-        if (String(activeQuestion) !== "3") {
-            markTabNew("3");
+        // the error later by flagging Q4 as having new activity.
+        if (String(activeQuestion) !== "4") {
+            markTabNew("4");
             return;
         }
 
         // Restore empty-state visibility and recreate the generate button.
         // showTypingIndicator() had set emptyEl display:none; renderConversation
         // undoes that and re-inserts a fresh button with its click handler.
-        renderConversation("3");
+        renderConversation("4");
 
         let errMsg;
         if (e.type === "no_key") {
@@ -523,8 +523,8 @@ function downloadConversations() {
     const LABELS = {
         "1": "Q1 — 메커니즘 설명",
         "2": "Q2 — 극단 조건 외삽",
-        "3": "Q3 — AI 탐구 질문",
-        "4": "Q4 — 다음 실험 설계",
+        "3": "Q3 — 다음 실험 설계",
+        "4": "Q4 — AI 탐구 질문",
         "free": "자유 질문",
     };
 
