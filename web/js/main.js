@@ -1670,6 +1670,17 @@ function initDaltonApp(params) {
         return null;
     }
 
+    // Phase 5.4: getRegion null 미끄러짐 대응 — 좌표 기반 R1 시각 영역 검사.
+    // 입자간 충돌 위치 corrective 단계에서 boundary 부동소수점 오차 발생 시
+    // startInjectionTransfer splice 누락 + finalize safety net 검출용.
+    function isParticleInSyringeABox(p) {
+        const eps = 2;
+        return p.x >= SCENE.syringeA.bodyLeft - eps
+            && p.x <= SCENE.syringeA.bodyRight + eps
+            && p.y >= SCENE.bodyTop - eps
+            && p.y <= SCENE.bodyBottom + eps;
+    }
+
     // 5 region 물리 update — 입자 좌표 적분 + region 별 외곽 벽 충돌
     // Step C-3 v3: substep 분할 (region 다중 통과 방지)
     function physicsStep(dt) {
@@ -1898,6 +1909,11 @@ function initDaltonApp(params) {
                 }
             } else {
                 // null region — 빈 공간 영역별 회수 (Step C-3 v3 강화)
+                // Phase 5.4: INJECTING 중 null 검출 1 회 warn (H1 진단 대응)
+                if (daltonState.stage === "INJECTING" && !daltonState._nullRegionWarned) {
+                    daltonState._nullRegionWarned = true;
+                    console.warn(`[Dalton] WARN: null region particle 검출 (INJECTING 중) at (${p.x.toFixed(1)}, ${p.y.toFixed(1)})`);
+                }
                 rescueParticleFromNull(p, r,
                     r1Top, r1Left, r1Right, r2Left, r2Right,
                     r3Top, r3Bottom, r3Left, r3Right,
@@ -1934,12 +1950,18 @@ function initDaltonApp(params) {
     function startInjectionTransfer() {
         pendingTransferParticles = [];
         releasedCount = 0;
+        daltonState._nullRegionWarned = false;
         // R1 안 입자를 모두 pending 으로 splice (allParticles 에서 제거)
+        // Phase 5.4: getRegion null 미끄러짐 대응 — 좌표 기반 검사 (isParticleInSyringeABox) 추가
         for (let i = allParticles.length - 1; i >= 0; i--) {
-            if (getRegion(allParticles[i].x, allParticles[i].y) === 1) {
+            const p = allParticles[i];
+            if (getRegion(p.x, p.y) === 1 || isParticleInSyringeABox(p)) {
                 pendingTransferParticles.push(allParticles.splice(i, 1)[0]);
             }
         }
+        const pendingCount = pendingTransferParticles.length;
+        const nullCount = allParticles.filter((q) => getRegion(q.x, q.y) === null).length;
+        console.log(`[Dalton] INJECTING start — pending: ${pendingCount}, allParticles 잔여 null: ${nullCount}`);
     }
 
     // Step C-3 v6: 매 frame 피스톤 진행률에 비례해 pending → R5 분출
@@ -2180,17 +2202,43 @@ function initDaltonApp(params) {
 
     // safety timeout 시 R1~R4 입자를 강제로 R5 안 임의 위치로 이주
     function forceRemainingToR5() {
+        let count = 0;
         for (const p of allParticles) {
             const region = getRegion(p.x, p.y);
-            if (region !== 5 && region !== null) {
+            // Phase 5.4: null region 도 이주 대상 포함 (다중 안전망 — H1 진단 대응)
+            if (region !== 5) {
                 p.x = boxB.x + Math.random() * boxB.width;
                 p.y = boxB.y + Math.random() * boxB.height;
+                count++;
             }
+        }
+        if (count > 0) {
+            console.warn(`[Dalton] WARN: safety timeout 발동 — R5 강제 이주: ${count}개`);
         }
     }
 
     // 주입 완료 시 A 의 V 를 0 으로 확정 (논리값·target·displayed 모두 동기)
     function finalizeInjectedVolume() {
+        // Phase 5.4: safety net — R1 잔여 입자 강제 R5 이동 (H1 진단 대응)
+        const r1Remainder = [];
+        for (let i = allParticles.length - 1; i >= 0; i--) {
+            const p = allParticles[i];
+            if (getRegion(p.x, p.y) === 1 || isParticleInSyringeABox(p)) {
+                r1Remainder.push(p);
+                allParticles.splice(i, 1);
+            }
+        }
+        if (r1Remainder.length > 0) {
+            console.warn(`[Dalton] finalize — R1 잔여 ${r1Remainder.length}개 강제 R5 이동`);
+            for (const p of r1Remainder) {
+                teleportToR5NozzleEntry(p);
+                allParticles.push(p);
+            }
+        } else {
+            console.log(`[Dalton] finalize — R1 잔여 없음 (정상 분출)`);
+        }
+        daltonState._nullRegionWarned = false;
+
         daltonState.syringeA.volume = 0;
         daltonState.syringeA.targetVolume = 0;
         daltonState.syringeA.displayedVolume = 0;
