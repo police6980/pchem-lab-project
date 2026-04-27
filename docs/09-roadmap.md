@@ -2,8 +2,8 @@
 
 **문서 목적**: Phase 2-B 이후 모든 개발 단계 통합 계획. 우선순위·의존관계·예상 소요·결정 이슈 기록. **06**이 "현재 상태"라면 **09**는 "미래 방향".
 
-**마지막 업데이트**: 2026-04-26 (Phase 5.3 완료 — 학습 기능 + 입자간 충돌 + AI 튜터 + 끼임 정정 v5)
-**기준 상태**: Phase 1 MVP 완료, Phase 2-A/2-B 완료 (v0.4-boyle-complete), **Phase 3 진행 중** (소프트웨어 완료, Step 3-6 실물 대기 — `phase3-real-sensor` 브랜치), **Phase 4.5 심화 탐구 모드 완료** (`feature/particle-controls`, 병합 대기), **반응형 레이아웃 + 단위 병기 완료** (`feature/responsive-canvas`, 병합 대기), **Phase 5.1 돌턴 부분압력 UI·상태머신 완료** (`feature/dalton-experiment` — 설계 3→2영역 전환, 부피 입력 숫자 전용 10~100mL 통일, 태그 `phase5.1-complete`, 시뮬 엔진은 Phase 5.2 Step C 대기)
+**마지막 업데이트**: 2026-04-27 (Phase 5.4 진행 — 실센서 사전 준비 + [C] 입자운동 16 질문 차등 완료)
+**기준 상태**: Phase 1 MVP 완료, Phase 2-A/2-B 완료 (v0.4-boyle-complete), **Phase 3 소프트웨어 완료** (Step 3-6 실물 대기 — `phase3-real-sensor` 브랜치), **Phase 4.5 심화 탐구 모드 완료** (`feature/particle-controls`, 병합 대기), **반응형 레이아웃 + 단위 병기 완료** (`feature/responsive-canvas`, 병합 대기), **Phase 5.1 + 5.2 + 5.3 돌턴 완료** (`feature/dalton-experiment`), **Phase 5.4 진행 중** (`phase5-real-sensor` — 멀티채널 protocol v1.2 + multi-channel SensorSource + calibration pipeline + params 외부화 + AI 튜터 Q3↔Q4 swap + 입자운동 16 질문 차등)
 
 ---
 
@@ -16,7 +16,9 @@
 - [계획] **Phase 4**: Mock ↔ 실센서 비교 UX
 - [완료·병합 대기] **Phase 4.5**: 심화 탐구 모드 (`feature/particle-controls`)
 - [완료·병합 대기] **반응형 레이아웃 + 단위 병기**: `feature/responsive-canvas` (§4.6 참조)
-- [거의 완료] **Phase 5**: 돌턴의 부분압력 (Phase 5.1·5.2·5.3 완료, Step I 실센서만 대기)
+- [진행] **Phase 5**: 돌턴의 부분압력 (Phase 5.1·5.2·5.3 완료, **Phase 5.4 실센서 사전 준비 진행**, Step I 본편 실물 대기)
+- [계획] **Phase 5.x**: Matter.js 별 브랜치 (`experiment/matter-js`) — 직접 구현 patch 누적 한계 → 라이브러리 비교 자료
+- [계획] **[A] AI 튜터 통합**: `phase5-tutor-unify` — Phase 6/7 신규 시뮬 추가 직전
 - [계획] **Phase 6**: 교사 도구 (대시보드, 다중 사용자)
 - [계획] **Phase 7**: 다른 법칙 확장 (샤를, 게이뤼삭) — 기존 Phase 5 에서 이연
 - [장기] **Phase 8+**: 배포·상용화·연구 발표
@@ -255,11 +257,34 @@ Phase 5 목표를 **돌턴 부분압력** 으로 재정의. 샤를·게이뤼삭
 - ✅ 물리 검증 테스트 (`tests/dalton-collision-test.js` 7 검증 — 보존 법칙 / Equipartition / M-B 분포 / 안정성)
 - ⏳ Step I: Web Serial + WebSocket 실센서 연동 (pressureBSensor 실측값) — 실물 DFRobot 입수 후
 
-### 5-5. 예상 소요
-Phase 5.2 (시뮬 엔진): 완료 (3일, 14 commits). Phase 5.3 (학습 기능): 완료 (1일, 8 commits). Step I (실센서): 하드웨어 입수 시 1~2일.
+### 5-5. Phase 5.4: 돌턴 실센서 사전 준비 (진행 중, 2026-04-27, `phase5-real-sensor`)
 
-### 5-6. 별 브랜치 후보
-- **`experiment/matter-js`** — 입자간 충돌을 Matter.js 라이브러리로 재구현 (직접 구현 ↔ 라이브러리 비교 자료, 논문 강력한 1차 자료가 될 수 있음). 사용자 의향 후 시도.
+본편 Step I (실물 센서 데이터 수집) 진입 전 인프라 / 정리 단계. 약 20 commits / 1일.
+
+**완료**:
+- ✅ Protocol v1.2 — 멀티채널 (`ch` 필드) + 호환 모드 (commit `dc7ca57`, `docs/12`)
+- ✅ Multi-channel SensorSource — `onChannelData(ch, p_kPa)` 단일 경로, ch ↔ 게이지 라우팅 (commit `8eeaea2`/`fc1cedc`, `docs/13`)
+- ✅ Calibration pipeline — 영점 + 2점 보정 흐름 (`docs/14`)
+- ✅ mock/ws/real 데이터 흐름 일원화 (옵션 C — 데이터 흐름 단일 + 처리 정책 모드별 차등) (commit `65d97e3`)
+- ✅ `params.dalton.sensor` 5 상수 외부화 (commit `eaa524f`) — EMA α / 임계값 / mock interval / 노이즈 σ / safety timeout 여유
+- ✅ AI 튜터 Q3 ↔ Q4 swap (보일/돌턴) (commit `819075a`) — Q4 = 메타 탭 (📊 질문 생성)
+- ✅ 입자운동 AI 튜터 16 질문 (4 levels × Q1~Q4) 차등 (commit `e2f36d3`) — 보일/돌턴 패턴 일관 ([C] 완료)
+- ✅ 입자운동 ai-tutor.js 비활성 버그 fix (commit `5ea401c`)
+- ✅ 입자 stuck patch — A 박스 R1 (commit `d4b6979`) + B 박스 R5 (commit `72403ca`), 0.5 px epsilon 안전 마진
+- ✅ 측정 기록 / CSV / record 데이터 키 일반화 — P_공기·P_CO₂ → P_A·P_B 위치 기반 (commit `1f1ad7b`/`d7afa1c`)
+- ✅ 폐기 마커 + dead state 정리 — ★★★ 12 위치 (commit `1b01777`)
+
+**남은 작업 (Step I 본편)**:
+- [ ] 실물 DFRobot Gravity 1.6MPa 채널 2개 조립·플래시
+- [ ] 캘리브레이션 검증 (영점 + 2점 보정 — `docs/14` 명세)
+- [ ] 본 데이터 수집 — 돌턴 부분 압력 검증 (이론 vs 실측 편차 < 5% 목표)
+
+### 5-6. 예상 소요
+Phase 5.2 (시뮬 엔진): 완료 (3일, 14 commits). Phase 5.3 (학습 기능): 완료 (1일, 8 commits). Phase 5.4 (실센서 사전): 완료 (1일, 약 20 commits). Step I (실센서 본편): 하드웨어 입수 시 1~2일.
+
+### 5-7. 별 브랜치 후보
+- **`experiment/matter-js` (Phase 5.x)** — 입자간 충돌을 Matter.js 라이브러리로 재구현. 배경 = Phase 5.3 직접 구현 + Phase 5.4 patch (R1/R5 epsilon) 누적 → patch 패턴의 한계 명확. 직접 구현 ↔ 라이브러리 비교 자료, 논문 강력한 1차 자료가 될 수 있음. 5-region 모델 통합 + 회귀 검증 후 합류. 실물 작업 후 또는 병행.
+- **`phase5-tutor-unify` ([A] AI 튜터 통합)** — Phase 6/7 신규 시뮬 추가 직전. 3 시뮬 (보일/돌턴/입자운동) 의 자체 closure → 공통 모듈 통합. Phase 5.4 의 입자운동 비활성 버그 (ai-tutor.js 의 `.ai-sidebar` 셀렉터 광역 영향) 가 통합 전 해결할 대표 이슈. 셀렉터 / 책임 분리 명확화 우선.
 
 ---
 

@@ -2,11 +2,11 @@
 
 **문서 목적**: 현재 구현 상태와 남은 작업의 마스터 트래커. 다른 설계 문서는 "어떻게 만들어졌는가"를 설명하고, 이 문서는 "어디까지 왔는가"를 기록한다.
 
-**마지막 업데이트**: 2026-04-26 (Phase 5.3 완료 — 학습 기능 + 충돌 시뮬 정합화)
+**마지막 업데이트**: 2026-04-27 (Phase 5.4 진행 — 실센서 사전 준비 + 정리 단계)
 **프로젝트 정식명**: **CAST** (Chemistry AI-assisted Simulation & MBL Tools). 저장소 이름 `pchem-lab-project` 는 개발 초기 명칭 호환 차원에서 유지.
-**현재 상태**: 보일 법칙 실험 + 입자운동론 심화 모듈 + AI 튜터 완성. **Phase 3 소프트웨어 완성** (`phase3-real-sensor` 브랜치 — Step 3-6 실물 조립·검증만 하드웨어 대기). **랜딩 페이지 + 3 페이지 분리 완성** (`feature/landing-page` 브랜치). **Phase 5.1 + 5.2 + 5.3 완료** (`feature/dalton-experiment` 브랜치): Phase 5.1 UI·상태머신 + Phase 5.2 시뮬 엔진 (5 region 물리 + 텔레포트 + 피스톤 동기 분출 + 게이지 동기 + 부분 압력 list) + **Phase 5.3 학습 기능** (분자 수 단일 산출 함수 정합화 `computeMoleCount` + stacked bar 그래프 + 11 컬럼 CSV + 측정 기록 비교 모드 + 입자간 탄성 충돌 직접 구현 + 7 검증 테스트 + AI 튜터 돌턴 특화 + 행 삭제 + 끼임 정정 v5 + 피스톤 시각 정정). 40 commits / 3일.
-**최신 태그**: `v0.4-boyle-complete` (main). 추가 브랜치 태그: `phase5.1-complete` (`feature/dalton-experiment`). 병합 대기 브랜치 5개: `phase3-real-sensor` / `feature/landing-page` / `feature/particle-controls` / `feature/responsive-canvas` / `feature/dalton-experiment`.
-**다음 단계**: (1) **Step I 실센서 연결** (실물 DFRobot Gravity 1.6MPa 입수 후), (2) **Matter.js 별 브랜치 (`experiment/matter-js`)** — 직접 구현 ↔ 라이브러리 비교 자료 시도 (사용자 의향), (3) **Phase 7** (샤를 페이지) 분기 결정, (4) 실물 DFRobot Gravity 1.6MPa 입수 후 Step 3-6 검증, (5) 병합 대기 브랜치들 순차 main 통합.
+**현재 상태**: 보일 법칙 실험 + 입자운동론 심화 모듈 + AI 튜터 완성. **Phase 3 소프트웨어 완성** (`phase3-real-sensor` 브랜치 — Step 3-6 실물 조립·검증만 하드웨어 대기). **랜딩 페이지 + 3 페이지 분리 완성** (`feature/landing-page` 브랜치). **Phase 5.1 + 5.2 + 5.3 완료** (`feature/dalton-experiment` 브랜치): Phase 5.1 UI·상태머신 + Phase 5.2 시뮬 엔진 + **Phase 5.3 학습 기능** (40 commits / 3일). **Phase 5.4 진행 중** (`phase5-real-sensor` 브랜치): 실센서 사전 준비 — protocol v1.2 멀티채널 + multi-channel SensorSource (mock/ws/real 단일 경로) + calibration pipeline + `params.dalton.sensor` 5 상수 외부화 + AI 튜터 Q3↔Q4 swap (보일/돌턴) + 입자운동 16 질문 차등 + 입자 stuck patch (R1/R5 epsilon) + record 키 P_A/P_B 일반화. 약 20 commits / 1일.
+**최신 태그**: `v0.4-boyle-complete` (main). 추가 브랜치 태그: `phase5.1-complete` (`feature/dalton-experiment`). 병합 대기 브랜치 6개: `phase3-real-sensor` / `feature/landing-page` / `feature/particle-controls` / `feature/responsive-canvas` / `feature/dalton-experiment` / `phase5-real-sensor`.
+**다음 단계**: (1) **Step I 실센서 본편** (실물 DFRobot Gravity 1.6MPa 입수 후 — 캘리브 검증 + 본 데이터 수집), (2) **Phase 5.x — Matter.js 별 브랜치** (`experiment/matter-js`) — 직접 구현 patch 누적 패턴 한계 → 라이브러리 비교 자료, (3) **[A] AI 튜터 통합 별 브랜치** (`phase5-tutor-unify`) — Phase 6/7 신규 시뮬 추가 직전, (4) **Phase 7** (샤를 페이지) 분기 결정, (5) 병합 대기 브랜치들 순차 main 통합.
 
 ---
 
@@ -364,21 +364,25 @@ Arduino·ESP32 하드웨어 입수 전 선행 가능한 브라우저·프로토�
 
 ## 3. 진행 중인 작업
 
-**Phase 3: Arduino 실센서 통합** — 브라우저 측 소프트웨어 + WebSocket 에뮬레이터 + 펌웨어 스켈레톤 완료. **브라우저 통합과 실물 검증 대기**. (`phase3-real-sensor` 브랜치)
+**Phase 5.4: 돌턴 실센서 사전 준비** — 멀티채널 protocol + SensorSource + calibration pipeline + 정리 단계 (`phase5-real-sensor` 브랜치, 2026-04-27).
 
-**완료 (Step 3-1~3-3, 2026-04-23)**
-- [x] ESP32 펌웨어 스켈레톤(`firmware/boyle/boyle.ino` 1.1.0-skeleton) — hello 프레임 주기 전송, Wokwi 검증 완료
-- [x] ESP32 펌웨어 시뮬 버전(1.1.0-sim) — 포텐셔미터 ADC(0..4095) → Pa(81000..400000) 선형 매핑, 5Hz `{"t":"d"}` 전송
-- [x] Node.js + WebSocket 펌웨어 에뮬레이터(`tools/firmware-emulator/`) — 연결 시 hello, 5Hz 데이터 프레임, CLI 키 조작(↑↓ ±10 kPa, ←→ ±1 kPa, r=리셋, q=종료), 81000~400000 Pa 클램핑. calib ACK / cfg 주기 변경 지원
+**완료 (Phase 5.4, 2026-04-27)**
+- [x] Protocol v1.2 — 멀티채널 (`ch` 필드) + 호환 모드 (`docs/12-protocol-v1.2.md`)
+- [x] Multi-channel SensorSource — `onChannelData(ch, p_kPa)` 단일 경로, 채널 ↔ 게이지 라우팅 (`docs/13-multi-channel-interface.md`)
+- [x] Calibration pipeline — 영점 보정 + 2점 보정 흐름 (`docs/14-calibration-pipeline.md`)
+- [x] mock/ws/real 데이터 흐름 일원화 + 처리 정책 차등 (mock = 즉시 반영 / 임계값 우회로 deterministic 보존, ws/real = EMA α=0.2 / 임계값 2 kPa)
+- [x] `params.dalton.sensor` 5 상수 외부화 (EMA α / 임계값 / mock interval / 노이즈 σ / safety timeout 여유)
+- [x] AI 튜터 Q3 ↔ Q4 swap (보일/돌턴) — Q4 = 메타 탭 (📊 질문 생성)
+- [x] 입자운동 AI 튜터 16 질문 (4 levels × Q1~Q4) 차등 — 보일/돌턴 패턴 일관
+- [x] 입자운동 ai-tutor.js 비활성 버그 fix (particles.html script 제거 — `createAdvAiTutor` 자체 처리)
+- [x] 입자 stuck patch — A 박스 (R1, d4b6979) + B 박스 (R5, 72403ca), 0.5 px epsilon 안전 마진
+- [x] 측정 기록 / CSV / record 데이터 키 일반화 — P_공기·P_CO₂ → P_A·P_B 위치 기반 (그래프 범례 동적 생성)
+- [x] 폐기 마커 주석 + dead state 정리 (★★★ 12 위치)
 
-**남은 작업**
-- [ ] Step 3-4: 브라우저 `WebSocketSensorSource` + v1.1 공통 파서 (`WebSerialSensorSource`와 파싱 로직 공유)
-- [ ] Step 3-5: UI 센서 소스 토글 Mock/WebSocket/Serial
-- [ ] Step 3-6: 실물 ESP32 + BMP280 조립·플래시·실험 검증
-- [ ] Arduino / ESP32 하드웨어 입수 (DFRobot SEN0257 또는 BMP280)
-- [ ] 실센서 캘리브레이션 — 영점 보정 플로우 검증, 필요 시 2점 보정 추가
-- [ ] 노이즈 튜닝 (펌웨어 측 이동평균 / 브라우저 측 스무딩 α 조정)
-- [ ] 파일럿: 실제 주사기 + 센서로 보일 법칙 데이터 수집, `PV = const` ±2 % 검증
+**남은 작업 (Phase 5.4 → Step I)**
+- [ ] Step I 본편: 실물 DFRobot Gravity 1.6MPa 채널 2개 조립·플래시·캘리브 검증·본 데이터 수집
+
+**Phase 3 잔여**: `phase3-real-sensor` 브랜치 — Step 3-1~3-5 소프트웨어 완료 (브라우저 `WebSocketSensorSource` / `WebSerialSensorSource` + UI 삼항 토글 + AI 튜터 데이터 소스 인식). Step 3-6 실물 조립·검증 하드웨어 도착 대기. Phase 5.4 → Step I 와 동시 진행 가능 (실물 입수 시).
 
 ---
 
@@ -516,7 +520,12 @@ Arduino·ESP32 하드웨어 입수 전 선행 가능한 브라우저·프로토�
 - `05-data-format.md` — JSON 프로토콜·CSV 스키마·params.json
 - `06-project-status.md` — **본 문서** (진행 상태 마스터)
 
-**계획 문서 (신규)**
+**현재 존재 (추가)**
 - `07-ai-tutor.md` — AI 튜터 설계 (프롬프트, 컨텍스트 구성, 에러 처리)
-- `08-physics-validation.md` — 물리 검증 기록 (현재는 본 문서 §7에 보관)
-- `09-roadmap.md` — Phase 3~6 상세 로드맵
+- `08-physics-validation.md` — 물리 검증 기록 (이전엔 본 문서 §7 에 보관, 분리 완료)
+- `09-roadmap.md` — Phase 3~7 상세 로드맵
+- `10-dev-journal.md` — 개발 일지 (의사결정 1차 자료)
+- `11-dalton-design.md` — Phase 5 돌턴 부분압력 설계서
+- `12-protocol-v1.2.md` — Phase 5.4 — 멀티채널 protocol v1.2 명세 (`ch` 필드)
+- `13-multi-channel-interface.md` — Phase 5.4 — multi-channel SensorSource 인터페이스 + 게이지 라우팅
+- `14-calibration-pipeline.md` — Phase 5.4 — 실센서 캘리브레이션 파이프라인 (영점 + 2점 보정)

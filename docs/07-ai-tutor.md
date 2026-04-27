@@ -2,7 +2,15 @@
 
 **문서 목적**: AI 튜터의 설계 철학, 구조, 프롬프트, 운영 정책을 종합 정리한다. 논문·연구 발표 시 방법론 근거 자료로 사용하며, 구현 세부는 다른 문서에 위임한다.
 
-**마지막 업데이트**: 2026-04-26 (Phase 5.3 완료 — **돌턴 AI 튜터 추가**). 보일/입자운동/돌턴 3 페이지 모두 AI 튜터 동작. 돌턴은 `createDaltonTutor` 자체 closure (입자운동 패턴, `ai-tutor.js` 의존 X — `window.PchemTutor` 미정의 시 충돌 차단을 위해 dalton.html 에서 ai-tutor.js 로드 제거). 4 학습 목표 (분자 수 보존 / 부분 압력 / 합 = 전체 / 시뮬 ↔ 이론), Q1~Q4 × 4 학생 수준 = 16 문항, F1 비교 모드 통합 (`comparisonSelected` 2개 시 두 record 자동 주입), `[[LEVEL:xxx]]` 자동 학생 수준 갱신, MODEL_PRICING 자체 정의 (Sonnet 3/15, Opus 5/25 USD per MTok). 상세 결정: `docs/10-dev-journal.md` § Phase 5.3 의 AI 튜터 결정 2건.
+**마지막 업데이트**: 2026-04-27 (Phase 5.4 — **AI 튜터 Q3 ↔ Q4 swap (보일/돌턴) + 입자운동 16 질문 차등 + 입자운동 ai-tutor.js 비활성 버그 fix**).
+
+**Phase 5.4 변경 요약**:
+- **Q3 ↔ Q4 swap (보일/돌턴)**: 학습 흐름 = Q1~Q3 학습 질문 → Q4 메타 인지 (📊 질문 생성). 본문 swap (4 levels × 2 위치) + `btn-generate-q3` → `btn-generate-q4` ID rename + 핸들러 / `aiConversations` key / 다운로드 라벨 swap. 보고서 코드 변경 X — 위치 기반 (Q1/Q2/Q3 conversations) 그대로 사용 → 의미 자동 정합. 옵션 (c) hybrid 채택 (옵션 a 단순 swap = 보고서 의미 어긋남, 옵션 b 전면 swap = 변경 폭 큼).
+- **입자운동 16 질문 차등**: 기존 flat 5 tab (모든 level 동일) → `{ elem, middle, high, univ } × { Q1~Q4, free }` (16 신규 질문 + 공유 free). `getAdvQuestionText(level, qid)` helper (level fallback `high`). `setActiveTab` + `buildSystemPrompt` 모두 helper 사용 — UI snippet / AI 프롬프트 동시 차등. level 변경 핸들러에 snippet 즉시 갱신 추가. 보일/돌턴 패턴 일관.
+- **입자운동 ai-tutor.js 비활성 버그 fix**: particles.html 의 `<script src="js/ai-tutor.js">` 로드 제거. 원인 = ai-tutor.js 의 `updateTabAvailability` 가 `.ai-sidebar` 셀렉터로 입자운동 탭에도 영향 → 모든 탭 `aria-disabled="true"`. `createAdvAiTutor` 는 자체 핸들러 + measurement 변동 시 ai-tutor.js 의 `updateTabAvailability` 재호출 X → 영원히 시각 비활성. dalton 패턴 따름 (dalton 도 createDaltonTutor 자체 처리, ai-tutor.js 미사용).
+
+**Phase 5.3 변경 (2026-04-26)**: **돌턴 AI 튜터 추가**. 보일/입자운동/돌턴 3 페이지 모두 AI 튜터 동작. 돌턴은 `createDaltonTutor` 자체 closure (입자운동 패턴, `ai-tutor.js` 의존 X). 4 학습 목표 (분자 수 보존 / 부분 압력 / 합 = 전체 / 시뮬 ↔ 이론), Q1~Q4 × 4 학생 수준 = 16 문항, F1 비교 모드 통합 (`comparisonSelected` 2개 시 두 record 자동 주입), `[[LEVEL:xxx]]` 자동 학생 수준 갱신, MODEL_PRICING 자체 정의 (Sonnet 3/15, Opus 5/25 USD per MTok). 상세 결정: `docs/10-dev-journal.md` § Phase 5.3 의 AI 튜터 결정 2건.
+
 **구현 단계**: Part 3.5 완료 (대화 UI) → **Part 4 / Phase 2-B 완료** (실 Anthropic Messages API 연동, 멀티턴 대화, 비용 표시, docx 보고서, Q3 자동 생성, Q4 탭, 수준 자동 감지 원칙 9/10). 본 문서 본문의 "Part 4 예정" 표시는 설계 시점 기록 보존 차원에서 유지하며, **해당 항목 대부분은 구현 완료**됨.
 
 ---
@@ -43,7 +51,7 @@
 구성 요소:
 - 헤더: `⚙` 설정 토글 · `×` 사이드바 접기
 - 접이식 설정 패널: API 키 · 학생 수준 · 모델 선택 · 경고 배너 · 사용량 표시
-- 탭 4개: `Q1 | Q2 | Q3 | 💬 자유`
+- 탭 5개: `Q1 | Q2 | Q3 | Q4 | 💬 자유`. **Q4 = 메타 탭 (📊 [질문 생성])** — 학생이 자기 데이터에 맞는 탐구 질문을 생성하는 메타 인지 위치 (Phase 5.4 swap 후, 보일·돌턴·입자운동 3 시뮬 일관)
 - 질문 컨텍스트 미리보기
 - 메시지 영역 (자동 스크롤)
 - 입력창: `Enter` 전송, `Shift+Enter` 줄바꿈
@@ -51,13 +59,14 @@
 
 ### 2.2 대화 세션
 
-질문별 독립 세션이 4개 운영됨.
+질문별 독립 세션이 5개 운영됨 (Phase 5.4 swap 후 — Q4 = 메타 탭, 위치 키 그대로).
 
 ```js
 aiConversations = {
     1:    { messages: [], tokensIn: 0, tokensOut: 0 },
     2:    { messages: [], tokensIn: 0, tokensOut: 0 },
     3:    { messages: [], tokensIn: 0, tokensOut: 0 },
+    4:    { messages: [], tokensIn: 0, tokensOut: 0 },  // Q4 = 메타 탭 (📊 질문 생성)
     free: { messages: [], tokensIn: 0, tokensOut: 0 },
 }
 ```
@@ -74,7 +83,8 @@ aiConversations = {
 
 | 탭 | 활성 조건 |
 |---|---|
-| Q1 / Q2 / Q3 | 측정점 수 ≥ 3 (`datapoints.length >= 3`) |
+| Q1 / Q2 / Q3 | 측정점 수 ≥ 3 (`datapoints.length >= 3`) — 학습 질문, 데이터 누적 후 활성 |
+| Q4 (📊 질문 생성, 메타) | 측정점 수 ≥ 3 — 자기 데이터 기반 메타 인지 |
 | 💬 자유 | 항상 활성 |
 
 비활성 탭 클릭 시 2.5 초간 빨간 안내 토스트: **"측정점을 3개 이상 기록한 뒤 사용할 수 있습니다."**
@@ -84,7 +94,7 @@ aiConversations = {
 ### 2.4 파일 구성
 
 - `web/js/ai-tutor.js`: 보일 전용 **풀 AI 튜터** — 상태·렌더링·이벤트·실 Anthropic API 호출·Q3 자동·Q4 마무리·보고서 docx 생성·수준 자동 감지·토큰 비용 추적
-- `web/js/ui.js createAdvAiTutor`: 입자운동(particles.html) 전용 **경량 AI 튜터** — 자체 완결된 멀티턴 채팅, 토큰 추적·보고서·Q3 자동 등 고급 기능은 의도적 미포함
+- `web/js/ui.js createAdvAiTutor`: 입자운동(particles.html) 전용 **경량 AI 튜터** — 자체 완결된 멀티턴 채팅, 토큰 추적·보고서·Q3 자동 등 고급 기능은 의도적 미포함. **Phase 5.4** 부터 4 levels × Q1~Q4 = 16 질문 차등 (보일/돌턴 패턴 일관). `getAdvQuestionText(level, qid)` helper 가 UI snippet + AI 시스템 프롬프트 양쪽에서 동일 본문 사용. **particles.html 은 ai-tutor.js script 로드 X** — 공통 모듈의 `.ai-sidebar` 셀렉터가 입자운동 탭에도 영향 → 비활성 버그 회피 (dalton 패턴 동일)
 - `web/boyle.html`: 보일 페이지 AI 사이드바 DOM (`#ai-sidebar`, id prefix 없음)
 - `web/particles.html`: 입자운동 페이지 AI 사이드바 DOM (`#adv-ai-sidebar`, id `adv-*` prefix)
 - `web/index.html` (랜딩): API 키 입력·저장·삭제 UI **단일 진입점**. sessionStorage `pchem_api_key` 로 두 실험 페이지와 공유
@@ -163,12 +173,14 @@ BYOK는 완벽한 키 보호를 제공하지 않는다. 다음을 수용한다:
 **Q3 — 다음 실험 설계**
 > 학생이 제안한 조건의 과학적 의미를 확장. 샤를 법칙, 게이뤼삭 법칙, 이상기체 법칙 등 관련 개념 자연스럽게 소개 가능.
 
-**자유 모드 — 미구현 (Part 4 예정)**
-> 현재 `buildSystemPrompt`의 `questionNum` 파라미터는 Q1/Q2/Q3만 다루며, 자유 모드용 프롬프트 분기는 Part 4에서 추가된다. 자유 모드 설계 방침:
+**Q4 — 메타 탭 (📊 질문 생성, Phase 5.4 swap 후)**
+> 학생이 자기 측정 데이터에 맞는 탐구 질문을 직접 생성. AI 는 학생의 측정 패턴 / 이상값 / 흥미로운 추세를 짚어 학생 수준에 맞는 탐구 질문 1~3 개 제시 (정답 X, 질문 X). 학생 자기 질문이 학습 목표라 보고서 CSV 의 "AI 튜터 대화" 섹션에는 미포함 (Q1/Q2/Q3 학습 본문만 보고서 평가 대상).
+
+**자유 모드**
+> 자유 질문 — 직접 답해도 되지만 마지막에 한 단계 깊은 탐구 방향을 한 문장 제안. 400자 이내. 모든 학생 수준 동일 본문 (level 무관, `ADV_TUTOR_FREE_TEXT` 상수로 분리).
 > - 답을 직접 줘도 됨 (구조화 질문과 달리)
 > - 답 뒤에 한 단계 더 깊은 탐구 방향을 한 문장 덧붙임
 > - 오개념 발견 시 직접 교정하지 않고 **실험으로 확인할 방법** 제시
-> - 400자 이내 (구조화 질문보다 유연)
 
 ### 4.3 학생 수준별 가이드 (`LEVEL_GUIDES`)
 
@@ -371,7 +383,7 @@ Phase 4+ 개선:
 - 한국어 과학 교육 맥락에 최적화된 프롬프트 실증 데이터 부재
 - 대화 품질이 모델 버전에 민감 (Sonnet 4.6 기준으로 작성됨, 후속 모델 교체 시 재튜닝 필요)
 - 오프라인 사용 불가 (인터넷 필수)
-- `QUESTION_TEXT` 중복 (ai-tutor.js + ui.js 양쪽 정의)
+- `QUESTION_TEXT` 중복 — Phase 5.4 시점 3 시뮬 (보일/돌턴/입자운동) 모두 자체 `QUESTION_TEXT` 정의. 보일 = `ai-tutor.js`, 돌턴 = `ui.js createDaltonTutor` closure, 입자운동 = `ui.js ADV_TUTOR_QUESTION_TEXT` (4 levels × 4 questions). 통합은 Phase 6/7 신규 시뮬 추가 직전 별 브랜치 (`phase5-tutor-unify`) 에서 — 셀렉터 / 책임 분리 명확화 후
 
 ### 9.2 Phase 2-B 작업 (자세한 내용은 `06` §3 참조)
 
@@ -387,7 +399,8 @@ Phase 4+ 개선:
 
 ### 9.3 Phase 3+ 계획
 
-- **실센서 데이터 연동**: Arduino 측정값이 이론과 다를 때 AI가 차이를 해석 ("실제 측정 P·V가 이론과 5% 다른 이유는?")
+- **실센서 데이터 연동**: Arduino 측정값이 이론과 다를 때 AI가 차이를 해석 ("실제 측정 P·V가 이론과 5% 다른 이유는?"). Phase 5.4 멀티채널 SensorSource 가 돌턴 2 채널을 동시 공급 → AI 컨텍스트에 채널별 P_A / P_B 자동 포함 가능
+- **[A] AI 튜터 통합 (`phase5-tutor-unify` 별 브랜치)**: Phase 6/7 신규 시뮬 추가 직전. 3 시뮬 (보일/돌턴/입자운동) 의 자체 closure 가 누적 → 공통 모듈로 통합 시 셀렉터 / 책임 분리 명확화 필요. Phase 5.4 의 입자운동 비활성 버그 (ai-tutor.js 의 `.ai-sidebar` 셀렉터 광역 영향) 가 통합 전 해결할 대표 이슈
 - **교사 대시보드**: 학생별 AI 사용 패턴 실시간 조회 (Phase 6)
 - **다국어**: 영어 영재 과정(해외 IB 등) 대응 시 시스템 프롬프트 번역 + 학생 수준 매핑 재설계
 

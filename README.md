@@ -5,8 +5,10 @@
 실험(압력 센서)·탐구(AI 튜터 대화)의 연속성을 제공한다.
 
 현재 **보일의 법칙**·**입자운동론**·**돌턴의 부분압력** 3 실험 모듈.
-보일·입자운동은 완성, 돌턴은 Phase 5.2 시뮬 엔진까지 완료
-(실센서·돌턴 AI 튜터는 Phase 5.3 대기).
+보일·입자운동은 완성, 돌턴은 Phase 5.3 완료 (학습 기능 + 충돌 시뮬 +
+AI 튜터). **Phase 5.4 진행 중** — 실센서 사전 준비 (멀티채널 protocol
+v1.2, multi-channel SensorSource, calibration pipeline, mock 일원화,
+params 외부화). 실물 도착 후 Step I 실센서 본편 진입 예정.
 
 > 저장소 이름(`pchem-lab-project`)과 내부 식별자는 개발 초기 명칭을 유지한다.
 > UI·공개 문서에서는 정식 브랜드명 **CAST** 로 표기.
@@ -18,7 +20,9 @@
 - **2D 입자 시뮬레이션** — p5.js, 맥스웰-볼츠만 분포, HSB 속도 색상, 피스톤
   충돌 섬광, 이상기체 기하학적 강제(`PV = const` 편차 ±0.5% 이내)
 - **AI 튜터 (Anthropic Claude, BYOK)** — 학생 답변에 맞춘 멀티턴 대화, 수준
-  자동 감지, Q1~Q4·자유 질문 탭 분리, 탐구 보고서 자동 생성(`.docx`)
+  자동 감지, Q1~Q4·자유 질문 탭 분리 (**Q4 = 메타 탭 (📊 질문 생성)**),
+  4 학생 수준 (elem/middle/high/univ) × Q1~Q4 = 16 질문 차등 (3 시뮬 일관),
+  탐구 보고서 자동 생성(`.docx`)
 - **3가지 센서 모드** — 시뮬레이션 / WebSocket 에뮬레이터 / 실센서(Web Serial),
   런타임 전환
 - **입자운동론 심화 모듈** — 이상기체 법칙 전 변수(V·T·N·기체 종류) 동시
@@ -34,7 +38,7 @@
 | `/web/` (index.html) | 🏠 랜딩 페이지 — 실험 선택 + API 키 설정 (sessionStorage) |
 | `/web/boyle.html` | 보일의 법칙 실험 — 센서 3모드(Mock/WS/Real) + AI 튜터 |
 | `/web/particles.html` | 입자운동론 탐구 — V·T·N·기체 조작 + AI 튜터 |
-| `/web/dalton.html` | 돌턴의 부분압력 (Phase 5.3 완료) — 주사기 A→B 수용, 5 region 물리 + 입자간 탄성 충돌 + 부분 압력 list + 분자 수 표시 + stacked bar 그래프 + 측정 기록 비교 모드 + AI 튜터. |
+| `/web/dalton.html` | 돌턴의 부분압력 (Phase 5.3 완료 + 5.4 sensor 사전 준비 진행) — 주사기 A→B 수용, 5 region 물리 + 입자간 탄성 충돌 (R1/R5 epsilon patch) + 부분 압력 list + 분자 수 표시 + stacked bar 그래프 + 측정 기록 비교 모드 (P_A/P_B 위치 기반 일반화) + AI 튜터 (Q3↔Q4 swap, Q4=메타). 멀티채널 SensorSource + mock/ws/real 단일 경로. |
 
 랜딩에서 API 키를 한 번 저장하면 실험 페이지가 sessionStorage 를 공유해
 자동 인식. 각 실험 페이지 상단의 [🏠 홈으로] 로 복귀.
@@ -94,7 +98,7 @@ CLI 에서 `↑↓` (±10 kPa) / `←→` (±1 kPa) / `r` (리셋) / `q` (종료
 
 - **Phase 0~1 완료** — 설계·보일 시뮬레이터 MVP (`v0.1-mvp` 이후 여러 태그)
 - **Phase 2-A/2-B 완료** — AI 튜터 UI + 실제 Anthropic API 연동 + 보고서 (`v0.3-ai-tutor-live`, `v0.4-boyle-complete`)
-- **Phase 3 진행 중** — 실센서 통합 (`phase3-real-sensor` 브랜치)
+- **Phase 3 완료** — 실센서 통합 소프트웨어 (`phase3-real-sensor` 브랜치 → main 통합 대기)
   - ✅ 프로토콜 v1.1, 펌웨어(Wokwi 검증), 에뮬레이터(calib ACK · cfg), 브라우저
     `WebSocketSensorSource` · `WebSerialSensorSource` · UI 삼항 토글,
     AI 튜터 데이터 소스 인식
@@ -109,7 +113,18 @@ CLI 에서 `↑↓` (±10 kPa) / `←→` (±1 kPa) / `r` (리셋) / `q` (종료
   - ✅ Phase 5.1: HTML·CSS·이벤트·이론값·상태 머신 (Step A·B)
   - ✅ Phase 5.2: p5.js `DaltonScene` 시뮬 엔진 (Step C-1~C-3) — 5 region 물리 + 피스톤 동기 분출 + 게이지 P_B 매 frame 동기 + 부분 압력 list
   - ✅ Phase 5.3: stacked bar 그래프 + CSV (11 컬럼) + 분자 수 표시 + 비교 모드 + 입자간 탄성 충돌 (직접 구현, 7 검증) + AI 튜터 (돌턴 특화) + 측정 기록 정리 (토글 폐기·행 삭제) + 끼임 정정 v5
-  - ⏳ Step I 실센서 연결 (실물 DFRobot Gravity 1.6MPa 입수 후)
+- **Phase 5.4 진행 중** — 실센서 사전 준비 (`phase5-real-sensor` 브랜치)
+  - ✅ Protocol v1.2 — 멀티채널 (`ch` 필드) + 호환 모드 (`ch` 부재 시 단일 채널)
+  - ✅ Multi-channel SensorSource — `onChannelData(ch, p_kPa)` 단일 경로,
+    채널별 EMA α=0.2 / 임계값 2 kPa / mock/ws/real 모드 일원화
+    (mock 은 즉시 반영 + 임계값 우회로 deterministic 보존)
+  - ✅ `params.dalton.sensor` 5 상수 외부화 (EMA α / 임계값 / mock interval /
+    노이즈 σ / safety timeout 여유) — 실물 캘리브 시 코드 수정 없이 조정 가능
+  - ✅ AI 튜터 Q3 ↔ Q4 swap (보일/돌턴) — Q4 = 메타 탭 (📊 질문 생성)
+  - ✅ 입자운동 AI 튜터 16 질문 (4 levels × Q1~Q4) 차등 — 보일/돌턴 패턴 일관
+  - ✅ 입자 stuck patch (R1, R5) — 0.5 px epsilon (단기 patch, Matter.js 별 브랜치 후속)
+  - ✅ 측정 기록 / CSV / record 데이터 키 일반화 (P_공기/P_CO₂ → P_A/P_B 위치 기반)
+  - ⏳ Step I 실센서 본편 (실물 DFRobot Gravity 1.6MPa 입수 후)
 
 상세 로드맵: `docs/09-roadmap.md`, 진행 상태 마스터: `docs/06-project-status.md`.
 
@@ -165,6 +180,9 @@ pchem-lab-project/
 | `docs/09-roadmap.md` | Phase 2-B 이후 전체 로드맵 |
 | `docs/10-dev-journal.md` | 개발 일지 (의사결정 1차 자료) |
 | `docs/11-dalton-design.md` | Phase 5 돌턴 부분압력 설계서 |
+| `docs/12-protocol-v1.2.md` | Phase 5.4 — 멀티채널 protocol v1.2 명세 (`ch` 필드) |
+| `docs/13-multi-channel-interface.md` | Phase 5.4 — multi-channel SensorSource 인터페이스 (`onChannelData`) + 게이지 라우팅 |
+| `docs/14-calibration-pipeline.md` | Phase 5.4 — 실센서 캘리브레이션 파이프라인 (영점 보정 + 2점 보정 흐름) |
 | `firmware/README.md` | 펌웨어 배선·Wokwi 설정 |
 | `CLAUDE.md` | Claude Code 자동화 규약 |
 
