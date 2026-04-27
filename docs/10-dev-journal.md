@@ -1995,6 +1995,90 @@ Phase 5.3 (`ccdfe22` 측정 기록 토글 폐기 + 행 삭제, `be90646` Phase 5
 - (대기) Step I 본편 — 실물 센서 입수 후
 - (대기) Phase 5.x — Matter.js 별 브랜치 (실물 작업 후 또는 병행)
 
+### 2026-04-27 — Phase 5.4 후속 작업 — 정리 단계 (commits eaa524f ~ 819075a)
+
+#### 한 일
+- 시뮬 상수 5 개 외부화 — params.dalton.sensor sub-section (eaa524f)
+- 폐기 마커 주석 8 + dead state pressureBMeasured 4 위치 정리 (1b01777)
+- AI 튜터 자유 질문 4 번째 이동 (1711a44 — 사용자 의도 오해, revert)
+- 1711a44 revert + 입자운동 비활성 버그 fix (5ea401c)
+- 돌턴/보일 Q3 ↔ Q4 swap — 메타 탭을 마지막 학습 위치로 (819075a)
+
+#### 결정: params.json 외부화 — ★★★ 5 개 (옵션 B)
+
+**배경**: 본 세션 동안 추가된 정책 (EMA α=0.2, 임계값 2 kPa, mock interval 50 ms, 노이즈 σ=0.1, safety timeout 여유) 가 main.js / serial.js 하드코딩. 실물 센서 도착 후 캘리브 시 코드 수정 부담.
+
+**결정**: 5 상수만 외부화 (옵션 B). dalton.sensor sub-section 신규. snake_case + 단위 접미사 (_kpa, _ms, _alpha) 명명 규칙.
+
+**근거**:
+- ★★★ 5 개 = 실물 캘리브 시 조정 가능성 큰 상수
+- ★★ 3 개 (PARTICLE_STEP_PER_FRAME, particleSpeedScale, particleRadius) 는 시각/학습 측면, 캘리브 무관 → 코드 안 고정
+- ★ 10 개 (시각 좌표, BOUNDARY_EPSILON 등) 는 외부화 가치 < 가독성 손실
+- safety_timeout_extra_ms 는 1000 으로 외부화 (기존 동작 무변경 우선 — 4000 으로 가면 총합 변경)
+
+**배제된 대안**:
+- 옵션 A (변경 X): 캘리브 시 매번 코드 수정 부담
+- 옵션 C (★★ 3 개 추가): 가치 < 비용 비대칭
+
+#### 결정: 폐기 마커 주석 + dead state field 정리 — 옵션 A (보수)
+
+**배경**: Phase 5.3 이후 누적된 폐기 마커 주석 ("Step C-3 v2: ... 폐기" 등 8 위치) + dead state field (`pressureBMeasured` write 4 위치, read 0).
+
+**결정**: ★★★ 12 위치만 정리 (폐기 마커 8 + dead field 4). ★★ commit 마커 (Step C-3 v#) / ★ 코드명 (W4-simple 등) 은 의사결정 근거와 묶여있어 보존.
+
+**근거**:
+- ★★★ 정리 = 즉시 noise 감소 + 의사결정 근거 무손실
+- ★★ / ★ 정리는 자율 정정 시 의사결정 근거 손실 위험
+- 본 세션 "실물 도착 전 정리" — 보수적 접근
+
+**배제된 대안**:
+- 옵션 B (★★ 까지): 의사결정 근거 손실 위험
+- 옵션 C (★ 까지): 외부 reader 가치 vs 인터널 디테일 손실 비대칭
+
+#### 결정: AI 튜터 — Q3 ↔ Q4 swap (옵션 c hybrid)
+
+**배경**: 사용자 짚음 — 돌턴 Q3 가 "📊 [질문 생성]" 메타 탭, Q4 위치가 자연스러움. 보일도 동일 패턴. 입자운동은 ai-tutor.js 가 잘못 로드되어 비활성 버그.
+
+**결정**:
+- 돌턴/보일 Q3 ↔ Q4 본문 swap (4 levels × 2 위치)
+- btn-generate-q3 → btn-generate-q4 ID rename + 핸들러 / aiConversations key / 다운로드 라벨 swap
+- 보고서 코드 변경 X — 위치 기반 (Q1/Q2/Q3 conversations) 그대로 사용. swap 후 위치 1~3 = 학습 질문 → 의미 자동 정합
+- 입자운동: particles.html 의 ai-tutor.js script 로드 제거 (createAdvAiTutor 가 자체 처리)
+
+**근거**:
+- 학습 흐름 = Q1~Q3 학습 질문 → Q4 메타 인지 (질문 생성)
+- 옵션 (a) 단순 본문 swap = 보고서 의미 어긋남 (옛 Q3 데이터 포함)
+- 옵션 (b) 의미 기반 전면 swap = 보고서 코드 / button title 까지 변경 → 코드 폭 큼
+- 옵션 (c) hybrid = 본문 + ID 만 변경, 보고서는 위치 기반 그대로 → 의미 자동 정합 + 변경 폭 작음
+- 입자운동 비활성 버그: ai-tutor.js 의 updateTabAvailability 가 .ai-sidebar 셀렉터로 입자운동 탭까지 영향 → measurement 무관하게 모든 탭 aria-disabled set. createAdvAiTutor 는 자체 핸들러 + measurement 변동 시 재호출 X → 영원히 시각 비활성. 클릭은 작동.
+
+**배제된 대안**:
+- 옵션 (a) 단순 swap: 보고서 의미 어긋남
+- 옵션 (b) 전면 swap: 변경 폭 큼
+- 입자운동에서 ai-tutor.js 호환성 추가 (measurement 무시): createAdvAiTutor 와 중복 책임
+
+**revert 사연**: 1711a44 (자유 질문 4 번째 이동) 가 사용자 의도 오해. 정확한 의도는 "메타 탭을 Q4 위치로" → 5ea401c 로 원복 + 819075a 로 정확한 swap.
+
+#### 진단 — 입자운동 AI 튜터 비활성 버그 (5ea401c)
+
+**증상**: particles.html 의 AI 튜터 탭이 모두 시각적 비활성 (회색 + aria-disabled). 클릭은 작동.
+
+**원인**: particles.html:15 의 `<script src="js/ai-tutor.js" defer>` 가 로드됨. ai-tutor.js:1123 페이지 로드 시 updateTabAvailability(0) 호출 → `.ai-sidebar .tab-btn` 셀렉터가 입자운동 탭에도 매치 → 모든 탭 aria-disabled="true" 설정. 입자운동의 createAdvAiTutor 는 measurement 변동 시 ai-tutor.js 의 updateTabAvailability 재호출 안 함 → 영원히 시각 비활성. 클릭은 createAdvAiTutor 의 자체 핸들러로 동작 (시각만 깨짐).
+
+**정정**: particles.html 의 ai-tutor.js script 로드 제거 (dalton 패턴 — dalton 도 createDaltonTutor 자체 처리, ai-tutor.js 미사용).
+
+**교훈**:
+- 공통 모듈 (ai-tutor.js) 의 셀렉터가 클래스 기반 (.ai-sidebar) → 다른 시뮬에 의도치 않게 영향
+- 시뮬별 closure (createDaltonTutor / createAdvAiTutor) 와 공통 모듈 동시 로드 시 책임 충돌
+- 향후 [A] AI 튜터 통합 시 셀렉터 / 책임 분리 명확화 필요 (Phase 6/7 신규 시뮬 추가 직전 별 브랜치)
+
+#### 다음 액션
+- (대기) [C] 입자운동 질문 본문 level × tab 차등 — 16 질문 신규 작성 (Claude 대화 초안 + 사용자 검수)
+- (대기) (e-6) README / docs 문서화 — 본 세션 + 직전 세션 누적 결과 정리
+- (대기) Step I 본편 — 실물 센서 입수 후
+- (대기) Phase 5.x — Matter.js 별 브랜치 (실물 작업 후 또는 병행) — 직접 구현 patch 누적 패턴 한계
+- (대기) [A] AI 튜터 통합 — Phase 6/7 신규 시뮬 추가 직전 별 브랜치 (phase5-tutor-unify)
+
 ### Phase 5.4 마일스톤 (2026-04-27 종료)
 
 - 5 commits (`dc7ca57` → `fc1cedc`), `phase5-real-sensor` 브랜치
