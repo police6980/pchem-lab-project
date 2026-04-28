@@ -2208,6 +2208,73 @@ Phase 5.3 (`ccdfe22` 측정 기록 토글 폐기 + 행 삭제, `be90646` Phase 5
 - (대기) ws/real 측 outlier 가드 (음수 / saturation 후처리) — 별 작업
 - (대기) docs/16 onboarding 의 "자주 막히는 곳" 에 노이즈 모드 1 줄 cross-ref
 
+### 2026-04-28 — 에뮬레이터 README + outlier 가드 (commits dea1866, dd7bd5c)
+
+#### 한 일
+- tools/firmware-emulator/README.md 신규 작성 (222줄, 9 섹션) — 권위 문서 (dea1866)
+- web/js/serial.js 의 manager 에 outlier 가드 5 단계 추가 (NaN / 음수 / saturation / median spike / state 갱신) (dd7bd5c)
+
+#### 결정: 에뮬레이터 README — 9 섹션 + 222줄 + 코드 예시 + 3 사용 시나리오
+
+**배경**: A-1 노이즈 시나리오 (ffd191e) 직후 = 에뮬레이터 사용법 자료화 적기 (휘발성). docs/16 의 에뮬 부분 = 빠른 시작만, 권위 문서 부재.
+
+**결정**: tools/firmware-emulator/README.md 신규 = 에뮬레이터 권위 문서. 9 섹션 (개요 / 설치 / 모드 / 키 바인딩 / 노이즈 시나리오 / cfg-calib / 시나리오 추가법 / 트러블슈팅 / cross-ref). 222줄 (CC 합의 175~225 상한 -3). 본 세션 = 신규 작성만, README / docs/16 의 에뮬 부분 정리는 후속 세션.
+
+**근거**:
+- 노이즈 모드 (섹션 4) + 시나리오 추가법 (섹션 6) = 핵심 → 충분 분량 (175~225) 가치
+- 코드 예시 3 개 (새 키 / 새 preset / 새 모드 옵션 B 골격) = 개발자 직접 베껴 쓸 수 있게
+- 3 사용 시나리오 (학생 시연 off / 회귀 검증 quiet / 실물 도착 견고성 normal·harsh) = "어느 모드 언제 쓰나" 명확
+- 권위 문서 명시 → 후속 세션에서 README / docs/16 의 에뮬 부분 cross-ref 단축 자연스러움
+
+**배제된 대안**:
+- 100~150줄 압축: 노이즈 + 시나리오 추가법 두 섹션 가치 손실
+- 섹션 합침: 가독성 ↓
+- README / docs/16 의 에뮬 부분 동시 정리: 본 세션 명세 외 + 응집도 ↓
+
+#### 결정: outlier 가드 옵션 B — manager._dispatchData 단일 위치, silent guard
+
+**배경**: A-1 사전 조사 D3 — ws/real 처리 파이프라인의 outlier 가드 부재. 큰 spike → EMA 평활: 입자 1~2초 폭증. 음수 → computeMoleCount 음수 → 입자 시스템 stuck. saturation → 펌웨어 클램프만, 브라우저 가드 X. 실물 도착 시 견고성 ↑ 가치.
+
+**결정**: 옵션 B (표준 가드) 단일 위치 (manager._dispatchData) silent guard.
+
+5 단계 가드:
+1. NaN / undefined / null → silent drop
+2. 음수 (≤ 0 kPa) → 이전 유효값 유지 (없으면 drop) + rate-limit warn
+3. saturation (≥ 1600 kPa) → 1600 clip + rate-limit warn
+4. spike → 3-sample median filter (latency 0.6 sec)
+5. _lastValidValue[ch] 갱신
+
+A-1 정합성: silent guard (콘솔만, UI 알림 X) → harsh 모드의 spike 차단 자체가 견고성 입증 = 양립.
+
+**근거**:
+- 단일 위치 (c) → 보일 / 돌턴 자동 적용, 채널별 state 자연 (_lastValidValue / _medianBuffer / _lastWarnTime)
+- mock 영향 X (σ=0.1 kPa → 음수 / saturation 도달 확률 0)
+- median(3) → spike 정의 (THRESHOLD_KPA) 불필요, 1-sample spike 자동 차단, 연속 2-sample 변화는 통과 (정상 ramp 보존)
+- 음수 = 이전 값 유지 (clip to 0 X — 0 도 비현실)
+- saturation 1600 = DFRobot SEN0257 spec + 펌웨어 클램프 일치 = 이중 가드
+- rate-limit 1 회/sec = 디버깅 가치 + 콘솔 스팸 회피
+- 모드 전환 시 state 리셋 = 잔재 방지
+
+**배제된 대안**:
+- 옵션 A (최소 — NaN + 음수만): spike 보호 부재, 약함
+- 옵션 C (적극 — UI 알림): A-1 의도 손상 (UI 노이즈)
+- 옵션 D (토글): 분량 ↑, 토글 자체 부담. silent guard 만으로 양립 충분
+- (a) parseV11Line: 채널별 state 추적 부담
+- (b) SensorSource._emit: 베이스 변경 → subclass 영향
+- (d) main.js 핸들러: 시뮬별 누락 위험
+- spike THRESHOLD_KPA 정의: 정상 압축 ramp 차단 위험
+- median(5) 윈도우: latency 1초 = sluggish
+
+**검증 결과**:
+- V-guard-1 (정상 mock / ws off) 통과 — 콘솔 경고 0, 가드 무영향
+- V-guard-2 (median spike harsh 30 초) 통과 — 입자 폭증 안 보임
+- V-guard-3 (saturation) 검증 불가 — 에뮬레이터 PA_MAX 400 kPa clamp 때문에 1600 도달 불가. 실물 센서 도착 후 검증 예정.
+
+**다음 액션 (자연 후속)**:
+- (대기) 옵션 B 시나리오 스크립팅 — 별 세션 (회귀 테스트 자동화)
+- (대기) docs/16 onboarding 의 "자주 막히는 곳" 에 노이즈 모드 + outlier 가드 cross-ref
+- (대기) README / docs/16 의 에뮬 부분 정리 (cross-ref 단축, 신규 README 권위)
+
 ### Phase 5.4 마일스톤 (2026-04-27 종료)
 
 - 5 commits (`dc7ca57` → `fc1cedc`), `phase5-real-sensor` 브랜치
