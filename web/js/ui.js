@@ -2127,6 +2127,8 @@ function createAdvAiTutor({ getAdvState }) {
     settingsBtn.addEventListener("click", () => {
         settings.classList.toggle("open");
     });
+    // 진입 시 항상 펼침 — 3 시뮬 일관
+    settings.classList.add("open");
 
     // Sidebar collapse / reopen (scoped via body.adv-sidebar-collapsed).
     collapseBtn.addEventListener("click", () => document.body.classList.add("adv-sidebar-collapsed"));

@@ -3152,9 +3152,8 @@ function initDaltonApp(params) {
                 tutorDom.settingsBtn.addEventListener("click", () => {
                     tutorDom.settingsPanel.classList.toggle("open");
                 });
-                if (!sessionStorage.getItem(SESSION_KEY_API)) {
-                    tutorDom.settingsPanel.classList.add("open");
-                }
+                // 진입 시 항상 펼침 — 3 시뮬 일관
+                tutorDom.settingsPanel.classList.add("open");
             }
 
             tutorDom.tabBtns.forEach((btn) => {

@@ -1049,10 +1049,8 @@ document.addEventListener("DOMContentLoaded", () => {
         toggleBtn.addEventListener("click", () => {
             settingsPanel.classList.toggle("open");
         });
-        // First-time user (no saved key) → auto-open to guide setup
-        if (!sessionStorage.getItem("pchem_api_key")) {
-            settingsPanel.classList.add("open");
-        }
+        // 진입 시 항상 펼침 — 학생 모델 / 사용량 / 키 안내 즉시 (3 시뮬 일관)
+        settingsPanel.classList.add("open");
     }
 
     document.querySelectorAll(".ai-sidebar .tab-btn").forEach(btn => {
