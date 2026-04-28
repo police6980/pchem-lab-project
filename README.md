@@ -47,6 +47,10 @@ params 외부화). 실물 도착 후 Step I 실센서 본편 진입 예정.
 
 ## 빠른 시작
 
+> **신규 협업자 / 새 PC 진입자**: 본 섹션 외에 더 자세한 가이드는
+> `docs/16-developer-onboarding.md` 참조. PowerShell 정책 / npm 위치 /
+> WebSocket 타이밍 / 포트 충돌 등 자주 막히는 곳까지 정리.
+
 ### 1. 로컬 서버 실행
 
 프로젝트 루트에서:
@@ -183,6 +187,7 @@ pchem-lab-project/
 | `docs/12-protocol-v1.2.md` | Phase 5.4 — 멀티채널 protocol v1.2 명세 (`ch` 필드) |
 | `docs/13-multi-channel-interface.md` | Phase 5.4 — multi-channel SensorSource 인터페이스 (`onChannelData`) + 게이지 라우팅 |
 | `docs/14-calibration-pipeline.md` | Phase 5.4 — 실센서 캘리브레이션 파이프라인 (영점 보정 + 2점 보정 흐름) |
+| `docs/16-developer-onboarding.md` | 개발자 / 새 PC 진입 가이드 (사전 준비·실행·자주 막히는 곳·작업 흐름) |
 | `firmware/README.md` | 펌웨어 배선·Wokwi 설정 |
 | `CLAUDE.md` | Claude Code 자동화 규약 |
 
