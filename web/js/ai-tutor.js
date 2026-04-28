@@ -1059,6 +1059,10 @@ window.__boyleAiTutorLegacy = {
     updateReportButtonState,  // (a-2) 회귀 정정: 신규 wiring 에서 sendMessage 후 호출
 };
 
+// (a-2) 회귀 정정: ui.js refresh() 가 typeof updateTabAvailability === "function" 검사 후 호출.
+// IIFE 캡슐화로 전역 미정의 → 측정 갱신해도 탭 활성/비활성 처리 X. 전역 노출.
+window.updateTabAvailability = updateTabAvailability;
+
 })();  // IIFE 끝
 
 // === Init === (Phase 5.7 트랙 6-a-2 — Hybrid wrapper)
