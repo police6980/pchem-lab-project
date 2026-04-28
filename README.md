@@ -187,7 +187,10 @@ pchem-lab-project/
 | `docs/12-protocol-v1.2.md` | Phase 5.4 — 멀티채널 protocol v1.2 명세 (`ch` 필드) |
 | `docs/13-multi-channel-interface.md` | Phase 5.4 — multi-channel SensorSource 인터페이스 (`onChannelData`) + 게이지 라우팅 |
 | `docs/14-calibration-pipeline.md` | Phase 5.4 — 실센서 캘리브레이션 파이프라인 (영점 보정 + 2점 보정 흐름) |
+| `docs/15-params-config-guide.md` | params.json + SCENE 좌표 + gases 정의 + 갱신 흐름 (권위 문서) |
 | `docs/16-developer-onboarding.md` | 개발자 / 새 PC 진입 가이드 (사전 준비·실행·자주 막히는 곳·작업 흐름) |
+| `docs/19-real-sensor-integration-checklist.md` | 실물 센서 (DFRobot SEN0257 × 2) 도착 시 Step I 단일 절차서 |
+| `tools/firmware-emulator/README.md` | 에뮬레이터 사용 가이드 (CLI 키 / A-1 노이즈 4 모드 / 시나리오 추가법) |
 | `firmware/README.md` | 펌웨어 배선·Wokwi 설정 |
 | `CLAUDE.md` | Claude Code 자동화 규약 |
 

@@ -25,9 +25,9 @@
 
 **다루지 않는 것**:
 - 에뮬레이터 사용법 → `tools/firmware-emulator/README.md`
-- params.sensor 상수 의미 → `docs/15-params-config-guide.md` (작성 예정)
+- params.sensor 상수 의미 → `docs/15-params-config-guide.md`
 - Dalton 시뮬 설계 → `docs/11-dalton-design.md`
-- WebSerial 어댑터 내부 구조 → `docs/03-architecture.md` (mock 일원화 갱신 예정)
+- WebSerial 어댑터 내부 구조 / mock 일원화 / outlier 가드 → `docs/03-software-architecture.md`
 
 전제 — 에뮬 단계(Phase 5 A-1 까지)에서 outlier 가드 / 노이즈 시나리오 / Dalton 시뮬은 모두 통과 상태. 본 문서는 "에뮬 → 실물" 전환 시 코드 수정 0 목표를 검증하는 절차.
 
@@ -145,6 +145,8 @@ USB 분리 자동 감지 → 재연결 버튼 노출. 재연결 시 hello 1회 �
 ## 6. 캘리브레이션
 
 두 채널 별도 측정. 모든 상수는 `params.json` 의 `sensor` 블록에 기입.
+
+→ `params.json` 측 갱신 키 + 영구 저장 검토 = `docs/15-params-config-guide.md` §8.
 
 ### 6.1 영점 (`zeroPa`)
 

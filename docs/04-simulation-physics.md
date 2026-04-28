@@ -212,6 +212,8 @@ for i < j in particles:
 
 **Graham 법칙 (1/√M) 정합**: 초기 속도 = `speedFactor × baseScale`. speedFactor 정의 (params.json): air 1.00, CO₂ 0.81, He 2.69, N₂ 1.02, O₂ 0.95 — 1/√(M/29) 정확 일치 (소수 둘째자리). 등온 평형 시 무거운 가스가 느리게, 가벼운 가스가 빠르게 운동.
 
+→ 5종 정의 표 (`label`/`M`/`speedFactor`/`color`) + 새 가스 추가 절차 = `docs/15-params-config-guide.md` §7.
+
 **텔레포트 안전장치** (Phase 5.3 정정 v4): R3/R4 region 입자 처리 분기에 `daltonState.stage === "INJECTING"` 검사 추가. INJECTING 시만 `teleportToR5NozzleEntry` 발동, 그 외 stage 시 `rescueParticleToHomeRegion` (가까운 박스 안전 위치 복귀).
 
 **정량 검증**: `tests/dalton-collision-test.js` 7 검증 (보존 법칙 / Equipartition / Graham 법칙 √M 비율 / M-B 분포 / 안정성). 상세는 `docs/08-physics-validation.md` § 9.
@@ -562,6 +564,8 @@ pH 센서 기반 이온화 시각화는 추후 별도 문서에서 정의. 예�
 ## 11. 튜닝 가능 파라미터
 
 ### 11.1 `web/config/params.json`
+
+→ `params.dalton.sensor` 5 상수 (Phase 5.4 외부화) + `dalton.gases` + `SCENE` 좌표 + 갱신 흐름 권위 = `docs/15-params-config-guide.md` §4.1 / §6 / §7. 본 표는 보일·입자운동 공통 top-level 키만 다룸.
 
 | 파라미터 | 기본값 | 설명 |
 |---|---|---|

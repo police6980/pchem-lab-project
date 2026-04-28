@@ -18,6 +18,7 @@
 - 캘리브레이션 파이프라인 전체 → `docs/14-calibration-pipeline.md` (전략 C — 브라우저 측 보정)
 - 실물 도착 시 절차서 → `docs/19-real-sensor-integration-checklist.md` §6 (영점·스팬)
 - A-1 노이즈 시나리오 모드 (off/quiet/normal/harsh) → `tools/firmware-emulator/README.md` §4
+- 전체 아키텍처 / 모듈 구성 / 데이터 흐름 / sensor 시스템 통합 → `docs/03-software-architecture.md`
 
 ---
 

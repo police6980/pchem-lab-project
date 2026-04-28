@@ -43,6 +43,8 @@
 
 ## 3. 보정 파이프라인 설계
 
+→ `params.json` 측 신규 키 (calibration 영구 저장 등) 검토 (TBD — Step I 측정 후 결정) = `docs/15-params-config-guide.md` §8.
+
 ### 3.1 데이터 흐름
 
 ```

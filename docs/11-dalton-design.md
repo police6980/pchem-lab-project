@@ -258,6 +258,8 @@ DOM·시뮬·하드웨어 전면 제거.
 | `web/css/style.css` | 돌턴 전용 레이아웃 (주사기·용기) 추가 |
 | `web/js/config/params.json` | `dalton` 키 추가 (기체 프리셋, 주사기 B 부피 프리셋) |
 
+→ 현재 `dalton` sub-tree 권위 (`gases` / `syringe_*` / `sensor` 5 상수 / 추가 가스 절차) = `docs/15-params-config-guide.md` §4 §7.
+
 ### 3.3 신규 파일
 
 | 파일 | 역할 |
