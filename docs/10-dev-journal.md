@@ -2476,3 +2476,146 @@ A-1 정합성: silent guard (콘솔만, UI 알림 X) → harsh 모드의 spike �
 - (대기) Step I 본편 — 실물 센서 입수 후
 - (해결됨) mock 모드 P_A vs P_B 게이지 차이 — 4ea6a65 에서 수정 + 회귀 검증 통과
 
+---
+
+## Phase 5.5 — 회귀 인프라 + 학습 기능 보강 (2026-04-28)
+
+Phase 5.4 의 sensor 시스템 통합 직후 자율 진행 6 트랙. 실물 센서 도착 전 까지의 가능한 회귀 인프라 + 학습 기능 보강 + 정리.
+
+### 2026-04-28 — 자율 6 트랙 (commits 531a1d6, 08c2a56, 79d84fb, 5e1f8ee, 317f6e9)
+
+#### 한 일
+- 트랙 0 = 직전 turn 완료 (55e7699 docs/16 + 9955d89 일지)
+- 트랙 1 = sequence replay 옵션 B (531a1d6) — emulator `--sequence` + run-replay.js + injection-sample.json 8/8 PASS
+- 트랙 2 = outlier 가드 unit test (08c2a56) — node:test 11/11 PASS, 가드 로직 자립형 복사
+- 트랙 3 = 보일 측정 통계 + 회귀 (79d84fb) — σ_PV + min/max + ln-ln 회귀 (slope/R²)
+- 트랙 4 = 입자운동 가스 비교 (5e1f8ee) — Graham 법칙 직관 (이론 vs 실측 v̄ 비율)
+- 트랙 5 = PDF 출력 — **검수 트리거 (라이브러리 도입)** 으로 보류 → 사용자 결정 대기
+- 트랙 6 = docs/16 §9 표 stale 정리 (317f6e9) — 신규 권위 3 행 추가 + "작성 예정" 정정
+
+#### 결정: 트랙 1 sequence replay — 단순 패턴 + step 함수
+
+**배경**: README §6.3 옵션 B 미리 보기 골격 → 구현. 외부 제어 인터페이스 (CLI 인자 vs WebSocket cfg vs stdin), schema, 보간 (step vs linear), 통합 위치 (run-scenario 확장 vs 별 run-replay) 모두 자율 결정.
+
+**결정**: emulator `--sequence <path>` CLI 인자 (`--noise` 패턴 일관) + schema `[{t_ms, ch, p_pa}]` + step 함수 (즉시 변경) + 별 run-replay.js (의도 분리, schema 다름) + scenarios/replay/ 폴더.
+
+**근거**:
+- CLI 인자 = 단순 + 명시적 + (A) noise stat 의 `--noise` 와 패턴 일관
+- step 함수 = 학습 명확 (즉시 변경 = "X 시점에 Y 값 적용" 직관)
+- 별 run-replay = (A) judge (sigma/spike) ↔ (B) judge (sequence 일치) schema 다름. 합치면 분기 부담
+- 폴더 분리 (scenarios/replay/) = 종류 명확
+
+**구현 발견** (작성 중 정정):
+- 첫 시도: sequenceMode.startedAt = first ws connection 시점 → sample.ts (process startedAt 기준) 와 ~800ms 차이 → 3/8 fail
+- 정정: sequenceMode.startedAt = process startedAt 통일 → 6/8 (t_ms=0 step 만 fail, sample 첫 도달 ~1000ms)
+- 최종: STEP_MATCH_WINDOW_MS 300 → 2000ms (ws connection latency 흡수) → 8/8 PASS
+
+**배제된 대안**:
+- WebSocket cfg 메시지 (`{t:cfg, sequence:[...]}`): 동적 변경 가능하나 (B) 시점 과잉
+- linear 보간: 부드러우나 학습 모호 (어느 시점 어느 값?)
+- run-scenario 확장: judge schema 분기 부담
+- stdin 키 자동화: isTTY 이슈
+
+#### 결정: 트랙 2 outlier 가드 unit test — 가드 로직 자립형 복사 (옵션 Y)
+
+**배경**: web/js/serial.js 의 `_applyOutlierGuard` 5 단계 회귀 검증 자동화. 코드 분리 옵션 = (X) export 추가 (브라우저 호환 깨짐) / (Y) 가드 로직 복사 (dalton-collision-test 패턴) / (Z) ESM 리팩토링 (큰 변경).
+
+**결정**: 옵션 Y. node:test built-in (의존성 0). `tests/sensor-guard-test.js` 신규. 11 테스트 (5 단계 각각 + 정상 흐름 + edge case + rate-limit + mock 무영향) 11/11 PASS.
+
+**근거**:
+- 옵션 X: serial.js 가 `<script>` 로드 + 전역 → ESM export 추가 시 브라우저 호환 깨짐 위험
+- 옵션 Y: dalton-collision-test 와 일관 패턴, 자립형 (의존성 X). 단점 = 가드 변경 시 양쪽 동기화 — commit message + docs/03 §3.8 cross-ref 로 관리
+- 옵션 Z: serial.js 전체 ESM 리팩토링 = 큰 변경, 회귀 위험. 가치 < 비용
+- node:test = Node 18+ 표준, 외부 의존성 X (vitest/jest 회피)
+
+**검증 정정**: 첫 실행 5단계 fail (expected 52, actual 51) — median(3) 적용 후 lastValid = median 값 (52 가 아닌 51) 임을 인지. test 기대값 정정 → 11/11 PASS.
+
+**배제된 대안**:
+- ESM 리팩토링: 회귀 위험
+- vitest / jest: 의존성 추가 — node:test 표준 충분
+- E2E 테스트 (Puppeteer): 본 트랙 범위 외 (브라우저 통합 별 작업)
+
+#### 결정: 트랙 3 보일 측정 통계 — 보일만 (돌턴 / 입자운동 별 작업)
+
+**배경**: 평균 / σ / 회귀 직선 학습 도구. 적용 시뮬 자율 결정.
+
+**결정**: 보일 우선 (측정 핵심). σ_PV (kPa·mL + %) + min/max 범위 + ln-ln 회귀 (slope/R²). 기존 측정 표 / 차트 영향 X — 분석 패널 dl 행 3개 추가만. 돌턴 / 입자운동 = 별 작업.
+
+**근거**:
+- 보일 = 측정 핵심 (PV 산점도 + 분석 패널 이미 verdict)
+- ln-ln 회귀 = 이상기체 P·V=k → ln P = -ln V + ln k → 이론 slope = -1, R² → 1. 학습 가치 (실측 slope vs 이론 비교)
+- 단순 추가 = 회귀 위험 X
+- 돌턴 = 측정 기록 표 + stacked bar 이미 풍부, 통계 추가는 부분압력 합 검증 별 작업
+- 입자운동 = 측정 X, skip
+
+**배제된 대안**:
+- 3 시뮬 모두 동시 통계: 분량 폭증
+- 시각 회귀선 PV 산점도 overlay: 차트 코드 큰 변경 — 별 작업
+- selectedDataPoints 필터 통계: 본 단계 과잉
+
+#### 결정: 트랙 4 가스 비교 — 단순 비교 표 (큰 UI 분할 회피)
+
+**배경**: 입자운동 가스 비교. 사용자 명세 = 1 캔버스 분할 / 2 캔버스 / overlay. 모두 큰 UI + 두 시뮬 동시 실행 (큰 아키텍처 변경, 회귀 위험).
+
+**결정**: 자율 단순화 — 가스 변경 시 직전 가스 스냅샷 (gas/M/avgSpeed) 보존 + Graham 법칙 비교 표시 (이론 √(M_old/M_new) vs 실측 v̄ 비율). gas-select 옆 작은 영역. 동적 DOM 추가 (HTML 수정 X). 24줄 추가.
+
+**근거**:
+- 큰 UI 분할 = 회귀 위험 (자율 진행 규칙 (a) 트리거 위험)
+- 학습 가치 = 가스 변경 → v̄ 비율 직관 (Graham 법칙 즉시 검증) — 시각 동시 표시 X 라도 핵심 의도 만족
+- 큰 변경 (옵션 1 분할) 은 별 작업으로 사용자 검수 후 진행
+
+**배제된 대안**:
+- 옵션 1 캔버스 분할 (300~500줄): 회귀 위험 + 본 turn 분량 부담
+- 옵션 2 차트 동시 표시 (히스토그램 2개): 별 instance 추가 — 큰 변경
+- overlay 모드: 색 구분 어려움 + UI 복잡
+
+#### 결정: 트랙 5 PDF 출력 — 검수 트리거로 보류
+
+**배경**: 보고서 PDF 출력. 라이브러리 도입 (jsPDF / html2pdf / print 기반) 결정 = 자율 진행 규칙 (a) 명시 트리거.
+
+**결정**: **트랙 5 보류** → 사용자 결정 대기. 자율 진행 규칙 (a) "라이브러리 도입" 명시.
+
+**근거**:
+- jsPDF (~280 KB) / html2pdf (~600 KB) = 외부 의존성 + 차트 / canvas 처리 패턴 다름
+- print 기반 (CSS @media print, 0 KB) = 의존성 X 단 차트 깨짐 위험 (브라우저 별 print preview 차이)
+- docx 유지 + PDF 추가 / docx 폐기 / sessionStorage 전환 결정 X = 사용자 검수 필요
+
+**대안 (사용자 결정 대기)**:
+- (a) print 기반 + 기존 docx 유지 (의존성 0)
+- (b) jsPDF + 기존 docx 유지 (의존성 ↑, 제어 정확)
+- (c) html2pdf (가장 큰 의존성, 단 자동화 쉬움)
+- (d) 본 트랙 영구 폐기 (docx 충분)
+
+#### 결정: 트랙 6 docs/16 §9 stale 정리 — 작은 묶음
+
+**배경**: 직전 turn (55e7699 §6.9 추가) 보고에서 발견 — §9 표 신규 권위 3 누락 (docs/15 / 19 / emulator README) + "작성 예정" stale (docs/15-params-guide / docs/19-step-i-checklist 둘 다 작성 완료). 별 commit 권장으로 보고만 했음. 자율 진행 시점이라 처리.
+
+**결정**: 3 행 추가 (docs/15 / docs/19 / tools/firmware-emulator/README.md) + "작성 예정" 단락 제거. -4/+3 줄.
+
+**근거**:
+- 직전 보고 의도 = stale 처리. 자율 진행 시점 = 적절
+- 분량 작음 (~3~4줄)
+- README 표 의 신규 docs cross-ref 와 양방향 일관
+
+**배제된 대안**:
+- §9 표 docs/16 자체 행 추가: 자기 참조 부자연
+- 별 commit 분리: 분량 작아서 트랙 6 묶음 의미 명확
+
+#### 후속 의무 (TODO)
+
+- 트랙 5 PDF — 사용자 결정 (라이브러리 / 폐기) → 결정 후 진행
+- 돌턴 측정 통계 — 부분압력 합 검증 (`|P_total - (P_A + P_B)| / P_total`) — 트랙 3 패턴 적용
+- 입자운동 가스 비교 — 큰 UI 분할 (옵션 1) 사용자 검수 후 별 작업
+- baseline.js 실물 모드 — DFRobot SEN0257 도착 후 npm install serialport + `--source` 분기
+- docs/06 Phase 5.4 / 5.5 후반 갱신 — 현재 상태 권위 (별 turn)
+- CI 통합 — node:test (sensor-guard-test) + run-all.js (시나리오) 종료 코드 기반 자연 통합 가능
+
+### Phase 5.5 마일스톤 (2026-04-28 종료, 본 자율 진행 묶음 완료)
+
+- 6 commits (`531a1d6` → `317f6e9`), `phase5-real-sensor` 브랜치
+- 신규 파일: `tools/firmware-emulator/run-replay.js`, `tools/firmware-emulator/scenarios/replay/injection-sample.json`, `tests/sensor-guard-test.js`
+- 수정 파일: `tools/firmware-emulator/emulator.js`, `tools/firmware-emulator/README.md`, `web/js/ui.js`, `web/js/main.js`, `docs/16-developer-onboarding.md`
+- 누적: 약 +500/-30
+- 검증 — sequence replay 8/8 PASS + sensor-guard 11/11 PASS + 시나리오 회귀 4/4 PASS (Phase 5.4)
+- 트랙 5 PDF = 보류 (사용자 결정 대기)
+
