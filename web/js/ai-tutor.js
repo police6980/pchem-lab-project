@@ -1091,6 +1091,7 @@ document.addEventListener("DOMContentLoaded", () => {
             buildSystemPrompt: (level, qid)  => T.buildSystemPrompt?.(level, qid) ?? "",
             buildDataContext:  ()             => T.buildDataContext?.() ?? {},
             onLevelDetect: (level) => {
+                console.log(`[boyle tutor] 학생 수준 자동 감지: ${level}`);
                 const sel = document.getElementById("ai-student-level");
                 if (sel) sel.value = level;
             },

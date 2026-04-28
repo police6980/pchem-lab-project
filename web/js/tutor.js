@@ -210,6 +210,8 @@ function createTutor(config) {
         conversationEmpty: document.querySelector(sel.conversationEmpty || `${config.sidebarSelector} #conversation-empty`),
         messageInput:      document.querySelector(sel.messageInput      || `${config.sidebarSelector} #message-input`),
         btnSendMessage:    document.querySelector(sel.btnSendMessage    || `${config.sidebarSelector} #btn-send-message`),
+        // 대화 마무리 버튼 영역 (closeConfig 활성 시 visibility 토글) — Phase 5.7 (a-2) 회귀 신규
+        endControls:       document.querySelector(sel.endControls       || `${config.sidebarSelector} #conversation-end-controls`),
         tabBtns:           sidebar.querySelectorAll(sel.tabBtns         || ".tab-btn"),
         tabResetBtns:      sidebar.querySelectorAll(sel.tabResetBtns    || ".tab-reset"),
     };
@@ -271,6 +273,19 @@ function createTutor(config) {
 
     function countStudentTurns(qid) {
         return (conversations[qid]?.messages || []).filter(m => m.role === "user").length;
+    }
+
+    // 대화 마무리 버튼 영역 visibility — closeConfig 활성 + structured 탭 + 메시지 ≥ 1 + !isClosed
+    // (ai-tutor.js dead code updateEndControlsVisibility:310-318 패턴 통합)
+    function updateEndControlsVisibility() {
+        if (!dom.endControls) return;
+        if (!config.closeConfig) { dom.endControls.hidden = true; return; }
+        const qid = activeQuestion;
+        const conv = conversations[qid];
+        const isStructured = qid !== "free" && qid !== config.metaTabId;
+        const visibleCount = conv ? conv.messages.filter(m => !m.isPromptInternal).length : 0;
+        const show = isStructured && visibleCount > 0 && !conv.isClosed;
+        dom.endControls.hidden = !show;
     }
 
     // empty state default HTML — config.emptyStateBuilder 로 override 가능
@@ -340,6 +355,7 @@ function createTutor(config) {
         }
         renderConversation();
         updateInputAvailability();
+        updateEndControlsVisibility();
         // 자동 질문 생성 (config.autoQuestionTabIds 활성 시) — 첫 진입 시만
         if (config.autoQuestionTabIds?.includes(qid)) {
             const conv = conversations[qid];
@@ -390,6 +406,7 @@ function createTutor(config) {
         if (qid === config.metaTabId) q4Generated = false;
         if (qid === activeQuestion) renderConversation();
         updateInputAvailability();
+        updateEndControlsVisibility();
     }
 
     function resetAll() {
@@ -403,26 +420,29 @@ function createTutor(config) {
 
     async function sendMessage(content) {
         if (!content || !content.trim()) return;
-        const qid = activeQuestion;
-        const conv = conversations[qid];
+        const startQid = activeQuestion;  // ★ 회귀 4 정정: 호출 시점 탭 캡처. await 중 탭 전환 시 누수 회피
+        const conv = conversations[startQid];
         if (!conv || conv.isClosed) return;
 
-        // user 말풍선 추가
+        // user 말풍선 추가 — 현재 탭 시점에만 즉시 렌더 (다른 탭이면 messages 만 push)
         conv.messages.push({ role: "user", content: content.trim(), timestamp: Date.now() });
-        renderConversation();
-        if (dom.messageInput) { dom.messageInput.value = ""; }
-        updateInputAvailability();
+        if (activeQuestion === startQid) {
+            renderConversation();
+            if (dom.messageInput) dom.messageInput.value = "";
+            updateInputAvailability();
+            updateEndControlsVisibility();
+        }
 
         // 시스템 prompt + 데이터 컨텍스트
         const ctx = config.buildDataContext();
         const level = getLevel();
-        const systemPrompt = config.buildSystemPrompt(level, qid, ctx);
+        const systemPrompt = config.buildSystemPrompt(level, startQid, ctx);
 
         // contextSnapshot 첫 turn 만 저장 (보고서 등 후속 사용)
         if (!conv.contextSnapshot) conv.contextSnapshot = ctx;
 
-        // typing indicator + 호출
-        showTypingIndicator();
+        // typing indicator (현재 탭에서만 표시) + 호출
+        if (activeQuestion === startQid) showTypingIndicator();
         let result;
         try {
             const apiMessages = conv.messages
@@ -435,18 +455,23 @@ function createTutor(config) {
                 messages: apiMessages,
             });
         } catch (e) {
-            hideTypingIndicator();
+            if (activeQuestion === startQid) hideTypingIndicator();
             const msg = e.type === "no_key"
                 ? "API 키가 설정되지 않았습니다."
                 : e.type === "api_error"
                     ? tutorFormatApiError(e.status, e.err?.error?.message)
                     : "네트워크 오류가 발생했습니다.";
             conv.messages.push({ role: "assistant", content: `⚠️ ${msg}`, timestamp: Date.now(), isError: true });
-            renderConversation();
-            updateInputAvailability();
+            if (activeQuestion === startQid) {
+                renderConversation();
+                updateInputAvailability();
+                updateEndControlsVisibility();
+            } else {
+                markTabNew(startQid);  // 다른 탭으로 전환했으면 startQid 에 new 뱃지
+            }
             return;
         }
-        hideTypingIndicator();
+        if (activeQuestion === startQid) hideTypingIndicator();
 
         // [[LEVEL:xxx]] 마커 처리 — 본문에서 제거 + onLevelDetect callback
         let cleanContent = result.content;
@@ -462,9 +487,15 @@ function createTutor(config) {
         conv.tokensIn  += result.inputTokens;
         conv.tokensOut += result.outputTokens;
         addTokens(result.inputTokens, result.outputTokens);
-        renderConversation();
-        updateInputAvailability();
-        markTabNew(qid);  // 다른 탭 활성 시점에 "new" (현재 탭이면 switchToQuestion 에서 clear)
+
+        if (activeQuestion === startQid) {
+            renderConversation();
+            updateInputAvailability();
+            updateEndControlsVisibility();
+        } else {
+            // ★ 회귀 1 정정: 다른 탭으로 전환했으면 startQid 에 has-new 뱃지
+            markTabNew(startQid);
+        }
     }
 
     // === closeConversation — 대화 마무리 [✓] (config.closeConfig 활성 시) ===
@@ -526,6 +557,7 @@ function createTutor(config) {
         if (qid === activeQuestion) renderConversation();
         else markTabNew(qid);
         updateInputAvailability();
+        updateEndControlsVisibility();
     }
 
     // === generateMetaQuestion — Q4 메타 [질문 생성] (config.metaTabId 활성 시) ===
