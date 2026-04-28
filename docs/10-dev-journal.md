@@ -2356,6 +2356,110 @@ A-1 정합성: silent guard (콘솔만, UI 알림 X) → harsh 모드의 spike �
 
 ---
 
+### 2026-04-28 — docs 권위 정합화 + 시나리오 스크립팅 (commits 488ae5a, 4d94c4a, 23111d5, 1616309, 78b1f9e, 55e7699)
+
+#### 한 일
+- docs/19 §4 protocol v1.2 정정 (488ae5a) — 잠정 가정 v1.1 / 50 Hz / raw ADC 통합 → 실제 v1.2 / 5 Hz/ch / Pa 단위 채널별 별도 패킷
+- docs/15-params-config-guide.md 신규 (4d94c4a, 222줄, 9 섹션) — params.json + SCENE + gases + 갱신 흐름 권위
+- docs/03 Phase 5.4 정합화 (23111d5, 657 → 788줄, +131) — §3.7 mock vs ws/real 차등 + §3.8 outlier 가드 + §8 cross-ref 표 신규 + stale 정리
+- cross-ref 정합화 8 위치 (1616309) — docs/04/11/14/15/19 + README + emulator README. 양방향 정합 완성
+- 시나리오 스크립팅 4종 (78b1f9e) — run-scenario.js + run-all.js + scenarios/{off,quiet,normal,harsh}-60s.json + emulator --noise 인자 + baseline.js export. 4/4 PASS
+- docs/16 §6.9 cross-ref 보강 (55e7699) — sensor 시스템 신규 권위 4종 (A-1 노이즈 / outlier 가드 / baseline.js / 시나리오 회귀)
+
+#### 결정: docs/19 §4 protocol v1.2 정정 — 단일 commit 충분
+
+**배경**: docs/19 §4 잠정 가정 (`{"v":"1.1","ch":2,"hz":50,...}` hello + `{"t":<ms>,"ch0":<raw>,"ch1":<raw>}` 통합 패킷, 50 Hz, raw ADC 0~4095) ↔ baseline.js (effbf40) 스모크 테스트에서 발견된 실제 v1.2 형식 (`{"t":"s","sensor":...,"channels":[...]}` hello + `{"t":"d","p":<Pa>,"T":,"ts":,"ch":}` 채널별, 5 Hz/ch, Pa 단위) 불일치. 50 Hz 가정 출처 cross-check 필요.
+
+**결정**: docs/19 §4 단일 정정 (commit 1로 충분). docs/12 / 펌웨어 / emulator / firmware/README / 본 README 모두 5 Hz 일관 — docs/19 만 잘못 → 다른 docs 정합 작업 X.
+
+**근거**:
+- 50 Hz 표기 grep — `firmware/boyle/boyle.ino:6/26` "5Hz" / `emulator.js:33` "5Hz" / `firmware/README.md:62` "5 Hz" / `docs/12` 묵시 5 Hz / **docs/19 §4 단 1곳** 50 Hz
+- stale 위치 단일 → 단일 commit 의미 명확, "다른 docs 도 정정" 같은 분산 의미 X
+- 부수 정정 — §6.1/6.2 raw → Pa 단위, §7.2 raw 4095 → P_FULL_PA, §8.2 표 (raw) → (Pa) 도 같은 commit (raw ADC 가정의 자연 파급)
+
+**배제된 대안**:
+- commit 2 (다른 docs 정합) 분리: 정합 상태였으므로 불필요
+- §4 만 정정 + §6/7/8 raw 잔재 별 commit: 같은 의도 (raw 가정 정정) 분리 부자연
+
+#### 결정: docs/15 신규 권위 — params 가이드 (단일 진실의 원천)
+
+**배경**: Phase 5.4 외부화 5 상수 (`ema_alpha`, `particle_update_threshold_kpa`, `mock_interval_ms`, `mock_noise_sigma_kpa`, `safety_timeout_extra_ms`) + `dalton.gases` 5 종 + `SCENE` 좌표 의 권위 문서 부재. params.json 변경 시 어디 갱신할지 모호. 실물 도착 후 캘리브레이션 (영점 / 스팬 / 영구 저장 키) 결정에 직접 영향. docs/04 §11.1 (top-level) / docs/11 (dalton 키 추가 이력) 분산.
+
+**결정**: 9 섹션 222줄 신규 (CC 합의 175~225 상한 -3). "현재 값 + 의미 + 갱신 흐름" 권위. 의사결정 근거 (왜 이 값) 는 docs/04 / 11 / 14 / 19 / 10 cross-ref (중복 회피). §4.1 sensor 5 상수 ★★★ 우선 + §6 SCENE ★ 코드 고정 명시 + §7 gases + 새 가스 추가 절차 + §8 캘리브 신규 키 TBD (실물 도착 후 결정).
+
+**근거**:
+- docs/15 = 단일 진실의 원천 → 변경 시 동기화 비용 ↓
+- ★★★ 5 상수 우선 = Phase 5.4 핵심 + 실물 캘리브 직접 영향
+- TBD 항목 명시 (calibration.ch0/ch1.zero_pa 등) — 추측 회피, Step I 측정 후 결정 명확화
+- 의사결정 근거 cross-ref → docs/15 비대화 회피
+
+**배제된 대안**:
+- docs/04 / docs/11 안 분산 (현재 상태): 중복 + 불완전, 변경 시 동기화 누락 위험
+- 의사결정 근거 docs/15 안 포함: 분량 폭증 + 일지 보존 원칙 충돌
+
+#### 결정: docs/03 Phase 5.4 정합화 — 현재 상태 권위 + cross-ref
+
+**배경**: docs/03 마지막 권위 시점 = Phase 5.1 완료 (~2026-04-24). Phase 5.2/5.3/5.4 미반영. 구체 stale — §1.1 "단일 페이지 보일 전용", §1.2 도식 mock 단일, §2.2 `MockSensorSource` 단일 + "WebSerialSensorSource — 미구현", protocol "v1.1 파서", `USE_MOCK_SENSOR` 플래그 (실제 코드에 부재 — 3-mode 토글로 대체), §3.3 이벤트 주기 표 mock 20 Hz 만, A-1 노이즈 + outlier 가드 누락. 신규 협업자 / 미래 본인이 SW 구조 이해 자체 불가.
+
+**결정**: 657 → 788 줄 (+131, 합의 ~750 +38 초과). §3.7 mock vs ws/real 차등 신규 ★★★ + §3.8 outlier 가드 5 단계 신규 ★★★ + §8 cross-ref 표 신규 (12 행) + §1.1/1.3/2.1/2.2/3.3/3.4-D/4.2.1/6/7 stale 정리 + 갱신. 의사결정 근거는 docs/10 cross-ref (보존 원칙 — 일지엔 보존, docs/03 은 현재 상태 권위 → stale 제거 OK).
+
+**근거**:
+- docs/03 = 아키텍처 권위. mock 일원화 / multi-channel routing / outlier 가드 누락 시 SW 구조 이해 불가
+- §3.7 별 § 분리 = Phase 5.4 핵심 결정, 가시성 우선 (사용자 검수 합의)
+- §4.2.1 dalton sensor panel HTML 28줄 → 12줄 텍스트 요약 (권위 = web/dalton.html cross-ref) — 압축 실현
+- **createBoyleTutor 명칭 정정** — 사실 정확성 (보일 = ai-tutor.js 모듈 전역, closure factory 없음. 입자운동 = createAdvTutorPanel / 돌턴 = createDaltonTutor 만 closure)
+
+**배제된 대안**:
+- 점진적 갱신 (Phase 별 1줄씩): stale 누적 패턴 영구화
+- 분량 폭증 (+30% +194 → 851): §4.2.1 / §1.2 / §3.7 표 압축으로 +131 통제 (788)
+- §3.7 / §3.8 기존 § 안 sub-section: Phase 5.4 핵심 가시성 ↓
+- §3.4-D 돌턴 측정 사이클 docs/11 cross-ref 단축 X (5~10줄 요약 + cross-ref) 균형
+- 의사결정 근거 docs/03 안 명시: 일지 보존 원칙 충돌
+
+#### 결정: docs cross-ref 정합화 묶음 — 단일 commit, 양방향 강제 X
+
+**배경**: docs/15 + docs/03 작성 후 다른 docs 의 양방향 cross-ref gap 발견 — docs/19 §1 `(작성 예정)` stale, docs/15 §1 docs/03 미언급 (단방향), docs/04 §3 / §11.1 docs/15 미언급, docs/11 / docs/14 / docs/19 §6 docs/15 미언급, README 표 docs/15 / 19 누락. 권위 = 단일 진실의 원천이 다른 docs 에서 1줄로 도달 가능해야 효용.
+
+**결정**: 6 파일 / 8 위치 cross-ref 1줄씩 추가 (단일 commit). emulator README 자율 추가 (사용자 명세 의도 = "신규 docs 표 누락 시 추가"). 양방향 정합 (15 ↔ 03/04/14/19), 단방향 OK (15 → 11 추가만, 11 의 표 행에 cross-ref 부자연).
+
+**근거**:
+- 단일 진실의 원천 효용 = 다른 docs 에서 1줄로 도달 가능
+- 1 commit 묶음 = "cross-ref 정합화" 의미 명확. 분산 6 commit 시 의미 ↓
+- emulator README 자율 추가 = README 표에 누락 시 발견 어려움 + 사용자 명세 패턴 (신규 docs 표 누락 시 추가) 일관
+
+**배제된 대안**:
+- 분산 commit (1줄씩 6 commit): 의미 분산, log 노이즈
+- 양방향 강제 (docs/15 → 11 도): docs/15 §1 비대화 + 11 측 cross-ref 도 부자연 (표 행)
+- README 표에 emulator README 만 추가 X: 사용자 명세 패턴 깨짐
+
+#### 결정: 시나리오 스크립팅 (A) 만 — 노이즈 통계 검증
+
+**배경**: A-1 노이즈 시나리오 모드 (ffd191e) + outlier 가드 (dd7bd5c) 의 회귀 테스트 자동화. 시나리오 종류 검토 — (A) 노이즈 통계 검증 / (B) 시간별 압력 sequence replay (README §6.3 골격) / (C) outlier 가드 동작 검증 (브라우저 측 코드, Node 분리 필요).
+
+**결정**: (A) 만 작성. 4 시나리오 (off/quiet/normal/harsh × 60초) + run-scenario.js 단일 실행기 + run-all.js 일괄 + emulator `--noise` CLI 인자 + baseline.js export (collect/computeStats 모듈화). judge 임계값 = preset σ ×1.5 안전 여유 (off/quiet/normal/harsh = σ_max 1/750/3000/7500 Pa). drift 검증 X (60초 head/tail slice artifact). harsh maxSpike 검증 X (Bernoulli spike 자체가 의도). stdout JSON + 종료 코드 (CI 친화). README §7 신규.
+
+**근거**:
+- 4/4 PASS 검증 통과 — quiet σ=509.83 ↔ preset σ=500 부합 = baseline.js + 노이즈 모델 cross-validation
+- ×1.5 안전 여유 = false fail 0 (1차 검증 통과). 이후 회귀 검증 시 안정
+- (A) 분량 적정 (~370 줄, 9 파일) — 단일 commit
+- Windows kill = SIGTERM 정상 동작 (4 시나리오 모두) — fallback (SIGKILL after 3s) 미발동 확인
+
+**배제된 대안**:
+- (A) + (B) 동시: 분량 ↑ + 두 종류 응집도 분리 어려움 (sequence replay 는 emulator 측 신규 모드 + JSON schema 다름)
+- (C) outlier 가드 동작 검증: 브라우저 측 코드 → Node 분리 또는 Puppeteer 별 작업
+- stdin 키 자동화 (emu CLI 키 spawn 제어): isTTY=false 이슈 → keypress 이벤트 X
+- WebSocket cfg noise 추가 (`{"t":"cfg","noise":"quiet"}`): (B) 시나리오 모드 시 자연, (A) 시점 과잉
+- σ 임계값 ×1.0 / ×2.0: 1.0 = false fail 위험, 2.0 = 회귀 못 잡음
+- drift 검증 포함: 60초 측정 artifact (baseline 검증에서 -1173 Pa/min 같은 결과)
+
+#### 후속 의무 (TODO)
+
+- 옵션 B sequence replay 구현 — README §6.3 골격 따름. JSON schema (steps[t_ms, ch, pressurePa]) + emulator 신규 모드. 별 작업
+- outlier 가드 unit test — Node 분리 (`web/js/serial.js` 가드 함수 추출) 또는 Puppeteer 통합. 별 작업
+- CI 통합 — 본 시나리오 = 종료 코드 기반, 인프라 도입 시점에 자연 통합
+- docs/06 Phase 5.4 후반 갱신 — 본 세션 누적 결과 (docs/15 / 03 / cross-ref / 시나리오) 반영. docs/06 = 현재 상태 권위 → 별 turn
+- 실물 센서 (DFRobot SEN0257 × 2) 도착 → docs/19 §3-§9 따라 Step I 본편. baseline.js 실물 모드 추가 (`npm install serialport` + `--source` 분기) + scenarios/ 실물 baseline 시나리오 추가
+
 ### Phase 5.4 마일스톤 (2026-04-27 종료)
 
 - 5 commits (`dc7ca57` → `fc1cedc`), `phase5-real-sensor` 브랜치
