@@ -2162,6 +2162,52 @@ Phase 5.3 (`ccdfe22` 측정 기록 토글 폐기 + 행 삭제, `be90646` Phase 5
 
 **번복 대상**: 본 entry 이전 다수 엔트리 (1958 부근 "향후 작업: Phase 5.x ... Matter.js 도입 검토", 2079 / 2126 의 `(대기) Phase 5.x — Matter.js 별 브랜치` 항목). 위 기록 자체는 보존 (시간순 추적 가능) — 본 결정 이후 효력 폐기.
 
+### 2026-04-28 — A-1 노이즈 시나리오 모드 (commit ffd191e)
+
+#### 한 일
+- 에뮬레이터 (tools/firmware-emulator/emulator.js) 에 노이즈 시나리오 모드 추가 — opt-in 4 모드 (off / quiet / normal / harsh)
+- gaussian σ + drift (random walk ±2 kPa) + spike (Bernoulli 2%, ±50 kPa) + clip (81~1600 kPa)
+- CLI 키: n (토글 순환), 1/2/3/4 (preset 직접 선택)
+- printState 에 모드 표기 + 키 도움말 보강
+- 회귀 검증 V-noise-1 (off 기본) + V-noise-2 (n 토글 순환) 통과
+
+#### 결정: 옵션 A (노이즈 모드만) — 시나리오 스크립팅 (B) 보류
+
+**배경**: 실물 센서 (DFRobot SEN0257) 도착 시 ws/real 모드의 noise / outlier / drift 처리 견고성 검증 필요. 사전 조사 결과 — 현재 ws 모드 노이즈 사실상 부재 (에뮬레이터 raw 송신, mock 측에만 σ=0.1 kPa). 실물 SEN0257 추정 σ=2~4 kPa 대비 mock σ=0.1 kPa = 20~40배 작음. 옵션 A/B/C/D 평가.
+
+**결정**: 옵션 A — 노이즈 모드만 (50~100줄). 시나리오 스크립팅 JSON (옵션 B) 은 자연 후속 별 세션. cfg/calib 정교화 (옵션 D) 도 별 작업.
+
+**근거**:
+- D6 우선순위 ★★★ (spike + clip) 만 대응해도 실물 도입 위험 80% 회피
+- 분량 작음 (실제 79줄 변경) — 본 세션 1 commit 마무리, 회귀 검증 비용 ↓
+- opt-in 방식 (기본 off) → 기존 동작 100% 보존, 보일/돌턴/입자운동 양쪽 영향 X
+- 실물 SEN0257 추정 σ=2~4 kPa = "normal" preset 일치 → 실측 시 미세 조정만
+
+**노이즈 모델 세부**:
+- preset 4 종 (off / quiet σ=0.5 / normal σ=2 + drift / harsh σ=5 + drift + spike + clip)
+- drift 모델 = random walk (매 sample gaussian step, ±2 kPa clamp). linear / sinusoidal 아닌 random walk 선택 — 실물 온도/aging 변화의 비선형성 + 누적성 반영
+- spike 모델 = Bernoulli (2% 확률) + ±50 kPa 가우시안 진폭 + 1 sample 지속. 실물 전기 noise / I2C 충돌 / cable interference 시뮬
+- clip = [81, 1600] kPa = PA_MIN ~ 센서 한계
+- 채널 공통 drift (단순) — 추후 cross-talk 검증 시 채널별 분리 가능
+
+**배제된 대안**:
+- 옵션 B (시나리오 스크립팅 JSON): 회귀 테스트 자동화 가치 있으나 본 세션 부담. JSON schema 설계 + 시나리오 작성 = 별 세션
+- 옵션 C (A + B): 본 세션 부담 큼, 회귀 검증 비용 ↑
+- 옵션 D (A + cfg/calib 정교화): 노이즈 + 캘리브 두 흐름 동시 디버깅 복잡 — 별 작업 분리
+- linear drift: 너무 단순. 실물 비선형성 미반영
+- 채널별 독립 drift: 본 세션 범위 외 (cross-talk 시뮬 시 적합)
+- 주입 (i 키) 직후 spike 억제: 실물 도입 시 동일 상황 발생 가능 → 그대로 적용 (의도적)
+
+**검증 결과**:
+- V-noise-1 (off 기본) 통과 — raw 그대로 송신, 기존 동작 100% 보존
+- V-noise-2 (n 토글 순환) 통과 — 4 모드 정상 표기 + 데이터 흐름 정상
+- V-noise-3~8 (preset 직접 / spike 30 초 / drift 1 분 / clip / 모드별 영향 / r 리셋) 사용자 확인 통과
+
+**다음 액션 (자연 후속)**:
+- (대기) 옵션 B 시나리오 스크립팅 — 별 세션 (JSON schema + 시나리오 작성)
+- (대기) ws/real 측 outlier 가드 (음수 / saturation 후처리) — 별 작업
+- (대기) docs/16 onboarding 의 "자주 막히는 곳" 에 노이즈 모드 1 줄 cross-ref
+
 ### Phase 5.4 마일스톤 (2026-04-27 종료)
 
 - 5 commits (`dc7ca57` → `fc1cedc`), `phase5-real-sensor` 브랜치
