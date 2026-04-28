@@ -273,12 +273,38 @@ function createTutor(config) {
         return (conversations[qid]?.messages || []).filter(m => m.role === "user").length;
     }
 
+    // empty state default HTML — config.emptyStateBuilder 로 override 가능
+    function defaultEmptyStateHtml(qid) {
+        if (qid === "free") {
+            return '실험하다 궁금한 게 생겼나요?<br>'
+                 + '아래 입력창에 자유롭게 질문해보세요.<br><br>'
+                 + '<small style="color:#999">예: "왜 입자 색깔이 다른가요?"<br>'
+                 + '"온도가 더 높으면 어떻게 되나요?"</small>';
+        }
+        if (qid === config.metaTabId) {
+            return '<p>AI가 내 측정 데이터를 분석해서<br>탐구 질문을 만들어줍니다.</p>'
+                 + '<button id="btn-generate-q4" class="btn-generate-question">🔍 질문 생성</button>';
+        }
+        // Q1~Q3 default — prompt-question + question-full
+        const qText = config.getQuestionText(getLevel(), qid);
+        return '<div class="prompt-question">'
+             + `<strong>Q${qid}</strong>에 대한 생각을 아래 입력창에 작성하세요.<br>`
+             + 'AI 튜터가 함께 깊이 있게 탐구합니다.'
+             + '</div>'
+             + `<div class="question-full">${qText}</div>`;
+    }
+
     function renderConversation() {
         const conv = conversations[activeQuestion];
         if (!dom.messagesList) return;
         dom.messagesList.innerHTML = "";
         const visible = conv.messages.filter(m => !m.isPromptInternal);
         if (visible.length === 0 && dom.conversationEmpty) {
+            // empty state innerHTML 동적 생성 (보일 패턴 — Q1~Q3 question-full / Q4 [질문 생성] / free 안내)
+            const html = (typeof config.emptyStateBuilder === "function")
+                ? config.emptyStateBuilder(activeQuestion, getLevel(), config.getQuestionText)
+                : defaultEmptyStateHtml(activeQuestion);
+            dom.conversationEmpty.innerHTML = html;
             dom.conversationEmpty.style.display = "";
         } else if (dom.conversationEmpty) {
             dom.conversationEmpty.style.display = "none";

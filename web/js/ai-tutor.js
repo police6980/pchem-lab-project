@@ -1051,6 +1051,9 @@ function switchToQuestion(questionId) {
 // PchemTutor (ui.js createAnalysisPanel closure) / PchemTutorModule (tutor.js) /
 // PchemBoyleReport (tutor-report-boyle.js) 도착 폴링.
 document.addEventListener("DOMContentLoaded", () => {
+    // 회귀 1 정정 — 설정 패널 즉시 펼침 (Phase 5.5 보존, tutor.js init 의 add 와 무관 보강)
+    document.getElementById("ai-settings-panel")?.classList.add("open");
+
     function tryInitBoyleTutor() {
         if (!window.PchemTutorModule || !window.PchemBoyleReport || !window.PchemTutor) {
             setTimeout(tryInitBoyleTutor, 50);
