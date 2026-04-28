@@ -71,6 +71,24 @@ if (process.argv.includes('--noise')) {
   }
 }
 
+// --sequence <path> CLI 인자 — sequence replay 모드 (Phase 5.4 옵션 B)
+// JSON: [{t_ms, ch, p_pa}, ...]. 시간순 정렬 가정. 첫 ws connect 시점부터 t_ms 카운트 시작.
+let sequenceMode = null;  // { steps:[...], idx:0, startedAt:null }
+if (process.argv.includes('--sequence')) {
+  const seqPath = process.argv[process.argv.indexOf('--sequence') + 1];
+  try {
+    const fs = await import('node:fs');
+    const raw = fs.readFileSync(seqPath, 'utf8');
+    const steps = JSON.parse(raw);
+    if (!Array.isArray(steps)) throw new Error('sequence root must be array');
+    sequenceMode = { steps, idx: 0, startedAt: null };
+    console.log(`[emulator] sequence loaded: ${seqPath} (${steps.length} steps)`);
+  } catch (err) {
+    console.error(`[emulator] --sequence 로드 실패: ${err.message}`);
+    process.exit(2);
+  }
+}
+
 const IS_DALTON = MODE === 'dalton';
 
 /* ── 채널 상태 ─────────────────────────────────────── */
@@ -138,8 +156,20 @@ function makeData(ch) {
   return JSON.stringify(msg);
 }
 
+function tickSequence() {
+  if (!sequenceMode || sequenceMode.startedAt === null) return;
+  const elapsed = Date.now() - sequenceMode.startedAt;
+  while (sequenceMode.idx < sequenceMode.steps.length &&
+         sequenceMode.steps[sequenceMode.idx].t_ms <= elapsed) {
+    const step = sequenceMode.steps[sequenceMode.idx++];
+    const c = getCh(step.ch ?? 0);
+    c.pressurePa = clamp(step.p_pa, PA_MIN, PA_MAX);
+  }
+}
+
 function sendAllData(ws) {
-  tickDrift();  // 채널 공통 drift 1회 갱신 (200ms tick)
+  tickSequence();  // sequence step 적용 (Phase 5.4 옵션 B, sequenceMode 만 활성)
+  tickDrift();     // 채널 공통 drift 1회 갱신 (200ms tick)
   for (const ch of channels) {
     if (ws.readyState === ws.OPEN) ws.send(makeData(ch));
   }
@@ -262,6 +292,12 @@ wss.on('connection', (ws, req) => {
   console.log(`\n[emulator] ▶ 연결됨 (${ip})`);
 
   ws.send(makeHello());
+
+  // sequence 모드 시 t_ms 기준 = process startedAt (sample.ts 와 동일 기준)
+  if (sequenceMode && sequenceMode.startedAt === null) {
+    sequenceMode.startedAt = startedAt;
+    console.log(`[emulator] sequence start: ${sequenceMode.steps.length} steps`);
+  }
 
   let interval = setInterval(() => sendAllData(ws), REPORT_MS);
 

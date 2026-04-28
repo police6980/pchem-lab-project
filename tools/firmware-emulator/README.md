@@ -169,33 +169,24 @@ const NOISE_ORDER   = ['off', 'quiet', 'normal', 'harsh', 'custom'];
 const presetByKey   = { '1':'off','2':'quiet','3':'normal','4':'harsh','5':'custom' };
 ```
 
-### 6.3 새 시나리오 모드 추가 (옵션 B 미리 보기)
+### 6.3 새 sequence replay 시나리오 (옵션 B — 구현 완료)
 
-JSON 시나리오 자동 재생 — 옵션 B 후속의 골격. 패턴: state 변수 + 시작 키 +
-`sendAllData` 직전 tick 함수.
+JSON 시퀀스 → emulator 자동 재생 → 회귀 검증. 구현 = `--sequence <path>` CLI
+인자 + `tickSequence()` (`emulator.js`). 사용법 = §7.6.
 
-```js
-import * as fs from 'fs';
-let scenarioMode = null;  // { steps:[{t_ms, ch, pressurePa}], idx, startedAt }
+JSON schema (`tools/firmware-emulator/scenarios/replay/*.json`):
 
-// 키 콜백
-if (key.name === 's') {
-  const data = JSON.parse(fs.readFileSync('scenarios/leak.json', 'utf8'));
-  scenarioMode = { steps: data.steps, idx: 0, startedAt: Date.now() };
-  return;
-}
-
-// sendAllData 직전 호출
-function tickScenario() {
-  if (!scenarioMode) return;
-  const elapsed = Date.now() - scenarioMode.startedAt;
-  while (scenarioMode.idx < scenarioMode.steps.length &&
-         scenarioMode.steps[scenarioMode.idx].t_ms <= elapsed) {
-    const s = scenarioMode.steps[scenarioMode.idx++];
-    getCh(s.ch).pressurePa = s.pressurePa;
-  }
-}
+```json
+[
+  { "t_ms": 0,    "ch": 0, "p_pa": 101325 },
+  { "t_ms": 3000, "ch": 1, "p_pa": 200000 },
+  { "t_ms": 6000, "ch": 0, "p_pa": 200000 }
+]
 ```
+
+step 순서 = 시간순. `t_ms` = process start 부터 elapsed (sample.ts 와 동일 기준).
+`ch` 생략 시 0. `p_pa` 는 `[81_000, 1_600_000]` 범위 clamp (PA_MIN/MAX).
+보간 = step 함수 (즉시 변경). linear 보간은 별 작업.
 
 ---
 
@@ -263,7 +254,19 @@ artifact 가 60초 측정에서 큼 (long duration 별 작업).
 2. `node run-scenario.js scenarios/<name>.json` 단일 실행 → 임계값 적정성 확인
 3. `run-all.js` 가 자동 포함 (scenarios/*.json glob)
 
-다른 종류 (sequence replay / outlier 가드 검증) 는 §6.3 골격 + 별 단위 테스트 영역.
+### 7.6 Sequence replay (옵션 B)
+
+sequence JSON → emulator `--sequence <path>` 자동 재생 → ws 데이터 수집 →
+입력 ↔ 출력 일치 검증 (각 step 의 `t_ms` ~+2000ms window 안에 첫 일치 sample).
+
+```bash
+node run-replay.js scenarios/replay/injection-sample.json
+```
+
+종료 코드 — 모두 일치 pass=0 / 1개라도 fail=1. 기본 `injection-sample.json`
+= ch1 200kPa → ch0 200kPa (주입 시뮬). 분 검증은 §6.3 schema 따라 신규 JSON 추가.
+
+다른 종류 (outlier 가드 검증) 는 별 단위 테스트 영역 (`tests/sensor-guard-test.js` 작성 예정).
 
 ---
 
