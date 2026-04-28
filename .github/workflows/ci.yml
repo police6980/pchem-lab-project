@@ -29,6 +29,9 @@ jobs:
       - name: outlier 가드 5 단계 unit test
         run: node --test tests/sensor-guard-test.js
 
+      - name: protocol.js parseV11Line unit test
+        run: node --test tests/protocol-test.js
+
       - name: 돌턴 입자간 충돌 7 검증
         run: node tests/dalton-collision-test.js
 
