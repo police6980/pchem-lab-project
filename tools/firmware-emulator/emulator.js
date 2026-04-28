@@ -60,6 +60,17 @@ const MODE = process.argv.includes('--mode')
   ? process.argv[process.argv.indexOf('--mode') + 1] || 'boyle'
   : 'boyle';
 
+// --noise <preset> CLI 인자 — 시작 시 noiseMode 설정 (시나리오 자동화용)
+if (process.argv.includes('--noise')) {
+  const preset = process.argv[process.argv.indexOf('--noise') + 1];
+  if (NOISE_ORDER.includes(preset)) {
+    noiseMode = preset;
+  } else {
+    console.error(`[emulator] --noise: 알 수 없는 preset "${preset}". 허용: ${NOISE_ORDER.join('/')}`);
+    process.exit(2);
+  }
+}
+
 const IS_DALTON = MODE === 'dalton';
 
 /* ── 채널 상태 ─────────────────────────────────────── */

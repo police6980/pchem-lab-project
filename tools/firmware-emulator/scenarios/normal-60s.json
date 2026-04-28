@@ -1,0 +1,11 @@
+{
+  "name": "normal-60s",
+  "description": "노이즈 normal (σ=2000 Pa + drift, spike X) 60초 — σ ≤ 3000 Pa, maxSpike ≤ 10000 Pa",
+  "preset": "normal",
+  "duration": 60,
+  "channel": 0,
+  "expect": {
+    "sigma_max_pa": 3000,
+    "maxSpike_max_pa": 10000
+  }
+}

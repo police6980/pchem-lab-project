@@ -1,0 +1,11 @@
+{
+  "name": "quiet-60s",
+  "description": "노이즈 quiet (σ=500 Pa, drift X, spike X) 60초 — σ ≤ 750 Pa, maxSpike ≤ 2500 Pa",
+  "preset": "quiet",
+  "duration": 60,
+  "channel": 0,
+  "expect": {
+    "sigma_max_pa": 750,
+    "maxSpike_max_pa": 2500
+  }
+}

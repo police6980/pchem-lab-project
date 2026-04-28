@@ -199,7 +199,75 @@ function tickScenario() {
 
 ---
 
-## 7. 트러블슈팅
+## 7. 회귀 테스트 (옵션 A — 노이즈 통계)
+
+A-1 노이즈 시나리오 (off / quiet / normal / harsh) 의 통계 회귀를 자동 검증.
+시나리오 JSON 명세 + 실행기 → emulator 자동 spawn → baseline 측정 → judge → 종료 코드.
+
+### 7.1 사용
+
+```bash
+# 단일 시나리오
+node run-scenario.js scenarios/quiet-60s.json
+
+# 일괄 (scenarios/*.json 모두)
+node run-all.js
+```
+
+종료 코드 — 모두 pass=0 / 1개라도 fail=1. CI 친화.
+
+### 7.2 시나리오 JSON schema
+
+```json
+{
+  "name": "quiet-60s",
+  "description": "...",
+  "preset": "off" | "quiet" | "normal" | "harsh",
+  "duration": 60,
+  "channel": 0,
+  "expect": {
+    "sigma_max_pa": 750,            // stats.sigma <= 임계값
+    "maxSpike_max_pa": 2500          // stats.maxSpike <= 임계값
+  }
+}
+```
+
+`expect` 안의 키만 검증 (생략 시 검증 X). drift 검증은 본 단계에서 X — head/tail 10% slice
+artifact 가 60초 측정에서 큼 (long duration 별 작업).
+
+### 7.3 현재 시나리오 4 종
+
+| 파일 | preset | σ_max (Pa) | maxSpike_max (Pa) | 검증 의도 |
+|---|---|---|---|---|
+| `off-60s.json` | off | 1 | 1 | deterministic 확인 (시뮬 본체 raw) |
+| `quiet-60s.json` | quiet | 750 | 2500 | preset σ=500 부합 |
+| `normal-60s.json` | normal | 3000 | 10000 | preset σ=2000 + drift 흡수 |
+| `harsh-60s.json` | harsh | 7500 | — | preset σ=5000. spike 검증 X (Bernoulli 의도) |
+
+임계값 = preset σ × 1.5 안전 여유. false fail 발견 시 임계값 조정 (`scenarios/*.json` 직접 편집).
+
+### 7.4 흐름 요약 (`run-scenario.js`)
+
+1. 시나리오 JSON 로드
+2. `child_process.spawn('node', [emulator.js, --mode dalton, --noise <preset>])` — `--noise` CLI 인자 (`emulator.js:60-69`)
+3. emulator listen grace 800 ms 대기
+4. `baseline.js` 의 `collect` import 재사용 → WebSocket 데이터 수집 (duration 초)
+5. emulator kill (Windows 호환 — `kill()` + 3 s 후 `kill('SIGKILL')` fallback)
+6. `baseline.js` 의 `computeStats` import 재사용 → σ / maxSpike / drift 계산
+7. `judge(stats, expect)` → checks 배열 + pass 여부
+8. stdout = JSON dump / stderr = PASS / FAIL 표시 + 종료 코드
+
+### 7.5 신규 시나리오 추가
+
+1. `scenarios/<name>.json` 신규 — 위 schema 따름
+2. `node run-scenario.js scenarios/<name>.json` 단일 실행 → 임계값 적정성 확인
+3. `run-all.js` 가 자동 포함 (scenarios/*.json glob)
+
+다른 종류 (sequence replay / outlier 가드 검증) 는 §6.3 골격 + 별 단위 테스트 영역.
+
+---
+
+## 8. 트러블슈팅
 
 | 증상 | 원인 / 해결 |
 |---|---|
@@ -212,7 +280,7 @@ function tickScenario() {
 
 ---
 
-## 8. cross-ref
+## 9. cross-ref
 
 - `docs/12-protocol-v1.2.md` — 프로토콜 명세 (메시지 타입 / Pa↔kPa / channels)
 - `docs/14-calibration-pipeline.md` — 캘리브 전략 C (브라우저 측 보정)

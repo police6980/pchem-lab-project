@@ -1,0 +1,10 @@
+{
+  "name": "harsh-60s",
+  "description": "노이즈 harsh (σ=5000 Pa + drift + spike + clip) 60초 — σ ≤ 7500 Pa (spike 검증 X — Bernoulli 의도)",
+  "preset": "harsh",
+  "duration": 60,
+  "channel": 0,
+  "expect": {
+    "sigma_max_pa": 7500
+  }
+}

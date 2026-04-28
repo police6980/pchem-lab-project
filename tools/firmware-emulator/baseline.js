@@ -31,6 +31,8 @@
 
 import WebSocket from 'ws';
 import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 // --- argparse (의존성 회피, process.argv 직접 처리)
 function parseArgs() {
@@ -62,8 +64,8 @@ function parseArgs() {
   return args;
 }
 
-// --- 데이터 수집
-async function collect({ url, duration }) {
+// --- 데이터 수집 (run-scenario.js 등에서 import 재사용)
+export async function collect({ url, duration }) {
   return new Promise((resolve, reject) => {
     const samplesByCh = { 0: [], 1: [] };
     let hello = null;
@@ -125,8 +127,8 @@ async function collect({ url, duration }) {
   });
 }
 
-// --- 통계 (단일 채널 samples 배열, p 필드 사용)
-function computeStats(samples, durationSec) {
+// --- 통계 (단일 채널 samples 배열, p 필드 사용) — export 재사용
+export function computeStats(samples, durationSec) {
   const xs = samples.map((s) => s.p).filter((x) => Number.isFinite(x));
   if (xs.length === 0) return null;
   const n = xs.length;
@@ -204,7 +206,11 @@ async function main() {
   if (stats1) console.log(`  ch1: mean=${stats1.mean}, σ=${stats1.sigma}, maxSpike=${stats1.maxSpike}, drift/min=${stats1.driftPerMin}`);
 }
 
-main().catch((err) => {
-  console.error(`[baseline] error: ${err.message}`);
-  process.exit(1);
-});
+// entry-point 검사 — import 시점엔 main 미실행, 직접 실행 시만 실행
+const __filename = fileURLToPath(import.meta.url);
+if (process.argv[1] && path.resolve(process.argv[1]) === __filename) {
+  main().catch((err) => {
+    console.error(`[baseline] error: ${err.message}`);
+    process.exit(1);
+  });
+}
