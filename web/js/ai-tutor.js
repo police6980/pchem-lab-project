@@ -1,5 +1,11 @@
 // AI tutor conversation state and message rendering.
 // Part 4: Anthropic API wired; docx report direct download (no modal).
+//
+// Phase 5.7 (a-2 회귀 정정): tutor.js 도입 후 SOFT_TURN_LIMIT 글로벌 const
+// 충돌 → IIFE 캡슐화. dead code 영역 (line 1~1042) 모두 IIFE 안. DOMContentLoaded
+// (IIFE 밖) 가 사용하는 2 함수 (downloadConversations / getConversationSummary)
+// 만 window.__boyleAiTutorLegacy 로 노출.
+(function() {
 
 // === Anthropic Messages API ===
 // Accesses ui.js via window.PchemTutor surface (exposed inside
@@ -1041,6 +1047,14 @@ function switchToQuestion(questionId) {
     updateReportButtonState();
 }
 
+// === IIFE 끝 — DOMContentLoaded 가 사용할 2 함수 window 노출 ===
+window.__boyleAiTutorLegacy = {
+    downloadConversations,
+    getConversationSummary,
+};
+
+})();  // IIFE 끝
+
 // === Init === (Phase 5.7 트랙 6-a-2 — Hybrid wrapper)
 //
 // 기존 wiring (탭 click / sendMessage / closeQuestion / generate-report click
@@ -1111,15 +1125,15 @@ document.addEventListener("DOMContentLoaded", () => {
             } else if (e.target?.closest?.("#btn-generate-report")) {
                 boyleTutor.generateReport();
             } else if (e.target?.closest?.("#btn-download-conversations")) {
-                downloadConversations();  // dead code 함수 활용 (downloadConversations 자체 외부 의존성 X)
+                window.__boyleAiTutorLegacy?.downloadConversations?.();
             }
         });
 
         boyleTutor.init();
 
-        // ui.js 측 PchemTutor.getConversationSummary 노출 (보고서 호환 영역, dead code 사용)
-        if (window.PchemTutor) {
-            window.PchemTutor.getConversationSummary = getConversationSummary;
+        // ui.js 측 PchemTutor.getConversationSummary 노출 (보고서 호환 영역)
+        if (window.PchemTutor && window.__boyleAiTutorLegacy) {
+            window.PchemTutor.getConversationSummary = window.__boyleAiTutorLegacy.getConversationSummary;
         }
     }
     tryInitBoyleTutor();
