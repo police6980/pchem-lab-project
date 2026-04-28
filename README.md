@@ -5,10 +5,13 @@
 실험(압력 센서)·탐구(AI 튜터 대화)의 연속성을 제공한다.
 
 현재 **보일의 법칙**·**입자운동론**·**돌턴의 부분압력** 3 실험 모듈.
-보일·입자운동은 완성, 돌턴은 Phase 5.3 완료 (학습 기능 + 충돌 시뮬 +
-AI 튜터). **Phase 5.4 진행 중** — 실센서 사전 준비 (멀티채널 protocol
-v1.2, multi-channel SensorSource, calibration pipeline, mock 일원화,
-params 외부화). 실물 도착 후 Step I 실센서 본편 진입 예정.
+보일·입자운동은 완성, 돌턴은 Phase 5.5 완료 (학습 기능 + 충돌 시뮬 +
+AI 튜터 + 실센서 인프라). **Phase 5.4 / 5.5 완료** — 실센서 사전 준비
+(멀티채널 protocol v1.2 + multi-channel SensorSource + outlier 가드
+5 단계 + A-1 노이즈 시나리오 + baseline.js + 시나리오 회귀 + sequence
+replay + outlier 가드 unit test + 보일 측정 통계 + 입자운동 가스 비교
++ AI 설정 패널 기본 열림 + CI workflow). **실물 도착 후 Step I 본편**
+(`docs/19-real-sensor-integration-checklist.md`).
 
 > 저장소 이름(`pchem-lab-project`)과 내부 식별자는 개발 초기 명칭을 유지한다.
 > UI·공개 문서에서는 정식 브랜드명 **CAST** 로 표기.
