@@ -978,11 +978,16 @@ ${convText}
         <h2 style="margin-top:1.2em;">차트</h2>
         <div>${chartsHtml}</div>
     `;
-    // off-screen 임시 부착 (html2pdf 가 캡처 시 layout 필요)
-    wrapper.style.position = "fixed";
-    wrapper.style.top = "-9999px";
+    // viewport 안 + opacity:0 — html2canvas 가 off-screen (top:-9999px) element
+    // 캡처 실패하는 케이스 회피. data-attribute 로 onclone 에서 강제 가시화.
+    wrapper.setAttribute("data-pdf-wrapper", "1");
+    wrapper.style.position = "absolute";
     wrapper.style.left = "0";
+    wrapper.style.top = "0";
     wrapper.style.width = "800px";
+    wrapper.style.opacity = "0";
+    wrapper.style.pointerEvents = "none";
+    wrapper.style.zIndex = "-1";
     document.body.appendChild(wrapper);
 
     try {
@@ -990,14 +995,32 @@ ${convText}
             margin:       [15, 12, 15, 12],
             filename:     `탐구보고서_${dateStr}.pdf`,
             image:        { type: 'jpeg', quality: 0.95 },
-            html2canvas:  { scale: 2, useCORS: true, backgroundColor: '#ffffff' },
+            html2canvas:  {
+                scale: 2,
+                useCORS: true,
+                backgroundColor: '#ffffff',
+                // clone document 안 wrapper 의 가시성 강제 (원본의 opacity:0 무시)
+                onclone: (clonedDoc) => {
+                    const w = clonedDoc.querySelector('[data-pdf-wrapper]');
+                    if (w) {
+                        w.style.position = 'static';
+                        w.style.opacity = '1';
+                        w.style.zIndex = 'auto';
+                        w.style.pointerEvents = 'auto';
+                    }
+                },
+            },
             jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' },
             pagebreak:    { mode: ['avoid-all', 'css', 'legacy'] },
         }).from(wrapper).save();
     } catch (err) {
         alert("⚠️ PDF 생성 중 오류: " + err.message);
     } finally {
-        document.body.removeChild(wrapper);
+        // .save() resolve 후 약간 지연 — 일부 html2pdf 버전은 download trigger 후
+        // 즉시 resolve. wrapper 제거가 download blob 생성 전이면 빈 PDF 위험.
+        setTimeout(() => {
+            if (wrapper.parentNode) document.body.removeChild(wrapper);
+        }, 200);
     }
     restorePdfReportBtn();
 }
