@@ -2610,6 +2610,55 @@ Phase 5.4 의 sensor 시스템 통합 직후 자율 진행 6 트랙. 실물 센�
 - docs/06 Phase 5.4 / 5.5 후반 갱신 — 현재 상태 권위 (별 turn)
 - CI 통합 — node:test (sensor-guard-test) + run-all.js (시나리오) 종료 코드 기반 자연 통합 가능
 
+### 2026-04-28 — Phase 5.5 후속 — 트랙 5 폐기 + AI 설정 패널 기본 열림 (commits e4ff285, fec088a)
+
+#### 한 일
+- 트랙 5 PDF 출력 폐기 (commits 2ac5323 + d54d35a 두 commit 의 변경 모두 무효화) — html2pdf.js CDN / `generatePdfReport()` / UI PDF 버튼 제거
+- AI 튜터 설정 패널 기본 열림 — 3 시뮬 (보일 / 돌턴 / 입자운동) 일관
+
+#### 결정: 트랙 5 PDF 출력 폐기
+
+**배경**: 트랙 5 PDF 출력 작성 (2ac5323) 후 사용자 검증 시 PDF 백지. wrapper positioning 정정 (d54d35a) 시도 (position absolute + opacity:0 + onclone + setTimeout removeChild) 후에도 동일. 추가 — 사용자 짚음 "docx 와 PDF 내용 동일, 중복".
+
+**결정**: PDF 출력 전면 폐기. 두 commit (2ac5323, d54d35a) 의 변경 무효화 (3 파일 / +8/-194). docx 단일 출력으로 복귀.
+
+**근거**:
+- docx 와 내용 동일 = 중복. 학생이 워드 / 구글독스에서 docx → PDF 저장 가능
+- html2canvas 의 p5 canvas / 차트 캡처 불안정 — 정정 비용 ↑ + 성공 보장 X
+- 폐기 = 코드 단순화 + 의존성 (html2pdf.js 600 KB) 제거
+
+**배제된 대안**:
+- 정정 추가 시도 (`preserveDrawingBuffer:true` / canvas → img 사전 변환 / 차트 영역만 별 캡처): 비용 ↑ + 성공 불확실
+- 다른 라이브러리 (jsPDF / pdfmake / window.print): 차트 / 한글 / 페이지 분리 처리 비용 동일하게 큼
+- docx 폐기 + PDF 만 유지: 사용자 의도 반대
+
+#### 결정: AI 튜터 설정 패널 기본 열림 (3 시뮬 일관)
+
+**배경**: AI 튜터 사이드바의 설정 패널 (API 키 안내 / 학생 수준 / 모델 / 토큰 사용량) 이 default = 닫힘. 학생이 ⚙ 클릭해야 보임 → 모델 변경 / 사용량 확인 진입 장벽. 직전 동작 = API 키 미설정 시만 자동 열림 (보일 / 돌턴) / 입자운동은 자동 열림 로직 자체 부재.
+
+**결정**: 3 시뮬 모두 첫 진입 시 설정 패널 펼침. ⚙ 클릭 토글 동작 유지 (닫고 다시 열기 가능).
+
+**구현 위치**:
+- 보일: `web/js/ai-tutor.js:1054` — `if (!sessionStorage...)` 가드 제거 → 항상 `add("open")`
+- 돌턴: `web/js/main.js:3155` — 동일 가드 제거
+- 입자운동: `web/js/ui.js:2129` — open add 로직 자체 신규 추가 (toggle 옆)
+
+**근거**:
+- 학생이 처음 진입 시 모델 / 사용량 즉시 인지 → 비용 통제 학습
+- 3 시뮬 일관 → 페이지 전환 시 학습 부담 ↓
+- ⚙ 토글 유지 → 시각 공간 필요 시 닫기 가능
+- 사용자 명세 직접 반영
+
+**배제된 대안**:
+- sessionStorage 가드 (이전 닫음 기억): 사용자 의도 반대
+- 시뮬별 차등 (예: 보일만 열림): 일관성 ↓
+- 설정을 별 모달 / 페이지로 분리: UI 변경 폭 큼
+
+#### 후속 의무 (TODO)
+
+- push 시점 사용자 결정
+- 다음 트랙 = 실물 센서 도착 후 Step I 본편 (대기)
+
 ### Phase 5.5 마일스톤 (2026-04-28 종료, 본 자율 진행 묶음 완료)
 
 - 6 commits (`531a1d6` → `317f6e9`), `phase5-real-sensor` 브랜치
