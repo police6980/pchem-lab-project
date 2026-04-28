@@ -623,6 +623,9 @@ function createTutor(config) {
     // 보일 Q3 패턴 — 측정 데이터 기반 탐구 질문 자동 생성. config.autoQuestionTabIds=['3'] 시 활성.
     async function generateAutoQuestion(qid) {
         if (!config.autoQuestionTabIds?.includes(qid)) return;
+        // (a-2) 회귀 2차 방어: aria-disabled 탭은 자동 질문도 차단 (외부 호출 안전망)
+        const tabBtn = sidebar.querySelector(`.tab-btn[data-q="${qid}"]`);
+        if (tabBtn?.getAttribute("aria-disabled") === "true") return;
         const conv = conversations[qid];
         if (!conv || conv.messages.length > 0) return;  // 이미 conversation 있으면 skip
 
@@ -716,6 +719,7 @@ function createTutor(config) {
         dom.tabBtns.forEach(btn => {
             btn.addEventListener("click", (e) => {
                 if (e.target.classList.contains("tab-reset")) return;  // reset 버튼 분리
+                if (btn.getAttribute("aria-disabled") === "true") return;  // (a-2) 회귀: 회색 탭 클릭 차단
                 const q = btn.dataset.q;
                 if (q && q !== activeQuestion) switchToQuestion(q);
             });
