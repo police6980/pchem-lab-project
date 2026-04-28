@@ -2126,6 +2126,42 @@ Phase 5.3 (`ccdfe22` 측정 기록 토글 폐기 + 행 삭제, `be90646` Phase 5
 - (대기) Phase 5.x — Matter.js 별 브랜치
 - (대기) [A] AI 튜터 통합 — Phase 6/7 신규 시뮬 추가 직전
 
+### 2026-04-28 — Matter.js 도입 안 함 결정 (직전 결정 번복)
+
+#### 결정: Matter.js 도입 안 함 — 직접 구현 유지 (Phase 5.x 별 브랜치 폐기)
+
+**배경**: 직전 세션 결정 (옵션 C — patch + Matter.js 별 브랜치 후속) 에서 별 브랜치 부분 폐기. 입자 stuck 변형 발견 (R1, R5) 마다 patch fix 로 대응 정책 확정.
+
+**결정**: 직접 구현 충돌 시뮬 + 5-region 모델 + Maxwell-Boltzmann 분포 (Box-Muller) 유지. Matter.js / p2.js / 기타 물리 엔진 라이브러리 도입 X.
+
+**근거**:
+1. 학습 도구 투명성 — 블랙박스 라이브러리 vs 코드 추적 가능한 직접 구현. 학생/교사가 입자 운동 계산을 직접 검증 가능
+2. Maxwell-Boltzmann 분포 정확성 — Box-Muller 직접 제어. 라이브러리의 friction / restitution 부수 효과 / 부동소수점 누적 drift 회피
+3. 5-region 모델 자연스러움 — 돌턴 도메인 특화 구조. 라이브러리의 단일 World 가정과 부자연스러운 wrap 회피
+4. 논문 방법론 가치 — 충돌 시뮬 v1~v5 정정 (Phase 5.3 일지) 자체가 1차 자료. 라이브러리 도입 시 이 자산 폐기
+5. 가벼움 + 외부 의존 X — 단일 파일 (main.js), CDN 의존 / 버전 lock / 라이브러리 버그 회피
+
+**향후 stuck 류 변형 발견 시**: patch fix 로 대응. 본 세션의 0.5 px epsilon (R1: d4b6979, R5: 72403ca) 가 같은 메커니즘의 두 변형 정정 — 향후 변형도 동일 패턴.
+
+**비용 인정**:
+- patch fix 누적 시 코드 가독성 ↓ — 단, 현재 patch (epsilon clamp) 가 충분히 단순
+- Phase 6/7 신규 시뮬에서 충돌 시뮬 재구현 시 부담 — 단, 현재 / 가까운 미래에 다체 / 유체 / 3D 시뮬 계획 없음
+
+**비용이 가치를 넘는 시점** (재논의 트리거):
+- 다체 충돌 (화학 반응 시뮬)
+- 연속체 / 유체 시뮬
+- 3D 시뮬
+
+**배제된 대안**:
+- Matter.js 도입 (1~3 세션 비용)
+- p2.js / planck.js / rapier.js (동일 비용 패턴)
+- 충돌 시뮬 모듈 분리 + 라이브러리 swap 가능 구조 (옵션 4 — 분리 자체가 큰 작업)
+- dual mode (직접 구현 + 라이브러리 선택) (옵션 5 — 비용 가장 큼)
+
+**관련 commits**: d4b6979 (R1 patch), 72403ca (R5 patch)
+
+**번복 대상**: 본 entry 이전 다수 엔트리 (1958 부근 "향후 작업: Phase 5.x ... Matter.js 도입 검토", 2079 / 2126 의 `(대기) Phase 5.x — Matter.js 별 브랜치` 항목). 위 기록 자체는 보존 (시간순 추적 가능) — 본 결정 이후 효력 폐기.
+
 ### Phase 5.4 마일스톤 (2026-04-27 종료)
 
 - 5 commits (`dc7ca57` → `fc1cedc`), `phase5-real-sensor` 브랜치
