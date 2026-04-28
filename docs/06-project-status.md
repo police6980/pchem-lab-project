@@ -2,11 +2,11 @@
 
 **문서 목적**: 현재 구현 상태와 남은 작업의 마스터 트래커. 다른 설계 문서는 "어떻게 만들어졌는가"를 설명하고, 이 문서는 "어디까지 왔는가"를 기록한다.
 
-**마지막 업데이트**: 2026-04-27 (Phase 5.4 진행 — 실센서 사전 준비 + 정리 단계)
+**마지막 업데이트**: 2026-04-28 (Phase 5.4 완료 + Phase 5.5 회귀 인프라 + 학습 보강 완료)
 **프로젝트 정식명**: **CAST** (Chemistry AI-assisted Simulation & MBL Tools). 저장소 이름 `pchem-lab-project` 는 개발 초기 명칭 호환 차원에서 유지.
-**현재 상태**: 보일 법칙 실험 + 입자운동론 심화 모듈 + AI 튜터 완성. **Phase 3 소프트웨어 완성** (`phase3-real-sensor` 브랜치 — Step 3-6 실물 조립·검증만 하드웨어 대기). **랜딩 페이지 + 3 페이지 분리 완성** (`feature/landing-page` 브랜치). **Phase 5.1 + 5.2 + 5.3 완료** (`feature/dalton-experiment` 브랜치): Phase 5.1 UI·상태머신 + Phase 5.2 시뮬 엔진 + **Phase 5.3 학습 기능** (40 commits / 3일). **Phase 5.4 진행 중** (`phase5-real-sensor` 브랜치): 실센서 사전 준비 — protocol v1.2 멀티채널 + multi-channel SensorSource (mock/ws/real 단일 경로) + calibration pipeline + `params.dalton.sensor` 5 상수 외부화 + AI 튜터 Q3↔Q4 swap (보일/돌턴) + 입자운동 16 질문 차등 + 입자 stuck patch (R1/R5 epsilon) + record 키 P_A/P_B 일반화. 약 20 commits / 1일.
+**현재 상태**: 보일 법칙 실험 + 입자운동론 심화 모듈 + AI 튜터 완성. **Phase 3 소프트웨어 완성** (`phase3-real-sensor` 브랜치 — Step 3-6 실물 조립·검증만 하드웨어 대기). **랜딩 페이지 + 3 페이지 분리 완성** (`feature/landing-page` 브랜치). **Phase 5.1 + 5.2 + 5.3 완료** (`feature/dalton-experiment` 브랜치). **Phase 5.4 완료** (`phase5-real-sensor` 브랜치, 2026-04-27 ~ 28): protocol v1.2 멀티채널 + multi-channel SensorSource + calibration pipeline + `params.dalton.sensor` 5 상수 외부화 + outlier 가드 5 단계 + A-1 노이즈 시나리오 (off/quiet/normal/harsh) + baseline.js + 시나리오 회귀 (run-scenario.js + run-all.js) + AI 튜터 Q3↔Q4 swap + 16 질문 차등 + R1/R5 stuck patch. **Phase 5.5 완료** (2026-04-28): 회귀 인프라 (sequence replay run-replay.js + outlier 가드 unit test 11/11 PASS) + 학습 보강 (보일 측정 통계 σ/min-max/ln-ln 회귀 + 입자운동 가스 비교 Graham 직관) + AI 설정 패널 기본 열림 + docs 권위 정합화 (docs/15 신규 + docs/03 갱신 + cross-ref 8 위치).
 **최신 태그**: `v0.4-boyle-complete` (main). 추가 브랜치 태그: `phase5.1-complete` (`feature/dalton-experiment`). 병합 대기 브랜치 6개: `phase3-real-sensor` / `feature/landing-page` / `feature/particle-controls` / `feature/responsive-canvas` / `feature/dalton-experiment` / `phase5-real-sensor`.
-**다음 단계**: (1) **Step I 실센서 본편** (실물 DFRobot Gravity 1.6MPa 입수 후 — 캘리브 검증 + 본 데이터 수집), (2) **Phase 5.x — Matter.js 별 브랜치** (`experiment/matter-js`) — 직접 구현 patch 누적 패턴 한계 → 라이브러리 비교 자료, (3) **[A] AI 튜터 통합 별 브랜치** (`phase5-tutor-unify`) — Phase 6/7 신규 시뮬 추가 직전, (4) **Phase 7** (샤를 페이지) 분기 결정, (5) 병합 대기 브랜치들 순차 main 통합.
+**다음 단계**: (1) **Step I 실센서 본편** (실물 DFRobot Gravity 1.6MPa × 2 입수 후 — `docs/19-real-sensor-integration-checklist.md` 따라 진행, baseline.js 실물 모드 추가 + 시나리오 실물 baseline), (2) **[A] AI 튜터 통합 별 브랜치** (`phase5-tutor-unify`) — Phase 6/7 신규 시뮬 추가 직전, (3) **Phase 7** (샤를 페이지) 분기 결정, (4) 병합 대기 브랜치들 순차 main 통합. **폐기**: Matter.js 별 브랜치 (Phase 5.5 결정 — 직접 구현 + patch fix 정책 확정).
 
 ---
 
@@ -364,25 +364,38 @@ Arduino·ESP32 하드웨어 입수 전 선행 가능한 브라우저·프로토�
 
 ## 3. 진행 중인 작업
 
-**Phase 5.4: 돌턴 실센서 사전 준비** — 멀티채널 protocol + SensorSource + calibration pipeline + 정리 단계 (`phase5-real-sensor` 브랜치, 2026-04-27).
+**Phase 5.4 완료** (`phase5-real-sensor` 브랜치, 2026-04-27 ~ 28) — 돌턴 실센서 사전 준비. **Phase 5.5 완료** (2026-04-28) — 회귀 인프라 + 학습 보강 6 트랙.
 
-**완료 (Phase 5.4, 2026-04-27)**
+**완료 (Phase 5.4, 2026-04-27 ~ 28)**
 - [x] Protocol v1.2 — 멀티채널 (`ch` 필드) + 호환 모드 (`docs/12-protocol-v1.2.md`)
 - [x] Multi-channel SensorSource — `onChannelData(ch, p_kPa)` 단일 경로, 채널 ↔ 게이지 라우팅 (`docs/13-multi-channel-interface.md`)
 - [x] Calibration pipeline — 영점 보정 + 2점 보정 흐름 (`docs/14-calibration-pipeline.md`)
 - [x] mock/ws/real 데이터 흐름 일원화 + 처리 정책 차등 (mock = 즉시 반영 / 임계값 우회로 deterministic 보존, ws/real = EMA α=0.2 / 임계값 2 kPa)
-- [x] `params.dalton.sensor` 5 상수 외부화 (EMA α / 임계값 / mock interval / 노이즈 σ / safety timeout 여유)
-- [x] AI 튜터 Q3 ↔ Q4 swap (보일/돌턴) — Q4 = 메타 탭 (📊 질문 생성)
-- [x] 입자운동 AI 튜터 16 질문 (4 levels × Q1~Q4) 차등 — 보일/돌턴 패턴 일관
-- [x] 입자운동 ai-tutor.js 비활성 버그 fix (particles.html script 제거 — `createAdvAiTutor` 자체 처리)
-- [x] 입자 stuck patch — A 박스 (R1, d4b6979) + B 박스 (R5, 72403ca), 0.5 px epsilon 안전 마진
-- [x] 측정 기록 / CSV / record 데이터 키 일반화 — P_공기·P_CO₂ → P_A·P_B 위치 기반 (그래프 범례 동적 생성)
-- [x] 폐기 마커 주석 + dead state 정리 (★★★ 12 위치)
+- [x] `params.dalton.sensor` 5 상수 외부화 (`docs/15-params-config-guide.md` 권위)
+- [x] **outlier 가드 5 단계** — manager._dispatchData 단일 위치, silent guard (NaN / 음수 / saturation / median spike / state 갱신, `docs/03 §3.8`)
+- [x] **A-1 노이즈 시나리오 모드** — emulator opt-in 4 preset (off/quiet/normal/harsh, `tools/firmware-emulator/README.md §4`)
+- [x] **baseline.js** — 노이즈 특성 정량화 스크립트 (σ / maxSpike / drift, 회귀 baseline)
+- [x] **시나리오 회귀** — run-scenario.js + run-all.js, 4 시나리오 4/4 PASS (`tools/firmware-emulator/README.md §7`)
+- [x] AI 튜터 Q3 ↔ Q4 swap (보일/돌턴) + 입자운동 16 질문 차등
+- [x] 입자 stuck patch — R1 (d4b6979) + R5 (72403ca), 0.5 px epsilon
+- [x] 측정 기록 / CSV / record 데이터 키 일반화 (P_A/P_B 위치 기반)
+- [x] **docs 권위 정합화** — docs/15 신규 + docs/03 Phase 5.4 갱신 + docs/19 §4 v1.2 정정 + cross-ref 8 위치
+- [x] **에뮬레이터 README** + **개발자 onboarding (docs/16)** + **Step I 절차서 (docs/19)** 신규
+
+**완료 (Phase 5.5, 2026-04-28)** — 회귀 인프라 + 학습 보강 자율 6 트랙
+- [x] **트랙 1 sequence replay (옵션 B)** — emulator `--sequence` + run-replay.js + injection-sample.json 8/8 PASS
+- [x] **트랙 2 outlier 가드 unit test** — `tests/sensor-guard-test.js` node:test 11/11 PASS
+- [x] **트랙 3 보일 측정 통계** — σ_PV + min/max + ln-ln 회귀 (slope/R²)
+- [x] **트랙 4 가스 비교 (단순화)** — 입자운동 Graham 법칙 직관 (이론 vs 실측 v̄ 비율)
+- [x] ~~트랙 5 PDF 출력~~ → **폐기** (docx 와 중복, html2canvas 차트 캡처 불안정)
+- [x] **트랙 6 docs/16 §9 stale 정리**
+- [x] **AI 튜터 설정 패널 기본 열림** — 3 시뮬 (보일/돌턴/입자운동) 일관
 
 **남은 작업 (Phase 5.4 → Step I)**
-- [ ] Step I 본편: 실물 DFRobot Gravity 1.6MPa 채널 2개 조립·플래시·캘리브 검증·본 데이터 수집
+- [ ] Step I 본편: 실물 DFRobot Gravity 1.6MPa × 2 조립·플래시·캘리브 검증·본 데이터 수집 — `docs/19-real-sensor-integration-checklist.md` 따라
+- [ ] baseline.js 실물 모드 — `npm install serialport` + `--source` 분기 (도착 후)
 
-**Phase 3 잔여**: `phase3-real-sensor` 브랜치 — Step 3-1~3-5 소프트웨어 완료 (브라우저 `WebSocketSensorSource` / `WebSerialSensorSource` + UI 삼항 토글 + AI 튜터 데이터 소스 인식). Step 3-6 실물 조립·검증 하드웨어 도착 대기. Phase 5.4 → Step I 와 동시 진행 가능 (실물 입수 시).
+**Phase 3 잔여**: `phase3-real-sensor` 브랜치 SW 완료. Step 3-6 실물 조립·검증 하드웨어 도착 대기. Phase 5.4/5.5 → Step I 와 동시 진행 가능.
 
 ---
 
@@ -529,3 +542,7 @@ Arduino·ESP32 하드웨어 입수 전 선행 가능한 브라우저·프로토�
 - `12-protocol-v1.2.md` — Phase 5.4 — 멀티채널 protocol v1.2 명세 (`ch` 필드)
 - `13-multi-channel-interface.md` — Phase 5.4 — multi-channel SensorSource 인터페이스 + 게이지 라우팅
 - `14-calibration-pipeline.md` — Phase 5.4 — 실센서 캘리브레이션 파이프라인 (영점 + 2점 보정)
+- `15-params-config-guide.md` — Phase 5.4 — params.json + SCENE + gases 권위
+- `16-developer-onboarding.md` — 개발자 / 새 PC 진입 가이드
+- `19-real-sensor-integration-checklist.md` — Phase 5 Step I 단일 절차서 (실물 도착 시)
+- `tools/firmware-emulator/README.md` — 에뮬 권위 (CLI 키 / 노이즈 4 모드 / 시나리오 회귀)
