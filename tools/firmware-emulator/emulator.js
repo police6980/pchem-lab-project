@@ -15,6 +15,12 @@
  *   w/s: ch1 ±10 kPa, a/d: ch1 ±1 kPa
  *   i: 주입 시뮬 (ch1→ch0, A→B 기체 이동)
  *
+ * 노이즈 시나리오 (Phase 5.4 A-1, 실물 SEN0257 패턴 시뮬):
+ *   n: off → quiet → normal → harsh → off 순환 토글
+ *   1: off (raw)  2: quiet (σ=0.5kPa)
+ *   3: normal (σ=2kPa + drift)  4: harsh (σ=5kPa + drift + spike + clip)
+ *   기본 'off' — 기존 raw 동작 보존 (opt-in)
+ *
  * 범위 81~400 kPa. 실행: npm start (또는 node emulator.js)
  */
 
@@ -28,6 +34,27 @@ const REPORT_MS = 200;   // 5Hz
 const PA_MIN    = 81_000;
 const PA_MAX    = 400_000;
 const PA_RESET  = 101_325;
+
+/* ── 노이즈 시나리오 (Phase 5.4 A-1) ─────────────────
+ * 실물 SEN0257 추정 σ=2~4 kPa 패턴 시뮬. 기본 'off'.
+ * normal preset = 실물 대응. harsh = spike + clip 검증용. */
+
+const NOISE_PRESETS = {
+  off:    { sigmaPa: 0,    drift: false, spike: false, clip: false, label: 'raw (노이즈 없음)' },
+  quiet:  { sigmaPa: 500,  drift: false, spike: false, clip: false, label: 'σ=0.5 kPa' },
+  normal: { sigmaPa: 2000, drift: true,  spike: false, clip: false, label: 'σ=2 kPa + drift' },
+  harsh:  { sigmaPa: 5000, drift: true,  spike: true,  clip: true,  label: 'σ=5 kPa + drift + spike + clip' },
+};
+const NOISE_ORDER = ['off', 'quiet', 'normal', 'harsh'];
+const SPIKE_PROB  = 0.02;     // Bernoulli — 200ms tick 당 2% (30초 평균 3회)
+const SPIKE_SIGMA = 50_000;   // ±50 kPa
+const DRIFT_SIGMA = 5;        // Pa 단위. tick 당 std = 5 * (200/1000) = 1 Pa
+const DRIFT_LIMIT = 2_000;    // ±2 kPa clamp
+const CLIP_MIN    = 81_000;   // 0.81 bar (PA_MIN 일치)
+const CLIP_MAX    = 1_600_000;// 1.6 MPa (센서 한계)
+
+let noiseMode = 'off';
+let driftPa   = 0;
 
 const MODE = process.argv.includes('--mode')
   ? process.argv[process.argv.indexOf('--mode') + 1] || 'boyle'
@@ -60,6 +87,29 @@ function getCh(idx) {
   return channels.find(c => c.ch === idx) || channels[0];
 }
 
+function gaussian(mean, std) {
+  const u1 = Math.random() || 1e-9;
+  const u2 = Math.random();
+  const z = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
+  return mean + z * std;
+}
+
+function tickDrift() {
+  if (!NOISE_PRESETS[noiseMode].drift) return;
+  driftPa = clamp(driftPa + gaussian(0, DRIFT_SIGMA) * (REPORT_MS / 1000), -DRIFT_LIMIT, DRIFT_LIMIT);
+}
+
+function applyNoise(rawPa) {
+  const preset = NOISE_PRESETS[noiseMode];
+  if (noiseMode === 'off') return rawPa;
+  let p = rawPa;
+  if (preset.drift) p += driftPa;
+  if (preset.spike && Math.random() < SPIKE_PROB) p += gaussian(0, SPIKE_SIGMA);
+  if (preset.sigmaPa > 0) p += gaussian(0, preset.sigmaPa);
+  if (preset.clip) p = clamp(p, CLIP_MIN, CLIP_MAX);
+  return Math.round(p);
+}
+
 /* ── 프로토콜 메시지 생성 ──────────────────────────── */
 
 function makeHello() {
@@ -71,12 +121,14 @@ function makeHello() {
 }
 
 function makeData(ch) {
-  const msg = { t: 'd', p: ch.pressurePa, T: ch.tempC, ts: Date.now() - startedAt };
+  const reportedPa = applyNoise(ch.pressurePa);
+  const msg = { t: 'd', p: reportedPa, T: ch.tempC, ts: Date.now() - startedAt };
   if (channels.length > 1) msg.ch = ch.ch;
   return JSON.stringify(msg);
 }
 
 function sendAllData(ws) {
+  tickDrift();  // 채널 공통 drift 1회 갱신 (200ms tick)
   for (const ch of channels) {
     if (ws.readyState === ws.OPEN) ws.send(makeData(ch));
   }
@@ -129,12 +181,29 @@ process.stdin.on('keypress', (str, key) => {
   // 공통 키
   if (key.name === 'r') {
     for (const c of channels) c.pressurePa = PA_RESET;
+    driftPa = 0;  // 리셋 시 drift 도 함께 0
     printState();
     return;
   }
   if (key.name === 'q' || (key.ctrl && key.name === 'c')) {
     console.log('\n[emulator] 종료');
     process.exit(0);
+  }
+
+  // 노이즈 모드 — 'n' 토글, '1'~'4' preset 직접 선택
+  if (key.name === 'n') {
+    const i = NOISE_ORDER.indexOf(noiseMode);
+    noiseMode = NOISE_ORDER[(i + 1) % NOISE_ORDER.length];
+    if (noiseMode === 'off') driftPa = 0;
+    printState();
+    return;
+  }
+  const presetByKey = { '1': 'off', '2': 'quiet', '3': 'normal', '4': 'harsh' };
+  if (presetByKey[key.name]) {
+    noiseMode = presetByKey[key.name];
+    if (noiseMode === 'off') driftPa = 0;
+    printState();
+    return;
   }
 });
 
@@ -161,10 +230,12 @@ function printState() {
   });
 
   const keys = IS_DALTON
-    ? '↑↓←→:ch0  wsad:ch1  i:주입  r:리셋  q:종료'
-    : '↑↓±10kPa ←→±1kPa  r:리셋  q:종료';
+    ? '↑↓←→:ch0  wsad:ch1  i:주입  n:노이즈(1-4)  r:리셋  q:종료'
+    : '↑↓±10kPa ←→±1kPa  n:노이즈(1-4)  r:리셋  q:종료';
 
-  process.stdout.write(`\r[emulator:${MODE}] ${parts.join(' | ')}  (${keys})  `);
+  const noiseStr = `noise:${noiseMode} [${NOISE_PRESETS[noiseMode].label}]`;
+
+  process.stdout.write(`\r[emulator:${MODE}] ${parts.join(' | ')}  ${noiseStr}  (${keys})  `);
 }
 
 /* ── WebSocket 서버 ─────────────────────────────────── */
