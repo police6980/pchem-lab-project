@@ -2,7 +2,11 @@
 
 **문서 목적**: 시뮬레이션의 물리 모델, 박스 기하, 충돌 규칙, 시각화 규칙, 측정 UX 규칙을 정의한다. 구현의 기준이 된다.
 
-**마지막 업데이트**: 2026-04-26 (Phase 5.3 — 돌턴 입자간 충돌 § 4.5 추가, 분자 수 단일 산출 함수 § 2.4 추가).
+**마지막 업데이트**: 2026-04-28 (Phase 5.4: R1/R5 epsilon stuck patch 추가 / Matter.js 도입 안 함 결정).
+
+**Phase 5.4 변경 요약**:
+- 입자 stuck patch — A 박스 (R1, commit `d4b6979`) + B 박스 (R5, `72403ca`), 0.5 px epsilon 안전 마진. corrective clamp 가 boundary 정확 위치에 두고 vx≈0 → wall reflect 미발동 stuck 회피.
+- Matter.js 등 외부 물리 엔진 도입 안 함 — 직접 구현 충돌 시뮬 + 5-region 모델 + Maxwell-Boltzmann (Box-Muller) 유지 결정. 5 가치 (학습 도구 투명성 / 분포 정확성 / 5-region 도메인 적합성 / 논문 방법론 / 가벼움). 의사결정 본문 = `docs/10-dev-journal.md` 2026-04-28 Matter.js 결정.
 
 ---
 

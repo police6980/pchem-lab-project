@@ -2,8 +2,8 @@
 
 **문서 목적**: Phase 2-B 이후 모든 개발 단계 통합 계획. 우선순위·의존관계·예상 소요·결정 이슈 기록. **06**이 "현재 상태"라면 **09**는 "미래 방향".
 
-**마지막 업데이트**: 2026-04-27 (Phase 5.4 진행 — 실센서 사전 준비 + [C] 입자운동 16 질문 차등 완료)
-**기준 상태**: Phase 1 MVP 완료, Phase 2-A/2-B 완료 (v0.4-boyle-complete), **Phase 3 소프트웨어 완료** (Step 3-6 실물 대기 — `phase3-real-sensor` 브랜치), **Phase 4.5 심화 탐구 모드 완료** (`feature/particle-controls`, 병합 대기), **반응형 레이아웃 + 단위 병기 완료** (`feature/responsive-canvas`, 병합 대기), **Phase 5.1 + 5.2 + 5.3 돌턴 완료** (`feature/dalton-experiment`), **Phase 5.4 진행 중** (`phase5-real-sensor` — 멀티채널 protocol v1.2 + multi-channel SensorSource + calibration pipeline + params 외부화 + AI 튜터 Q3↔Q4 swap + 입자운동 16 질문 차등)
+**마지막 업데이트**: 2026-04-28 (Phase 5.4 / 5.5 완료 — 멀티채널 + 회귀 인프라 + 학습 보강)
+**기준 상태**: Phase 1 MVP 완료, Phase 2-A/2-B 완료 (v0.4-boyle-complete), **Phase 3 소프트웨어 완료** (Step 3-6 실물 대기 — `phase3-real-sensor` 브랜치), **Phase 4.5 심화 탐구 모드 완료** (`feature/particle-controls`, 병합 대기), **반응형 레이아웃 + 단위 병기 완료** (`feature/responsive-canvas`, 병합 대기), **Phase 5.1 + 5.2 + 5.3 돌턴 완료** (`feature/dalton-experiment`), **Phase 5.4 완료** (`phase5-real-sensor` — protocol v1.2 + multi-channel SensorSource + outlier 가드 + A-1 노이즈 + baseline.js + 시나리오 회귀 + docs 권위 정합화), **Phase 5.5 완료** (회귀 인프라 6 트랙 + 학습 보강 + AI 설정 패널 기본 열림 + CI workflow). **Step I 실물 대기**.
 
 ---
 
@@ -16,9 +16,11 @@
 - [계획] **Phase 4**: Mock ↔ 실센서 비교 UX
 - [완료·병합 대기] **Phase 4.5**: 심화 탐구 모드 (`feature/particle-controls`)
 - [완료·병합 대기] **반응형 레이아웃 + 단위 병기**: `feature/responsive-canvas` (§4.6 참조)
-- [진행] **Phase 5**: 돌턴의 부분압력 (Phase 5.1·5.2·5.3 완료, **Phase 5.4 실센서 사전 준비 진행**, Step I 본편 실물 대기)
-- [계획] **Phase 5.x**: Matter.js 별 브랜치 (`experiment/matter-js`) — 직접 구현 patch 누적 한계 → 라이브러리 비교 자료
-- [계획] **[A] AI 튜터 통합**: `phase5-tutor-unify` — Phase 6/7 신규 시뮬 추가 직전
+- [완료] **Phase 5**: 돌턴의 부분압력 (Phase 5.1 ~ 5.5 완료, **Step I 본편 실물 대기**)
+  - Phase 5.4 = 실센서 사전 준비 (멀티채널 + outlier 가드 + A-1 노이즈 + baseline.js + 시나리오 + docs 정합화)
+  - Phase 5.5 = 회귀 인프라 + 학습 보강 6 트랙 + 후속 (PDF 폐기 + 설정 패널) + CI workflow
+- [폐기] ~~Phase 5.x Matter.js 별 브랜치~~ — Phase 5.5 결정: 직접 구현 + patch fix 정책 확정 (`docs/10` Matter.js 결정)
+- [보류] **[A] AI 튜터 통합**: `phase5-tutor-unify` — 실물 도착 후 Step I 완료 뒤 별 세션 (CC 권장 분기 시점)
 - [계획] **Phase 6**: 교사 도구 (대시보드, 다중 사용자)
 - [계획] **Phase 7**: 다른 법칙 확장 (샤를, 게이뤼삭) — 기존 Phase 5 에서 이연
 - [장기] **Phase 8+**: 배포·상용화·연구 발표

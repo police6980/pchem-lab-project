@@ -2,9 +2,8 @@
 
 **문서 목적**: 펌웨어-브라우저 간 통신, 시뮬레이션 내부 상태, CSV 로그 파일의 데이터 포맷을 정의한다.
 
-**마지막 업데이트**: 2026-04-27 (Phase 5.4 진행 — 프로토콜 v1.2 멀티채널 신규,
-돌턴 CSV / record 데이터 키 P_공기·P_CO₂ → **P_A·P_B 위치 기반 일반화**).
-프로토콜 v1.2 본문은 `docs/12-protocol-v1.2.md` 정합 — 본 문서는 요약·교차참조.
+**마지막 업데이트**: 2026-04-28 (Phase 5.4 완료 — 프로토콜 v1.2 멀티채널 + outlier 가드 5 단계 + 돌턴 CSV / record 데이터 키 P_공기·P_CO₂ → **P_A·P_B 위치 기반 일반화**).
+프로토콜 v1.2 본문 권위 = `docs/12-protocol-v1.2.md`. ws/real 데이터의 outlier 가드 (NaN / 음수 / saturation / median spike) 는 SensorManager 단일 위치 silent 처리 — 본 문서는 wire format 만, 가드 동작 권위 = `docs/03-software-architecture.md §3.8`.
 
 ---
 

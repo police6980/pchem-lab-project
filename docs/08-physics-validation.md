@@ -2,8 +2,14 @@
 
 **문서 목적**: 시뮬레이션이 통계역학 이론과 일치하는지 검증한 기록. 수업 투입·논문 발표·공동연구자 검토 시 근거 자료로 사용한다.
 
-**마지막 업데이트**: 2026-04-26 (Phase 5.3 완료 — 돌턴 입자간 충돌 정량 검증 § 9 추가).
-**검증 단계**: Phase 1 MVP 완료 시점
+**마지막 업데이트**: 2026-04-28 (Phase 5.5 — sensor-guard 11/11 PASS + 시나리오 회귀 4/4 PASS + sequence replay 8/8 PASS 추가. Phase 5.3 = 돌턴 입자간 충돌 정량 검증 § 9).
+**검증 단계**: Phase 1 MVP / Phase 5.3 / Phase 5.4 / Phase 5.5
+
+**Phase 5.4/5.5 추가 검증** (회귀 인프라):
+- **outlier 가드 5 단계 단위 테스트** (`tests/sensor-guard-test.js`, node:test 11/11 PASS) — NaN drop / 음수 fallback / saturation clip / median spike / 채널별 분리 / rate-limit warn / mock 무영향. 권위 = `web/js/serial.js manager._dispatchData`.
+- **A-1 노이즈 시나리오 회귀** (`tools/firmware-emulator/run-all.js`, 4/4 PASS) — off / quiet / normal / harsh × 60s × ch0 의 σ / maxSpike 임계값 (σ ×1.5 안전 여유). quiet σ=509.83 ↔ preset σ=500 부합 검증.
+- **sequence replay** (`tools/firmware-emulator/run-replay.js`, 8/8 PASS) — `injection-sample.json` 의 step 8 개 ↔ 출력 sample 일치 (window 2000ms 안 첫 일치).
+- **CI 자동화** (`.github/workflows/ci.yml`) — push 시 sensor-guard + dalton-collision 단위 테스트 자동 실행.
 
 ---
 
