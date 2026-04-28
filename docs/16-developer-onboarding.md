@@ -324,9 +324,8 @@ docs(journal): <범위 요약> — Phase N <subphase>
 | `docs/12-protocol-v1.2.md` | 멀티채널 프로토콜 (Phase 5.4) |
 | `docs/13-multi-channel-interface.md` | multi-channel SensorSource (Phase 5.4) |
 | `docs/14-calibration-pipeline.md` | 실센서 캘리브레이션 (Phase 5.4) |
+| `docs/15-params-config-guide.md` | params.json + SCENE + gases 권위 (Phase 5.4) |
+| `docs/19-real-sensor-integration-checklist.md` | 실물 도착 시 Step I 단일 절차서 (Phase 5.4) |
+| `tools/firmware-emulator/README.md` | 에뮬 권위 (CLI 키 / 노이즈 4 모드 / 시나리오 회귀) |
 | `firmware/README.md` | 실물 펌웨어 플래시 (Step I 진입 시) |
 | `CLAUDE.md` | Claude Code 협업 시 필수 |
-
-**작성 예정** (Phase 5.4 후속):
-- `docs/15-params-guide.md` — `web/config/params.json` 편집 가이드
-- `docs/19-step-i-checklist.md` — 실물 통합 체크리스트
