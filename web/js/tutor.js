@@ -235,15 +235,18 @@ function createTutor(config) {
                 console.warn(`[tutor:${config.simName}] 비용 ${cost}원 (≥ ${t}원) 도달`);
             }
         }
-        if (typeof config.onTokenUsage === "function") {
-            config.onTokenUsage(getModel(), totalInputTokens, totalOutputTokens, cost);
-        }
+        // onTokenUsage 는 addTokens 안에서 호출 (deltaIn/deltaOut 정확 전달)
     }
 
     function addTokens(inputT, outputT) {
         totalInputTokens += inputT;
         totalOutputTokens += outputT;
         updateUsageDisplay();
+        // onTokenUsage callback — deltaIn/deltaOut 별도 (외부 누적 source 동기화 위함)
+        if (typeof config.onTokenUsage === "function") {
+            const cost = tutorComputeCost(getModel(), totalInputTokens, totalOutputTokens);
+            config.onTokenUsage(getModel(), inputT, outputT, totalInputTokens, totalOutputTokens, cost);
+        }
     }
 
     function updateInputAvailability() {
