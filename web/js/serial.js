@@ -2,6 +2,20 @@
 
 const P_ATM_KPA = 101.325;  // 표준 대기압 (캘리브 기준값)
 
+// ── ws/real outlier 가드 (Phase 5.4) ─────────────────────
+// NaN / undefined → silent drop. 음수 → 이전 유효값 유지 (없으면 drop).
+// saturation ≥ 1600 → clip. spike → 3-sample median filter.
+// mock 영향 X (σ=0.1 kPa → 가드 발동 확률 0). silent — UI 알림 X.
+const GUARD_NEGATIVE_THRESHOLD_KPA = 0;
+const GUARD_SATURATION_KPA         = 1600;
+const GUARD_MEDIAN_WINDOW          = 3;
+const GUARD_WARN_INTERVAL_MS       = 1000;
+
+function median3(arr) {
+    const sorted = [...arr].sort((a, b) => a - b);
+    return sorted[Math.floor(sorted.length / 2)];
+}
+
 class SensorSource {
     constructor() {
         this._callbacks = [];
@@ -478,6 +492,62 @@ function createSensorManager(config = 101.3) {
         _calibOffsets: {},       // { [ch]: offset_kPa }
         _initialPressure: initialPressure,
         _channelConfig: channelConfig,
+        // Phase 5.4: outlier 가드 state (채널별)
+        _lastValidValue: {},     // { [ch]: lastValidKPa }
+        _medianBuffer: {},       // { [ch]: [v1, v2, v3] }
+        _lastWarnTime: {},       // { [ch_type]: timestampMs }
+
+        _rateLimitedWarn(ch, type, msg) {
+            const key = `${ch}_${type}`;
+            const now = Date.now();
+            const last = this._lastWarnTime[key] || 0;
+            if (now - last >= GUARD_WARN_INTERVAL_MS) {
+                console.warn(`[outlier guard] ${msg}`);
+                this._lastWarnTime[key] = now;
+            }
+        },
+
+        // 가드 → 캘리브 순서 (clean 값에 캘리브). 반환 null = silent drop.
+        _applyOutlierGuard(rawData) {
+            const ch = rawData.ch ?? 0;
+
+            // 1. NaN / undefined / null — silent drop
+            if (rawData.value == null || isNaN(rawData.value)) {
+                return null;
+            }
+
+            // 2. 음수 (≤ 0 kPa) — 이전 유효값 유지, 없으면 drop
+            if (rawData.value <= GUARD_NEGATIVE_THRESHOLD_KPA) {
+                this._rateLimitedWarn(ch, "negative",
+                    `ch${ch} 음수 reject: ${rawData.value.toFixed(2)} kPa`);
+                if (this._lastValidValue[ch] != null) {
+                    rawData.value = this._lastValidValue[ch];
+                } else {
+                    return null;
+                }
+            }
+
+            // 3. saturation (≥ 1600 kPa) clip
+            if (rawData.value >= GUARD_SATURATION_KPA) {
+                this._rateLimitedWarn(ch, "saturation",
+                    `ch${ch} saturation clip: ${rawData.value.toFixed(2)} → ${GUARD_SATURATION_KPA} kPa`);
+                rawData.value = GUARD_SATURATION_KPA;
+            }
+
+            // 4. median(3) spike filter
+            if (!this._medianBuffer[ch]) this._medianBuffer[ch] = [];
+            this._medianBuffer[ch].push(rawData.value);
+            if (this._medianBuffer[ch].length > GUARD_MEDIAN_WINDOW) {
+                this._medianBuffer[ch].shift();
+            }
+            if (this._medianBuffer[ch].length === GUARD_MEDIAN_WINDOW) {
+                rawData.value = median3(this._medianBuffer[ch]);
+            }
+
+            // 5. 마지막 유효값 갱신
+            this._lastValidValue[ch] = rawData.value;
+            return rawData;
+        },
 
         _applyCalibration(data) {
             const ch = data.ch ?? 0;
@@ -491,7 +561,9 @@ function createSensorManager(config = 101.3) {
         },
 
         _dispatchData(rawData) {
-            const data = this._applyCalibration(rawData);
+            const guarded = this._applyOutlierGuard(rawData);
+            if (guarded == null) return;  // silent drop
+            const data = this._applyCalibration(guarded);
             for (const cb of this._dataCallbacks) cb(data);
             const ch = data.ch ?? 0;
             const chCbs = this._channelCallbacks[ch];
@@ -532,6 +604,10 @@ function createSensorManager(config = 101.3) {
             }
             this.mode = mode;
             this._calibOffsets = {};
+            // Phase 5.4: 모드 전환 시 outlier 가드 state 리셋 (이전 잔재 방지)
+            this._lastValidValue = {};
+            this._medianBuffer = {};
+            this._lastWarnTime = {};
 
             // Data callbacks: route through calibration pipeline
             this.source.onData((rawData) => this._dispatchData(rawData));
