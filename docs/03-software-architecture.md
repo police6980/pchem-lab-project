@@ -6,45 +6,50 @@
 
 ## 1. 시스템 개요
 
-### 1.1 현재 MVP 범위
+### 1.1 현재 범위
 
-- **단일 페이지 보일 법칙 전용** 웹 앱 (HTML + Vanilla JS + CSS + p5.js CDN)
-- **Mock 센서 기반 완전 시뮬레이션** (실 ESP32 통신은 Phase 3 진행 중 — `phase3-real-sensor` 브랜치에서 WebSocket 펌웨어 에뮬레이터 Step 3-1~3-3 및 ESP32 펌웨어 스켈레톤·시뮬 완료; 브라우저 통합 Step 3-4~3-5와 실물 검증 Step 3-6 남음)
-- **브라우저**: Chrome / Edge (Web Serial API 필요 시; 현 MVP엔 불필요)
-- **AI 튜터**: Phase 2-B 완료. 실제 Anthropic Messages API 호출 + 멀티턴 대화 + 비용 표시 + docx 보고서 생성 작동 (v0.3-ai-tutor-live)
+- **4 페이지 분리** (랜딩 / 보일 / 입자운동 / 돌턴) — `<body data-page="...">` 디스패처. 단일 `web/js/*.js` 번들 공유.
+- **3 모드 센서** (mock / ws-에뮬레이터 / real-WebSerial) — 모든 페이지 런타임 전환. `tools/firmware-emulator/` (Node.js + ws) + ESP32 펌웨어 (`firmware/boyle/boyle.ino`, DFRobot Gravity 1.6MPa) 양쪽 v1.2 프로토콜 송신.
+- **Phase 3 소프트웨어 완료** (실물 조립·검증만 하드웨어 대기). **Phase 5.1 + 5.2 + 5.3 완료** (돌턴 학습 기능). **Phase 5.4 진행 중** (실센서 사전 준비 — multi-channel SensorSource + outlier 가드 + A-1 노이즈 시나리오 + 외부화 5 상수). 현재 진행 상태 권위 = `docs/06-project-status.md`.
+- **브라우저**: Chrome / Edge (Web Serial API 실센서 모드 필수, mock / ws 모드는 무관).
+- **AI 튜터**: Phase 2-B 완료. Anthropic Messages API 직접 호출 (BYOK, sessionStorage). 보일 = `ai-tutor.js` 모듈 전역 (전역 `aiConversations` 등) / 입자운동 = `createAdvTutorPanel` closure (`ui.js`) / 돌턴 = `createDaltonTutor` closure (`ui.js`) — 시뮬별 분리.
 
 ### 1.2 구조 도식
 
 ```
-[Mock 센서 (ui.js 슬라이더)]
-    ↓ (20Hz JSON 이벤트)
-[SensorSource 추상화 (serial.js)]
-    ↓
-[웹 애플리케이션 (단일 페이지)]
-  ├─ 시뮬레이션 엔진 (simulation.js)
-  │    └─ Particle / GhostParticle / Box / ParticleSystem
-  ├─ 렌더러 (renderer.js)
-  │    └─ p5 인스턴스 2개 (시뮬 + 히스토그램)
-  ├─ UI + 측정 (ui.js)
-  │    └─ 슬라이더 / 온도 / 측정 / PV 산점도 / 분석 / BYOK 설정
-  ├─ AI 튜터 (ai-tutor.js)                     ← Part 3.5에서 추가
-  │    └─ 대화 상태·탭·메시지 렌더·입력창·실 Anthropic API 호출
-  ├─ 로거 (logger.js)
-  │    └─ CSV 유틸 + 다운로드
-  └─ 오케스트레이션 (main.js)
-       └─ 부팅, 상태 공유, 콜백 배선
+[mock 시뮬 본체]   [ws 에뮬레이터 + A-1 노이즈]   [real ESP32 + DFRobot 1.6MPa]
+ setPressureImmediate    tools/firmware-emulator/    firmware/boyle/boyle.ino
+ (deterministic, 60 Hz)  ws://localhost:8787         Web Serial @115200
+        │                          │ v1.2 JSON                │ v1.2 JSON
+        │                          └─────────┬────────────────┘
+        │                                    ↓ 5 Hz/ch (200 ms)
+        │                  [protocol.js · parseV11Line — Pa→kPa, ch 분기]
+        │                                    ↓
+        └───────► [SensorSource — Mock / WebSocket / WebSerial · serial.js]
+                                             ↓
+                  [createSensorManager — outlier 가드 5 단계 + 캘리브 offset]
+                                             ↓ onChannelData(ch, cb)
+            ws/real: EMA α=0.2 → 임계값 2 kPa → 점진 입자 보정
+            mock:    α=1 (즉시) + 임계값 우회 — 시뮬 본체 deterministic
+                                             ↓
+[웹 앱 (4 페이지, body[data-page] 디스패처)]
+  ├─ simulation.js                — Particle / Box / ParticleSystem (boyle, particles)
+  ├─ dalton 5 region (main.js)    — Particle 만 재사용, 자체 physicsStep
+  ├─ renderer.js                   — p5 시뮬 + 히스토그램
+  ├─ ui.js                         — 슬라이더 / 온도 / 측정 / PV / BYOK
+  ├─ AI 튜터 (보일=ai-tutor.js 모듈 전역 / 입자운동=createAdvTutorPanel / 돌턴=createDaltonTutor)
+  ├─ logger.js                    — CSV
+  └─ main.js                       — initBasicApp / initAdvancedMode / initDaltonApp
 ```
 
 ### 1.3 이후 Phase 계획
 
-자세한 로드맵은 `docs/06-project-status.md` §4 참조. 요약:
-- **Phase 2-B** (완료): ai-tutor.js 실 Anthropic Messages API 호출. 멀티턴·비용·에러 처리·docx 보고서 생성 작동
-- **Phase 3** (진행 중, `phase3-real-sensor` 브랜치): ESP32 실센서 + Web Serial (MockSensorSource 교체). 개발용 WebSocket 펌웨어 에뮬레이터(`tools/firmware-emulator/`)로 실물 도착 전 브라우저 수신 경로 사전 구현
-- **Phase 5** (Step I 실센서만 대기): 돌턴의 부분압력. **Phase 5.1 + 5.2 + 5.3 완료** (`feature/dalton-experiment` 브랜치). Phase 5.1 UI·상태머신 + Phase 5.2 시뮬 엔진 (5 region 물리 + 텔레포트 + 피스톤 동기 분출 + 게이지 동기 + 부분 압력 list) + **Phase 5.3 학습 기능** (`computeMoleCount` 단일 산출 함수, stacked bar 그래프, 11 컬럼 CSV, 측정 기록 비교 모드, 입자간 탄성 충돌 직접 구현 + spatial hash O(N) + 7 검증 테스트, AI 튜터 `createDaltonTutor` 자체 closure, 행 삭제). `simulation.js` 의 Particle 클래스 그대로 재사용 (수정 0). 현재 플랫 폴더 → `experiments/` 분리 검토 시점이 Phase 5 후반으로 이연됨
-- **Phase 4/6**: 비교 UX, 교사 도구
-- **Phase 7** (이전 Phase 5 계획): 샤를·게이뤼삭 법칙 확장
+현재 진행 상태 권위 = `docs/06-project-status.md`. 본 문서는 아키텍처 관점 요약만:
+- **Phase 2-B / 3 SW / 5.1~5.3 완료**. Phase 3 의 ESP32 실센서 / Web Serial / WebSocket 에뮬 모두 SW 측 완성, 실물 조립·검증만 대기.
+- **Phase 5.4 진행 중** (`phase5-real-sensor`): protocol v1.2 + multi-channel SensorSource (mock/ws/real 단일 경로) + outlier 가드 5 단계 + A-1 노이즈 시나리오 + `params.dalton.sensor` 5 상수 외부화 + AI 튜터 정합화. 본 문서 §2 / §3 의 sensor 시스템 갱신 = Phase 5.4 결과.
+- **폴더 재편** (Phase 6+ 이연): `experiments/` 분리 / 공통 `engine/` / 시뮬별 `experiments/{boyle,particles,dalton}/`. 현재는 **플랫 + body[data-page] 디스패처** 유지.
 
-MVP 단계에선 **플랫 폴더 + 보일 전용**으로 단순성 우선.
+상세 Phase 별 / 다음 단계 / 병합 대기 브랜치 = `docs/06-project-status.md`.
 
 ---
 
@@ -66,19 +71,28 @@ pchem-lab-project/
 │   └── js/                     // 4 페이지가 전부 공유, body.dataset.page 로 분기
 │       ├── simulation.js       // 물리 엔진 (Box, Particle, ParticleSystem)
 │       ├── renderer.js         // p5.js 드로잉 원시
-│       ├── protocol.js         // v1.1 파서 공통 모듈 (parseV11Line)
-│       ├── serial.js           // SensorSource + Mock/WebSerial/WebSocket 소스
+│       ├── protocol.js         // v1.2 파서 공통 모듈 (parseV11Line — t:s/t:d/t:c/t:e, Pa→kPa)
+│       ├── serial.js           // SensorSource (Mock/WebSerial/WebSocket) + createSensorManager
+│       │                       //   + outlier 가드 5 단계 (Phase 5.4)
 │       ├── logger.js           // CSV 유틸
 │       ├── ai-tutor.js         // 보일 전용 AI 튜터 (입자운동·돌턴은 자체 closure 패턴 — createAdvTutorPanel·createDaltonTutor)
 │       ├── ui.js               // DOM UI + 심화(adv-) AI 튜터·측정 패널
 │       └── main.js             // 부팅 디스패처 + initBasicApp / initAdvancedMode / initDaltonApp
-├── firmware/                    // ESP32 펌웨어 (boyle.ino, DFRobot Gravity 1.6MPa)
+├── firmware/
+│   ├── boyle/boyle.ino          // ESP32 펌웨어 (DFRobot Gravity 1.6MPa, v1.2 송신, 5 Hz)
+│   └── README.md                // 배선·Wokwi 검증
 ├── tools/
-│   └── firmware-emulator/       // Node.js + ws 기반 WebSocket 펌웨어 에뮬레이터 (ws://localhost:8787)
-├── tests/                       // 물리 검증 테스트 (Node.js 단독 실행)
-│   ├── dalton-collision-test.js // Phase 5.3 입자간 충돌 검증 (보존 법칙·Equipartition·Graham·M-B·안정성 7 검증)
-│   └── dalton-collision-test-result.txt   // 테스트 실행 결과 (보존)
-└── docs/                        // 설계 문서 (00~11, dalton 설계서 `11-dalton-design.md` 포함)
+│   └── firmware-emulator/
+│       ├── emulator.js          // Node.js + ws (포트 8787, v1.2 송신, A-1 노이즈 4 모드)
+│       ├── baseline.js          // 노이즈 특성 정량화 스크립트 (Phase 5.4 A-2)
+│       ├── package.json         // ws@^8.20.0 단일 의존성
+│       └── README.md            // 에뮬레이터 권위 문서 (CLI 키 / 노이즈 / 시나리오 추가법)
+├── tests/
+│   ├── dalton-collision-test.js // Phase 5.3 입자간 충돌 7 검증 (보존·Equipartition·Graham·M-B·안정성)
+│   └── dalton-collision-test-result.txt
+└── docs/                        // 설계 문서 00~19 (12-protocol / 13-multi-channel /
+                                 // 14-calibration / 15-params / 16-onboarding /
+                                 // 19-checklist 신규)
 ```
 
 **페이지 디스패처 패턴** (`main.js` DOMContentLoaded):
@@ -150,16 +164,35 @@ serial.js → logger.js → ai-tutor.js → ui.js → main.js
 - 히스토그램 p5 `draw()`: 시간 EMA → 공간 평활 → 막대 + ghost polyline + 이론 M-B
 - `Flash` 클래스 — 충돌 섬광 수명 관리 (운동량 비례 크기, 입자 색 상속)
 
-#### `serial.js` — 센서 소스 추상화
+#### `serial.js` — 센서 소스 + 매니저 + outlier 가드
 
-**클래스**:
-- `SensorSource` — 추상 베이스 (`start`, `stop`, `onData` 구독 관리)
+**모듈 상수** (Phase 5.4 outlier 가드, line 5-15):
+- `GUARD_NEGATIVE_THRESHOLD_KPA = 0`, `GUARD_SATURATION_KPA = 1600`
+- `GUARD_MEDIAN_WINDOW = 3`, `GUARD_WARN_INTERVAL_MS = 1000`
+- `P_ATM_KPA = 101.325` (캘리브 기준값)
+
+**클래스 4 종**:
+- `SensorSource` — 추상 베이스 (`connect` / `disconnect` / `onData` / `on` 구독, `sendCalib` / `sendConfig` no-op 기본)
 - `MockSensorSource extends SensorSource`:
-  - 내부 pressure 상태 + Gaussian 노이즈 (σ=0.1)
-  - 20Hz (`setInterval 50ms`)로 `{ sensor, value, unit, timestamp }` emit
-  - `setPressure(v)` — 슬라이더에서 값 업데이트
+  - 채널 배열 (`{ ch, pressure, label }`) + interval emit (기본 50 ms = 20 Hz, σ=0.1 kPa, `params.dalton.sensor.mock_*` 외부화)
+  - `setPressure(v, ch)` — 슬라이더 / dev 모드 갱신
+  - `setPressureImmediate(v, ch)` ★ — Phase 5.4 commit iii. 시뮬 본체가 매 frame 호출 (mock 모드 전용, deterministic. 노이즈·임계값 우회)
+- `WebSocketSensorSource extends SensorSource` — 에뮬레이터 연결 (`ws://localhost:8787`, hello timeout 3s, ping 2s)
+- `WebSerialSensorSource extends SensorSource` — 실센서 (`navigator.serial.requestPort`, baud 115200, line buffer 4096 자))
 
-**미구현** (Phase 3): `WebSerialSensorSource` — 실 센서 연결, MockSensorSource 대체
+**`createSensorManager(config)` factory** (Phase 5.4):
+- swappable source + 캘리브 offset + outlier 가드 + 채널별 라우팅
+- `setMode(mode)` — `mock` / `ws` / `real` 런타임 전환. 모드 전환 시 calib offset / outlier state 리셋
+- `onData(cb)` — 모든 채널 data (보일 하위 호환)
+- `onChannelData(ch, cb)` ★ — 특정 ch 만 필터링 (돌턴 ch0=B / ch1=A 분리)
+- `on(type, cb)` — `connect` / `disconnect` / `calibrated` / `error` 이벤트
+- `sendCalib(ch?)` / `sendConfig(rateMs)` — source 위임
+- 내부 메서드 `_dispatchData` → **outlier 가드 → 캘리브 → dispatch** 순 (clean 값에 캘리브)
+- 내부 메서드 `_applyOutlierGuard(rawData)` — 5 단계 (NaN drop / 음수 reject / saturation clip / median(3) spike / lastValid 갱신). 상세 = §3.8
+
+**의사결정 근거** (왜 매니저 / 왜 단일 위치 가드 / 왜 mock setPressureImmediate 분리) = `docs/10-dev-journal.md` Phase 5.4 결정 블록 권위.
+
+**v1.0 / v1.1 호환** (`protocol.js` 분기): `t` 필드 없는 메시지 → v1.0 fallback. `channels` 배열 없는 hello → v1.1 단일 채널 모드. 자세히 = `docs/12-protocol-v1.2.md`.
 
 #### `logger.js` — CSV 유틸
 
@@ -263,6 +296,17 @@ serial.js → logger.js → ai-tutor.js → ui.js → main.js
 - 가스: `getGasData`, `getGasColor`, `rebuildParticleSystem`, `rebuildAllSystems`
 - 카운트: `countParticlesInRegions`
 
+**dalton sensor 통합 함수** (Phase 5.4, `initDaltonApp` closure 안):
+- `daltonSensorManager` (createSensorManager 인스턴스, 멀티채널 config + `params.dalton.sensor` 외부화 5 상수 전달)
+- `daltonSensorManager.onChannelData(0, cb)` / `onChannelData(1, cb)` — ch0=B / ch1=A 라우팅 + EMA + 임계값 + freeze 가드 (mock 차등은 §3.7)
+- `applyEMA(prev, next)` (`EMA_ALPHA=0.2`)
+- `maybeUpdateParticleTarget(side, force, forceThreshold)` — `PARTICLE_UPDATE_THRESHOLD_KPA=2.0` 임계값 + stage IDLE/STABILIZING 만 갱신 + freeze 가드
+- `stepParticleCounts()` — `targetParticles_A/B` 향해 매 frame ±2 입자 점진 보정
+- 모드 토글 wiring (`main.js:1055-1115`) — `btnModeMock/Ws/Real` 클릭 → `setMode("mock"|"ws"|"real")` + UI 분기 (calibUI / freezeUI / channelStatus)
+- 캘리브 wiring — `btnCalibCh0/Ch1/All` → `daltonSensorManager.sendCalib(ch?)`. ACK 수신 시 `_handleCalibrated` (`serial.js:503-510`) 가 offset 갱신
+
+**`USE_MOCK_SENSOR` 플래그**: Phase 5.4 에서 제거. 3-mode 토글 (`setMode`) 로 대체.
+
 **simulation.js 재사용 패턴**: dalton 은 `Particle` 클래스 (위치·속도·반지름·gasKey) 만 재사용. `ParticleSystem` 미사용 — 5 region 모델은 boyle 의 1 region 과 본질 다름. dalton 자체 `physicsStep`/`physicsSubstep` 으로 처리.
 
 ---
@@ -316,11 +360,13 @@ serial.js → logger.js → ai-tutor.js → ui.js → main.js
 
 | 주기 | 소스 | 동작 |
 |---|---|---|
-| 20 Hz (50 ms) | Mock 센서 `onData` | smoothedP EWMA + box target + info panel 압력 표시 |
+| 60 Hz (frame) | mock setPressureImmediate (시뮬 본체) | deterministic P 갱신 → onChannelData(mock 분기) → 즉시 반영 (α=1, 임계값 우회) |
+| 20 Hz (50 ms) | mock interval (`mock_interval_ms`, σ=0.1 kPa) | 노이즈 보존용 추가 emit (mock 모드만) |
+| 5 Hz/ch (200 ms) | ws/real (펌웨어/에뮬 송신) | parseV11Line → outlier 가드 5 단계 → 캘리브 → onChannelData → EMA(α=0.2) → 임계값(2 kPa) → 점진 입자 보정 |
 | 20 Hz (50 ms) | 측정 패널 `setInterval` | currentP 표시, V 자동 추종, 안정화 감지, 기록 버튼 상태 |
 | 4 Hz (250 ms) | 연속 로그 setInterval | 상태 스냅샷 → continuousBuffer |
 | 1 Hz (1 s) | 패널 업데이트 setInterval | 속도·KE 실측 + 이론값 표시 |
-| 0.2 Hz (5 s) | 진단 로그 setInterval | 콘솔 FPS·hits/s·overlap + 피스톤 hits 정보 패널 |
+| 0.2 Hz (5 s) | 진단 로그 setInterval (`DEBUG_DIAGNOSTICS` 게이팅) | 콘솔 FPS·hits/s·overlap |
 
 ### 3.4 측정 사이클 (학생 조작)
 
@@ -379,6 +425,55 @@ serial.js → logger.js → ai-tutor.js → ui.js → main.js
 5. 대화 계속 → 8턴 소프트 경고. [✓ 대화 마무리]로 AI 요약 + 탭 완료 처리
 6. Q1+Q2+Q3 완료 시 [📄 탐구 보고서 초안 생성] 활성 → docx 다운로드
 ```
+
+### 3.4-D 돌턴 측정 사이클 (요약)
+
+상세 stage machine = `docs/11-dalton-design.md`. 본 문서 요약:
+
+```
+IDLE → [주입 시작] → INJECTING (애니메이션 3 s)
+     → INJECTED → 안정화 카운트다운 5 s → [확인] → CONFIRMED
+     → [초기화] → IDLE 복귀
+```
+
+각 stage 의 sensor 처리 차등:
+- `IDLE` / `STABILIZING` — `maybeUpdateParticleTarget` 갱신 (EMA + 임계값)
+- `INJECTING` — particle target 갱신 차단 (애니메이션 우선)
+- `INJECTED` / `CONFIRMED` — V_A=0 → P_A 게이지 "—" 표시 (`updatePressureReadouts` stage 분기)
+- `pressureFrozen` (압력 확정 토글) — 모든 stage 에서 갱신 차단, frozen 값 유지
+
+### 3.7 mock vs ws/real 정책 차등 (Phase 5.4 핵심)
+
+같은 `onChannelData` 콜백이 모드별로 다른 정책 적용 (`main.js:965-986`):
+
+| 영역 | mock | ws / real |
+|---|---|---|
+| **데이터 출처** | 시뮬 본체 PV=k 강제 (`setPressureImmediate`) + interval σ=0.1 kPa | 펌웨어 / 에뮬 송신 (5 Hz/ch, Pa) |
+| **EMA α** | 1.0 (즉시 반영, 평활 X) | 0.2 (`params.dalton.sensor.ema_alpha`, 시정수 ≈ 1 s @ 5 Hz) |
+| **임계값** | 우회 (`forceThreshold=true`) | 2.0 kPa (`particle_update_threshold_kpa`) |
+| **freeze 가드** | 비대상 (mock 은 시뮬 본체가 freeze 인지) | `pressureFrozen` 시 갱신 차단 |
+| **outlier 가드 발동** | 거의 X (σ=0.1 → 음수 / saturation 도달 X) | 발동 가능 (실측 σ 추정 2~4 kPa, A-1 spike / clip 등) |
+| **결정론** | 보존 (시뮬 정확도 우선) | 평활 (실물 노이즈 흡수) |
+
+**의사결정 근거**: mock = 학습 시 시뮬 정확성 / 결정론적 동작 우선. ws/real = 실물 노이즈 흡수 + 입자 시각 깜박임 회피. 상세 = `docs/10-dev-journal.md` Phase 5.4 commit iii (mock 일원화) + commit iv (5 상수 외부화) 결정 블록.
+
+### 3.8 outlier 가드 5 단계 (Phase 5.4)
+
+`createSensorManager._dispatchData` 단일 위치에 silent guard. ws/real 모드 견고성 + A-1 노이즈 모드 양립:
+
+```
+data → _applyOutlierGuard:
+  1. NaN / undefined / null    → silent drop (return null)
+  2. value ≤ 0 kPa             → 이전 유효값 유지 (없으면 drop) + warn(1/sec)
+  3. value ≥ 1600 kPa          → 1600 으로 clip + warn(1/sec)
+  4. median(3) spike filter   → 3-sample 윈도우 채워지면 median 적용 (latency 0.6 s)
+  5. _lastValidValue[ch] 갱신
+→ _applyCalibration → dispatch
+```
+
+**상태 변수** (채널별 dict): `_lastValidValue[ch]`, `_medianBuffer[ch]`, `_lastWarnTime[ch_type]`. `setMode` 시 모두 리셋.
+
+**A-1 정합성**: silent (콘솔 only, UI 알림 X) → harsh 모드 spike 차단 자체가 견고성 입증. mock 영향 거의 X (σ=0.1 kPa). 상세 = `tools/firmware-emulator/README.md` §4 + `docs/10-dev-journal.md` outlier 가드 결정 블록.
 
 ---
 
@@ -451,6 +546,20 @@ serial.js → logger.js → ai-tutor.js → ui.js → main.js
 ```
 
 `.hidden { display: none }` — 분석 섹션은 `datapoints.length >= 3` 일 때만 가시. Part 3.5부터 **성찰 textarea는 완전 제거**됨 (사이드바 대화로 통합).
+
+#### 4.2.1 돌턴 sensor panel
+
+좌측 컨트롤 패널 최상단 별 section (`#dalton-sensor-panel`). Phase 5.4 신규. 권위 = `web/dalton.html:35-72`.
+
+구성 요소:
+- 3-mode 토글 — `mock` (`btn-mode-mock`) / `ws` (`btn-mode-ws`) / `real` (`btn-mode-real`)
+- ws 컨트롤 — `ws-status` (연결 중 / 연결됨 / 실패)
+- real 컨트롤 — `[🔌 포트 연결]` / `[✖ 연결 해제]` / `serial-status`
+- 채널 상태 행 (ws/real 시 가시) — ch0 (B-receiver) + ch1 (A-injector) 각 sensor / live / calib status / `[🎯 영점]` 버튼
+- `[🎯 전체 캘리브]` / `[🔒 압력 확정]` (freeze 토글)
+- `sensor-error` — outlier / 연결 에러 표시
+
+**보일** (`web/boyle.html:26-30`) 도 동일 3-mode 토글 보유. 단일 채널이라 채널 행 단순화.
 
 ### 4.3 AI 사이드바 (Part 3.5)
 
@@ -569,27 +678,36 @@ document.body.classList.toggle("adv-sidebar-collapsed", _narrowViewport);
 ## 6. 모듈 간 의존성
 
 ```
-main.js
- ├─→ simulation.js   (Box, ParticleSystem, DEFAULT_SPEED_SCALE, BOX_INITIAL_* 등)
+main.js (initBasicApp / initAdvancedMode / initDaltonApp)
+ ├─→ simulation.js   (Box, ParticleSystem, DEFAULT_SPEED_SCALE, Particle, BOX_INITIAL_* 등)
  ├─→ renderer.js     (createRenderer, getAndResetFrameCount)
- ├─→ serial.js       (MockSensorSource)
- ├─→ logger.js       (downloadCSV, formatTimestampForFilename — 연속 로그 CSV)
- └─→ ui.js           (createDevPressureSlider, createInfoPanel, updateInfoPanel,
-                      createMeasurementPanel, createTemperatureControl, createAnalysisPanel)
+ ├─→ protocol.js     (parseV11Line — v1.2)
+ ├─→ serial.js       (createSensorManager, MockSensorSource, WebSocketSensorSource,
+ │                    WebSerialSensorSource, GUARD_* 상수)
+ ├─→ logger.js       (downloadCSV, formatTimestampForFilename)
+ └─→ ui.js           (createDevPressureSlider, createInfoPanel, createMeasurementPanel,
+                      createTemperatureControl, createAnalysisPanel, initSensorPanel,
+                      createAdvTutorPanel, createDaltonTutor)
+
+serial.js
+ └─→ protocol.js     (parseV11Line)
 
 ui.js
  ├─→ logger.js       (downloadCSV, downloadRawCSV, csvEscape, formatTimestampForFilename)
  ├─→ ai-tutor.js     (aiConversations [read], updateTabAvailability,
-                      updateInputAvailability, resetAllConversations — 모두 typeof 가드)
+                      updateInputAvailability, resetAllConversations — typeof 가드)
  └─→ main.js 상수    (REFERENCE_P_KPA, REFERENCE_V_ML — 크로스 모듈)
 
-ai-tutor.js
+ai-tutor.js (보일 전용)
  └─→ (독립) simulation/renderer/serial/logger 비의존. DOM만 조작.
+
+createAdvTutorPanel (입자운동) / createDaltonTutor (돌턴)
+ └─→ ui.js closure. ai-tutor.js 의 `aiConversations` 와 별 store (시뮬별 분리).
 
 renderer.js
  └─→ simulation.js   (BOX_INITIAL_*, BOX_MAX_WIDTH)
 
-simulation.js / serial.js / logger.js — 독립 (상호 참조 없음)
+protocol.js / simulation.js / logger.js — 독립 (상호 참조 없음)
 ```
 
 **`ui.js → ai-tutor.js` 역방향 호출 지점** (모두 `typeof === "function"` 가드):
@@ -606,7 +724,7 @@ simulation.js / serial.js / logger.js — 독립 (상호 참조 없음)
 
 ## 7. Phase별 로드맵 (아키텍처 관점)
 
-자세한 Phase 계획은 `docs/06-project-status.md` §3~§4 참조.
+**현재 진행 상태 권위 = `docs/06-project-status.md`**. 본 § 은 아키텍처 변동만 요약.
 
 ### 7.1 Phase 2-B — AI 튜터 실 API 연동 (완료, v0.3-ai-tutor-live)
 
@@ -621,12 +739,12 @@ simulation.js / serial.js / logger.js — 독립 (상호 참조 없음)
 
 후속 정리 여지 (블로커 아님): `QUESTION_TEXT` ai-tutor.js/ui.js 중복, `ui.js`의 `buildSystemPrompt` 경로 정리
 
-### 7.2 Phase 3 — 보일 실물 통합
+### 7.2 Phase 3 — 보일 실물 통합 (SW 완료)
 
-- ESP32 펌웨어 (SEN0257, 20 Hz JSON 스트림, hello 핸드셰이크 `{ type, device }`)
-- `WebSerialSensorSource` 구현 — `serial.js`에 `SensorSource` 서브클래스 추가
-- `USE_MOCK_SENSOR` 플래그 off → 실센서 모드
-- 캘리브레이션 UI (영점·2점 보정), 연결 관리 UI (포트 선택·재연결·실패 안내)
+- ESP32 펌웨어 (DFRobot Gravity 1.6MPa, **5 Hz** v1.2 JSON, hello + data + calib ACK)
+- `WebSerialSensorSource` + `WebSocketSensorSource` 구현 (`serial.js`)
+- `USE_MOCK_SENSOR` 플래그 → **3-mode 토글로 대체** (Phase 5.4)
+- 캘리브 UI / 연결 관리 UI 완성. 실물 조립·검증만 하드웨어 대기 (`docs/19-real-sensor-integration-checklist.md`)
 
 ### 7.3 Phase 4 — 비교 UX
 
@@ -634,24 +752,37 @@ simulation.js / serial.js / logger.js — 독립 (상호 참조 없음)
 - **반데르발스 편차 교육 활용** (v1 탄성 충돌 부산물로 이미 +16 % 재현됨 — `06` §7 참조)
 - 이상기체 vs 실제 기체 비교 그래프
 
-### 7.4 Phase 5 — 돌턴의 부분압력 (재정의됨)
+### 7.4 Phase 5 — 돌턴의 부분압력
 
-**이력**: 2026-04-24 이전 Phase 5 계획은 "샤를 법칙 확장". 현재는 **돌턴 부분압력** 으로
-재정의 (`docs/11-dalton-design.md` 설계서 참조). 샤를·게이뤼삭은 Phase 7 로 이연.
+설계서 = `docs/11-dalton-design.md`. 본 문서는 SW 변동만:
 
-- Phase 5.1 완료 (`feature/dalton-experiment`, 태그 `phase5.1-complete`):
-  - `web/dalton.html` 페이지, `initDaltonApp(params)` (main.js, +190줄 규모)
-  - `params.dalton` 중첩 객체 (기체 5종·주사기 A·B 프리셋·디바운스·안정화·주입 시간)
-  - 상태 머신 IDLE → INJECTING → INJECTED → CONFIRMED (async/await + abort 플래그)
-- Phase 5.2+ 예정: p5.js `DaltonScene` (`web/js/dalton-sim.js` 신규), 주사기 A·B 입자 시뮬
-- **실험 선택 화면** — `index.html` 이 이미 그 역할 수행 중 (Phase 5 랜딩 재설계 불필요)
-- **폴더 구조 재편** (Phase 5.2 이후 검토):
-  - `web/js/engine/` — 공통 Particle·Box·ParticleSystem
-  - `web/js/experiments/{boyle,particles,dalton}/`
-  - 공통 UI 컴포넌트 `web/js/ui/common/`
-  - `experiments.json` — 실험별 기본값·상수 분리
+- **Phase 5.1 / 5.2 / 5.3 완료** (`feature/dalton-experiment` 브랜치): UI·상태머신 / 5 region 시뮬 엔진 / 학습 기능 (stacked bar + CSV 11 컬럼 + 비교 모드 + 입자간 충돌 직접 구현)
+- **Phase 5.4 진행 중** (`phase5-real-sensor`): 본 문서 §2 / §3 sensor 시스템 갱신 = Phase 5.4 결과. protocol v1.2 + multi-channel SensorSource + outlier 가드 5 단계 + A-1 노이즈 시나리오 + `params.dalton.sensor` 외부화 5 + AI 튜터 정합화
+- 폴더 재편 (`engine/` + `experiments/` 분리) **Phase 6+ 이연**
 
 ### 7.5 Phase 6 — 교사 도구
 
 - 학생 활동 모니터링 대시보드
 - 다중 사용자 지원 (서버·DB 필요, 아키텍처 변화 수반)
+- 폴더 재편 (Phase 5 후반 → Phase 6+ 이연 — 신규 시뮬 추가 시점에 자연스러움)
+
+---
+
+## 8. cross-ref 표
+
+본 문서는 아키텍처 권위. 영역별 권위 docs:
+
+| 영역 | 권위 docs |
+|---|---|
+| 프로토콜 v1.2 (메시지 형식 / 채널 / Pa↔kPa) | `docs/12-protocol-v1.2.md` |
+| Multi-channel SensorSource 인터페이스 (`onChannelData` / 게이지 라우팅) | `docs/13-multi-channel-interface.md` |
+| 캘리브레이션 파이프라인 (전략 C — 브라우저 측 보정) | `docs/14-calibration-pipeline.md` |
+| `params.json` 모든 키 + `dalton.gases` + `SCENE` 좌표 + 갱신 흐름 | `docs/15-params-config-guide.md` |
+| 개발자 onboarding (새 PC 진입 / 자주 막히는 곳) | `docs/16-developer-onboarding.md` |
+| 실물 센서 통합 절차서 (Step I) | `docs/19-real-sensor-integration-checklist.md` |
+| 에뮬레이터 (CLI 키 / 노이즈 4 모드 / 시나리오 추가법) | `tools/firmware-emulator/README.md` |
+| 펌웨어 (배선 / Wokwi / v1.2 송신 코드) | `firmware/README.md` |
+| 시뮬 물리 결정 (왜 `volume_tau=0.5s` 등) + top-level params 표 | `docs/04-simulation-physics.md` |
+| 돌턴 시뮬 설계 (5 region / stage machine / 부분 압력) | `docs/11-dalton-design.md` |
+| 진행 상태 마스터 (Phase 별 / 병합 대기 / 다음 단계) | `docs/06-project-status.md` |
+| **의사결정 근거** (왜 mock 일원화 / 왜 outlier 가드 / 왜 A-1 4 모드) | `docs/10-dev-journal.md` |
