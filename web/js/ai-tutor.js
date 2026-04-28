@@ -506,22 +506,17 @@ function getConversationSummary() {
 }
 
 function updateReportButtonState() {
-    const btnDocx = document.getElementById("btn-generate-report");
-    const btnPdf  = document.getElementById("btn-generate-pdf-report");
-    if (!btnDocx && !btnPdf) return;
+    const btn = document.getElementById("btn-generate-report");
+    if (!btn) return;
     const visibleCount = (qid) => (aiConversations[qid]?.messages
         .filter(m => !m.isPromptInternal).length ?? 0);
     const q1ok = visibleCount("1") > 0;
     const q2ok = visibleCount("2") > 0;
     const q3ok = visibleCount("3") > 0;
-    const ready = q1ok && q2ok && q3ok;
-    for (const btn of [btnDocx, btnPdf]) {
-        if (!btn) continue;
-        btn.disabled = !ready;
-        btn.title = btn.disabled
-            ? "Q1, Q2, Q3 탐구를 모두 진행한 후 활성화됩니다"
-            : "탐구 보고서 초안 생성";
-    }
+    btn.disabled = !(q1ok && q2ok && q3ok);
+    btn.title = btn.disabled
+        ? "Q1, Q2, Q3 탐구를 모두 진행한 후 활성화됩니다"
+        : "탐구 보고서 초안 생성";
 }
 
 function downloadConversations() {
@@ -843,186 +838,9 @@ ${convText}
 function restoreReportBtn() {
     const btn = document.getElementById("btn-generate-report");
     if (btn) {
-        btn.textContent = "📄 탐구 보고서 초안 (docx)";
+        btn.textContent = "📄 탐구 보고서 초안 생성";
         updateReportButtonState();
     }
-}
-
-function restorePdfReportBtn() {
-    const btn = document.getElementById("btn-generate-pdf-report");
-    if (btn) {
-        btn.textContent = "📄 탐구 보고서 초안 (PDF)";
-        updateReportButtonState();
-    }
-}
-
-// === Report (PDF): AI draft + html2pdf — Phase 5.5 트랙 5 ===
-async function generatePdfReport() {
-    const btn = document.getElementById("btn-generate-pdf-report");
-    if (btn) { btn.disabled = true; btn.textContent = "⏳ PDF 생성 중..."; }
-
-    if (typeof html2pdf === "undefined") {
-        alert("⚠️ html2pdf 라이브러리 로드 실패. 페이지를 새로고침 후 다시 시도하세요.");
-        restorePdfReportBtn();
-        return;
-    }
-
-    const T = window.PchemTutor;
-    if (!T) { restorePdfReportBtn(); return; }
-
-    const ctx = T.buildDataContext();
-    const datapoints = T.getDatapoints ? T.getDatapoints() : [];
-    const conversations = getConversationSummary();
-
-    // docx 와 동일 prompt 흐름
-    const LABELS = { "1": "Q1", "2": "Q2", "3": "Q3", "4": "Q4", "free": "자유 질문" };
-    let convText = "";
-    for (const [qid, msgs] of Object.entries(conversations)) {
-        convText += `\n[${LABELS[qid] || qid} 대화]\n`;
-        msgs.forEach(m => { convText += `${m.role === "user" ? "학생" : "AI 튜터"}: ${m.content}\n`; });
-    }
-    const pointsText = ctx.points.map(p =>
-        `  ${p.num}번: P=${p.P}kPa, V=${p.V}mL, P·V=${p.PV}`
-    ).join("\n");
-
-    const systemPrompt = `당신은 영재 과학교육 보고서 작성 도우미입니다.
-학생의 실험 데이터와 AI 튜터와의 탐구 대화를 바탕으로 탐구 보고서 초안을 작성하세요.
-
-반드시 아래 ## 헤딩 형식 그대로 사용하세요:
-## 1. 탐구 제목
-## 2. 탐구 목표
-## 3. 실험 조건
-## 4. 데이터 분석
-## 5. 결론
-## 6. 더 탐구하고 싶은 것
-
-원칙:
-- 섹션 4 앞에는 [표와 그래프 자동 삽입] 이라는 텍스트를 출력하지 마세요.
-- 학생이 대화에서 직접 말한 표현을 최대한 인용하세요.
-- 결론은 학생의 이해 수준에 맞게 학생 목소리로 작성하세요.
-- 각 섹션 100자 내외로 간결하게.
-- 한국어로 작성하세요.`;
-
-    const userPrompt = `[실험 데이터]
-[데이터 소스] ${ctx.dataSource}
-온도: ${ctx.tempC}°C (${ctx.tempK}K)
-측정점: ${ctx.N}개
-평균 P·V: ${ctx.meanPV} kPa·mL
-최대 편차: ${ctx.maxDev}%
-
-측정점 상세:
-${pointsText}
-${convText}
-위 데이터와 탐구 대화를 바탕으로 탐구 보고서 초안을 작성해주세요.`;
-
-    let reportText = "";
-    try {
-        const result = await callAnthropicAPI(
-            [{ role: "user", content: userPrompt }],
-            systemPrompt
-        );
-        reportText = result.content;
-        T.addTokens(result.inputTokens, result.outputTokens);
-    } catch (e) {
-        let msg;
-        if (e.type === "no_key")         msg = "API 키가 설정되지 않았습니다.";
-        else if (e.type === "api_error") msg = `API 오류 (HTTP ${e.status})`;
-        else                             msg = "네트워크 오류가 발생했습니다.";
-        alert("⚠️ PDF 보고서 생성 실패: " + msg);
-        restorePdfReportBtn();
-        return;
-    }
-
-    // markdown → 단순 HTML (## 헤딩 + 단락)
-    function mdToHtml(text) {
-        const lines = text.split("\n");
-        const out = [];
-        for (const line of lines) {
-            const m = line.match(/^##\s+(.+)$/);
-            if (m) out.push(`<h2 style="margin-top:1.2em;color:#1F2937;">${escapeHtml(m[1])}</h2>`);
-            else if (line.trim()) out.push(`<p style="margin:0.4em 0;line-height:1.6;">${escapeHtml(line)}</p>`);
-            else out.push('<br>');
-        }
-        return out.join('\n');
-    }
-
-    // 측정점 표 (HTML)
-    const tableRows = datapoints.map((d, i) =>
-        `<tr><td>${i + 1}</td><td>${(+d.P).toFixed(1)}</td><td>${(+d.V).toFixed(1)}</td><td>${(+d.PV).toFixed(1)}</td></tr>`
-    ).join('');
-    const tableHtml = `
-        <h2 style="margin-top:1.2em;">측정 데이터</h2>
-        <table style="border-collapse:collapse;width:100%;font-size:0.9em;">
-            <thead><tr style="background:#f3f4f6;">
-                <th style="border:1px solid #d1d5db;padding:6px;">번호</th>
-                <th style="border:1px solid #d1d5db;padding:6px;">P (kPa)</th>
-                <th style="border:1px solid #d1d5db;padding:6px;">V (mL)</th>
-                <th style="border:1px solid #d1d5db;padding:6px;">P·V (kPa·mL)</th>
-            </tr></thead>
-            <tbody>${tableRows.replace(/<td>/g, '<td style="border:1px solid #d1d5db;padding:6px;text-align:center;">')}</tbody>
-        </table>`;
-
-    // 차트 캡처 — section-analysis 의 charts-row 를 그대로 캡처 (html2canvas 가 자동 처리)
-    const chartsArea = document.querySelector(".analysis-verification .charts-row");
-    const chartsHtml = chartsArea ? chartsArea.outerHTML : '<p style="color:#6b7280;">차트 영역 없음</p>';
-
-    // 보고서 본문 조립
-    const dateStr = new Date().toISOString().slice(0, 10);
-    const wrapper = document.createElement("div");
-    wrapper.style.cssText = "padding:20px;font-family:'Noto Sans KR','Malgun Gothic',sans-serif;color:#111827;background:#ffffff;";
-    wrapper.innerHTML = `
-        <h1 style="text-align:center;color:#111827;border-bottom:2px solid #374151;padding-bottom:8px;">탐구 보고서</h1>
-        <p style="text-align:center;color:#6b7280;font-size:0.9em;">생성일: ${dateStr}</p>
-        ${mdToHtml(reportText)}
-        ${tableHtml}
-        <h2 style="margin-top:1.2em;">차트</h2>
-        <div>${chartsHtml}</div>
-    `;
-    // viewport 안 + opacity:0 — html2canvas 가 off-screen (top:-9999px) element
-    // 캡처 실패하는 케이스 회피. data-attribute 로 onclone 에서 강제 가시화.
-    wrapper.setAttribute("data-pdf-wrapper", "1");
-    wrapper.style.position = "absolute";
-    wrapper.style.left = "0";
-    wrapper.style.top = "0";
-    wrapper.style.width = "800px";
-    wrapper.style.opacity = "0";
-    wrapper.style.pointerEvents = "none";
-    wrapper.style.zIndex = "-1";
-    document.body.appendChild(wrapper);
-
-    try {
-        await html2pdf().set({
-            margin:       [15, 12, 15, 12],
-            filename:     `탐구보고서_${dateStr}.pdf`,
-            image:        { type: 'jpeg', quality: 0.95 },
-            html2canvas:  {
-                scale: 2,
-                useCORS: true,
-                backgroundColor: '#ffffff',
-                // clone document 안 wrapper 의 가시성 강제 (원본의 opacity:0 무시)
-                onclone: (clonedDoc) => {
-                    const w = clonedDoc.querySelector('[data-pdf-wrapper]');
-                    if (w) {
-                        w.style.position = 'static';
-                        w.style.opacity = '1';
-                        w.style.zIndex = 'auto';
-                        w.style.pointerEvents = 'auto';
-                    }
-                },
-            },
-            jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' },
-            pagebreak:    { mode: ['avoid-all', 'css', 'legacy'] },
-        }).from(wrapper).save();
-    } catch (err) {
-        alert("⚠️ PDF 생성 중 오류: " + err.message);
-    } finally {
-        // .save() resolve 후 약간 지연 — 일부 html2pdf 버전은 download trigger 후
-        // 즉시 resolve. wrapper 제거가 download blob 생성 전이면 빈 PDF 위험.
-        setTimeout(() => {
-            if (wrapper.parentNode) document.body.removeChild(wrapper);
-        }, 200);
-    }
-    restorePdfReportBtn();
 }
 
 // === Typing indicator ===
@@ -1289,7 +1107,6 @@ document.addEventListener("DOMContentLoaded", () => {
     // after a fetch). Delegation works regardless of when the buttons appear.
     document.addEventListener("click", (e) => {
         if (e.target?.closest?.("#btn-generate-report")) generateReport();
-        else if (e.target?.closest?.("#btn-generate-pdf-report")) generatePdfReport();
         else if (e.target?.closest?.("#btn-download-conversations")) downloadConversations();
     });
 

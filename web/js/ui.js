@@ -1209,9 +1209,7 @@ function createAnalysisPanel({
         </div>
         <div class="report-btn-wrap">
             <button id="btn-generate-report" disabled
-                    title="Q1, Q2, Q3 탐구를 모두 진행한 후 활성화됩니다">📄 탐구 보고서 초안 (docx)</button>
-            <button id="btn-generate-pdf-report" disabled
-                    title="Q1, Q2, Q3 탐구를 모두 진행한 후 활성화됩니다">📄 탐구 보고서 초안 (PDF)</button>
+                    title="Q1, Q2, Q3 탐구를 모두 진행한 후 활성화됩니다">📄 탐구 보고서 초안 생성</button>
             <button id="btn-download-conversations"
                     title="Q1~Q4 및 자유 대화 전체를 txt로 저장">💬 대화 내려받기</button>
         </div>
