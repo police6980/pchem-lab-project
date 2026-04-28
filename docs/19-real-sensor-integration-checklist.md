@@ -88,27 +88,35 @@ GND       ───> GND, GND                      (두 센서 공통)
 
 ## 4. 1차 통신 검증 (시리얼)
 
+> 2026-04-28 갱신 — baseline.js 스모크 테스트 (effbf40) 에서 발견된 v1.2 실제 형식 반영. 권위: `docs/12-protocol-v1.2.md`. 펌웨어: `firmware/boyle/boyle.ino`.
+
 ### 4.1 hello 패킷
 
-연결 직후 1회 출력:
+연결 직후 1회 출력 (v1.2 — 멀티채널):
 ```
-{"v":"1.1","ch":2,"hz":50,"t0":<ms>}
+{"t":"s","sensor":"DFRobot-1.6MPa","fw":"<펌웨어 버전>","channels":[
+  {"ch":0,"sensor":"DFRobot-1.6MPa","label":"B-receiver"},
+  {"ch":1,"sensor":"DFRobot-1.6MPa","label":"A-injector"}
+]}
 ```
 
-확인 — `v`=`"1.1"`, `ch`=`2`, `hz` ≥ 30.
+확인 — `t`=`"s"`, `channels` 배열 존재 + 길이 2 (ch:0, ch:1). v1.1 호환 (보일 단일 채널) 시 `channels` 필드 생략 — 단일 채널 모드.
 
 ### 4.2 데이터 패킷
 
-이후 50 Hz (≈ 20 ms 간격):
+이후 ~5 Hz/ch (200 ms 간격, **채널별 별도 패킷**):
 ```
-{"t":<ms>,"ch0":<raw>,"ch1":<raw>}
+{"t":"d","ch":0,"p":<Pa>,"T":<°C>,"ts":<ms>}
+{"t":"d","ch":1,"p":<Pa>,"T":<°C>,"ts":<ms>}
 ```
 
-확인 — `ch0` / `ch1` 이 0~4095 (12-bit ADC). 둘 다 0 또는 4095 고정 → 핀 / 전원 의심.
+확인 — `p` 가 0~1,600,000 (Pa 정수, 펌웨어가 ADC raw → Pa 변환 후 송신). 변환 코드: `firmware/boyle/boyle.ino:38-58` `readPressurePa()`. 두 채널 모두 0 또는 1,600,000 (= 1.6 MPa, P_FULL_PA) 고정 → 핀 / 전원 의심.
+
+송신율 — `REPORT_MS = 200` (`boyle.ino:26`, `emulator.js:33`). 멀티채널 시 채널마다 200 ms 주기 → 합산 ~10 Hz (2 패킷/200 ms 윈도우). 송신율 변경은 cfg 메시지 (`docs/12` §브라우저→펌웨어 (3)).
 
 ### 4.3 압박 테스트
 
-SEN0257 다이어프램에 가벼운 압력 → 해당 채널 raw 가 200~500 변화. 변화 없음 → 센서 단자 / 점퍼 의심.
+SEN0257 다이어프램에 가벼운 압력 → 해당 채널 `p` 가 ~5 kPa (5,000 Pa) 변화. 변화 없음 → 센서 단자 / 점퍼 의심.
 
 ---
 
@@ -138,13 +146,13 @@ USB 분리 자동 감지 → 재연결 버튼 노출. 재연결 시 hello 1회 �
 
 두 채널 별도 측정. 모든 상수는 `params.json` 의 `sensor` 블록에 기입.
 
-### 6.1 영점 (`zeroRaw`)
+### 6.1 영점 (`zeroPa`)
 
-대기 평형 상태에서 60 초 raw 평균 = `zeroRaw`. (TBD — 실측)
+대기 평형 상태에서 60 초 `p` 평균 = `zeroPa` (Pa 정수). 펌웨어가 ADC raw 를 Pa 로 변환 후 송신 (§4.2) — 브라우저 / 캘리브 단계는 Pa 단위로 다룸. (TBD — 실측)
 
-### 6.2 스팬 (`spanRaw`, `spanKPa`)
+### 6.2 스팬 (`spanPa`, `spanKPa`)
 
-알려진 압력 (예: 펌프 +5 kPa) 가할 때 raw 변화량 = `spanRaw`, 가한 압력 = `spanKPa`. (TBD — 실측)
+알려진 압력 (예: 펌프 +5 kPa) 가할 때 `p` 변화량 = `spanPa` (Pa), 가한 압력 = `spanKPa`. (TBD — 실측)
 
 ### 6.3 ratio 매핑
 
@@ -162,9 +170,9 @@ Dalton 시뮬은 ratio (ch0 : ch1) 가 핵심. 절대 압력은 캘리브레이�
 
 정상 동작 시 발생 X. 단자 분리 → floating 상태 → 노이즈 폭증 또는 4095 saturation 형태로 관찰. NaN / 음수 자체가 나오면 펌웨어 파싱 오류 신호.
 
-### 7.2 Saturation (4095)
+### 7.2 Saturation (1.6 MPa)
 
-다이어프램 강하게 압박 → raw 4095 도달 → 가드가 silent drop 하는지 콘솔 확인.
+다이어프램 강하게 압박 → `p` 가 P_FULL_PA (1,600,000 Pa = 1.6 MPa, 펌웨어 클램프) 도달 → 브라우저 outlier 가드 saturation 임계값 (1600 kPa, `web/js/serial.js GUARD_SATURATION_KPA`) 과 일치 → 1600 으로 clip + rate-limit warn 하는지 콘솔 확인.
 
 ### 7.3 Median spike
 
@@ -196,11 +204,13 @@ node tools/firmware-emulator/baseline.js --duration 60 --out baseline-emu-normal
 
 ### 8.2 비교 지표
 
+baseline.js 출력 단위 = Pa (펌웨어 / 에뮬 송신 단위 일치). A-1 preset 의 σ 도 Pa (예: quiet=500, normal=2000, harsh=5000).
+
 | 지표 | 실물 | 에뮬 quiet | 에뮬 normal | 에뮬 harsh |
 |---|---|---|---|---|
-| σ (raw) | TBD | TBD | TBD | TBD |
-| 최대 spike (raw) | TBD | TBD | TBD | TBD |
-| drift / 분 (raw) | TBD | TBD | TBD | TBD |
+| σ (Pa) | TBD | TBD | TBD | TBD |
+| 최대 spike (Pa) | TBD | TBD | TBD | TBD |
+| drift / 분 (Pa) | TBD | TBD | TBD | TBD |
 
 판정 — 실물 σ 가 에뮬 normal ± 50% 범위 내면 프리셋 유지. 벗어나면 A-1 프리셋 재조정 (Phase 5.x 후속).
 
