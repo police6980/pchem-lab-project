@@ -344,7 +344,11 @@ function createTutor(config) {
     }
 
     function switchToQuestion(qid) {
-        if (!conversations[qid]) return;
+        console.log(`[tutor:${config.simName}] switchToQuestion(${qid}) — prev activeQuestion=${activeQuestion}`);
+        if (!conversations[qid]) {
+            console.warn(`[tutor:${config.simName}] switchToQuestion(${qid}) — conversations[${qid}] 부재! tabIds=${JSON.stringify(config.tabIds)}`);
+            return;
+        }
         activeQuestion = qid;
         // 탭 active 토글 + new 뱃지 clear
         dom.tabBtns.forEach(b => b.classList.toggle("active", b.dataset.q === qid));
@@ -752,6 +756,7 @@ function createTutor(config) {
         switchToQuestion(activeQuestion);
         updateUsageDisplay();
         updateInputAvailability();
+        console.log(`[tutor:${config.simName}] init complete — tabBtns=${dom.tabBtns.length}, activeQuestion=${activeQuestion}, conversationEmpty=${!!dom.conversationEmpty}, sidebar=${!!sidebar}, tabIds=${JSON.stringify(config.tabIds)}`);
     }
 
     return {
