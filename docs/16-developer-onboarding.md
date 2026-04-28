@@ -229,6 +229,15 @@ timeout).
 - **본 세션 변경**: 입자운동 16 질문 본문이 수준별 차등 (보일/돌턴은 이전
   부터 차등) — 신규 협업자가 이전 평가 재현 시 수준 select 영향 인지.
 
+### 6.9 sensor 시스템 (Phase 5.4 신규 권위)
+
+ws/real 모드 디버깅 / 노이즈 검증 시 권위 위치 — 본 §은 cross-ref만, 상세는 각 권위 문서:
+
+- **A-1 노이즈 시나리오 모드** (off / quiet / normal / harsh) — `tools/firmware-emulator/README.md` §4. 에뮬 CLI 키 `n` (토글) / `1-4` (preset 직접). 실물 SEN0257 추정 σ=2~4 kPa = `normal` preset 일치.
+- **outlier 가드 5 단계** (NaN / 음수 / saturation / median spike / state 갱신) — `docs/03-software-architecture.md` §3.8. ws/real 데이터 silent guard, mock 영향 X.
+- **baseline.js 노이즈 특성 정량화** — `tools/firmware-emulator/README.md` §7 / `tools/firmware-emulator/baseline.js`. WebSocket 데이터 60초 수집 → σ / maxSpike / drift JSON 저장. 회귀 테스트 baseline.
+- **시나리오 회귀 테스트** (`run-scenario.js` / `run-all.js`) — `tools/firmware-emulator/README.md` §7. emulator spawn → judge → 종료 코드 기반. CI 친화.
+
 ---
 
 ## 7. AI 튜터 사용
