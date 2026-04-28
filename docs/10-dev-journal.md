@@ -2668,3 +2668,101 @@ Phase 5.4 의 sensor 시스템 통합 직후 자율 진행 6 트랙. 실물 센�
 - 검증 — sequence replay 8/8 PASS + sensor-guard 11/11 PASS + 시나리오 회귀 4/4 PASS (Phase 5.4)
 - 트랙 5 PDF = 보류 (사용자 결정 대기)
 
+
+---
+
+## Phase 5.6 — docs 정합 점검 + tests 보강 + CI 통합 (2026-04-28)
+
+Phase 5.5 자율 6 트랙 + 후속 (트랙 5 폐기 + 설정 패널) 완료 직후, 추가 자율 5 트랙 (#7~#11). 본 묶음 = 정리 + 회귀 보호 위주, 신규 학습 기능 X.
+
+### 2026-04-28 — 자율 5 트랙 #7~#11 (commits f4e63fe, f6c54ce, 224e203, 6be7ca7, 51c7288)
+
+#### 한 일
+- 트랙 2 = `f4e63fe` docs/06 Phase 5.4/5.5 누적 반영 (+31/-14)
+- 트랙 5 = `f6c54ce` GitHub Actions CI workflow 신규 (sensor-guard + dalton-collision + protocol)
+- 트랙 7 = `224e203` 5 docs (04/05/07/08/09) Phase 5.4/5.5 정합 + cross-ref (+27/-12). docs/01/02 = 영향 X skip
+- 트랙 8 = `6be7ca7` protocol-test 신규 (parseV11Line 12/12 PASS) + CI workflow 단계 추가
+- 트랙 9 = skip (★★ 시각 상수 외부화 가치 < 비용, docs/15 §6 결정 보존)
+- 트랙 10 = skip (TODO/FIXME 0건, 폐기 마커 1건은 의사결정 근거 보존)
+- 트랙 11 = `51c7288` README Phase 5.4/5.5 정합 + Step I docs/19 cross-ref
+
+#### 결정: docs 정합 단일 commit (트랙 7 — 5 docs 묶음)
+
+**배경**: Phase 5.4/5.5 누적으로 docs/04/05/07/08/09 stale. docs/06 정합 (트랙 2, `f4e63fe`) 직후 다른 docs 정합 필요. 단일 commit vs docs별 분리 옵션.
+
+**결정**: 단일 commit (5 docs 묶음). 의미 명확 ("Phase 5.4/5.5 정합 점검") + log 노이즈 ↓. docs/01/02 = 영향 X skip 명시.
+
+**근거**:
+- 5 docs 모두 stale 정정 (각 5~25줄) — 의도 동질
+- 분산 5 commit 시 log 노이즈 + 검토 부담 ↑
+- docs/01 (보일 하드웨어 단일 채널 그대로) / docs/02 (샤를 Phase 7 보류 그대로) = 정합 OK 확인 후 skip
+
+**배제된 대안**:
+- docs별 5 commit: 의미 분산
+- docs/04 만 정합 (가장 stale): 다른 4 docs stale 누적 위험
+
+#### 결정: tests/ 추가 = protocol-test 1개 (트랙 8)
+
+**배경**: 사용자 명세 트랙 8 = 단위 테스트 추가 후보 5종 (protocol / baseline computeStats / scenario judge / replay 보간 / outlier 가드 추가 edge case). 분량 100~250 / commit 1.
+
+**결정**: protocol-test 1개. baseline / scenario / replay = 별 작업.
+
+**근거**:
+- protocol = wire format 의 권위. 변경 시 즉시 회귀 (펌웨어/에뮬 측 송신 형식 정합 깨짐). 가치 ★★★ 가장 큼
+- 12 테스트 — t=d/s/c/e + v1.0 fallback + parse 실패 + 미지 type + malformed + Pa↔kPa + ch 분리 + channels 배열 v1.1↔v1.2 분기. 12/12 PASS
+- baseline computeStats = 알고리즘 정합 (sigma/maxSpike/drift) 이미 dry-run 검증됨. 단위 테스트 추가 가치 ★★ — 별 작업
+- scenario judge = 임계값 경계 검증 가치 ★★ — 별 작업
+- replay 보간 = step 함수 단순 (linear 보간 X) — 단위 가치 ★ — 별 작업
+- outlier 가드 추가 edge case = 11/11 이미 충분 — 별 작업
+
+**배제된 대안**:
+- 5 후보 모두 작성: 분량 상한 (250) 초과 위험
+- baseline / scenario / replay 도 1개씩: 단일 commit 의미 분산
+
+#### 결정: 트랙 9 ★★ 시각 상수 외부화 보류 (docs/15 §6 결정 보존)
+
+**배경**: docs/15 §6 의 ★★ 시각 상수 (`particleSpeedScale=90`, `particleRadius=3.0`, `PARTICLE_STEP_PER_FRAME`) 외부화 가치 재평가.
+
+**결정**: 보류 유지. params.json 외부화 X. docs/15 §6 결정 ("외부화 가치 낮음 — Phase 5.x 디자인 변경 시 일괄 갱신이 자연스러움") 그대로.
+
+**근거**:
+- particleSpeedScale (가치 ★★): 학생/교사 환경 따라 조정 가능 — 단 변경 시 시뮬 정확성 (속도 분포 절대값) 영향. 현 단계 조정 빈도 ↓
+- particleRadius (가치 ★): v8 (2.5 → 3.0) 결정 후 변경 사례 X. 보존
+- PARTICLE_STEP_PER_FRAME (가치 ★): 입자 시각 변경 속도. 학생 인지 영향 작음
+- 비용 (params.json 키 + main.js 참조 변경 + cleanup) 대비 가치 낮음
+- 사용자 명세 = "외부화 하기로 결정 시 진행 / 가치 < 비용이면 보류" — 보류 채택
+
+**배제된 대안**:
+- 3 상수 모두 외부화: 분량 ~80줄 + 회귀 검증 비용. 가치 < 비용
+- particleSpeedScale 만 외부화: 단일 상수 외부화 자체 의미 작음, 다른 둘과 묶음이 자연
+
+#### 결정: 트랙 10 dead code 정리 — skip (대상 없음)
+
+**배경**: TODO/FIXME/XXX/폐기 마커 grep — Phase 5.4 commit `1b01777` 정리 후 누적 X 가정.
+
+**결정**: grep 결과 = TODO/FIXME 0건. 폐기 마커 1건 (`main.js:2157` "waypoint 폐기") = 의사결정 근거 보존 ★ 등급, 정리 X. **skip**.
+
+**근거**:
+- `waypoint 폐기` = 5-region 모델 채택 의사결정 (`docs/10` Phase 5.2 결정 1) 근거. 본문 없으면 미래 독자 "왜 waypoint X?" 모름
+- Phase 5.4 commit `1b01777` 의 ★★★ 정리 후 신규 dead code 누적 X
+- 본 트랙 = 발견 시 진행 / 못하면 skip — 사용자 명세 명시
+
+**배제된 대안**:
+- 폐기 마커도 정리: 의사결정 근거 손실
+- 코드 형식 / 들여쓰기 정리: 본 트랙 범위 외
+
+#### 후속 의무 (TODO)
+
+- baseline computeStats / scenario judge / replay 보간 단위 테스트 — 별 작업 (가치 ★★)
+- params.json ★★ 시각 상수 외부화 = 디자인 변경 시점에 재검토
+- 트랙 6 AI 튜터 통합 (`phase5-tutor-unify` 별 브랜치) — 실물 도착 후 Step I 완료 뒤 (CC 권장 분기 시점, 미변경)
+- 실물 센서 (DFRobot SEN0257 × 2) 도착 → docs/19 따라 Step I 본편
+
+### Phase 5.6 마일스톤 (2026-04-28 종료)
+
+- 5 commits (`f4e63fe` → `51c7288`), `phase5-real-sensor` 브랜치
+- 신규 파일: `.github/workflows/ci.yml`, `tests/protocol-test.js`
+- 수정 파일: `docs/06-project-status.md`, `docs/04`, `docs/05`, `docs/07`, `docs/08`, `docs/09`, `README.md`, (기존 `.github/workflows/ci.yml` 트랙 8 단계 추가)
+- 누적: 약 +290/-30
+- 검증 — protocol-test 12/12 PASS + 기존 sensor-guard 11/11 + dalton-collision 6/7 (exit 0) — CI workflow 자동 실행
+- 트랙 6 AI 튜터 통합 = 보류 유지 (실물 도착 후)
