@@ -2766,3 +2766,76 @@ Phase 5.5 자율 6 트랙 + 후속 (트랙 5 폐기 + 설정 패널) 완료 직�
 - 누적: 약 +290/-30
 - 검증 — protocol-test 12/12 PASS + 기존 sensor-guard 11/11 + dalton-collision 6/7 (exit 0) — CI workflow 자동 실행
 - 트랙 6 AI 튜터 통합 = 보류 유지 (실물 도착 후)
+
+---
+
+## Phase 5.7 — AI 튜터 통합 모듈 (2026-04-29)
+
+별 브랜치 `phase5-tutor-unify` (956019c 기점). Phase 5.6 후속 의무 트랙 6 진입 — 보일/입자운동/돌턴 3 시뮬 AI 튜터 패턴 분산 → 단일 factory `createTutor(config)` 통합.
+
+### 2026-04-29 — Phase 5.7 트랙 6 — AI 튜터 통합 모듈 (commits 1c87c56 ~ 836bffe, 14 commits)
+
+#### 한 일
+- 별 브랜치 `phase5-tutor-unify` 분기 (956019c 기점)
+- `web/js/tutor.js` 신규 — `createTutor(config)` factory + 공통 logic (~800줄)
+- `web/js/tutor-report-boyle.js` 신규 — 보일 보고서 docx 조립 callback 분리 (~300줄)
+- 보일 / 입자운동 / 돌턴 3 시뮬 모두 통합 모듈 적용 — Hybrid wrapper 패턴 (핵심 함수만 wrapper, 보조 함수 dead code 보존)
+- 회귀 정정 9건 — 보일 7건 / 입자운동 0건 (디버그 진단 결과 logic 정상) / 돌턴 1건 (Q-A 재결정)
+- 사용자 회귀 검증 시나리오 31항 (보일 11 + 입자운동 9 + 돌턴 11) 통과
+- 롤백 태그 3개 (`tutor-unify-before-a2` / `before-b` / `before-c`)
+
+#### 결정: 통합 모듈 factory 패턴 (Hybrid wrapper)
+
+**배경**: AI 튜터 3 시뮬 패턴 분산 (보일 = `ai-tutor.js` 모듈 전역 / 입자운동 = `createAdvAiTutor` closure / 돌턴 = `createDaltonTutor` closure). Phase 6/7 신규 시뮬 추가 시 4번째 패턴 또는 코드 복붙 부담. 공통 변경 (모델 가격표 / 토큰 한도) 시 3 곳 동시 수정 = 정합 실수 위험.
+
+**결정**: 단일 factory 함수 `createTutor(config)` + 시뮬별 config (Q1~Q4 본문 / system prompt / 데이터 binding). 3 시뮬 모두 factory 호출 → 1 패턴.
+
+**근거**: (a) Phase 6/7 신규 시뮬 = factory 첫 사용자 자연 진입점 (b) 공통 logic (탭 누수 / cross-tab 뱃지 / aria-disabled / `[[LEVEL]]` 마커 / 토큰 누적) 1 곳에서 정정 (c) Hybrid = 핵심 3~4 함수 wrapper, 보조 함수 dead code 보존 → 회귀 위험 ↓ + 분량 적정.
+
+**배제된 대안**:
+- (P1) 함수별 점진 위임: 분량 ↑, 단계 다수
+- (P2) 일괄 교체 (DOMContentLoaded 통째 변경): 회귀 위험 ★★★
+- 모듈 폐기 + 신규 작성: 보고서 docx 조립 200+줄 등 위험 ↑
+
+#### 결정: 단계적 진행 — 보일 → 입자운동 → 돌턴
+
+**배경**: 3 시뮬 결합도 다름. 보일 = 가장 큰 기능 묶음 (보고서 / Q3 자동 / 8턴 경고 / 대화 마무리). 입자운동 = 16 질문 차등. 돌턴 = `daltonState` closure 의존 + 비교 모드.
+
+**결정**: 회귀 위험 낮은 순서 (보일 → 입자운동 → 돌턴). 각 단계 별 turn 진행. 각 단계 직전 롤백 태그 추가 (`before-a2` / `before-b` / `before-c`).
+
+**근거**: 단계별 commit + 사용자 검수 분리 → 회귀 발견 시 정정 부담 ↓. 한 번에 모든 회귀 발견 vs 각 시뮬별 분리.
+
+**배제된 대안**: 풀 단일 commit (3 시뮬 동시 적용) — 회귀 위험 ★★★, 정정 압박 ↑.
+
+#### 결정: 회귀 정정 진단 패턴 변경 — CC read 후 진단 우선
+
+**배경**: 보일 단계 (a-2) 초기 회귀 정정 시 추측 기반 명령 → 헛발질 누적 (보고서 / 내려받기 회귀 정정 시 추정한 원인 빗나감).
+
+**결정**: 사용자 증상만 → CC 가 코드 read 후 진단 → 진단 보고 → 정정. 명백 fix (≤5줄 / 회귀 위험 ★) 충족 시 진단 + 정정 한 turn 묶음 OK.
+
+**근거**: (a) `tutor.js` + `ai-tutor.js` + `ui.js` + `main.js` 의 함수 chain 추적 = 추측 한계 (b) 명백 기준 적용으로 단순 fix 는 빠른 처리 + 복잡 fix 는 검수 분리 (c) 회귀 7건 정정 효율 ↑ (보일 (a-2) 후반부터 적용)
+
+**배제된 대안**: 사용자 + 내가 원인 추정 → CC 추정대로 정정 — 빗나갈 위험 ↑.
+
+#### 결정: Q-A 재결정 (돌턴 closeConfig)
+
+**배경**: 돌턴 (c) 적용 시 Q-A = (A1) 현행 보존 (`closeConfig: {}`, `btn-close-q` → `resetTab` clear) 채택. 사용자 검증 시 "대화 마무리 = 리셋만 됨" 보고 — AI 요약 미동작.
+
+**결정**: (A1) 현행 보존 → (A2) AI 요약 (보일 패턴) 변경. `closeConfig: {}` 그대로 + `btn-close-q` 핸들러 `resetTab` → `closeConversation` 1줄 변경.
+
+**근거**: (a) 사용자 의도 = AI 요약 동작 (보일 패턴) (b) 통합 작업 시 "동작 보존" 보다 "사용자 의도" 우선 (c) (A2) 변경 = 1줄, 회귀 위험 ★
+
+**배제된 대안**: (A1) 유지 — 사용자 의도 어긋남.
+
+#### 회귀 정정 9건 (참고)
+
+(a-2) 보일 7건: 설정 패널 닫힘 / Q1 본문 미표시 / `SOFT_TURN_LIMIT` 중복 SyntaxError / 탭 누수 + cross-tab 뱃지 + Q3 자동 + `[[LEVEL]]` + 대화 마무리 버튼 (5건 묶음) / 보고서·내려받기 wiring 누락 / 탭 활성 IIFE 캡슐화 / `aria-disabled` tab click 차단
+
+(b) 입자운동 0건 — 디버그 진단 결과 코드 logic 정상 (사용자 새로고침 누락이었음). 디버그 로그 제거 commit 만.
+
+(c) 돌턴 1건: Q-A 재결정 (`closeConfig` AI 요약).
+
+#### 후속 의무 (TODO)
+- (M1) `phase5-real-sensor` 머지 (본 일지 + push 후)
+- 실물 센서 도착 시 `docs/19` Step I 본편 진입 — 트랙 6 통합 모듈과 무관 (별 브랜치 `phase5-real-sensor` 의 작업)
+- Phase 6/7 신규 시뮬 추가 시 `createTutor` factory 사용 — 4번째 패턴 회피
