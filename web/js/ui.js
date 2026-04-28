@@ -1186,6 +1186,9 @@ function createAnalysisPanel({
                 <dt>측정점 개수</dt>      <dd><span id="analysis-count">—</span></dd>
                 <dt>평균 P·V</dt>         <dd><span id="analysis-meanpv">—</span></dd>
                 <dt>최대 편차</dt>        <dd><span id="analysis-maxdev">—</span></dd>
+                <dt>P·V 표준편차 (σ)</dt>  <dd><span id="analysis-sigma">—</span></dd>
+                <dt>P·V 범위</dt>          <dd><span id="analysis-pvrange">—</span></dd>
+                <dt>ln-ln 회귀 (이상기체 = −1)</dt> <dd><span id="analysis-lnln">—</span></dd>
                 <dt>기록 소요 시간</dt>    <dd><span id="analysis-duration">—</span></dd>
             </dl>
         </div>
@@ -1512,6 +1515,29 @@ function createAnalysisPanel({
         const maxDevPct = Math.max(...data.map(d => Math.abs(d.PV - meanPV))) / meanPV * 100;
         const durationMs = data[data.length - 1].timestamp - data[0].timestamp;
 
+        // 통계 — σ_PV / min·max / ln-ln 회귀 (이상기체 P·V=k → ln P = -ln V + ln k, slope = -1)
+        const variancePV = data.reduce((s, d) => s + (d.PV - meanPV) ** 2, 0) / data.length;
+        const sigmaPV = Math.sqrt(variancePV);
+        const sigmaPctPV = (sigmaPV / meanPV) * 100;
+        const minPV = Math.min(...data.map(d => d.PV));
+        const maxPV = Math.max(...data.map(d => d.PV));
+        // ln-ln 선형 회귀 (least squares) — x=ln V, y=ln P
+        const xs = data.map(d => Math.log(d.V));
+        const ys = data.map(d => Math.log(d.P));
+        const n = data.length;
+        const meanX = xs.reduce((s, x) => s + x, 0) / n;
+        const meanY = ys.reduce((s, y) => s + y, 0) / n;
+        let sxy = 0, sxx = 0, syy = 0;
+        for (let i = 0; i < n; i++) {
+            const dx = xs[i] - meanX;
+            const dy = ys[i] - meanY;
+            sxy += dx * dy;
+            sxx += dx * dx;
+            syy += dy * dy;
+        }
+        const slope = sxx > 0 ? sxy / sxx : 0;
+        const r2 = (sxx > 0 && syy > 0) ? (sxy * sxy) / (sxx * syy) : 0;
+
         const celsius = getCurrentTempCelsius();
         const kelvin = getCurrentTempKelvin();
 
@@ -1522,6 +1548,12 @@ function createAnalysisPanel({
             `${meanPV.toFixed(1)} kPa·mL`;
         document.getElementById("analysis-maxdev").textContent =
             `±${maxDevPct.toFixed(1)}%`;
+        document.getElementById("analysis-sigma").textContent =
+            `${sigmaPV.toFixed(1)} kPa·mL (${sigmaPctPV.toFixed(2)}%)`;
+        document.getElementById("analysis-pvrange").textContent =
+            `${minPV.toFixed(1)} ~ ${maxPV.toFixed(1)} kPa·mL`;
+        document.getElementById("analysis-lnln").textContent =
+            `slope = ${slope.toFixed(3)}, R² = ${r2.toFixed(4)}`;
         document.getElementById("analysis-duration").textContent =
             formatDuration(durationMs);
 
