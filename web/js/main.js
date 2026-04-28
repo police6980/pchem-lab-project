@@ -3066,192 +3066,80 @@ function initDaltonApp(params) {
     }
 
     // ─────────────────────────────────────────────────────────
-    // Phase 5.4 기능 3: AI 튜터 (돌턴 부분 압력 법칙 특화)
-    // 입자운동 패턴 자체 closure. ai-tutor.js 미사용 (dalton.html 에서 로드 제거).
+    // Phase 5.7 트랙 6-c: AI 튜터 — createTutor 통합 모듈 wrapper
+    // 기존 createDaltonTutor (330줄) 삭제 — daltonConfig + createTutor 단일 호출.
+    // 결정: Q-A closeConfig=null (현행 보존), Q-B metaTabId="4" 활성 (Q4 fix), Q-C autoQuestionTabIds=[]
+    // daltonState 의존 read-only 2점 (records / comparisonSelected) — buildDataContext callback 경유.
     // ─────────────────────────────────────────────────────────
-    function createDaltonTutor() {
-        const SESSION_KEY_API   = "pchem_api_key";
-        const SESSION_KEY_LEVEL = "pchem_ai_level";
-        const SESSION_KEY_MODEL = "pchem_ai_model";
+    const DALTON_LEVEL_GUIDES = {
+        elem:   "초등학생. 가스 분자를 공이나 구슬에 비유. 수식 없이 직관적 이미지로만. 친근 톤, 격려 많이.",
+        middle: "중학교 영재학급. 기본 분자 운동론 이해. 친근 톤, 어려운 용어 설명 동반.",
+        high:   "고등학교 영재학급. 이상기체 상태방정식, 통계역학 기초 가능. 엄밀성 + 학생 사고 존중.",
+        univ:   "대학 일반화학. 맥스웰-볼츠만 분포, 반데르발스 방정식 수준 가능.",
+    };
 
-        // ui.js MODEL_PRICING 정합 — inputPerMTok / outputPerMTok (createAnalysisPanel closure 격리로 자체 정의)
-        const MODEL_PRICING = {
-            "claude-sonnet-4-6": { inputPerMTok: 3, outputPerMTok: 15 },
-            "claude-opus-4-7":   { inputPerMTok: 5, outputPerMTok: 25 },
-        };
-        const USD_TO_KRW = 1400;
-        const LEVEL_GUIDES = {
-            elem:   "초등학생. 가스 분자를 공이나 구슬에 비유. 수식 없이 직관적 이미지로만. 친근 톤, 격려 많이.",
-            middle: "중학교 영재학급. 기본 분자 운동론 이해. 친근 톤, 어려운 용어 설명 동반.",
-            high:   "고등학교 영재학급. 이상기체 상태방정식, 통계역학 기초 가능. 엄밀성 + 학생 사고 존중.",
-            univ:   "대학 일반화학. 맥스웰-볼츠만 분포, 반데르발스 방정식 수준 가능.",
-        };
+    // R1: Q1~Q4 ↔ 학습 목표 1, 2, 동적, 4 매핑 (16 질문 차등)
+    const DALTON_QUESTION_TEXT = {
+        elem: {
+            1: "주사기 두 개를 합치기 전과 후, 가스 분자 수는 어떻게 변할까요? 표의 n_A, n_B, n_total 을 직접 세보세요.",
+            2: "두 가스가 섞이면 각 가스가 만드는 압력은 어떻게 될까요? 표의 P_A, P_B 를 보며 생각해보세요.",
+            3: "다음 측정에서 V_A 를 두 배로 하면 P_total 도 두 배가 될까요? 이유는?",
+            4: "📊 [질문 생성] 버튼을 눌러 내 데이터에 맞는 질문을 받아보세요.",
+        },
+        middle: {
+            1: "두 시린지 결합 전후 분자 수 변화를 표의 n_A, n_B, n_total 로 확인하세요. 분자가 사라지지 않는다면 무엇이 변할까요?",
+            2: "각 가스의 부분 압력 (P_A, P_B) 이 어떻게 결정되는지 표의 V_A, V_B 와 비교해보세요.",
+            3: "P_total 과 부분 압력의 합을 비교해보세요. 어떤 관계가 보이나요?",
+            4: "📊 [질문 생성] 버튼을 눌러 내 데이터에 맞는 탐구 질문을 받아보세요.",
+        },
+        high: {
+            1: "주입 전후 분자 수 (n) 가 보존된다고 가정할 때, 부피 변화 시 압력은 어떻게 변할까요? PV=nRT 로 설명해보세요.",
+            2: "부분 압력의 비율과 분자 수의 비율을 비교해보세요. 돌턴 법칙이 어떻게 표현되나요?",
+            3: "측정값 P_total (시뮬) 과 이론값 P(이론) 을 비교해보세요. 차이가 있다면 그 원인은?",
+            4: "📊 [질문 생성] 버튼을 눌러 내 데이터에 맞는 심화 질문을 받아보세요.",
+        },
+        univ: {
+            1: "이상기체 가정 하 분자 수 보존을 PV=nRT 와 결합해 P_total 을 V_A, V_B, T 로 유도하세요.",
+            2: "돌턴 법칙 P_total = ΣP_i 의 가정 (이상기체, 비반응성) 을 명시하고, 실제 기체에서 어긋날 조건을 논하세요.",
+            3: "측정값과 이론값의 차이를 통계적으로 분석하고, 시뮬레이션 모델의 한계를 논하세요.",
+            4: "📊 [질문 생성] 버튼을 눌러 내 데이터에 맞는 정량 분석 질문을 받아보세요.",
+        },
+    };
 
-        // R1: Q1~Q4 ↔ 학습 목표 1, 2, 동적, 4 매핑
-        const QUESTION_TEXT = {
-            elem: {
-                1: "주사기 두 개를 합치기 전과 후, 가스 분자 수는 어떻게 변할까요? 표의 n_A, n_B, n_total 을 직접 세보세요.",
-                2: "두 가스가 섞이면 각 가스가 만드는 압력은 어떻게 될까요? 표의 P_A, P_B 를 보며 생각해보세요.",
-                3: "다음 측정에서 V_A 를 두 배로 하면 P_total 도 두 배가 될까요? 이유는?",
-                4: "📊 [질문 생성] 버튼을 눌러 내 데이터에 맞는 질문을 받아보세요.",
-            },
-            middle: {
-                1: "두 시린지 결합 전후 분자 수 변화를 표의 n_A, n_B, n_total 로 확인하세요. 분자가 사라지지 않는다면 무엇이 변할까요?",
-                2: "각 가스의 부분 압력 (P_A, P_B) 이 어떻게 결정되는지 표의 V_A, V_B 와 비교해보세요.",
-                3: "P_total 과 부분 압력의 합을 비교해보세요. 어떤 관계가 보이나요?",
-                4: "📊 [질문 생성] 버튼을 눌러 내 데이터에 맞는 탐구 질문을 받아보세요.",
-            },
-            high: {
-                1: "주입 전후 분자 수 (n) 가 보존된다고 가정할 때, 부피 변화 시 압력은 어떻게 변할까요? PV=nRT 로 설명해보세요.",
-                2: "부분 압력의 비율과 분자 수의 비율을 비교해보세요. 돌턴 법칙이 어떻게 표현되나요?",
-                3: "측정값 P_total (시뮬) 과 이론값 P(이론) 을 비교해보세요. 차이가 있다면 그 원인은?",
-                4: "📊 [질문 생성] 버튼을 눌러 내 데이터에 맞는 심화 질문을 받아보세요.",
-            },
-            univ: {
-                1: "이상기체 가정 하 분자 수 보존을 PV=nRT 와 결합해 P_total 을 V_A, V_B, T 로 유도하세요.",
-                2: "돌턴 법칙 P_total = ΣP_i 의 가정 (이상기체, 비반응성) 을 명시하고, 실제 기체에서 어긋날 조건을 논하세요.",
-                3: "측정값과 이론값의 차이를 통계적으로 분석하고, 시뮬레이션 모델의 한계를 논하세요.",
-                4: "📊 [질문 생성] 버튼을 눌러 내 데이터에 맞는 정량 분석 질문을 받아보세요.",
-            },
-        };
+    function daltonGetQuestionText(level, qid) {
+        if (qid === "free") return "💬 자유 질문 모드";
+        return DALTON_QUESTION_TEXT[level]?.[qid] || "";
+    }
 
-        const conversations = { 1: [], 2: [], 3: [], 4: [], free: [] };
-        let currentTab = 1;
-        let totalInputTokens = 0;
-        let totalOutputTokens = 0;
+    // F1: 비교 모드 통합 — ctx.comparisonSelected 2개면 두 row 데이터 자동 주입
+    // (기존 createDaltonTutor.buildSystemPrompt 본문 그대로 — daltonState 직접 참조 → ctx 인자 경유)
+    function daltonBuildSystemPrompt(level, qid, ctx) {
+        const records = ctx.records || [];
+        const recentRecords = records.slice(-3);
+        const comparisonNs = ctx.comparisonSelected || [];
+        const comparisonRecs = comparisonNs.length === 2
+            ? comparisonNs.map((n) => records.find((r) => r.n === n)).filter(Boolean)
+            : [];
 
-        const $ = (id) => document.getElementById(id);
-        const sidebar = $("ai-sidebar");
-        if (!sidebar) return null;
-
-        const tutorDom = {
-            settingsBtn:  $("btn-toggle-settings"),
-            settingsPanel: $("ai-settings-panel"),
-            levelSelect:  $("ai-student-level"),
-            modelSelect:  $("ai-model"),
-            tokensUsed:   $("tokens-used"),
-            costEstimate: $("cost-estimate"),
-            tabBtns:      sidebar.querySelectorAll(".tab-btn"),
-            tabResetBtns: sidebar.querySelectorAll(".tab-reset"),
-            questionContext: $("question-context"),
-            questionSnippet: $("question-snippet"),
-            messagesList:    $("messages-list"),
-            conversationEmpty: $("conversation-empty"),
-            conversationEnd:   $("conversation-end-controls"),
-            btnEndConversation: $("btn-close-q"),
-            messageInput:    $("message-input"),
-            btnSendMessage:  $("btn-send-message"),
-        };
-
-        function init() {
-            tutorDom.levelSelect.value = sessionStorage.getItem(SESSION_KEY_LEVEL) || "high";
-            tutorDom.modelSelect.value = sessionStorage.getItem(SESSION_KEY_MODEL) || "claude-sonnet-4-6";
-
-            // settings 패널 토글 (ai-tutor.js 제거로 자체 처리)
-            if (tutorDom.settingsBtn && tutorDom.settingsPanel) {
-                tutorDom.settingsBtn.addEventListener("click", () => {
-                    tutorDom.settingsPanel.classList.toggle("open");
-                });
-                // 진입 시 항상 펼침 — 3 시뮬 일관
-                tutorDom.settingsPanel.classList.add("open");
-            }
-
-            tutorDom.tabBtns.forEach((btn) => {
-                btn.addEventListener("click", (e) => {
-                    if (e.target.classList.contains("tab-reset")) return;  // reset 버튼 click 분리
-                    const q = btn.dataset.q;
-                    if (!q) return;
-                    switchTab(q === "free" ? "free" : parseInt(q, 10));
-                });
-            });
-            tutorDom.tabResetBtns.forEach((btn) => {
-                btn.addEventListener("click", (e) => {
-                    e.stopPropagation();
-                    const q = btn.dataset.resetQ;
-                    const tab = q === "free" ? "free" : parseInt(q, 10);
-                    conversations[tab] = [];
-                    if (tab === currentTab) renderMessages();
-                });
-            });
-
-            tutorDom.levelSelect.addEventListener("change", () => {
-                sessionStorage.setItem(SESSION_KEY_LEVEL, tutorDom.levelSelect.value);
-                updateQuestionContext();
-            });
-            tutorDom.modelSelect.addEventListener("change", () => {
-                sessionStorage.setItem(SESSION_KEY_MODEL, tutorDom.modelSelect.value);
-                updateUsageDisplay();
-            });
-
-            tutorDom.btnSendMessage.addEventListener("click", sendMessage);
-            tutorDom.messageInput.addEventListener("keydown", (e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault();
-                    sendMessage();
-                }
-            });
-            tutorDom.messageInput.addEventListener("input", () => {
-                tutorDom.btnSendMessage.disabled = !tutorDom.messageInput.value.trim();
-            });
-
-            if (tutorDom.btnEndConversation) {
-                tutorDom.btnEndConversation.addEventListener("click", () => {
-                    conversations[currentTab] = [];
-                    renderMessages();
-                });
-            }
-
-            switchTab(1);
-            updateUsageDisplay();
-            tutorDom.messageInput.disabled = false;
+        let dataContext = "";
+        if (comparisonRecs.length === 2) {
+            dataContext = `\n[비교 중인 두 측정 (학생이 비교 모드 체크)]\n` + comparisonRecs.map((r) =>
+                `- 회차 ${r.n}: V_A=${r.V_A_initial}, V_B=${r.V_B}, P_total=${r.P_total.toFixed(2)} atm, P_A=${r.P_A.toFixed(2)} atm, P_B=${r.P_B.toFixed(2)} atm, n_A=${r.n_A}, n_B=${r.n_B}, n_total=${r.n_total}, gas_A=${r.gasA}, gas_B=${r.gasB}`
+            ).join("\n");
+        } else if (recentRecords.length > 0) {
+            dataContext = `\n[최근 측정 ${recentRecords.length}개]\n` + recentRecords.map((r) =>
+                `- 회차 ${r.n}: V_A=${r.V_A_initial}, V_B=${r.V_B}, P_total=${r.P_total.toFixed(2)} atm, P_A=${r.P_A.toFixed(2)} atm, P_B=${r.P_B.toFixed(2)} atm, n_A=${r.n_A}, n_B=${r.n_B}, n_total=${r.n_total}, gas_A=${r.gasA}, gas_B=${r.gasB}`
+            ).join("\n");
+        } else {
+            dataContext = "\n[측정 기록 없음 — 학생이 아직 [확인] 버튼을 누르지 않았습니다.]";
         }
 
-        function switchTab(tab) {
-            currentTab = tab;
-            tutorDom.tabBtns.forEach((btn) => {
-                btn.classList.toggle("active", btn.dataset.q === String(tab));
-            });
-            updateQuestionContext();
-            renderMessages();
-        }
+        const focusLine = qid === "free"
+            ? "현재 모드: 자유 질문 — 학생 질문에 부분 압력 법칙 / 분자 수 / 시뮬 데이터와 연결해 답변. 400자 이내."
+            : `현재 탐구 질문: ${DALTON_QUESTION_TEXT[level]?.[qid] || ""}`;
 
-        function updateQuestionContext() {
-            if (!tutorDom.questionSnippet) return;
-            const level = tutorDom.levelSelect.value;
-            tutorDom.questionSnippet.textContent = currentTab === "free"
-                ? "💬 자유 질문 모드"
-                : (QUESTION_TEXT[level]?.[currentTab] || "");
-        }
-
-        // F1: 비교 모드 통합 — comparisonSelected 2개면 두 row 데이터 자동 주입
-        function buildSystemPrompt() {
-            const level = tutorDom.levelSelect.value;
-            const records = daltonState.measurementRecords;
-            const recentRecords = records.slice(-3);
-            const comparisonNs = daltonState.comparisonSelected || [];
-            const comparisonRecs = comparisonNs.length === 2
-                ? comparisonNs.map((n) => records.find((r) => r.n === n)).filter(Boolean)
-                : [];
-
-            let dataContext = "";
-            if (comparisonRecs.length === 2) {
-                dataContext = `\n[비교 중인 두 측정 (학생이 비교 모드 체크)]\n` + comparisonRecs.map((r) =>
-                    `- 회차 ${r.n}: V_A=${r.V_A_initial}, V_B=${r.V_B}, P_total=${r.P_total.toFixed(2)} atm, P_A=${r.P_A.toFixed(2)} atm, P_B=${r.P_B.toFixed(2)} atm, n_A=${r.n_A}, n_B=${r.n_B}, n_total=${r.n_total}, gas_A=${r.gasA}, gas_B=${r.gasB}`
-                ).join("\n");
-            } else if (recentRecords.length > 0) {
-                dataContext = `\n[최근 측정 ${recentRecords.length}개]\n` + recentRecords.map((r) =>
-                    `- 회차 ${r.n}: V_A=${r.V_A_initial}, V_B=${r.V_B}, P_total=${r.P_total.toFixed(2)} atm, P_A=${r.P_A.toFixed(2)} atm, P_B=${r.P_B.toFixed(2)} atm, n_A=${r.n_A}, n_B=${r.n_B}, n_total=${r.n_total}, gas_A=${r.gasA}, gas_B=${r.gasB}`
-                ).join("\n");
-            } else {
-                dataContext = "\n[측정 기록 없음 — 학생이 아직 [확인] 버튼을 누르지 않았습니다.]";
-            }
-
-            const focusLine = currentTab === "free"
-                ? "현재 모드: 자유 질문 — 학생 질문에 부분 압력 법칙 / 분자 수 / 시뮬 데이터와 연결해 답변. 400자 이내."
-                : `현재 탐구 질문: ${QUESTION_TEXT[level]?.[currentTab] || ""}`;
-
-            return `당신은 영재 과학교육 튜터입니다.
-대상 학생: ${LEVEL_GUIDES[level] || LEVEL_GUIDES.high}
+        return `당신은 영재 과학교육 튜터입니다.
+대상 학생: ${DALTON_LEVEL_GUIDES[level] || DALTON_LEVEL_GUIDES.high}
 현재 탐구 주제: 돌턴의 부분 압력 법칙 (P_total = P_A + P_B = ΣP_i, 동일 부피·온도, 비반응성 가스)
 
 ${focusLine}
@@ -3277,127 +3165,56 @@ ${dataContext}
 10. 대화 내용으로 학생 수준 판단. 설정과 다르다고 확신 시 응답 마지막 줄에 [[LEVEL:middle]] / [[LEVEL:high]] / [[LEVEL:univ]] 추가.
 
 한국어로 답변하세요.`;
+    }
+
+    function initDaltonTutor() {
+        if (!window.PchemTutorModule) {
+            console.error("[dalton tutor] PchemTutorModule 미로드 — tutor.js script 누락?");
+            return;
         }
 
-        async function sendMessage() {
-            const userText = tutorDom.messageInput.value.trim();
-            if (!userText) return;
+        const daltonConfig = {
+            simName: "dalton",
+            sidebarSelector: "#ai-sidebar",
+            tabIds: ["1", "2", "3", "4", "free"],
+            metaTabId: "4",                   // Q-B: Q4 메타 활성 (깨진 placeholder fix)
+            autoQuestionTabIds: [],           // Q-C: 자동 질문 X (현행 보존)
+            // Q-A 재결정 (A2): boyle 패턴 채택 — AI 요약 활성. default prompt 사용.
+            // 사용자 의도 = [✓ 대화 마무리] → AI 2~3줄 요약 → 입력창 비활성 + 버튼 hidden.
+            closeConfig: { /* 기본 prompt 사용 */ },
+            reportEnabled: false,             // dalton 보고서 X
+            getQuestionText:   daltonGetQuestionText,
+            buildSystemPrompt: daltonBuildSystemPrompt,
+            buildDataContext:  () => ({
+                records: daltonState.measurementRecords,
+                comparisonSelected: daltonState.comparisonSelected,
+            }),
+            onLevelDetect: (level) => {
+                console.log(`[dalton tutor] 학생 수준 자동 감지: ${level}`);
+            },
+        };
 
-            const apiKey = sessionStorage.getItem(SESSION_KEY_API);
-            if (!apiKey) {
-                alert("먼저 🏠 홈 페이지에서 API 키를 입력해주세요.");
-                return;
+        const daltonTutor = window.PchemTutorModule.createTutor(daltonConfig);
+        if (!daltonTutor) {
+            console.error("[dalton tutor] createTutor 실패");
+            return;
+        }
+        window.PchemDaltonTutor = daltonTutor;
+
+        // Q-B: Q4 [질문 생성] 버튼 — metaTabId="4" 활성 시 default empty state 가 #btn-generate-q4 동적 렌더
+        document.addEventListener("click", (e) => {
+            if (e.target?.closest?.("#btn-generate-q4")) {
+                daltonTutor.generateMetaQuestion();
             }
+        });
 
-            conversations[currentTab].push({ role: "user", content: userText });
-            tutorDom.messageInput.value = "";
-            tutorDom.btnSendMessage.disabled = true;
-            renderMessages();
-
-            conversations[currentTab].push({ role: "assistant", content: "…", _loading: true });
-            renderMessages();
-
-            try {
-                const messages = conversations[currentTab]
-                    .filter((m) => !m._loading)
-                    .map((m) => ({ role: m.role, content: m.content }));
-                const systemPrompt = buildSystemPrompt();
-                const model = tutorDom.modelSelect.value;
-
-                const res = await fetch("https://api.anthropic.com/v1/messages", {
-                    method: "POST",
-                    headers: {
-                        "content-type": "application/json",
-                        "x-api-key": apiKey,
-                        "anthropic-version": "2023-06-01",
-                        "anthropic-dangerous-direct-browser-access": "true",
-                    },
-                    body: JSON.stringify({
-                        model, max_tokens: 1024,
-                        system: systemPrompt, messages,
-                    }),
-                });
-
-                if (!res.ok) {
-                    const err = await res.json().catch(() => ({}));
-                    const msg = err?.error?.message || `HTTP ${res.status}`;
-                    conversations[currentTab].pop();
-                    conversations[currentTab].push({ role: "assistant", content: `⚠️ API 오류: ${msg}`, isError: true });
-                } else {
-                    const data = await res.json();
-                    const reply = data.content?.[0]?.text || "";
-                    conversations[currentTab].pop();
-                    conversations[currentTab].push({ role: "assistant", content: reply });
-
-                    // [[LEVEL:xxx]] 자동 감지
-                    const levelMatch = reply.match(/\[\[LEVEL:(elem|middle|high|univ)\]\]/);
-                    if (levelMatch) {
-                        const newLevel = levelMatch[1];
-                        sessionStorage.setItem(SESSION_KEY_LEVEL, newLevel);
-                        tutorDom.levelSelect.value = newLevel;
-                        updateQuestionContext();
-                    }
-
-                    if (data.usage) {
-                        totalInputTokens  += data.usage.input_tokens  || 0;
-                        totalOutputTokens += data.usage.output_tokens || 0;
-                        updateUsageDisplay();
-                    }
-                }
-            } catch (e) {
-                conversations[currentTab].pop();
-                conversations[currentTab].push({ role: "assistant", content: `⚠️ 네트워크 오류: ${e.message || e}`, isError: true });
-            } finally {
-                tutorDom.btnSendMessage.disabled = false;
-                renderMessages();
-            }
+        // Q-A 재결정 (A2): btn-close-q → closeConversation (boyle 패턴 — AI 요약).
+        const closeBtn = document.getElementById("btn-close-q");
+        if (closeBtn) {
+            closeBtn.addEventListener("click", () => daltonTutor.closeConversation());
         }
 
-        function renderMessages() {
-            const list = conversations[currentTab];
-            if (tutorDom.conversationEmpty) {
-                tutorDom.conversationEmpty.style.display = list.length === 0 ? "block" : "none";
-            }
-            if (tutorDom.messagesList) {
-                tutorDom.messagesList.innerHTML = list.map((m) => {
-                    const cls = m.role === "user" ? "user-message" : "ai-message";
-                    const errCls = m.isError ? " is-error" : "";
-                    const loadingCls = m._loading ? " loading" : "";
-                    const avatar = m.role === "user" ? "👤" : "🤖";
-                    return `
-                        <div class="message ${cls}${errCls}${loadingCls}">
-                            <div class="avatar">${avatar}</div>
-                            <div class="content"><div class="bubble">${escapeHtml(m.content).replace(/\n/g, "<br>")}</div></div>
-                        </div>
-                    `;
-                }).join("");
-                tutorDom.messagesList.scrollTop = tutorDom.messagesList.scrollHeight;
-            }
-            if (tutorDom.conversationEnd) {
-                tutorDom.conversationEnd.hidden = list.length === 0;
-            }
-        }
-
-        function escapeHtml(s) {
-            return String(s).replace(/[&<>"']/g, (c) => ({
-                "&": "&amp;", "<": "&lt;", ">": "&gt;",
-                '"': "&quot;", "'": "&#39;",
-            }[c]));
-        }
-
-        function updateUsageDisplay() {
-            const total = totalInputTokens + totalOutputTokens;
-            const model = tutorDom.modelSelect.value;
-            const pricing = MODEL_PRICING[model] || MODEL_PRICING["claude-sonnet-4-6"];
-            const costUSD = (totalInputTokens / 1_000_000) * pricing.inputPerMTok
-                          + (totalOutputTokens / 1_000_000) * pricing.outputPerMTok;
-            const costKRW = Math.round(costUSD * USD_TO_KRW);
-            if (tutorDom.tokensUsed)   tutorDom.tokensUsed.textContent   = total;
-            if (tutorDom.costEstimate) tutorDom.costEstimate.textContent = costKRW;
-        }
-
-        init();
-        return {};
+        daltonTutor.init();
     }
 
     // ─────────────────────────────────────────────────────────
@@ -3609,8 +3426,8 @@ ${dataContext}
     // Phase 5.4: 측정 기록 행 삭제 핸들러 (init 1회)
     setupRecordDeleteHandler();
 
-    // Phase 5.4 기능 3: AI 튜터 (돌턴 부분 압력 법칙 특화) — 자체 closure
-    createDaltonTutor();
+    // Phase 5.7 트랙 6-c: AI 튜터 — createTutor(daltonConfig) wrapper
+    initDaltonTutor();
 
     // ─────────────────────────────────────────────────────────
     // 초기 상태 1회 적용 (숫자 박스·이론값·압력 readout 동기)

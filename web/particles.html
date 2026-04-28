@@ -13,6 +13,8 @@
     <script src="js/serial.js" defer></script>
     <script src="js/logger.js" defer></script>
     <!-- ai-tutor.js 미사용 — createAdvAiTutor (ui.js) 가 자체 처리. ai-tutor.js 의 .ai-sidebar 셀렉터가 입자운동 탭까지 영향 → 비활성 버그 (Phase 5.4) 회피 -->
+    <!-- Phase 5.7 트랙 6-b: tutor.js (통합 모듈) 추가 -->
+    <script src="js/tutor.js" defer></script>
     <script src="js/ui.js" defer></script>
     <script src="js/main.js" defer></script>
 </head>
@@ -166,7 +168,7 @@
                 <textarea id="adv-message-input"
                           placeholder="메시지 입력 (Enter 전송, Shift+Enter 줄바꿈)"
                           rows="2"></textarea>
-                <button id="adv-btn-send-message" title="전송">↑</button>
+                <button id="btn-send-message" title="전송">↑</button>
             </div>
         </aside>
         <button id="adv-ai-reopen-btn" title="AI 튜터 열기">💬</button>

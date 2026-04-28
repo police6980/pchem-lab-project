@@ -2095,62 +2095,18 @@ function createAdvAiTutor({ getAdvState }) {
     const emptyEl     = document.getElementById("adv-conversation-empty");
     const listEl      = document.getElementById("adv-messages-list");
     const inputEl     = document.getElementById("adv-message-input");
-    const sendBtn     = document.getElementById("adv-btn-send-message");
+    // (Phase 5.7 트랙 6-b) button ID 정합 — adv-btn-send-message → btn-send-message
+    // (보일/돌턴 통일, .ai-sidebar #btn-send-message CSS rule 적용)
+    const sendBtn     = document.getElementById("btn-send-message");
 
-    // Load level/model from sessionStorage (shared with basic).
-    levelSel.value = sessionStorage.getItem(SESSION_KEY_LEVEL) || "high";
-    modelSel.value = sessionStorage.getItem(SESSION_KEY_MODEL) || "claude-sonnet-4-6";
-    levelSel.addEventListener("change", () => {
-        sessionStorage.setItem(SESSION_KEY_LEVEL, levelSel.value);
-        // level 변경 시 현재 활성 탭 snippet 도 새 본문으로 즉시 갱신.
-        snippetEl.textContent = getAdvQuestionText(levelSel.value, activeQ);
-    });
-    modelSel.addEventListener("change", () => sessionStorage.setItem(SESSION_KEY_MODEL, modelSel.value));
-
-    // Input availability — mirrors basic-mode updateInputAvailability(). The
-    // API key is shared via sessionStorage["pchem_api_key"] so advanced is
-    // ready the moment the student enters the key in basic mode.
-    function updateInputAvailability() {
-        const hasApiKey = Boolean(sessionStorage.getItem(SESSION_KEY_API));
-        const hasText = inputEl.value.trim().length > 0;
-        inputEl.disabled = !hasApiKey;
-        sendBtn.disabled = !hasApiKey || !hasText;
-        inputEl.placeholder = hasApiKey
-            ? "메시지 입력 (Enter 전송, Shift+Enter 줄바꿈)"
-            : "🏠 홈 페이지에서 API 키를 먼저 입력하세요";
-    }
-
-    // Settings panel toggle — CSS 가 .settings-panel 을 max-height:0 으로 닫고
-    // .open 클래스가 붙으면 max-height:500px 로 확장하는 구조(style.css).
-    // 따라서 display 대신 classList 토글을 사용해야 CSS 애니메이션과 정합.
-    // (boyle 쪽 ai-tutor.js:1050 과 동일 방식.)
-    settingsBtn.addEventListener("click", () => {
-        settings.classList.toggle("open");
-    });
-    // 진입 시 항상 펼침 — 3 시뮬 일관
-    settings.classList.add("open");
-
-    // Sidebar collapse / reopen (scoped via body.adv-sidebar-collapsed).
+    // Sidebar collapse / reopen (scoped via body.adv-sidebar-collapsed) — createTutor 영역 외, 보존
     collapseBtn.addEventListener("click", () => document.body.classList.add("adv-sidebar-collapsed"));
     reopenBtn.addEventListener("click", () => document.body.classList.remove("adv-sidebar-collapsed"));
 
-    // --- Tab switching ---
-    function setActiveTab(q) {
-        activeQ = q;
-        tabBtns.forEach(b => b.classList.toggle("active", b.dataset.q === q));
-        const level = sessionStorage.getItem(SESSION_KEY_LEVEL) || "high";
-        snippetEl.textContent = getAdvQuestionText(level, q);
-        render();
-        updateInputAvailability();
-    }
-    tabBtns.forEach(b => b.addEventListener("click", () => setActiveTab(b.dataset.q)));
-    setActiveTab("1");
-
-    // Refresh whenever the user clicks/focuses anywhere in the sidebar — this
-    // is how the advanced tab picks up a key that was just saved in basic.
-    sidebar.addEventListener("focusin", updateInputAvailability);
-    sidebar.addEventListener("click", updateInputAvailability);
-    updateInputAvailability();
+    // (Phase 5.7 트랙 6-b) 기존 init 영역 (level/model change, settings 토글, tabBtns click,
+    // sidebar focusin/click, setActiveTab) 모두 createTutor 가 처리. closure 안 함수
+    // (updateInputAvailability / setActiveTab / render / send / buildContext / buildSystemPrompt /
+    // escapeHtml / renderMarkdown) 본문은 dead code 보존 — 호출 경로 우회됨.
 
     // --- Message rendering ---
     function escapeHtml(t) {
@@ -2290,16 +2246,59 @@ ${focus}
         }
     }
 
-    sendBtn.addEventListener("click", send);
-    inputEl.addEventListener("input", updateInputAvailability);
-    inputEl.addEventListener("keydown", (e) => {
-        if (e.key === "Enter" && !e.shiftKey) {
-            e.preventDefault();
-            send();
-        }
-    });
+    // (Phase 5.7 트랙 6-b) 기존 핸들러 등록 (sendBtn click / inputEl input / keydown) =
+    // createTutor 가 처리. 위 코드 통째 비활성화.
 
-    return { refresh: updateInputAvailability };
+    // === createTutor 호출 — particlesConfig ===
+    // 폴링 패턴 (PchemTutorModule 도착 대기) — tutor.js script 가 ui.js 보다 먼저 로드되나
+    // defer 순서 보장. 단 의존성 안전 위해 가드.
+    if (typeof window.PchemTutorModule === "undefined") {
+        console.error("[particles tutor] PchemTutorModule 미로드 — tutor.js script 누락?");
+        return { refresh: () => {} };
+    }
+
+    const particlesConfig = {
+        simName: "particles",
+        sidebarSelector: "#adv-ai-sidebar",
+        tabIds: ["1", "2", "3", "4", "free"],
+        metaTabId: null,                 // 입자운동 메타 X
+        autoQuestionTabIds: [],          // 자동 질문 X
+        closeConfig: null,               // 대화 마무리 X
+        reportEnabled: false,            // 보고서 X
+        getQuestionText:   (level, qid) => getAdvQuestionText(level, qid),  // 16 질문 차등 보존
+        buildSystemPrompt: (level, qid)  => buildSystemPrompt(level, qid),  // closure 안 함수
+        buildDataContext:  ()             => ({ raw: buildContext() }),     // closure 안 함수 — apiContent 직접 X, sendMessage 가 systemPrompt 안 포함
+        onLevelDetect: (level) => {
+            console.log(`[particles tutor] 학생 수준 자동 감지: ${level}`);
+            const sel = document.getElementById("adv-ai-student-level");
+            if (sel) sel.value = level;
+        },
+        domSelectors: {
+            settingsToggle:    "#adv-btn-toggle-settings",
+            settingsPanel:     "#adv-ai-settings-panel",
+            levelSelect:       "#adv-ai-student-level",
+            modelSelect:       "#adv-ai-model",
+            questionSnippet:   "#adv-question-snippet",
+            messagesList:      "#adv-messages-list",
+            conversationEmpty: "#adv-conversation-empty",
+            messageInput:      "#adv-message-input",
+            btnSendMessage:    "#btn-send-message",
+            endControls:       "#__particles_no_end_controls__",  // 부재
+            tokensUsed:        "#__particles_no_tokens__",        // 토큰 표시 X (보일과 다름)
+            costEstimate:      "#__particles_no_cost__",
+        },
+    };
+
+    const particlesTutor = window.PchemTutorModule.createTutor(particlesConfig);
+    if (!particlesTutor) {
+        console.error("[particles tutor] createTutor 실패");
+        return { refresh: () => {} };
+    }
+    window.PchemParticlesTutor = particlesTutor;
+    particlesTutor.init();
+
+    // refreshTutor (main.js 측 외부 호출) — input 활성/비활성 갱신만 (보일과 다름, 측정 조건 X)
+    return { refresh: () => particlesTutor.updateTabAvailability(0) };
 }
 
 // ============================================================

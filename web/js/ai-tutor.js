@@ -1,5 +1,11 @@
 // AI tutor conversation state and message rendering.
 // Part 4: Anthropic API wired; docx report direct download (no modal).
+//
+// Phase 5.7 (a-2 회귀 정정): tutor.js 도입 후 SOFT_TURN_LIMIT 글로벌 const
+// 충돌 → IIFE 캡슐화. dead code 영역 (line 1~1042) 모두 IIFE 안. DOMContentLoaded
+// (IIFE 밖) 가 사용하는 2 함수 (downloadConversations / getConversationSummary)
+// 만 window.__boyleAiTutorLegacy 로 노출.
+(function() {
 
 // === Anthropic Messages API ===
 // Accesses ui.js via window.PchemTutor surface (exposed inside
@@ -508,7 +514,10 @@ function getConversationSummary() {
 function updateReportButtonState() {
     const btn = document.getElementById("btn-generate-report");
     if (!btn) return;
-    const visibleCount = (qid) => (aiConversations[qid]?.messages
+    // (a-2) 회귀 정정: source = boyleTutor.getConversations() (createTutor closure) 우선,
+    // fallback = IIFE 안 aiConversations (dead, 항상 빈)
+    const convs = window.PchemBoyleTutor?.getConversations?.() ?? aiConversations;
+    const visibleCount = (qid) => (convs[qid]?.messages
         .filter(m => !m.isPromptInternal).length ?? 0);
     const q1ok = visibleCount("1") > 0;
     const q2ok = visibleCount("2") > 0;
@@ -531,9 +540,11 @@ function downloadConversations() {
     let text = "=== 탐구 대화 기록 ===\n";
     text += `저장 시각: ${new Date().toLocaleString("ko-KR")}\n\n`;
 
+    // (a-2) 회귀 정정: source = boyleTutor.getConversations() 우선
+    const convsSrc = window.PchemBoyleTutor?.getConversations?.() ?? aiConversations;
     let hasAny = false;
     ["1", "2", "3", "4", "free"].forEach(qid => {
-        const conv = aiConversations[qid];
+        const conv = convsSrc[qid];
         if (!conv) return;
         const visible = conv.messages.filter(m => !m.isPromptInternal);
         if (visible.length === 0) return;
@@ -1041,83 +1052,102 @@ function switchToQuestion(questionId) {
     updateReportButtonState();
 }
 
-// === Init ===
+// === IIFE 끝 — DOMContentLoaded 가 사용할 2 함수 window 노출 ===
+window.__boyleAiTutorLegacy = {
+    downloadConversations,
+    getConversationSummary,
+    updateReportButtonState,  // (a-2) 회귀 정정: 신규 wiring 에서 sendMessage 후 호출
+};
+
+// (a-2) 회귀 정정: ui.js refresh() 가 typeof updateTabAvailability === "function" 검사 후 호출.
+// IIFE 캡슐화로 전역 미정의 → 측정 갱신해도 탭 활성/비활성 처리 X. 전역 노출.
+window.updateTabAvailability = updateTabAvailability;
+
+})();  // IIFE 끝
+
+// === Init === (Phase 5.7 트랙 6-a-2 — Hybrid wrapper)
+//
+// 기존 wiring (탭 click / sendMessage / closeQuestion / generate-report click
+// delegation 등) 모두 제거. createTutor(boyleConfig) 단일 호출로 대체.
+// 본 파일의 closeQuestion / generateQ4Question / sendMessage / switchToQuestion /
+// renderConversation 등 함수 본문은 dead code 보존 (호출 경로 우회됨).
+//
+// PchemTutor (ui.js createAnalysisPanel closure) / PchemTutorModule (tutor.js) /
+// PchemBoyleReport (tutor-report-boyle.js) 도착 폴링.
 document.addEventListener("DOMContentLoaded", () => {
-    const settingsPanel = document.getElementById("ai-settings-panel");
-    const toggleBtn = document.getElementById("btn-toggle-settings");
-    if (toggleBtn && settingsPanel) {
-        toggleBtn.addEventListener("click", () => {
-            settingsPanel.classList.toggle("open");
-        });
-        // 진입 시 항상 펼침 — 학생 모델 / 사용량 / 키 안내 즉시 (3 시뮬 일관)
-        settingsPanel.classList.add("open");
-    }
+    // 회귀 1 정정 — 설정 패널 즉시 펼침 (Phase 5.5 보존, tutor.js init 의 add 와 무관 보강)
+    document.getElementById("ai-settings-panel")?.classList.add("open");
 
-    document.querySelectorAll(".ai-sidebar .tab-btn").forEach(btn => {
-        btn.addEventListener("click", () => {
-            const q = btn.dataset.q;
-            if (!q) return;
-            if (q === "free") {
-                switchToQuestion("free");
-                return;
+    function tryInitBoyleTutor() {
+        if (!window.PchemTutorModule || !window.PchemBoyleReport || !window.PchemTutor) {
+            setTimeout(tryInitBoyleTutor, 50);
+            return;
+        }
+        const T = window.PchemTutor;
+
+        const boyleConfig = {
+            simName: "boyle",
+            sidebarSelector: "#ai-sidebar",
+            tabIds: ["1", "2", "3", "4", "free"],
+            metaTabId: "4",
+            autoQuestionTabIds: ["3"],   // Q3 첫 진입 시 자동 질문 (보일 패턴)
+            closeConfig: { /* 기본 prompt 사용 */ },  // 대화 마무리 활성
+            reportEnabled: true,
+            reportConfig: {
+                generateAndDownload: (ctx, conv) =>
+                    window.PchemBoyleReport.generateBoyleReport(ctx, conv),
+            },
+            getQuestionText:   (level, qid) => T.getQuestionText?.(level, qid) ?? "",
+            buildSystemPrompt: (level, qid)  => T.buildSystemPrompt?.(level, qid) ?? "",
+            buildDataContext:  ()             => T.buildDataContext?.() ?? {},
+            onLevelDetect: (level) => {
+                console.log(`[boyle tutor] 학생 수준 자동 감지: ${level}`);
+                const sel = document.getElementById("ai-student-level");
+                if (sel) sel.value = level;
+            },
+            // 토큰 누적 source = ui.js (createAnalysisPanel closure 의 totalInputTokens)
+            // — createTutor 의 마지막 turn delta 만 ui.js addTokens 로 누적
+            onTokenUsage: (model, deltaIn, deltaOut /*, totalIn, totalOut, costKrw */) => {
+                if (typeof T.addTokens === "function") T.addTokens(deltaIn, deltaOut);
+                // (a-2) 회귀 정정: sendMessage 후 보고서 버튼 활성 갱신
+                window.__boyleAiTutorLegacy?.updateReportButtonState?.();
+            },
+            // tokensUsed / costEstimate dom = ui.js updateUsageDisplay 측 갱신만 사용 (이중 갱신 회피)
+            domSelectors: {
+                tokensUsed:   "#__tutor_tokens_unused__",   // 의도적 부재 selector
+                costEstimate: "#__tutor_cost_unused__",
+            },
+        };
+
+        const boyleTutor = window.PchemTutorModule.createTutor(boyleConfig);
+        if (!boyleTutor) {
+            console.error("[boyle] createTutor 실패");
+            return;
+        }
+        window.PchemBoyleTutor = boyleTutor;
+
+        // [✓ 대화 마무리] 버튼 wiring (sidebar 안 #btn-close-q)
+        const closeBtn = document.getElementById("btn-close-q");
+        if (closeBtn) {
+            closeBtn.addEventListener("click", () => boyleTutor.closeConversation());
+        }
+        // Q4 [질문 생성] 버튼 wiring — ui.js / sidebar HTML 의 #btn-generate-q4
+        document.addEventListener("click", (e) => {
+            if (e.target?.closest?.("#btn-generate-q4")) {
+                boyleTutor.generateMetaQuestion();
+            } else if (e.target?.closest?.("#btn-generate-report")) {
+                boyleTutor.generateReport();
+            } else if (e.target?.closest?.("#btn-download-conversations")) {
+                window.__boyleAiTutorLegacy?.downloadConversations?.();
             }
-            if (btn.getAttribute("aria-disabled") === "true") {
-                showTabDisabledToast(q);
-                return;
-            }
-            switchToQuestion(q);
         });
-    });
 
-    // 탭별 초기화 버튼 (탭 전환 이벤트 차단)
-    document.querySelectorAll(".ai-sidebar .tab-reset").forEach(btn => {
-        btn.addEventListener("click", (e) => {
-            e.stopPropagation();
-            const qid = btn.dataset.resetQ;
-            if (!qid) return;
-            const label = qid === "free" ? "자유" : `Q${qid}`;
-            if (!confirm(`${label} 탭의 대화를 초기화하시겠습니까?\n(누적 비용 표시는 유지됩니다)`)) return;
-            resetQuestion(qid);
-        });
-    });
+        boyleTutor.init();
 
-    const messageInput = document.getElementById("message-input");
-    const sendBtn = document.getElementById("btn-send-message");
-    if (messageInput && sendBtn) {
-        messageInput.addEventListener("input", updateInputAvailability);
-        messageInput.addEventListener("keydown", (e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                sendMessage();
-            }
-        });
-        sendBtn.addEventListener("click", sendMessage);
+        // ui.js 측 PchemTutor.getConversationSummary 노출 (보고서 호환 영역)
+        if (window.PchemTutor && window.__boyleAiTutorLegacy) {
+            window.PchemTutor.getConversationSummary = window.__boyleAiTutorLegacy.getConversationSummary;
+        }
     }
-
-    const closeBtn = document.getElementById("btn-close-q");
-    if (closeBtn) {
-        closeBtn.addEventListener("click", () => closeQuestion(activeQuestion));
-    }
-
-    // Event delegation — the target buttons (generate-report, download-conversations)
-    // are inserted into the DOM after this handler runs by createAnalysisPanel
-    // in ui.js (which is called from main.js's async DOMContentLoaded handler,
-    // after a fetch). Delegation works regardless of when the buttons appear.
-    document.addEventListener("click", (e) => {
-        if (e.target?.closest?.("#btn-generate-report")) generateReport();
-        else if (e.target?.closest?.("#btn-download-conversations")) downloadConversations();
-    });
-
-    // Attach getConversationSummary to PchemTutor if the surface is ready
-    // (ui.js's createAnalysisPanel may populate window.PchemTutor after
-    //  this handler runs; generateReport still works via direct reference).
-    if (window.PchemTutor) {
-        window.PchemTutor.getConversationSummary = getConversationSummary;
-    }
-
-    // main.js createAnalysisPanel runs asynchronously after a fetch; setting
-    // initial tab state here avoids a brief flash where Q1-Q3 look enabled
-    // before refresh() updates them with the real datapoint count.
-    updateTabAvailability(0);
-    switchToQuestion("free");
+    tryInitBoyleTutor();
 });
