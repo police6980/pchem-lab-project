@@ -304,13 +304,20 @@ function createTutor(config) {
         activeQuestion = qid;
         // 탭 active 토글 + new 뱃지 clear
         dom.tabBtns.forEach(b => b.classList.toggle("active", b.dataset.q === qid));
-        tabNewFlags[qid] = false;
+        clearTabNew(qid);
         // 본문 snippet 갱신
         if (dom.questionSnippet) {
             dom.questionSnippet.textContent = config.getQuestionText(getLevel(), qid);
         }
         renderConversation();
         updateInputAvailability();
+        // 자동 질문 생성 (config.autoQuestionTabIds 활성 시) — 첫 진입 시만
+        if (config.autoQuestionTabIds?.includes(qid)) {
+            const conv = conversations[qid];
+            if (conv && conv.messages.length === 0 && getApiKey()) {
+                generateAutoQuestion(qid);
+            }
+        }
     }
 
     function markTabNew(qid) {
@@ -318,6 +325,34 @@ function createTutor(config) {
         tabNewFlags[qid] = true;
         const btn = sidebar.querySelector(`.tab-btn[data-q="${qid}"]`);
         if (btn) btn.classList.add("has-new");
+    }
+
+    function clearTabNew(qid) {
+        tabNewFlags[qid] = false;
+        const btn = sidebar.querySelector(`.tab-btn[data-q="${qid}"]`);
+        if (btn) btn.classList.remove("has-new");
+    }
+
+    // === Typing indicator (sendMessage / closeConversation / generateMetaQuestion 공통) ===
+    function showTypingIndicator() {
+        if (!dom.messagesList) return;
+        if (dom.messagesList.querySelector(".typing-indicator")) return;
+        const wrap = document.createElement("div");
+        wrap.className = "message ai-message typing-indicator";
+        wrap.innerHTML = `
+            <div class="avatar">🤖</div>
+            <div class="bubble typing-dots"><span></span><span></span><span></span></div>
+        `;
+        dom.messagesList.appendChild(wrap);
+        if (dom.messagesList.parentElement) {
+            dom.messagesList.parentElement.scrollTop = dom.messagesList.parentElement.scrollHeight;
+        }
+    }
+
+    function hideTypingIndicator() {
+        if (!dom.messagesList) return;
+        const ind = dom.messagesList.querySelector(".typing-indicator");
+        if (ind) ind.remove();
     }
 
     function resetTab(qid) {
@@ -357,12 +392,13 @@ function createTutor(config) {
         // contextSnapshot 첫 turn 만 저장 (보고서 등 후속 사용)
         if (!conv.contextSnapshot) conv.contextSnapshot = ctx;
 
-        // 호출
+        // typing indicator + 호출
+        showTypingIndicator();
         let result;
         try {
             const apiMessages = conv.messages
                 .filter(m => !m.isPromptInternal)
-                .map(m => ({ role: m.role, content: m.content }));
+                .map(m => ({ role: m.role, content: m.apiContent ?? m.content }));
             result = await tutorCallAnthropic({
                 apiKey: getApiKey(),
                 model: getModel(),
@@ -370,6 +406,7 @@ function createTutor(config) {
                 messages: apiMessages,
             });
         } catch (e) {
+            hideTypingIndicator();
             const msg = e.type === "no_key"
                 ? "API 키가 설정되지 않았습니다."
                 : e.type === "api_error"
@@ -380,6 +417,7 @@ function createTutor(config) {
             updateInputAvailability();
             return;
         }
+        hideTypingIndicator();
 
         // [[LEVEL:xxx]] 마커 처리 — 본문에서 제거 + onLevelDetect callback
         let cleanContent = result.content;
@@ -397,7 +435,172 @@ function createTutor(config) {
         addTokens(result.inputTokens, result.outputTokens);
         renderConversation();
         updateInputAvailability();
-        markTabNew(qid);  // 다른 탭 활성 시점에 "new" (현재 탭이면 즉시 clear)
+        markTabNew(qid);  // 다른 탭 활성 시점에 "new" (현재 탭이면 switchToQuestion 에서 clear)
+    }
+
+    // === closeConversation — 대화 마무리 [✓] (config.closeConfig 활성 시) ===
+    // ai-tutor.js closeQuestion (~83줄) 통합. AI 호출 → 2~3줄 요약 → conv.isClosed = true.
+    async function closeConversation(qid = activeQuestion) {
+        if (!config.closeConfig) return;
+        const conv = conversations[qid];
+        if (!conv || conv.isClosed) return;
+        const visibleCount = conv.messages.filter(m => !m.isPromptInternal).length;
+        if (visibleCount === 0) return;
+
+        const closingSystem = config.closeConfig.systemPrompt
+            ?? "당신은 영재 과학교육 튜터입니다. 학생과의 탐구 대화를 마무리하는 시간입니다. 대화 전체를 바탕으로 2~3줄 요약을 작성하세요: 학생이 도달한 핵심 이해 + 추가로 생각해볼 여지. 한국어로 답변하세요.";
+        const closingUserPrompt = config.closeConfig.userPrompt
+            ?? "지금까지의 탐구 대화를 2~3줄로 짧게 정리해주세요.";
+
+        // 가짜 user 메시지 (API 송신용, 표시 X)
+        conv.messages.push({
+            role: "user", content: "", apiContent: closingUserPrompt,
+            timestamp: Date.now(), isPromptInternal: true,
+        });
+
+        showTypingIndicator();
+        let result;
+        try {
+            const apiMessages = conv.messages.map(m => ({
+                role: m.role, content: m.apiContent ?? m.content,
+            }));
+            result = await tutorCallAnthropic({
+                apiKey: getApiKey(), model: getModel(),
+                systemPrompt: closingSystem, messages: apiMessages,
+            });
+        } catch (e) {
+            hideTypingIndicator();
+            conv.messages.pop();  // 가짜 user 롤백
+            const msg = e.type === "no_key"
+                ? "API 키 없음"
+                : e.type === "api_error"
+                    ? `요약 오류 (HTTP ${e.status})`
+                    : "네트워크 오류";
+            conv.messages.push({ role: "assistant", content: `⚠️ ${msg}`, timestamp: Date.now(), isError: true });
+            renderConversation();
+            updateInputAvailability();
+            return;
+        }
+        hideTypingIndicator();
+
+        conv.messages.push({
+            role: "assistant",
+            content: "📝 **대화 요약**\n\n" + result.content,
+            timestamp: Date.now(),
+            tokensIn: result.inputTokens, tokensOut: result.outputTokens,
+            model: result.model, isClosing: true,
+        });
+        conv.tokensIn  += result.inputTokens;
+        conv.tokensOut += result.outputTokens;
+        addTokens(result.inputTokens, result.outputTokens);
+        conv.isClosed = true;
+        if (qid === activeQuestion) renderConversation();
+        else markTabNew(qid);
+        updateInputAvailability();
+    }
+
+    // === generateMetaQuestion — Q4 메타 [질문 생성] (config.metaTabId 활성 시) ===
+    // ai-tutor.js generateQ4Question (~90줄) 통합. AI 호출 → 가짜 user prompt + 응답.
+    async function generateMetaQuestion() {
+        if (!config.metaTabId) return;
+        const qid = config.metaTabId;
+        const conv = conversations[qid];
+        if (!conv) return;
+
+        const ctx = config.buildDataContext();
+        const level = getLevel();
+        const systemPrompt = config.buildSystemPrompt(level, qid, ctx);
+        const userMsgContent = config.metaUserPromptBuilder
+            ? config.metaUserPromptBuilder(ctx, level)
+            : "위 데이터를 바탕으로 학생이 추가로 탐구하면 좋을 질문을 1개 제안해주세요.";
+
+        // 가짜 user 메시지 (API 송신용, 표시 X)
+        conv.messages.push({
+            role: "user", content: "", apiContent: userMsgContent,
+            timestamp: Date.now(), isPromptInternal: true,
+        });
+        conv.contextSnapshot = ctx;
+
+        showTypingIndicator();
+        let result;
+        try {
+            result = await tutorCallAnthropic({
+                apiKey: getApiKey(), model: getModel(),
+                systemPrompt, messages: [{ role: "user", content: userMsgContent }],
+            });
+        } catch (e) {
+            hideTypingIndicator();
+            conv.messages.pop();  // 가짜 user 롤백
+            if (qid !== activeQuestion) { markTabNew(qid); return; }
+            renderConversation();
+            const msg = e.type === "no_key"
+                ? "API 키가 설정되지 않았습니다."
+                : e.type === "api_error"
+                    ? `질문 생성 오류 (HTTP ${e.status})`
+                    : "네트워크 오류";
+            conv.messages.push({ role: "assistant", content: `⚠️ ${msg}`, timestamp: Date.now(), isError: true });
+            renderConversation();
+            return;
+        }
+        hideTypingIndicator();
+
+        conv.messages.push({
+            role: "assistant", content: result.content,
+            timestamp: Date.now(),
+            tokensIn: result.inputTokens, tokensOut: result.outputTokens,
+            model: result.model,
+        });
+        conv.tokensIn  += result.inputTokens;
+        conv.tokensOut += result.outputTokens;
+        addTokens(result.inputTokens, result.outputTokens);
+        if (qid === activeQuestion) renderConversation();
+        else markTabNew(qid);
+        updateInputAvailability();
+    }
+
+    // === generateAutoQuestion — config.autoQuestionTabIds 안의 탭 첫 진입 시 AI 자동 질문 생성 ===
+    // 보일 Q3 패턴 — 측정 데이터 기반 탐구 질문 자동 생성. config.autoQuestionTabIds=['3'] 시 활성.
+    async function generateAutoQuestion(qid) {
+        if (!config.autoQuestionTabIds?.includes(qid)) return;
+        const conv = conversations[qid];
+        if (!conv || conv.messages.length > 0) return;  // 이미 conversation 있으면 skip
+
+        const ctx = config.buildDataContext();
+        const level = getLevel();
+        const systemPrompt = config.buildSystemPrompt(level, qid, ctx);
+        const userMsgContent = config.autoQuestionPromptBuilder
+            ? config.autoQuestionPromptBuilder(qid, ctx, level)
+            : "위 데이터를 바탕으로 학생이 답변할 첫 탐구 질문 1개를 제안해주세요.";
+
+        conv.messages.push({
+            role: "user", content: "", apiContent: userMsgContent,
+            timestamp: Date.now(), isPromptInternal: true,
+        });
+        conv.contextSnapshot = ctx;
+
+        showTypingIndicator();
+        let result;
+        try {
+            result = await tutorCallAnthropic({
+                apiKey: getApiKey(), model: getModel(),
+                systemPrompt, messages: [{ role: "user", content: userMsgContent }],
+            });
+        } catch (e) {
+            hideTypingIndicator();
+            conv.messages.pop();  // 가짜 user 롤백 — 재시도 시 진입 그대로
+            return;
+        }
+        hideTypingIndicator();
+
+        conv.messages.push({
+            role: "assistant", content: result.content, timestamp: Date.now(),
+            tokensIn: result.inputTokens, tokensOut: result.outputTokens, model: result.model,
+        });
+        conv.tokensIn  += result.inputTokens;
+        conv.tokensOut += result.outputTokens;
+        addTokens(result.inputTokens, result.outputTokens);
+        if (qid === activeQuestion) renderConversation();
+        else markTabNew(qid);
     }
 
     async function generateReport() {
@@ -490,6 +693,9 @@ function createTutor(config) {
         init,
         switchToQuestion,
         sendMessage,
+        closeConversation,
+        generateMetaQuestion,
+        generateAutoQuestion,
         generateReport,
         getConversations,
         resetAll,
@@ -500,6 +706,9 @@ function createTutor(config) {
         getApiKey,
         getLevel,
         getModel,
+        markTabNew,
+        clearTabNew,
+        addTokens,
     };
 }
 
