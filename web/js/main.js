@@ -3179,9 +3179,9 @@ ${dataContext}
             tabIds: ["1", "2", "3", "4", "free"],
             metaTabId: "4",                   // Q-B: Q4 메타 활성 (깨진 placeholder fix)
             autoQuestionTabIds: [],           // Q-C: 자동 질문 X (현행 보존)
-            // Q-A: 현행 [✓ 대화 마무리]=clear 보존. closeConfig=truthy 로 endControls 가시성만 활성,
-            // 실제 click 핸들러는 closeConversation 우회 → resetTab (AI 요약 호출 X).
-            closeConfig: {},
+            // Q-A 재결정 (A2): boyle 패턴 채택 — AI 요약 활성. default prompt 사용.
+            // 사용자 의도 = [✓ 대화 마무리] → AI 2~3줄 요약 → 입력창 비활성 + 버튼 hidden.
+            closeConfig: { /* 기본 prompt 사용 */ },
             reportEnabled: false,             // dalton 보고서 X
             getQuestionText:   daltonGetQuestionText,
             buildSystemPrompt: daltonBuildSystemPrompt,
@@ -3208,12 +3208,10 @@ ${dataContext}
             }
         });
 
-        // Q-A: btn-close-q → resetTab (현행 clear 동작 보존). closeConversation 우회.
+        // Q-A 재결정 (A2): btn-close-q → closeConversation (boyle 패턴 — AI 요약).
         const closeBtn = document.getElementById("btn-close-q");
         if (closeBtn) {
-            closeBtn.addEventListener("click", () => {
-                daltonTutor.resetTab(daltonTutor.getActiveQuestion());
-            });
+            closeBtn.addEventListener("click", () => daltonTutor.closeConversation());
         }
 
         daltonTutor.init();
