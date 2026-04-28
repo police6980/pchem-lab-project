@@ -2275,6 +2275,87 @@ A-1 정합성: silent guard (콘솔만, UI 알림 X) → harsh 모드의 spike �
 - (대기) docs/16 onboarding 의 "자주 막히는 곳" 에 노이즈 모드 + outlier 가드 cross-ref
 - (대기) README / docs/16 의 에뮬 부분 정리 (cross-ref 단축, 신규 README 권위)
 
+### 2026-04-28 — docs/19 실물 통합 체크리스트 + baseline.js (commits 147ed84, effbf40)
+
+#### 한 일
+- `docs/19-real-sensor-integration-checklist.md` 신규 (257줄, 11 섹션) — 실물 도착 시 단일 절차서 (147ed84)
+- `tools/firmware-emulator/baseline.js` 신규 (210줄, ESM) — 노이즈 특성 정량화 스크립트 (effbf40)
+- 스모크 테스트 통과 — noise:off σ=0 / noise:quiet σ≈487 Pa (preset σ=500 Pa 부합, 양 채널 일치)
+- 메시지 protocol 형식 발견 — 실제 v1.2 (`t:"s"` hello / `t:"d"` ch별 별도 패킷, `p` Pa 단위) ↔ docs/19 §4 잠정 가정 (v1.1, ch0/ch1 통합 패킷, raw ADC 0~4095) 불일치
+- 송신율 발견 — 실측 ~5 Hz/ch (10초간 ch당 49 samples) ↔ 가정 50 Hz 불일치
+
+#### 결정: 트랙 우선순위 — A의 docs/19 우선 (docs/15 후속)
+
+**배경**: 실물 센서 (DFRobot SEN0257 × 2) 도착 1~2주 추정. 작업 후보 — docs/19 (실물 절차서) / docs/15 (params 가이드) / docs/03 (mock 일원화 큰 갱신) / 옵션 B 시나리오 스크립팅 등.
+
+**결정**: docs/19 우선. docs/15 / docs/03 묶음은 후속 (도착까지 여유 시점에).
+
+**근거**:
+- docs/19 = 도착 즉시 매뉴얼로 기능. 도착 직전 작성 = 휘발성 가장 적음
+- docs/15 / docs/03 = 도착 후 캘리브레이션 / 실측 반영 시 자연스러운 갱신
+- docs/19 는 후속 docs (15 / 03) cross-ref 자리만 잡아두고 진행 가능
+
+**배제된 대안**:
+- docs/15 우선: 도착 가까울 때 절차서 부재 위험
+- 옵션 B 시나리오 스크립팅: 회귀 테스트 자동화 가치 있으나 본 세션 흐름 외
+
+#### 결정: baseline.js 단순화 — 에뮬 전용 (옵션 A)
+
+**배경**: docs/19 §8 baseline 측정 스크립트 신규. 에뮬 모드 (WebSocket) + 실물 모드 (Node SerialPort) 통합 / 분리 검토.
+
+**결정**: 옵션 A — 에뮬 전용 우선 구현. 실물 모드 (SerialPort 의존성) 는 도착 후 npm install + 검증과 함께 (Step I §8 측정 직전).
+
+**근거**:
+- 도착 전 = 실물 모드 검증 불가. 골격만 만들어도 미검증 코드 누적
+- 단일 책임 → docs/19 §8.1 명령어 예시 단순화 자연스러움 (별도 터미널 에뮬 + baseline 실행)
+- 도착 후 SerialPort 추가 = 작은 변경 (parseArgs `--source` 분기 + open / on('data') 핸들러)
+
+**배제된 대안**:
+- 통합 baseline.js (에뮬 + 실물 동시): 실물 부분 미검증, 의존성 (`serialport`) 도 도착 후 추가가 자연스러움
+- 별도 baseline-emu.js / baseline-real.js: 분리 자체 부담, 도착 후 통합 / 분리 결정도 복잡
+
+#### 결정: 통계 지표 3 종 — σ / maxSpike / drift/min
+
+**배경**: baseline.js 출력 지표 선정. A-1 노이즈 시나리오 (off / quiet / normal / harsh) 와의 회귀 테스트 baseline 활용.
+
+**결정**:
+- σ (표준편차): 정적 노이즈 진폭
+- maxSpike: rolling median (window=5) 대비 최대 절댓값 편차
+- drift/min: 첫 10% 평균 ↔ 마지막 10% 평균 차이를 분 단위로 환산
+
+**근거**:
+- 3 노이즈 종류 (정적 / 임펄스 / 누적 추세) 분리. quiet preset σ=500 Pa ↔ 측정 σ≈487 Pa = 1:1 매핑 검증 정확
+- rolling median (w=5) = 1-sample spike 정확 검출. dry-run 검증에서 +500 spike 정확 측정 (maxSpike=500)
+- head/tail 10% slice = 짧은 측정 (10초) 에선 drift artifact 가능 (스모크 테스트 -1173 Pa/min). 60초+ 측정에서 의미. 측정 시간에 따른 신뢰성 차이 = 사용자 인식 필요
+
+**배제된 대안**:
+- σ 만: spike / drift 정보 손실
+- 선형 회귀 기울기 (drift): 직선 가정 부적절. 실제 drift = 비선형 random walk (A-1 노이즈 모델 자체)
+- spike 임계값 + 카운트: A-1 의 spike 정의 (Bernoulli 2% × ±50 kPa) 와 다른 정의 → 비교 부정확. maxSpike 단일 지표로 충분
+
+#### 결정: 메시지 protocol — docs/19 §4 잠정 가정 ↔ 실제 (v1.2) 불일치 처리
+
+**배경**: docs/19 §4 작성 시 잠정 가정 (`{"v":"1.1","ch":2,...}` hello + `{"t":<ms>,"ch0":<raw>,"ch1":<raw>}` 통합 데이터) 사용. 스모크 테스트에서 실제 에뮬 형식 발견 — `{"t":"s","sensor":"...","fw":"1.2.0-emulator","channels":[...]}` hello + `{"t":"d","p":<Pa>,"T":<°C>,"ts":<ms>,"ch":<0|1>}` 채널별 별도 패킷.
+
+**결정**: baseline.js 는 실제 v1.2 형식 반영하여 작성 (검증 통과). docs/19 §4 갱신은 후속 의무로 등록 (별 commit / 별 turn).
+
+**근거**:
+- baseline.js = 검증 통과 형태로 저장 우선. v1.2 protocol 권위 = `docs/12-protocol-v1.2.md` 이므로 baseline 도 그쪽 정합
+- docs/19 §4 갱신 = protocol 권위 문서 (docs/12) cross-check + 펌웨어 측 실제 송신 코드 확인 필요. 별 작업
+- 핵심 차이 — `t` = 메시지 타입 (s/d) 이지 timestamp 아님 (`ts` 가 timestamp). ch별 별도 패킷 = 동시 송신 X (보일 단일 채널 무관, 돌턴 측 별도 처리 이미 함)
+
+**배제된 대안**:
+- docs/19 §4 본 세션 즉시 갱신: docs/19 + baseline.js commit 묶음 의미 흐트러짐. cross-check 시간 필요
+- baseline.js 를 잠정 가정대로 작성: 검증 실패 → 정정 부담 더 큼 (이미 1차 시도에서 hello 영원히 못 잡는 버그 발생, 즉시 반영으로 정정)
+
+#### 후속 의무 (TODO)
+
+- docs/19 §4 메시지 형식 v1.2 반영 — `docs/12-protocol-v1.2.md` cross-check 후 별 commit
+- 송신율 ~5 Hz/ch 검증 — `tools/firmware-emulator/emulator.js` 의 송신 주기 코드 + `docs/12` 의 hz 가정 cross-check (보일 README 의 50 Hz 표기와 차이 원인 확인)
+- baseline.js 실물 모드 추가 — DFRobot SEN0257 도착 후 `npm install serialport` + `parseArgs --source` 분기 + open / on('data') 핸들러 (Step I §8 측정 직전)
+
+---
+
 ### Phase 5.4 마일스톤 (2026-04-27 종료)
 
 - 5 commits (`dc7ca57` → `fc1cedc`), `phase5-real-sensor` 브랜치
