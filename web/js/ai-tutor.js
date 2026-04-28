@@ -514,7 +514,10 @@ function getConversationSummary() {
 function updateReportButtonState() {
     const btn = document.getElementById("btn-generate-report");
     if (!btn) return;
-    const visibleCount = (qid) => (aiConversations[qid]?.messages
+    // (a-2) 회귀 정정: source = boyleTutor.getConversations() (createTutor closure) 우선,
+    // fallback = IIFE 안 aiConversations (dead, 항상 빈)
+    const convs = window.PchemBoyleTutor?.getConversations?.() ?? aiConversations;
+    const visibleCount = (qid) => (convs[qid]?.messages
         .filter(m => !m.isPromptInternal).length ?? 0);
     const q1ok = visibleCount("1") > 0;
     const q2ok = visibleCount("2") > 0;
@@ -537,9 +540,11 @@ function downloadConversations() {
     let text = "=== 탐구 대화 기록 ===\n";
     text += `저장 시각: ${new Date().toLocaleString("ko-KR")}\n\n`;
 
+    // (a-2) 회귀 정정: source = boyleTutor.getConversations() 우선
+    const convsSrc = window.PchemBoyleTutor?.getConversations?.() ?? aiConversations;
     let hasAny = false;
     ["1", "2", "3", "4", "free"].forEach(qid => {
-        const conv = aiConversations[qid];
+        const conv = convsSrc[qid];
         if (!conv) return;
         const visible = conv.messages.filter(m => !m.isPromptInternal);
         if (visible.length === 0) return;
@@ -1051,6 +1056,7 @@ function switchToQuestion(questionId) {
 window.__boyleAiTutorLegacy = {
     downloadConversations,
     getConversationSummary,
+    updateReportButtonState,  // (a-2) 회귀 정정: 신규 wiring 에서 sendMessage 후 호출
 };
 
 })();  // IIFE 끝
@@ -1099,6 +1105,8 @@ document.addEventListener("DOMContentLoaded", () => {
             // — createTutor 의 마지막 turn delta 만 ui.js addTokens 로 누적
             onTokenUsage: (model, deltaIn, deltaOut /*, totalIn, totalOut, costKrw */) => {
                 if (typeof T.addTokens === "function") T.addTokens(deltaIn, deltaOut);
+                // (a-2) 회귀 정정: sendMessage 후 보고서 버튼 활성 갱신
+                window.__boyleAiTutorLegacy?.updateReportButtonState?.();
             },
             // tokensUsed / costEstimate dom = ui.js updateUsageDisplay 측 갱신만 사용 (이중 갱신 회피)
             domSelectors: {
