@@ -479,10 +479,34 @@ function initAdvancedMode(params) {
         updatePressureReadout();
     });
 
+    // Phase 5.5: 가스 비교 — 변경 직전 스냅샷 + 평균속도 비율 표시 (Graham 법칙 직관 학습)
+    let prevGasSnapshot = null;
+    const gasComparisonEl = document.createElement("div");
+    gasComparisonEl.id = "adv-gas-comparison";
+    gasComparisonEl.style.cssText = "margin-top:8px;padding:6px 10px;background:#f3f4f6;border-radius:4px;font-size:0.85em;color:#374151;display:none;";
+    gasSelect.parentElement?.appendChild(gasComparisonEl);
+
     gasSelect.addEventListener("change", () => {
         const oldScale = currentSpeedScale();
+        const oldGas = Object.keys(ADV_GAS_MASSES).find(k => ADV_GAS_MASSES[k] === currentGasMass) || "?";
+        const oldAvgSpeed = system.getAverageSpeed();
+        const oldM = currentGasMass;
+
         currentGasMass = ADV_GAS_MASSES[gasSelect.value];
         system.scaleVelocities(currentSpeedScale() / oldScale);
+
+        const newGas = gasSelect.value;
+        const newM = currentGasMass;
+        const newAvgSpeed = system.getAverageSpeed();
+        prevGasSnapshot = { gas: oldGas, avgSpeed: oldAvgSpeed, M: oldM };
+
+        // Graham 법칙 — v̄_new / v̄_old = √(M_old / M_new)
+        const expectedRatio = Math.sqrt(oldM / newM);
+        const actualRatio = oldAvgSpeed > 0 ? newAvgSpeed / oldAvgSpeed : 0;
+        gasComparisonEl.style.display = "block";
+        gasComparisonEl.innerHTML =
+            `<strong>가스 비교 (Graham)</strong>: ${oldGas} (M=${oldM}) → ${newGas} (M=${newM})<br>` +
+            `v̄ 비율 측정 = ${actualRatio.toFixed(3)} · 이론 √(${oldM}/${newM}) = ${expectedRatio.toFixed(3)}`;
     });
 
     function applyTemperature(celsius) {
