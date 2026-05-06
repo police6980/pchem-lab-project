@@ -881,6 +881,13 @@ function initDaltonApp(params) {
         gasA_cached: null,  // 부분 압력 계산 시 어느 가스가 A 였는지 보존
         pressureBInitial_cached: null,  // Phase 5.3: 주입 전 P_B 보존 (평형값으로 변하기 전, n_B 산출용)
         comparisonSelected: [],         // Phase 5.3 기능 4: 비교 선택 record.n 배열 (FIFO 최대 2)
+        // Phase 5.9: Vernier 모드 전용 substate. 기존 stage 와 분리 — Vernier 활성 시 daltonState.stage 는 IDLE 고정.
+        // stage: IDLE | INJECTING | STABILIZING | READY_TO_CAPTURE | CAPTURED
+        vernier: {
+            stage: "IDLE",
+            P_initial_kPa: null,
+            P_total_kPa: null,
+        },
     };
 
     // 외부 디버깅 편의: 브라우저 콘솔에서 window.daltonState 확인 가능
@@ -962,6 +969,17 @@ function initDaltonApp(params) {
         btnCalibAll:       $("dalton-btn-calib-all"),
         btnPressureFreeze: $("dalton-btn-pressure-freeze"),
         sensorError:       $("dalton-sensor-error"),
+
+        // Phase 5.9: Vernier 모드 DOM
+        btnModeVernier:        $("dalton-btn-mode-vernier"),
+        vernierControls:       $("dalton-sensor-vernier-controls"),
+        btnVernierConnect:     $("dalton-btn-vernier-connect"),
+        btnVernierDisconnect:  $("dalton-btn-vernier-disconnect"),
+        vernierStatus:         $("dalton-vernier-status"),
+        vernierSensorLabel:    $("dalton-vernier-sensor-label"),
+        btnVernierMeasure:     $("dalton-btn-vernier-measure"),
+        vernierStageText:      $("dalton-vernier-stage-text"),
+        ch1Row:                document.querySelector('.dalton-ch-row[data-ch="1"]'),
     };
 
     // 참조 누락 경고 (개발 편의)
@@ -988,6 +1006,7 @@ function initDaltonApp(params) {
     // ws/real 모드: EMA α=0.2, 임계값 2 kPa, freeze 가드 (기존 동작 유지).
     daltonSensorManager.onChannelData(0, (data) => {
         const isMock = daltonSensorManager.mode === "mock";
+        const isVernier = daltonSensorManager.mode === "vernier";
         daltonState.emaP_B_kPa = isMock ? data.value : applyEMA(daltonState.emaP_B_kPa, data.value);
         updateChLive(0, data.value);
 
@@ -995,6 +1014,9 @@ function initDaltonApp(params) {
 
         daltonState.pressureBSensor = daltonState.emaP_B_kPa / 101.325;
         updatePressureReadouts();
+        // Phase 5.9: Vernier 모드는 결합 시스템 압력 → B-receiver 입자 시뮬에 연동하지 않음.
+        // 입자 갱신은 작업 4 (A plunger 역산·시각화) 에서 별도 경로로 처리.
+        if (isVernier) return;
         maybeUpdateParticleTarget("B", false, isMock);
     });
     daltonSensorManager.onChannelData(1, (data) => {
@@ -1024,13 +1046,32 @@ function initDaltonApp(params) {
             dom.btnModeReal.title = "Chrome/Edge에서만 지원됩니다";
         }
 
+        // Phase 5.9: Web Bluetooth 미지원 시 Vernier 비활성
+        if (dom.btnModeVernier && !navigator.bluetooth) {
+            dom.btnModeVernier.disabled = true;
+            dom.btnModeVernier.title = "Web Bluetooth 미지원 (Chrome/Edge 필요)";
+        }
+
         function setModeUI(mode) {
             dom.btnModeMock?.classList.toggle("active", mode === "mock");
             dom.btnModeWs?.classList.toggle("active", mode === "ws");
             dom.btnModeReal?.classList.toggle("active", mode === "real");
+            dom.btnModeVernier?.classList.toggle("active", mode === "vernier");
             dom.realControls?.classList.toggle("hidden", mode !== "real");
             dom.wsControls?.classList.toggle("hidden", mode !== "ws");
+            dom.vernierControls?.classList.toggle("hidden", mode !== "vernier");
             dom.channelStatus?.classList.toggle("hidden", mode === "mock");
+            // Phase 5.9: ch1 행은 Vernier 모드에서 숨김 (단일 채널만 사용)
+            dom.ch1Row?.classList.toggle("hidden", mode === "vernier");
+
+            // Phase 5.9: Vernier 모드 한정 UI 토글
+            const isVernier = mode === "vernier";
+            dom.btnInject?.classList.toggle("hidden", isVernier);
+            dom.btnConfirm?.classList.toggle("hidden", isVernier);
+            dom.btnVernierMeasure?.classList.toggle("hidden", !isVernier);
+            dom.vernierStageText?.classList.toggle("hidden", !isVernier);
+            // 압력 확정 버튼은 Vernier 에서 의미 모호 → 숨김
+            dom.btnPressureFreeze?.classList.toggle("hidden", isVernier);
         }
 
         function resetRealUI() {
@@ -1049,6 +1090,17 @@ function initDaltonApp(params) {
             if (dom.btnCalibCh0) dom.btnCalibCh0.disabled = true;
             if (dom.btnCalibCh1) dom.btnCalibCh1.disabled = true;
             if (dom.btnCalibAll) dom.btnCalibAll.disabled = true;
+        }
+
+        // Phase 5.9: Vernier 컨트롤 UI 리셋 (real 패턴 미러)
+        function resetVernierUI() {
+            if (dom.vernierStatus) {
+                dom.vernierStatus.textContent = "연결 안 됨";
+                dom.vernierStatus.className = "status-disconnected";
+            }
+            if (dom.vernierSensorLabel) dom.vernierSensorLabel.textContent = "";
+            dom.btnVernierConnect?.classList.remove("hidden");
+            dom.btnVernierDisconnect?.classList.add("hidden");
         }
 
         function enableCalibButtons() {
@@ -1105,6 +1157,20 @@ function initDaltonApp(params) {
             daltonSensorManager.setMode("real");
         });
 
+        // Phase 5.9: Vernier 모드 진입
+        dom.btnModeVernier?.addEventListener("click", () => {
+            if (dom.btnModeVernier.disabled) return;
+            if (daltonSensorManager.mode === "vernier" && daltonSensorManager.source?.connected) return;
+            setModeUI("vernier");
+            resetVernierUI();
+            // Vernier substate 초기화 + 단계 머신 IDLE 리셋
+            daltonState.vernier.stage = "IDLE";
+            daltonState.vernier.P_initial_kPa = null;
+            daltonState.vernier.P_total_kPa = null;
+            setVernierStage("IDLE");
+            daltonSensorManager.setMode("vernier");
+        });
+
         // Real 모드: 포트 연결/해제
         dom.btnSerialConnect?.addEventListener("click", () => {
             daltonSensorManager.source?.connect().catch(err => {
@@ -1114,6 +1180,15 @@ function initDaltonApp(params) {
         });
         dom.btnSerialDisconnect?.addEventListener("click", () => daltonSensorManager.source?.disconnect());
 
+        // Phase 5.9: Vernier 모드 연결/해제 — BLE selectDevice 는 user gesture 안에서만 동작
+        dom.btnVernierConnect?.addEventListener("click", () => {
+            daltonSensorManager.source?.connect().catch(err => {
+                if (dom.vernierStatus) { dom.vernierStatus.textContent = "연결 실패"; dom.vernierStatus.className = "status-error"; }
+                showError(err.message || err);
+            });
+        });
+        dom.btnVernierDisconnect?.addEventListener("click", () => daltonSensorManager.source?.disconnect());
+
         // 캘리브 버튼
         dom.btnCalibCh0?.addEventListener("click", () => daltonSensorManager.sendCalib(0));
         dom.btnCalibCh1?.addEventListener("click", () => daltonSensorManager.sendCalib(1));
@@ -1122,6 +1197,14 @@ function initDaltonApp(params) {
         // 이벤트 구독
         daltonSensorManager.on("connect", (info) => {
             if (info?.version === "mock") return;
+            // Phase 5.9: Vernier 는 multi-channel 라벨·캘리브 흐름 사용 안 함
+            if (info?.version === "vernier") {
+                if (dom.vernierStatus) { dom.vernierStatus.textContent = "● 연결됨"; dom.vernierStatus.className = "status-connected"; }
+                if (dom.vernierSensorLabel) dom.vernierSensorLabel.textContent = info?.sensor || "Vernier GDX";
+                dom.btnVernierConnect?.classList.add("hidden");
+                dom.btnVernierDisconnect?.classList.remove("hidden");
+                return;
+            }
             updateChannelLabels(info);
             enableCalibButtons();
             updatePressureFreezeUI();
@@ -1139,6 +1222,8 @@ function initDaltonApp(params) {
                 if (dom.wsStatus) { dom.wsStatus.textContent = "연결 끊김"; dom.wsStatus.className = "status-disconnected"; }
             } else if (daltonSensorManager.mode === "real") {
                 resetRealUI();
+            } else if (daltonSensorManager.mode === "vernier") {
+                resetVernierUI();
             }
             resetCalibUI();
             if (dom.ch0Live) dom.ch0Live.textContent = "—";
@@ -2675,6 +2760,59 @@ function initDaltonApp(params) {
     }
 
     // ─────────────────────────────────────────────────────────
+    // Phase 5.9: Vernier 모드 단계 머신
+    // 5상태: IDLE | INJECTING | STABILIZING | READY_TO_CAPTURE | CAPTURED
+    // 자동 전환 (INJECTING → STABILIZING → READY_TO_CAPTURE) 은 작업 5 (안정화 감지) 에서 추가.
+    // 현재는 측정 버튼 2회 (IDLE→INJECTING, READY_TO_CAPTURE→CAPTURED) 만 wired,
+    // 중간 상태는 디버그 helper window._advanceVernier() 로 수동 진행.
+    // ─────────────────────────────────────────────────────────
+    const VERNIER_STAGE_TEXT = {
+        IDLE:               "초기 상태 — 측정 버튼을 눌러 시작 압력을 기록하세요",
+        INJECTING:          "주입 중 — 손 뗀 후 안정화될 때까지 기다리세요",
+        STABILIZING:        "안정화 중...",
+        READY_TO_CAPTURE:   "안정 도달 — 측정 버튼을 눌러 평형 압력을 기록하세요",
+        CAPTURED:           "기록 완료. V_A' 실측값을 입력하세요",
+    };
+
+    function setVernierStage(newStage) {
+        daltonState.vernier.stage = newStage;
+        // 측정 버튼 활성 조건: IDLE (1번째 캡처) 또는 READY_TO_CAPTURE (2번째 캡처) 만
+        const measureEnabled = (newStage === "IDLE" || newStage === "READY_TO_CAPTURE");
+        if (dom.btnVernierMeasure) {
+            dom.btnVernierMeasure.disabled = !measureEnabled;
+            // READY_TO_CAPTURE 시 시각 강조 (CSS .ready 클래스)
+            dom.btnVernierMeasure.classList.toggle("ready", newStage === "READY_TO_CAPTURE");
+        }
+        // 단계 표시 텍스트
+        if (dom.vernierStageText) {
+            dom.vernierStageText.textContent = VERNIER_STAGE_TEXT[newStage] || "";
+        }
+        // 사전 입력 잠금: IDLE 외에는 V_A·V_B·gas 잠금 (학생이 실험 중 변경 못하게)
+        const lockInputs = (newStage !== "IDLE");
+        if (dom.gasASelect)     dom.gasASelect.disabled    = lockInputs;
+        if (dom.gasBSelect)     dom.gasBSelect.disabled    = lockInputs;
+        if (dom.volumeANumber)  dom.volumeANumber.disabled = lockInputs;
+        if (dom.volumeBNumber)  dom.volumeBNumber.disabled = lockInputs;
+    }
+
+    // Phase 5.9: 디버그 helper — INJECTING → STABILIZING → READY_TO_CAPTURE 수동 진행.
+    // 작업 5 (자동 안정화 감지 |dP/dt| < 0.1 kPa/s 3초 유지) 완료 후 제거.
+    window._advanceVernier = function() {
+        const cur = daltonState.vernier.stage;
+        const next = {
+            IDLE:             "INJECTING",
+            INJECTING:        "STABILIZING",
+            STABILIZING:      "READY_TO_CAPTURE",
+            READY_TO_CAPTURE: "CAPTURED",
+            CAPTURED:         "IDLE",
+        }[cur];
+        if (!next) return console.warn("[Vernier debug] unknown stage:", cur);
+        setVernierStage(next);
+        console.log(`[Vernier debug] ${cur} → ${next}`);
+        return next;
+    };
+
+    // ─────────────────────────────────────────────────────────
     // [주입 시작] — async 흐름
     // IDLE → INJECTING → (3초 대기) → INJECTED → 안정화 카운트다운 시작
     //
@@ -2837,6 +2975,13 @@ function initDaltonApp(params) {
 
         if (dom.stabilization) dom.stabilization.classList.add("hidden");
         if (dom.stabCountdown) dom.stabCountdown.textContent = String(cfg.stabilization_sec);
+
+        // Phase 5.9: Vernier substate 도 IDLE 로 리셋
+        daltonState.vernier.P_initial_kPa = null;
+        daltonState.vernier.P_total_kPa = null;
+        if (daltonSensorManager.mode === "vernier") {
+            setVernierStage("IDLE");
+        }
 
         setStage("IDLE");
     }
@@ -3395,11 +3540,30 @@ ${dataContext}
     // 버튼 이벤트 바인딩 (Step B-3)
     // ─────────────────────────────────────────────────────────
     dom.btnInject?.addEventListener("click", () => {
+        // Phase 5.9: Vernier 모드는 학생이 실물 plunger 를 누름 → 자동 주입 애니메이션 비활성
+        if (daltonSensorManager.mode === "vernier") return;
         // async 반환값은 무시 (fire-and-forget). 내부에서 abort 플래그로 흐름 제어.
         startInjection();
     });
     dom.btnConfirm?.addEventListener("click", () => {
         confirmMeasurement();
+    });
+    // Phase 5.9: Vernier 모드 측정 버튼 — 단계별 분기
+    dom.btnVernierMeasure?.addEventListener("click", () => {
+        if (daltonSensorManager.mode !== "vernier") return;
+        const stage = daltonState.vernier.stage;
+        if (stage === "IDLE") {
+            // 1번째 캡처: 결합 시스템 초기 압력 (대기압)
+            daltonState.vernier.P_initial_kPa = daltonState.emaP_B_kPa;
+            console.log(`[Vernier] P_initial captured: ${daltonState.vernier.P_initial_kPa.toFixed(2)} kPa`);
+            setVernierStage("INJECTING");
+        } else if (stage === "READY_TO_CAPTURE") {
+            // 2번째 캡처: 평형 압력 P_total
+            daltonState.vernier.P_total_kPa = daltonState.emaP_B_kPa;
+            console.log(`[Vernier] P_total captured: ${daltonState.vernier.P_total_kPa.toFixed(2)} kPa`);
+            setVernierStage("CAPTURED");
+        }
+        // 다른 stage 에선 버튼이 disabled 라 도달 안 함 (방어).
     });
     dom.btnReset?.addEventListener("click", () => {
         resetExperiment();

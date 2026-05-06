@@ -8,10 +8,12 @@
     <link rel="stylesheet" href="css/style.css">
     <script src="https://cdn.jsdelivr.net/npm/p5@1.11.2/lib/p5.min.js"></script>
     <script src="https://unpkg.com/docx@8.5.0/build/index.umd.js"></script>
+    <script src="https://unpkg.com/@vernier/godirect/dist/godirect.min.umd.js" defer></script>
     <script src="js/simulation.js" defer></script>
     <script src="js/renderer.js" defer></script>
     <script src="js/protocol.js" defer></script>
     <script src="js/serial.js" defer></script>
+    <script src="js/vernier.js" defer></script>
     <script src="js/logger.js" defer></script>
     <!-- Phase 5.7 트랙 6-c: tutor.js (통합 모듈) 추가 — main.js createDaltonTutor 가 createTutor(daltonConfig) 로 교체 -->
     <script src="js/tutor.js" defer></script>
@@ -39,6 +41,7 @@
                     <button id="dalton-btn-mode-mock" class="active">🖥 시뮬레이션</button>
                     <button id="dalton-btn-mode-ws">🔌 에뮬레이터</button>
                     <button id="dalton-btn-mode-real">⚡ 실센서</button>
+                    <button id="dalton-btn-mode-vernier">📡 Vernier</button>
                 </div>
                 <!-- 실센서(WebSerial) 컨트롤 -->
                 <div id="dalton-sensor-real-controls" class="dalton-sensor-controls hidden">
@@ -49,6 +52,13 @@
                 <!-- 에뮬레이터(WebSocket) 컨트롤 -->
                 <div id="dalton-sensor-ws-controls" class="dalton-sensor-controls hidden">
                     <span id="dalton-ws-status">연결 중...</span>
+                </div>
+                <!-- Vernier (BLE) 컨트롤 -->
+                <div id="dalton-sensor-vernier-controls" class="dalton-sensor-controls hidden">
+                    <button id="dalton-btn-vernier-connect">📡 Vernier 연결</button>
+                    <button id="dalton-btn-vernier-disconnect" class="hidden">✖ 연결 해제</button>
+                    <span id="dalton-vernier-status">연결 안 됨</span>
+                    <span id="dalton-vernier-sensor-label"></span>
                 </div>
                 <!-- 채널별 상태 (v1.2 멀티채널) -->
                 <div id="dalton-channel-status" class="dalton-channel-status hidden">
@@ -142,9 +152,17 @@
                 <button id="dalton-btn-confirm" type="button" class="dalton-btn dalton-btn-confirm" disabled>
                     확인
                 </button>
+                <!-- Phase 5.9: Vernier 모드 한정 측정 버튼. mock/ws/real 에선 hidden. -->
+                <button id="dalton-btn-vernier-measure" type="button" class="dalton-btn dalton-btn-primary hidden" disabled>
+                    측정
+                </button>
                 <button id="dalton-btn-reset" type="button" class="dalton-btn dalton-btn-secondary">
                     초기화
                 </button>
+            </div>
+            <!-- Phase 5.9: Vernier 모드 단계 표시. mock/ws/real 에선 hidden. -->
+            <div id="dalton-vernier-stage-text" class="dalton-vernier-stage hidden">
+                초기 상태 — 측정 버튼을 눌러 시작 압력을 기록하세요
             </div>
         </aside>
 
