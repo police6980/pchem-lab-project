@@ -887,6 +887,8 @@ function initDaltonApp(params) {
             stage: "IDLE",
             P_initial_kPa: null,
             P_total_kPa: null,
+            V_A_current_mL: null,    // 작업 4: 매 GDX 프레임 역산 결과 보존 (T 소거 식: V_A' = P_initial·(V_A+V_B)/P_current − V_B)
+            _lastGuardWarnTime: 0,   // 작업 4: 가드 경고 rate-limit (10 Hz 송신 로그 폭주 방지)
         },
     };
 
@@ -1015,10 +1017,58 @@ function initDaltonApp(params) {
         daltonState.pressureBSensor = daltonState.emaP_B_kPa / 101.325;
         updatePressureReadouts();
         // Phase 5.9: Vernier 모드는 결합 시스템 압력 → B-receiver 입자 시뮬에 연동하지 않음.
-        // 입자 갱신은 작업 4 (A plunger 역산·시각화) 에서 별도 경로로 처리.
-        if (isVernier) return;
+        if (isVernier) {
+            // 작업 4: INJECTING 중에만 V_A' 역산 + plunger targetVolume 갱신.
+            // 다른 stage (IDLE/STABILIZING/READY_TO_CAPTURE/CAPTURED) 는 마지막 값 freeze.
+            if (daltonState.vernier.stage === "INJECTING") {
+                const vAprime = computeVernierVA(daltonState.emaP_B_kPa);
+                if (vAprime != null) {
+                    daltonState.vernier.V_A_current_mL = vAprime;
+                    daltonState.syringeA.targetVolume = vAprime;
+                    // displayedVolume 은 lerpDisplayedVolumes() 가 매 프레임 보간 → 시각 부드러움
+                }
+            }
+            return;
+        }
         maybeUpdateParticleTarget("B", false, isMock);
     });
+
+    // Phase 5.9 작업 4: Vernier V_A' 역산 (T 소거 식)
+    //   V_A' = P_initial·(V_A + V_B) / P_current − V_B
+    // 가드: P_initial null / P_current 0·null·NaN / V_B 0 → 갱신 skip (null 반환)
+    // 클램프: V_A' < 0 → 0, V_A' > V_A_initial → V_A_initial. 클램프 시 1초 cooldown 으로 console.warn.
+    function computeVernierVA(P_current_kPa) {
+        const v = daltonState.vernier;
+        const P_initial = v.P_initial_kPa;
+        if (P_initial == null) return null;
+        if (P_current_kPa == null || !isFinite(P_current_kPa) || P_current_kPa <= 0) return null;
+
+        const V_A_initial = daltonState.syringeA.volume;
+        const V_B = daltonState.syringeB.volume;
+        if (V_B <= 0) return null;
+
+        let vAprime = P_initial * (V_A_initial + V_B) / P_current_kPa - V_B;
+
+        // 가드 1: V_A' < 0 (과압) — clamp 0
+        if (vAprime < 0) {
+            warnVernierGuard(`V_A' 음수 (과압): ${vAprime.toFixed(2)} mL → 0 으로 clamp (P_current=${P_current_kPa.toFixed(2)} kPa)`);
+            vAprime = 0;
+        }
+        // 가드 2: V_A' > V_A_initial (저압, 비현실) — clamp V_A_initial
+        else if (vAprime > V_A_initial) {
+            warnVernierGuard(`V_A' 과량 (저압): ${vAprime.toFixed(2)} mL → ${V_A_initial} 으로 clamp (P_current=${P_current_kPa.toFixed(2)} kPa)`);
+            vAprime = V_A_initial;
+        }
+        return vAprime;
+    }
+
+    function warnVernierGuard(msg) {
+        const now = Date.now();
+        if (now - daltonState.vernier._lastGuardWarnTime >= 1000) {
+            console.warn(`[Vernier guard] ${msg}`);
+            daltonState.vernier._lastGuardWarnTime = now;
+        }
+    }
     daltonSensorManager.onChannelData(1, (data) => {
         const isMock = daltonSensorManager.mode === "mock";
         daltonState.emaP_A_kPa = isMock ? data.value : applyEMA(daltonState.emaP_A_kPa, data.value);
@@ -1129,8 +1179,16 @@ function initDaltonApp(params) {
         }
 
         // 모드 토글 클릭
+        // Phase 5.9 작업 4: Vernier 이탈 시 plunger targetVolume 복구 (학생 입력 V_A 로 복귀)
+        function restorePlungerFromVernier() {
+            if (daltonSensorManager.mode === "vernier") {
+                daltonState.syringeA.targetVolume = daltonState.syringeA.volume;
+            }
+        }
+
         dom.btnModeMock?.addEventListener("click", () => {
             if (daltonSensorManager.mode === "mock" && daltonSensorManager.source?.connected) return;
+            restorePlungerFromVernier();
             setModeUI("mock");
             resetCalibUI();
             daltonState.pressureFrozen = false;
@@ -1142,6 +1200,7 @@ function initDaltonApp(params) {
 
         dom.btnModeWs?.addEventListener("click", () => {
             if (daltonSensorManager.mode === "ws" && daltonSensorManager.source?.connected) return;
+            restorePlungerFromVernier();
             setModeUI("ws");
             if (dom.wsStatus) { dom.wsStatus.textContent = "연결 중..."; dom.wsStatus.className = "status-connecting"; }
             daltonSensorManager.setMode("ws").catch(() => {
@@ -1152,6 +1211,7 @@ function initDaltonApp(params) {
         dom.btnModeReal?.addEventListener("click", () => {
             if (dom.btnModeReal.disabled) return;
             if (daltonSensorManager.mode === "real" && daltonSensorManager.source?.connected) return;
+            restorePlungerFromVernier();
             setModeUI("real");
             resetRealUI();
             daltonSensorManager.setMode("real");
@@ -1167,6 +1227,9 @@ function initDaltonApp(params) {
             daltonState.vernier.stage = "IDLE";
             daltonState.vernier.P_initial_kPa = null;
             daltonState.vernier.P_total_kPa = null;
+            daltonState.vernier.V_A_current_mL = null;
+            // 작업 4: Vernier 진입 시 plunger 위치 = 학생이 사전 입력한 V_A 그대로
+            daltonState.syringeA.targetVolume = daltonState.syringeA.volume;
             setVernierStage("IDLE");
             daltonSensorManager.setMode("vernier");
         });
