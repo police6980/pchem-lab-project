@@ -51,8 +51,10 @@ function initSensorPanel(sensorManager) {
     const btnMock         = document.getElementById("btn-mode-mock");
     const btnWs           = document.getElementById("btn-mode-ws");
     const btnReal         = document.getElementById("btn-mode-real");
+    const btnVernier      = document.getElementById("btn-mode-vernier");
     const realControls    = document.getElementById("sensor-real-controls");
     const wsControls      = document.getElementById("sensor-ws-controls");
+    const vernierControls = document.getElementById("sensor-vernier-controls");
     const btnConnect      = document.getElementById("btn-serial-connect");
     const btnDisconnect   = document.getElementById("btn-serial-disconnect");
     const btnCalib        = document.getElementById("btn-serial-calib");
@@ -62,6 +64,10 @@ function initSensorPanel(sensorManager) {
     const wsStatusEl      = document.getElementById("ws-status");
     const wsSensorLabelEl = document.getElementById("ws-sensor-label");
     const btnWsCalib      = document.getElementById("btn-ws-calib");
+    const btnVernierConnect    = document.getElementById("btn-vernier-connect");
+    const btnVernierDisconnect = document.getElementById("btn-vernier-disconnect");
+    const vernierStatusEl      = document.getElementById("vernier-status");
+    const vernierSensorLabelEl = document.getElementById("vernier-sensor-label");
 
     if (!btnMock || !btnReal) return;
 
@@ -71,12 +77,19 @@ function initSensorPanel(sensorManager) {
         btnReal.title = "Chrome/Edge에서만 지원됩니다";
     }
 
+    if (btnVernier && !navigator.bluetooth) {
+        btnVernier.disabled = true;
+        btnVernier.title = "Web Bluetooth 미지원 (Chrome/Edge 필요)";
+    }
+
     function setModeUI(mode) {
         btnMock.classList.toggle("active", mode === "mock");
         btnWs.classList.toggle("active",   mode === "ws");
         btnReal.classList.toggle("active", mode === "real");
+        if (btnVernier) btnVernier.classList.toggle("active", mode === "vernier");
         realControls.classList.toggle("hidden", mode !== "real");
         wsControls.classList.toggle("hidden",   mode !== "ws");
+        if (vernierControls) vernierControls.classList.toggle("hidden", mode !== "vernier");
 
         // DEV MODE 압력 슬라이더는 Mock 전용 (WS/Real 은 센서가 압력 제공).
         const devSlider = document.getElementById("dev-pressure-slider");
@@ -115,6 +128,16 @@ function initSensorPanel(sensorManager) {
         if (errorEl) errorEl.textContent = "";
     }
 
+    function resetVernierUI() {
+        if (!vernierStatusEl) return;
+        vernierStatusEl.textContent = "연결 안 됨";
+        vernierStatusEl.className = "status-disconnected";
+        vernierSensorLabelEl.textContent = "";
+        btnVernierConnect.classList.remove("hidden");
+        btnVernierDisconnect.classList.add("hidden");
+        if (errorEl) errorEl.textContent = "";
+    }
+
     // phase: "connecting" | "disconnected"
     function resetWsUI(phase) {
         if (phase === "connecting") {
@@ -134,12 +157,14 @@ function initSensorPanel(sensorManager) {
         if (sensorManager.mode === "mock" && sensorManager.source?.connected) return;
         setModeUI("mock");
         resetRealUI();
+        resetVernierUI();
         sensorManager.setMode("mock");
     });
 
     btnWs.addEventListener("click", () => {
         if (sensorManager.mode === "ws" && sensorManager.source?.connected) return;
         setModeUI("ws");
+        resetVernierUI();
         sensorManager.setMode("ws").catch(() => {
             // Connect failure: on("error") below will render the detailed
             // message; fallback text here covers the case where the error
@@ -158,8 +183,20 @@ function initSensorPanel(sensorManager) {
         if (sensorManager.mode === "real" && sensorManager.source?.connected) return;
         setModeUI("real");
         resetRealUI();
+        resetVernierUI();
         sensorManager.setMode("real");
     });
+
+    if (btnVernier) {
+        btnVernier.addEventListener("click", () => {
+            if (btnVernier.disabled) return;
+            if (sensorManager.mode === "vernier" && sensorManager.source?.connected) return;
+            setModeUI("vernier");
+            resetRealUI();
+            resetVernierUI();
+            sensorManager.setMode("vernier");
+        });
+    }
 
     btnConnect.addEventListener("click", () => {
         sensorManager.source.connect().catch(err => {
@@ -172,6 +209,23 @@ function initSensorPanel(sensorManager) {
     btnDisconnect.addEventListener("click", () => {
         sensorManager.source.disconnect();
     });
+
+    if (btnVernierConnect) {
+        // BLE selectDevice는 user gesture 안에서만 동작 → click handler 안에서 직접 호출.
+        btnVernierConnect.addEventListener("click", () => {
+            sensorManager.source.connect().catch(err => {
+                vernierStatusEl.textContent = "연결 실패";
+                vernierStatusEl.className = "status-error";
+                if (errorEl) errorEl.textContent = `⚠ ${err.message || err}`;
+            });
+        });
+    }
+
+    if (btnVernierDisconnect) {
+        btnVernierDisconnect.addEventListener("click", () => {
+            sensorManager.source.disconnect();
+        });
+    }
 
     btnCalib.addEventListener("click", () => {
         sensorManager.sendCalib();
@@ -195,6 +249,16 @@ function initSensorPanel(sensorManager) {
             return;
         }
 
+        if (sensorManager.mode === "vernier") {
+            if (!vernierStatusEl) return;
+            vernierStatusEl.textContent = "● 연결됨";
+            vernierStatusEl.className = "status-connected";
+            vernierSensorLabelEl.textContent = info?.sensor || "Vernier GDX";
+            btnVernierConnect.classList.add("hidden");
+            btnVernierDisconnect.classList.remove("hidden");
+            return;
+        }
+
         // Real (WebSerial) path.
         statusEl.textContent = "● 연결됨";
         statusEl.className = "status-connected";
@@ -209,6 +273,10 @@ function initSensorPanel(sensorManager) {
     sensorManager.on("disconnect", () => {
         if (sensorManager.mode === "ws") {
             resetWsUI("disconnected");
+            return;
+        }
+        if (sensorManager.mode === "vernier") {
+            resetVernierUI();
             return;
         }
         if (sensorManager.mode !== "real") return;

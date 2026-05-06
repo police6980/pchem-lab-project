@@ -7,10 +7,12 @@
     <link rel="stylesheet" href="css/style.css">
     <script src="https://cdn.jsdelivr.net/npm/p5@1.11.2/lib/p5.min.js"></script>
     <script src="https://unpkg.com/docx@8.5.0/build/index.umd.js"></script>
+    <script src="https://unpkg.com/@vernier/godirect/dist/godirect.min.umd.js" defer></script>
     <script src="js/simulation.js" defer></script>
     <script src="js/renderer.js" defer></script>
     <script src="js/protocol.js" defer></script>
     <script src="js/serial.js" defer></script>
+    <script src="js/vernier.js" defer></script>
     <script src="js/logger.js" defer></script>
     <script src="js/tutor.js" defer></script>
     <script src="js/tutor-report-boyle.js" defer></script>
@@ -30,6 +32,7 @@
                     <button id="btn-mode-mock" class="active">🖥 시뮬레이션</button>
                     <button id="btn-mode-ws">🔌 에뮬레이터</button>
                     <button id="btn-mode-real">⚡ 실센서</button>
+                    <button id="btn-mode-vernier">📡 Vernier</button>
                 </div>
                 <div id="sensor-real-controls" class="hidden">
                     <button id="btn-serial-connect">🔌 포트 연결</button>
@@ -37,6 +40,12 @@
                     <span id="serial-status">연결 안 됨</span>
                     <span id="serial-sensor-label"></span>
                     <button id="btn-serial-calib" disabled>🎯 영점 캘리브</button>
+                </div>
+                <div id="sensor-vernier-controls" class="hidden">
+                    <button id="btn-vernier-connect">📡 Vernier 연결</button>
+                    <button id="btn-vernier-disconnect" class="hidden">✖ 연결 해제</button>
+                    <span id="vernier-status">연결 안 됨</span>
+                    <span id="vernier-sensor-label"></span>
                 </div>
                 <div id="sensor-ws-controls" class="hidden">
                     <span id="ws-status">연결 중...</span>

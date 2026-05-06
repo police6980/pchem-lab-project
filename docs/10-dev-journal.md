@@ -2839,3 +2839,59 @@ Phase 5.5 자율 6 트랙 + 후속 (트랙 5 폐기 + 설정 패널) 완료 직�
 - (M1) `phase5-real-sensor` 머지 (본 일지 + push 후)
 - 실물 센서 도착 시 `docs/19` Step I 본편 진입 — 트랙 6 통합 모듈과 무관 (별 브랜치 `phase5-real-sensor` 의 작업)
 - Phase 6/7 신규 시뮬 추가 시 `createTutor` factory 사용 — 4번째 패턴 회피
+
+---
+
+## Phase 5.8 — Vernier GDX-GP 정식 편입, Boyle 단일 채널 (2026-05-06)
+
+### 2026-05-06 — Vernier GDX-GP를 정식 데이터 소스로 추가
+
+#### 한 일
+- web/js/vernier.js 신규: VernierBridgeSensorSource (SensorSource 어댑터)
+- godirect-js UMD CDN 도입, Web Bluetooth 기반 BLE 연결
+- web/boyle.html에 Vernier 모드 버튼·컨트롤 패널 추가
+- web/js/serial.js setMode 'vernier' 분기 추가
+- web/js/ui.js 모드 토글·이벤트 라우팅 확장
+- GDX-GP 081013D6 페어링·실시간 P값 수신·Boyle 시뮬 반응 확인
+- 측정 1세트(P·V 3점, 편차 ±5.3%)로 baseline 데이터 품질 확인
+- 재연결·모드 전환·5분 연속 동작 안정성 검증 통과
+
+#### 결정: Vernier GDX-GP를 SensorSource의 4번째 정식 구현체로 편입
+
+**배경**: ESP32 자작 압력센서 부품 배송 지연. 대기 기간 동안 시뮬레이션의 
+센서 입력 경로 검증을 진행하려 함. 보유 중인 Vernier Go Direct GDX-GP 
+2대가 BLE 무선 출력을 가짐.
+
+**결정**: 일회성 시범으로 시작했으나 검증 결과(SensorSource 추상화 무수정 
+통과 + Boyle 측정 ±5.3% 편차)를 근거로 정식 데이터 소스로 편입. 
+기존 mock/emulator/real에 vernier 추가하여 4종 운용.
+
+**근거**:
+- godirect-js 라이브러리가 GATT 프로토콜을 캡슐화 → 어댑터 1개(약 80줄)로 
+  통합 가능. 추가 펌웨어·드라이버·OS 페어링 불필요.
+- main.js의 onData 콜백이 frame.value만 소비 → 다운스트림 무수정 
+  (추상화 효용의 첫 실증).
+- ±5.3% 편차는 고등학교 실험 baseline 양호 영역. ESP32 자작 센서 평가 시 
+  정량 비교 기준점으로 직접 활용 가능.
+- 학생 단말이 Vernier 보유 학교에 한해 별도 회로 제작 없이 즉시 사용 
+  가능 → 자작 ESP32와 상호 보완.
+
+**배제된 대안**:
+- ESP32에 Vernier를 BLE bridge로 연결: 펌웨어 새로 작성 필요, 
+  본래 자작 펌웨어와 무관해짐. 시간·산출 비효율.
+- Vernier Graphical Analysis 앱으로 측정 후 CSV import: 실시간 시뮬 
+  연동 불가. 본 프로젝트의 인터랙티브성 핵심 가치 상실.
+- 시범으로만 처리: 검증 데이터 품질이 baseline 수준임을 확인한 이상 
+  잃기 부적절. 추상화 정당화·향후 비교 기준 측면에서 정식 편입이 합당.
+- 두 GDX 간 일치도 측정: Vernier 제조 분산 측정에 해당, 본 프로젝트 
+  범위 외로 판단. 기기 사양값(±3 kPa)을 그대로 신뢰.
+
+#### 제약 (논문 기록 대상)
+- Web Bluetooth 미지원 환경: Safari·Firefox·iOS 전반. Chrome/Edge 
+  데스크톱 또는 Android Chrome 필요.
+- 사용자 제스처 요구: BLE selectDevice는 click handler 안에서만 호출 
+  가능 (브라우저 보안 정책). 자동 재연결 UX 제약.
+- 샘플링 50 Hz 상한: GDX-GP 하드웨어 사양. 자작 ESP32에서 더 높은 
+  레이트 채택 시 등가 비교 어려움.
+- Educational use only 표기: Vernier 공식 정책. 학술·교육 응용 한정.
+- Boyle만 적용 완료. Dalton 확장은 후속 작업.

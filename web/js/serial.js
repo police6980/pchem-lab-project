@@ -591,6 +591,8 @@ function createSensorManager(config = 101.3) {
                 this.source = new WebSerialSensorSource();
             } else if (mode === "ws") {
                 this.source = new WebSocketSensorSource();
+            } else if (mode === "vernier") {
+                this.source = new VernierBridgeSensorSource();
             } else {
                 // Phase 5.4 commit iv (e-4): mockIntervalMs / mockNoiseSigma 전달
                 const mockOpts = {};
@@ -625,7 +627,7 @@ function createSensorManager(config = 101.3) {
             } else if (mode === "ws") {
                 await this.source.connect();
             }
-            // Real: wait for user to click [🔌 포트 연결].
+            // Real / Vernier: wait for user gesture (포트 선택 / BLE selectDevice).
         },
 
         // 모든 채널 데이터 수신 (보일 하위 호환)
