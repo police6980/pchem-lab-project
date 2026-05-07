@@ -4,6 +4,8 @@
 
 **마지막 업데이트**: 2026-04-28 (Phase 5.5 — **AI 튜터 설정 패널 기본 열림 (3 시뮬 일관)**. Phase 5.4 = Q3 ↔ Q4 swap + 입자운동 16 질문 차등 + 비활성 버그 fix).
 
+**Phase 5.9 추가 (2026-05-07)**: dataSource 4종 분기 (mock/ws/real/vernier) — Boyle (`ui.js:1754-1789`) 에 vernier 케이스 추가, Dalton (`main.js:3324-3416`) 에 분기 자체 첫 도입. Vernier 모드 학생이 sim 가이드를 받던 정합성 어긋남 정정. Vernier substate 컨텍스트 (Dalton 한정 — `daltonState.vernier` 4 필드) + 비교 모드 + Vernier 동시 정책 추가. 상세: §4.6 데이터 소스 분기.
+
 **Phase 5.5 추가**:
 - **설정 패널 기본 열림** — 3 시뮬 (보일 = `ai-tutor.js:1054` / 돌턴 = `main.js:3155` / 입자운동 = `ui.js:2129`) 모두 첫 진입 시 펼침. ⚙ 클릭 토글 동작 유지. 진입 장벽 ↓ — 학생 모델 / 사용량 / 키 즉시 인지.
 - 보고서 출력 = docx 단일 (PDF 출력 시도 후 폐기 — docx 와 중복 + html2canvas 차트 캡처 불안정).
@@ -145,7 +147,7 @@ BYOK는 완벽한 키 보호를 제공하지 않는다. 다음을 수용한다:
 
 ## 4. 시스템 프롬프트 설계
 
-### 4.1 현재 `buildSystemPrompt(level, questionNum)` 전문 (ui.js:1028)
+### 4.1 현재 `buildSystemPrompt(level, questionNum)` 전문 (ui.js:1774, 보일 기준 — Dalton 은 §4.6 참조)
 
 ```
 당신은 영재 과학교육 튜터입니다.
@@ -236,6 +238,103 @@ univ (대학교 일반화학/물리화학 초기):
 8. 3~4턴 이상 진행 시 자연스럽게 학생이 답에 다가가도록 수렴
 9. 이전 턴의 학생 답변·AI 응답을 `messages` 배열로 전체 누적 전송 (맥락 유지)
 10. 대화 턴 수가 8회를 넘으면 시스템이 [세션 초기화]를 제안
+
+### 4.6 데이터 소스 분기 (Phase 5.5~5.9)
+
+**도입 배경**: 학생이 mock(시뮬) · ws(에뮬레이터) · real(ESP32 자작) · vernier(상용 BLE) 4 모드 중 어느 것을 쓰는지에 따라 측정 데이터의 성격이 다르다. 동일 프롬프트로 모든 모드를 다루면 vernier 학생에게 "이상기체 법칙이 정확히 성립" 같은 sim 가이드가 나가는 정합성 어긋남 발생.
+
+#### 4.6.1 분기 패턴 (4종)
+
+| mode | dataSource 라벨 | sensorGuide 톤 |
+|---|---|---|
+| `mock` | 시뮬레이션 (입자 시뮬, P 직접 산출) | 이상기체 법칙 성립, 이론 중심. (Dalton 한정) 분자 수 보존·부분 압력 가산성·입자 시각 강조 |
+| `ws` | 펌웨어 에뮬레이터 (개발용 가짜 센서) | 노이즈 X, 측정 절차는 가능하나 오차 해석 지양 |
+| `real` | 실물 센서 (ESP32 + 압력 센서) | 측정 오차·기밀·드리프트 적극 반영, 시린지 눈금 직접 읽기 전제 |
+| `vernier` | Vernier GDX-GP (상용 BLE 압력 센서) | ±3 kPa 검정 정확도. 노이즈 ↓ 이지만 기밀·드리프트 여전. 비이상성·측정 절차 분석 유도 |
+
+**구현 위치**:
+- Boyle: `ui.js:1754-1789` — `buildDataContext.dataSource` 4종 + `buildSystemPrompt.sensorGuide` 4종
+- Dalton: `main.js:3324-3416` — `buildDataContext` 콜백에서 `daltonSensorManager.mode` 직접 접근 (같은 closure) → `daltonBuildSystemPrompt(level, qid, ctx)` 의 `ctx.mode` 경유
+- 입자운동 (`ui.js:2235` `createAdvAiTutor`): dataSource 분기 X. 입자운동은 모드 운용 시나리오와 무관한 시뮬 전용 페이지라 추가 작업 X (현 보존)
+
+**vernier 본문 인용 (시뮬별 분량 차이 시각화)**:
+
+Boyle vernier (~110자, 단일 P·V 법칙 성격):
+
+```
+[데이터 소스 고려사항]
+현재는 **Vernier GDX-GP** (상용 BLE 압력 센서, ±3 kPa 검정 정확도) 실측 환경: 노이즈는 적지만 시린지 기밀·온도 드리프트 등 실험 현실 요인은 여전히 존재. 측정값과 이상기체 이론값의 차이를 기체 비이상성·측정 절차 측면에서 분석하도록 유도.
+```
+
+Dalton vernier (~290자, Phase 5.9 운용 시나리오 5요소 반영):
+
+```
+[데이터 소스 고려사항]
+현재는 **Vernier GDX-GP** (상용 BLE 압력 센서, ±3 kPa 검정 정확도) + **콕 결합 셋업** (3-way 콕은 A·B 연결 위치 고정, GDX는 측정 포트). 측정 단계 = 1번 클릭으로 결합 시스템 초기 P_initial 캡처 → 학생이 A 시린지 누름 → 평형 후 2번 클릭으로 P_total 캡처. **1센서 운용 한계**: P_A·P_B 동시 측정 불가, 시작·끝 두 점만 의미 있음 — Dalton 법칙 검증은 평형 P_total 비교로 진행. V_A_current 는 V_A' = P_initial·(V_A+V_B)/P_current − V_B 역산으로 학생 누름 정도 실시간 추정. 이론값: P_total = P_initial·(V_A+V_B)/V_B.
+```
+
+분량 차이 사유: Boyle = 단일 법칙 컨텍스트 / Dalton = 콕 셋업·단계별 측정·1센서 한계·역산식·이론식 5요소. 톤 일관성보다 정보 충실성 우선 (일지 결정 — 옵션 A 채택).
+
+mock/ws/real 본문은 각 시뮬 코드 직접 참조 (Boyle `ui.js:1782-1789` / Dalton `main.js:3378-3384`).
+
+#### 4.6.2 Vernier substate 컨텍스트 (Dalton 한정)
+
+`daltonState.vernier` substate (Phase 5.9 작업 1~4 도입):
+
+| 필드 | 타입 | 의미 |
+|---|---|---|
+| `stage` | string | `IDLE` / `INJECTING` / `STABILIZING` / `READY_TO_CAPTURE` / `CAPTURED` 5상태 |
+| `P_initial_kPa` | number\|null | 1번 클릭 캡처값 (결합 시스템 초기 압력) |
+| `P_total_kPa` | number\|null | 2번 클릭 캡처값 (평형 후 P_total) |
+| `V_A_current_mL` | number\|null | T 소거 식 역산: `P_initial·(V_A+V_B)/P_current − V_B` |
+
+**`buildDataContext` 반환 객체 (Dalton)**:
+
+```js
+{
+    mode: daltonSensorManager.mode,       // "mock" | "ws" | "real" | "vernier"
+    records: daltonState.measurementRecords,
+    comparisonSelected: daltonState.comparisonSelected,
+    V_A: daltonState.syringeA.volume,     // 모든 모드 공통
+    V_B: daltonState.syringeB.volume,
+    vernier: { stage, P_initial_kPa, P_total_kPa, V_A_current_mL },  // vernier 모드만 표시
+}
+```
+
+**시스템 프롬프트 표시 형식** (vernier 모드 진행 중 가정):
+
+```
+[현재 시린지 부피] V_A=80 mL, V_B=50 mL
+[Vernier 측정 진행 상태] stage=READY_TO_CAPTURE, P_initial=101.32 kPa, P_total=미측정, V_A_current=72.4 mL
+```
+
+`null` → "미측정" 한국어화. `stage` 는 영문 보존 (코드 일관성).
+
+**비교 모드 + Vernier 동시 정책**: 학생이 측정 기록 비교 체크 (`comparisonSelected.length === 2`) 와 Vernier 측정 진행 (`mode === "vernier"`) 동시인 경우, 두 블록 모두 표시 + 시스템 프롬프트에 1줄 우선순위 가이드 추가:
+
+> 학생이 비교 모드를 체크하고 동시에 Vernier 측정 진행 중입니다. 비교 분석을 우선하되, 진행 중인 측정도 인지해 답하세요.
+
+#### 4.6.3 톤 정책 (Boyle 패턴 미러링 + Dalton 보강)
+
+**미러링 원칙**: Dalton 분기 신설 시 Boyle (Phase 5.5 1차 검증 완료) 의 dataSource 라벨·sensorGuide 톤을 그대로 따른다. 두 시뮬 모두 영재 과학교육·동일 학생 대상이라 톤 통일이 자연스럽고, 1차 검증 본문 재사용으로 회귀 위험 ↓.
+
+**Dalton 보강**:
+- mock 본문: Dalton 학습 주제 (분자 수 보존·부분 압력 가산성·입자 시각) 1문장 추가
+- vernier 본문: Phase 5.9 운용 시나리오 5요소 신규 (Boyle 본문엔 없음)
+
+**중복 회피**: Dalton 만의 차별점 (분자 수·부분 압력) 은 sensorGuide 가 아니라 본문 다른 곳의 학습 목표 4 핵심에서 다룬다 — 이중 명시 회피.
+
+#### 4.6.4 Phase 5.9 D-(3) 완료 표기
+
+**commits**:
+- `8cb741e` — feat(tutor): Boyle 튜터 dataSource·sensorGuide 분기에 Vernier 추가 (+9/-6)
+- `10ae103` — feat(tutor): Dalton 튜터 데이터 소스 분기 신설 + Vernier 운용 시나리오 (+51/-1)
+
+**일지**: `docs/10-dev-journal.md § Phase 5.9 2026-05-07`
+
+**후속 의무**:
+- 부피 고정 기구 도착 후 V_A_current_mL 시각 검증 + Vernier sensorGuide 본문 응답 품질 평가 → 분량 단축 여부 재결정 (현 vernier 본문 ~290자 = 5요소 반영 우선, 실측 단계에서 약점 발견 시 단축)
+- 작업 D-(4) 측정 데이터 연동 점검 / D-(5) 응답 가드 (소크라테스식) 진입 시 본 §4.6 보강 가능
 
 ---
 
