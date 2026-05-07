@@ -432,7 +432,7 @@ function createMeasurementPanel({
     onDataChange, onResetAll,
     getAvgSpeed = null,
     getCollisionsPerSec = null,
-    getCurrentMode = () => "mock",   // "mock" | "ws" | "real"
+    getCurrentMode = () => "mock",   // "mock" | "ws" | "real" | "vernier"
 }) {
     const readingBlock = document.createElement("div");
     readingBlock.id = "current-reading-block";
@@ -1242,7 +1242,7 @@ function createAnalysisPanel({
     getCurrentTempCelsius,
     getCurrentTempKelvin,
     getSessionStart,
-    getCurrentMode = () => "mock",   // "mock" | "ws" | "real"
+    getCurrentMode = () => "mock",   // "mock" | "ws" | "real" | "vernier"
 }) {
     const section = document.getElementById("section-analysis");
     section.innerHTML = `
@@ -1748,13 +1748,14 @@ function createAnalysisPanel({
         const data = getDatapoints();
         const mean = data.reduce((s, d) => s + d.PV, 0) / data.length;
         const maxDevPct = Math.max(...data.map(d => Math.abs(d.PV - mean))) / mean * 100;
-        // 센서 데이터 출처 — AI 튜터가 실험(실센서) vs 시뮬(Mock) vs
+        // 센서 데이터 출처 — AI 튜터가 실험(실센서/Vernier) vs 시뮬(Mock) vs
         // 에뮬레이터를 구분해 맥락에 맞는 질문·피드백을 생성하도록 전달.
         const mode = getCurrentMode();
         const dataSource =
-            mode === "real" ? "실물 센서 (ESP32 + 압력 센서)"
-          : mode === "ws"   ? "펌웨어 에뮬레이터 (개발용 가짜 센서)"
-          :                   "시뮬레이션 (슬라이더로 압력 조작)";
+            mode === "real"    ? "실물 센서 (ESP32 + 압력 센서)"
+          : mode === "vernier" ? "Vernier GDX-GP (상용 BLE 압력 센서)"
+          : mode === "ws"      ? "펌웨어 에뮬레이터 (개발용 가짜 센서)"
+          :                      "시뮬레이션 (슬라이더로 압력 조작)";
         return {
             tempC: getCurrentTempCelsius().toFixed(0),
             tempK: getCurrentTempKelvin().toFixed(2),
@@ -1781,6 +1782,8 @@ function createAnalysisPanel({
         const currentMode = getCurrentMode();
         const sensorGuide = currentMode === "real"
             ? `[데이터 소스 고려사항]\n사용자 [실험 데이터] 블록의 [데이터 소스] 를 항상 먼저 확인. 현재는 **실물 센서** 환경: 측정 오차·기밀 불량·온도 드리프트 등 실험 현실 요인을 질문/피드백에 적극 반영. 학생이 시린지 눈금을 직접 읽었다는 전제로 오차 원인 탐구를 유도.`
+            : currentMode === "vernier"
+            ? `[데이터 소스 고려사항]\n현재는 **Vernier GDX-GP** (상용 BLE 압력 센서, ±3 kPa 검정 정확도) 실측 환경: 노이즈는 적지만 시린지 기밀·온도 드리프트 등 실험 현실 요인은 여전히 존재. 측정값과 이상기체 이론값의 차이를 기체 비이상성·측정 절차 측면에서 분석하도록 유도.`
             : currentMode === "ws"
             ? `[데이터 소스 고려사항]\n현재는 **펌웨어 에뮬레이터**(가짜 센서) 환경: 실험 노이즈는 없으나 학생이 시린지 눈금을 직접 입력. 측정 절차를 묻는 질문은 가능하되 측정 오차·드리프트 해석은 지양.`
             : `[데이터 소스 고려사항]\n현재는 **시뮬레이션** 환경: 이상기체 법칙이 정확히 성립하는 조건이므로 이론 중심 탐구. "실제로 관측하려면 어떻게 해야 할까?" 같은 확장 질문으로 현실과 연결 유도.`;
