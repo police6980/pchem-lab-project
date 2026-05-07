@@ -2958,3 +2958,63 @@ Phase 5.5 자율 6 트랙 + 후속 (트랙 5 폐기 + 설정 패널) 완료 직�
   Console 로그로 확인됨, plunger 시각 동작은 실 셋업에서 재검증 예정.
 - 1센서 운용 → 주입 중 PA·PB 별도 측정 불가, 시작·끝 두 점만 의미 있음.
   교육 자료에 명시 필요.
+
+### 2026-05-07 — AI 튜터 Vernier 데이터 소스 분기 추가 (작업 D-(3))
+
+#### 한 일
+- Boyle 튜터 ui.js (commit 8cb741e): `buildDataContext.dataSource` /
+  `buildSystemPrompt.sensorGuide` 분기에 vernier 케이스 추가 (4종),
+  함수 시그니처 주석 2곳 + 보조 주석 1곳 갱신 (+9/-6)
+- Dalton 튜터 main.js (commit 10ae103): `buildDataContext` 에 mode +
+  V_A/V_B + vernier substate (stage / P_initial / P_total / V_A_current) 
+  5 필드 추가. `daltonBuildSystemPrompt` 에 dataSource 라벨 4종 + 
+  sensorGuide 본문 4종 신설 (Boyle 패턴 미러링) (+51/-1)
+- Vernier 본문에 Phase 5.9 운용 시나리오 5요소 반영 — 콕 결합 셋업, 
+  측정 단계 의미 (1번/2번 클릭), 1센서 한계, V_A' 역산식, 이론식
+  P_total = P_initial·(V_A+V_B)/V_B
+- 비교 모드 + Vernier 동시 시 두 블록 모두 표시 + 우선순위 1줄
+
+#### 결정: Vernier 본문 분량 — 옵션 A (5요소 모두, ~290자)
+
+**배경**: Boyle vernier sensorGuide ~110자 톤과의 일관성 vs Dalton 
+운용 시나리오 5요소 (콕·단계·1센서·역산·이론식) 의 정보량 충돌. 
+110자에 5요소 다 담기 물리 불가능.
+
+**결정**: 옵션 A 채택 — 분량 늘려 5요소 모두 반영. 시스템 프롬프트 
+~1700자 (vernier 모드일 때만). 응답 길이 가드와 무관, API 토큰 비용 
+미미. 실측 단계에서 응답 품질 평가 후 단축 여부 재결정.
+
+**근거**: (a) 5요소 = 사용자 명시 필수 항목, 임의 생략 불가. 
+(b) Boyle vernier (단일 P·V 법칙) ↔ Dalton vernier (운용 시나리오) 의 
+본질적 정보량 차이 — 톤 일관성보다 정보 충실성 우선. (c) Phase 5.9 
+실측 단계에서 모델 응답 평가 시 약점 발견되면 단축 재결정 가능.
+
+**배제된 대안**:
+- 옵션 B (핵심 3요소, ~145자): 콕 셋업 / Dalton 검증 가이드 생략. 
+  학생이 운용 셋업 자체 모르면 측정 의미 해석 어려움.
+- 학생 수준별 분기 (univ 만 5요소, 그 외 3요소): 시스템 프롬프트 
+  복잡도 ↑ + LEVEL_GUIDES 가 이미 학생 수준 차등 처리, 중복 가드.
+
+#### 결정: Boyle 패턴 미러링 (Dalton 분기 신설 시)
+
+**배경**: Dalton 튜터엔 데이터 소스 분기 자체가 없음 (Phase 5.3 
+도입 시 누락). 신설 시 Boyle 의 dataSource 라벨·sensorGuide 본문 
+패턴을 그대로 따를지, Dalton 학습 주제 (분자 수 보존·부분 압력) 에 
+맞게 별도 톤으로 재작성할지.
+
+**결정**: Boyle 패턴 미러링 + Dalton 학습 주제 일부 보강. real/ws 
+본문은 Boyle 와 거의 동일 (실험 현실 요인·측정 절차). mock 본문은 
+Dalton 학습 주제 (분자 수 보존·부분 압력 가산성·입자 시각) 추가. 
+vernier 본문은 운용 시나리오 5요소 신규.
+
+**근거**: (a) 두 시뮬 모두 영재 과학교육·동일 학생 대상이라 톤 통일. 
+(b) Boyle 본문이 이미 1차 검증 완료된 상태. (c) Dalton 만의 차별점 
+(분자 수·부분 압력) 은 sensorGuide 가 아니라 이미 본문에 있는 학습 
+목표 4핵심에서 다룸 — 이중 명시 회피.
+
+#### 후속 의무 (TODO)
+- 부피 고정 기구 도착 후 V_A_current_mL 시각 검증 + Vernier sensorGuide 
+  본문 응답 품질 평가 → 분량 단축 여부 재결정
+- docs/07-ai-tutor.md cross-ref 갱신 (3 시뮬 sensorGuide 4종 분기 명시) 
+  — 별 turn
+
