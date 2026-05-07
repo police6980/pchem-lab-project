@@ -3342,16 +3342,56 @@ function initDaltonApp(params) {
             dataContext = "\n[측정 기록 없음 — 학생이 아직 [확인] 버튼을 누르지 않았습니다.]";
         }
 
+        // Phase 5.9 트랙 D-(3): 데이터 소스 분기 신설 (Boyle ui.js:1754-1789 패턴 미러링).
+        // mock/ws/real/vernier 4종 분기 + Vernier 운용 시나리오 본문.
+        const mode = ctx.mode || "mock";
+        const isVernier = (mode === "vernier");
+
+        // 현재 시린지 부피 — 모든 모드 공통
+        const volumeLine = `\n[현재 시린지 부피] V_A=${ctx.V_A} mL, V_B=${ctx.V_B} mL`;
+
+        // Vernier substate — vernier 모드 한정. null → "미측정" 한국어화, stage 는 영문 보존.
+        let vernierBlock = "";
+        if (isVernier && ctx.vernier) {
+            const v = ctx.vernier;
+            const fmtP = (n) => (n === null || n === undefined) ? "미측정" : `${n.toFixed(2)} kPa`;
+            const fmtV = (n) => (n === null || n === undefined) ? "미측정" : `${n.toFixed(1)} mL`;
+            vernierBlock = `\n[Vernier 측정 진행 상태] stage=${v.stage}, P_initial=${fmtP(v.P_initial_kPa)}, P_total=${fmtP(v.P_total_kPa)}, V_A_current=${fmtV(v.V_A_current_mL)}`;
+        }
+
+        // 비교 모드 + vernier 동시 안내 (두 블록 모두 표시 + 1줄 우선순위 가이드)
+        const dualNoteLine = (comparisonRecs.length === 2 && isVernier)
+            ? "\n학생이 비교 모드를 체크하고 동시에 Vernier 측정 진행 중입니다. 비교 분석을 우선하되, 진행 중인 측정도 인지해 답하세요."
+            : "";
+
         const focusLine = qid === "free"
             ? "현재 모드: 자유 질문 — 학생 질문에 부분 압력 법칙 / 분자 수 / 시뮬 데이터와 연결해 답변. 400자 이내."
             : `현재 탐구 질문: ${DALTON_QUESTION_TEXT[level]?.[qid] || ""}`;
 
+        // 데이터 소스 라벨 + 분기 가이드 (Boyle 패턴 미러링, 4종)
+        const dataSourceLabel =
+            mode === "real"    ? "실물 센서 (ESP32 + 압력 센서)"
+          : mode === "vernier" ? "Vernier GDX-GP (상용 BLE 압력 센서)"
+          : mode === "ws"      ? "펌웨어 에뮬레이터 (개발용 가짜 센서)"
+          :                      "시뮬레이션 (입자 시뮬, P 직접 산출)";
+
+        const sensorGuide = mode === "real"
+            ? `[데이터 소스 고려사항]\n현재는 **실물 센서** (ESP32 + 압력 센서) 환경: 측정 오차·기밀 불량·온도 드리프트 등 실험 현실 요인을 질문/피드백에 적극 반영. 학생이 시린지 눈금을 직접 읽었다는 전제로 오차 원인 탐구를 유도.`
+            : mode === "vernier"
+            ? `[데이터 소스 고려사항]\n현재는 **Vernier GDX-GP** (상용 BLE 압력 센서, ±3 kPa 검정 정확도) + **콕 결합 셋업** (3-way 콕은 A·B 연결 위치 고정, GDX는 측정 포트). 측정 단계 = 1번 클릭으로 결합 시스템 초기 P_initial 캡처 → 학생이 A 시린지 누름 → 평형 후 2번 클릭으로 P_total 캡처. **1센서 운용 한계**: P_A·P_B 동시 측정 불가, 시작·끝 두 점만 의미 있음 — Dalton 법칙 검증은 평형 P_total 비교로 진행. V_A_current 는 V_A' = P_initial·(V_A+V_B)/P_current − V_B 역산으로 학생 누름 정도 실시간 추정. 이론값: P_total = P_initial·(V_A+V_B)/V_B.`
+            : mode === "ws"
+            ? `[데이터 소스 고려사항]\n현재는 **펌웨어 에뮬레이터** (가짜 센서) 환경: 실험 노이즈는 없으나 학생이 시린지 눈금을 직접 입력. 측정 절차를 묻는 질문은 가능하되 측정 오차·드리프트 해석은 지양.`
+            : `[데이터 소스 고려사항]\n현재는 **시뮬레이션** 환경: 이상기체 법칙이 정확히 성립하는 조건이므로 이론 중심 탐구. 분자 수 보존·부분 압력 가산성을 입자 시각으로 직접 확인 가능. "실험으로 검증하려면 어떻게 측정해야 할까?" 같은 확장 질문으로 현실과 연결 유도.`;
+
         return `당신은 영재 과학교육 튜터입니다.
 대상 학생: ${DALTON_LEVEL_GUIDES[level] || DALTON_LEVEL_GUIDES.high}
 현재 탐구 주제: 돌턴의 부분 압력 법칙 (P_total = P_A + P_B = ΣP_i, 동일 부피·온도, 비반응성 가스)
+[데이터 소스] ${dataSourceLabel}
 
 ${focusLine}
-${dataContext}
+${dataContext}${volumeLine}${vernierBlock}${dualNoteLine}
+
+${sensorGuide}
 
 학습 목표 4 핵심:
 1. 분자 수 보존 — 주입 전후 n_A, n_B, n_total 모두 불변. 분자는 사라지지 않음.
@@ -3394,8 +3434,18 @@ ${dataContext}
             getQuestionText:   daltonGetQuestionText,
             buildSystemPrompt: daltonBuildSystemPrompt,
             buildDataContext:  () => ({
+                mode: daltonSensorManager.mode,   // "mock" | "ws" | "real" | "vernier"
                 records: daltonState.measurementRecords,
                 comparisonSelected: daltonState.comparisonSelected,
+                V_A: daltonState.syringeA.volume,
+                V_B: daltonState.syringeB.volume,
+                // vernier 모드 한정 substate (다른 모드에선 daltonBuildSystemPrompt 가 미표시)
+                vernier: {
+                    stage:          daltonState.vernier.stage,
+                    P_initial_kPa:  daltonState.vernier.P_initial_kPa,
+                    P_total_kPa:    daltonState.vernier.P_total_kPa,
+                    V_A_current_mL: daltonState.vernier.V_A_current_mL,
+                },
             }),
             onLevelDetect: (level) => {
                 console.log(`[dalton tutor] 학생 수준 자동 감지: ${level}`);
