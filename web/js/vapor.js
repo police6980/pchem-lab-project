@@ -1,20 +1,24 @@
 // =============================================================
-// vapor.js — 증기압 시뮬 본체 (Phase 6.1-b'' 하이브리드 액체 모델)
+// vapor.js — 증기압 시뮬 본체 (Phase 6.1-b''' option Z — 표면 추상화)
 //
-// 액체상 모델: 빽빽한 무작위 분포 + 자유 이동 + 저 KE.
-//   - 격자·진동 모델 폐기 (고체 인상 회피, docs/17 §6 결정)
-//   - 균일 중력으로 자연 sedimentation
-//   - 표면 근처 입자 시각 강조 — 탈출 후보군 시선 유도
+// 액체 모델 (옵션 Z):
+//   · 액체 박스 = 정적 영역, 반투명 진청 채움. 내부 입자 렌더 X.
+//   · 표면 띠 안에 SurfaceParticle 만 가시화 (~40 개). 약한 KE.
+//   · 중력 X — 분자간 인력이 중력보다 훨씬 강한 것이 액체 (직전
+//     6.1-b'' 자유낙하 모델 결함, docs/17 §6 결정).
 //
-// 기체상 모델: 보일 자유 비행 + impulse exchange + KE 색 매핑.
+// 기체 모델: 자유 비행 + impulse exchange + 사방 벽 튕김. KE 색 lerp.
 //
-// 위상 통과 (증발/응축):
-//   - 액→기: KE > E_escape AND 표면 근처 AND random() < p_evap
-//   - 기→액: 표면 충돌 AND KE < E_stick AND random() < p_condense
-//   - 사건 시 색별 flash + 트레일
+// 위상 통과:
+//   · 액→기 (증발): 표면 입자 위 경계 도달 + KE > E_escape +
+//     random() < p_evap → 사라지고 GasParticle 신규 발사.
+//     조건 미충족 시 위 경계에서 튕김.
+//   · 기→액 (응축): 기체 표면선 부근 + 아래로 이동 + KE < E_stick +
+//     random() < p_condense → 사라지고 SurfaceParticle 신규
+//     (표면 띠 안 무작위).
 //
-// 미포함 (후속): 카운터/rate 그래프 (6.1-d), 모드 분기 (6.2~6.4),
-// AI 튜터 (6.4).
+// 표면 풀 floor 가드: SurfaceParticle 수 0 까지 떨어지지 않도록
+// 증발 평가 시 가드 (N_surface_particles 가 floor 역할).
 // =============================================================
 
 const VAPOR_DT_CAP = 0.05;
@@ -43,32 +47,34 @@ function vaporHexToRgb(hex) {
     };
 }
 
-class LiquidParticle {
+class SurfaceParticle {
     constructor(x, y, vx, vy) {
         this.x = x;
         this.y = y;
         this.vx = vx;
         this.vy = vy;
         this.mass = 1.0;
-        this.radius = 6;       // drawParticles 시 cfg 로 override
-        this.isSurface = false;
+        this.radius = 6; // VaporWorld 가 cfg.surface_particle_radius_px 로 override
     }
 
-    update(dt, zone, gravityPx) {
-        this.vy += gravityPx * dt;
+    kineticEnergy() {
+        return 0.5 * this.mass * (this.vx * this.vx + this.vy * this.vy);
+    }
+
+    // band = {x, y, w, h}. 좌/우/아래만 튕김. 위 경계 처리는 호출자.
+    update(dt, band) {
         this.x += this.vx * dt;
         this.y += this.vy * dt;
         const r = this.radius;
-        const left = zone.x + r, right = zone.x + zone.w - r;
-        const top = zone.y + r, bottom = zone.y + zone.h - r;
+        const left = band.x + r, right = band.x + band.w - r;
+        const bottom = band.y + band.h - r;
         if (this.x < left  && this.vx < 0) this.vx = -this.vx;
         if (this.x > right && this.vx > 0) this.vx = -this.vx;
-        if (this.y < top   && this.vy < 0) this.vy = -this.vy;
-        if (this.y > bottom && this.vy > 0) this.vy = -this.vy * 0.5; // 바닥 반발 약화 (sedimentation)
+        if (this.y > bottom && this.vy > 0) this.vy = -this.vy;
         if (this.x < left)        this.x = left;
         else if (this.x > right)  this.x = right;
-        if (this.y < top)         this.y = top;
-        else if (this.y > bottom) this.y = bottom;
+        if (this.y > bottom)      this.y = bottom;
+        // 위 경계 미처리 — VaporWorld._evaluateTransitions 가 KE 평가 후 탈출/튕김.
     }
 }
 
@@ -87,7 +93,7 @@ class GasParticle {
     }
 
     update(dt, zone, gravityPx) {
-        this.vy += gravityPx * dt;
+        if (gravityPx) this.vy += gravityPx * dt;
         this.x += this.vx * dt;
         this.y += this.vy * dt;
         const r = this.radius;
@@ -105,7 +111,7 @@ class GasParticle {
 }
 
 // 입자-입자 탄성 충돌 (impulse exchange) — 등질량 단순화. O(N²).
-// 액체상은 빽빽해 충돌 빈번 → spatial hashing 도입은 성능 저하 시 후속.
+// 본 모델에서 기체상에만 적용 (표면 입자 충돌 미적용 — option Z).
 function vaporResolveCollisions(particles) {
     const n = particles.length;
     for (let i = 0; i < n; i++) {
@@ -133,19 +139,17 @@ function vaporResolveCollisions(particles) {
     }
 }
 
-// flash — 위상 통과 사건 시 색 잔상 + 트레일
 class VaporFlash {
     constructor(x, y, rgb, dirY, ttlMs) {
         this.x = x;
         this.y = y;
-        this.rgb = rgb;        // {r,g,b}
-        this.dirY = dirY;      // -1 (증발/위) | +1 (응축/아래)
+        this.rgb = rgb;
+        this.dirY = dirY;
         this.ttl = ttlMs;
         this.maxTtl = ttlMs;
     }
     update(dtMs) {
         this.ttl -= dtMs;
-        // 잔상이 살짝 진행 방향으로 이동 → 트레일 인상
         this.y += this.dirY * 0.04 * dtMs;
     }
     isAlive() { return this.ttl > 0; }
@@ -163,7 +167,7 @@ class VaporWorld {
         this.vLiquidMl = vLiquidMl;
         this.vGasMl = vFlaskMl - vLiquidMl;
 
-        // V_liquid : V_gas 비율로 영역 분할
+        // V_liquid : V_gas 비율 영역 분할
         const innerW = this.canvasW - 2 * VAPOR_MARGIN_PX;
         const innerH = this.canvasH - 2 * VAPOR_MARGIN_PX;
         const liquidH = innerH * (vLiquidMl / vFlaskMl);
@@ -172,29 +176,38 @@ class VaporWorld {
         this.gasZone    = { x: VAPOR_MARGIN_PX, y: VAPOR_MARGIN_PX, w: innerW, h: gasH };
         this.liquidZone = { x: VAPOR_MARGIN_PX, y: this.surfaceY,  w: innerW, h: liquidH };
 
-        // 초기 상태: 액체 N 개 + 기체 진공 (0)
-        this.liquidParticles = [];
+        // 표면 띠 — 표면선 위/아래 절반씩 (총 surface_band_px)
+        const band = cfg.surface_band_px ?? 12;
+        this.surfaceBand = {
+            x: VAPOR_MARGIN_PX,
+            y: this.surfaceY - band / 2,
+            w: innerW,
+            h: band,
+        };
+
+        // 입자 초기화: 표면 입자 N 개, 기체 진공
+        this.surfaceParticles = [];
         this.gasParticles = [];
         this.flashes = [];
 
-        const Nl = cfg.N_particles_liquid;
-        const sgScale = cfg.speed_scale_gas;
-        const slScale = sgScale * (cfg.liquid_speed_scale ?? 0.2);
-        for (let i = 0; i < Nl; i++) {
-            const x = this.liquidZone.x + Math.random() * this.liquidZone.w;
-            const y = this.liquidZone.y + Math.random() * this.liquidZone.h;
-            const [vx, vy] = vaporMBVelocity(slScale);
-            this.liquidParticles.push(new LiquidParticle(x, y, vx, vy));
+        const Ns = cfg.N_surface_particles ?? 40;
+        const sgScale = cfg.speed_scale_gas ?? 80;
+        const ssScale = sgScale * (cfg.surface_speed_scale ?? 0.3);
+        const sRad = cfg.surface_particle_radius_px ?? 6;
+        for (let i = 0; i < Ns; i++) {
+            const x = this.surfaceBand.x + Math.random() * this.surfaceBand.w;
+            const y = this.surfaceBand.y + Math.random() * this.surfaceBand.h;
+            const [vx, vy] = vaporMBVelocity(ssScale);
+            const sp = new SurfaceParticle(x, y, vx, vy);
+            sp.radius = sRad;
+            this.surfaceParticles.push(sp);
         }
 
-        // gravity — cfg.gravity (정규화) × 1000 → px/s²
-        this.gravityPx = (cfg.gravity ?? 0.05) * 1000;
+        // 기체 중력 — option Z 기본 0. params.json 에 설정 시만 반영.
+        this.gravityPx = (cfg.gravity ?? 0) * 1000;
 
-        // 색 캐시
         this._evapRgb = vaporHexToRgb(cfg.evap_color || "#3B82F6");
         this._condRgb = vaporHexToRgb(cfg.cond_color || "#F59E0B");
-
-        // 통계 (1초 윈도우)
         this._evapWin = 0;
         this._condWin = 0;
         this._lastStatsT = performance.now();
@@ -204,29 +217,18 @@ class VaporWorld {
         const cap = Math.min(dt, VAPOR_DT_CAP);
         const dtMs = cap * 1000;
 
-        // 1) 운동
-        for (const p of this.liquidParticles) p.update(cap, this.liquidZone, this.gravityPx);
-        for (const p of this.gasParticles)    p.update(cap, this.gasZone,    this.gravityPx);
-
-        // 2) 충돌
-        vaporResolveCollisions(this.liquidParticles);
+        // 1) 표면 입자 운동 (좌/우/아래 튕김. 위는 _evaluateTransitions가 처리)
+        for (const sp of this.surfaceParticles) sp.update(cap, this.surfaceBand);
+        // 2) 기체 입자 운동
+        for (const gp of this.gasParticles) gp.update(cap, this.gasZone, this.gravityPx);
+        // 3) 충돌 — 기체만 (option Z: 표면 입자 충돌 미적용)
         vaporResolveCollisions(this.gasParticles);
-
-        // 3) 표면 강조 마킹 (액체 입자 isSurface)
-        const surfBand = this.cfg.surface_band_px ?? 12;
-        for (const p of this.liquidParticles) {
-            const distFromSurface = p.y - this.surfaceY;  // 표면이 위, 액체는 아래
-            p.isSurface = (distFromSurface >= 0 && distFromSurface <= surfBand);
-        }
-
         // 4) 위상 통과
         this._evaluateTransitions();
-
         // 5) flash 진행
         for (const f of this.flashes) f.update(dtMs);
         this.flashes = this.flashes.filter(f => f.isAlive());
-
-        // 6) 통계 출력 (1초 간격)
+        // 6) stats (1초 간격 console)
         this._maybeLogStats();
     }
 
@@ -238,39 +240,53 @@ class VaporWorld {
         const p_condense = cfg.p_condense;
         const flashTtl = cfg.flash_duration_ms ?? 150;
         const gasMax = cfg.N_particles_gas_max ?? 30;
+        const surfaceFloor = 1; // 표면 풀 floor — 0 으로 떨어지지 않도록
 
-        // 증발: 액체 표면 입자 + KE > E_escape + p_evap
-        const remainLiquid = [];
-        for (const lp of this.liquidParticles) {
-            const ke = 0.5 * (lp.vx * lp.vx + lp.vy * lp.vy);
-            if (lp.isSurface && ke > E_escape && Math.random() < p_evap
-                && this.gasParticles.length < gasMax * 3) {
-                // 기체 신규 — 표면 위쪽으로 발사
-                const gx = lp.x;
-                const gy = this.surfaceY - GAS_PARTICLE_RADIUS - 1;
-                const gvx = lp.vx;
-                const gvy = -Math.abs(lp.vy) - 30;
-                this.gasParticles.push(new GasParticle(gx, gy, gvx, gvy));
-                this.flashes.push(new VaporFlash(lp.x, this.surfaceY, this._evapRgb, -1, flashTtl));
-                this._evapWin++;
-                continue;
+        // 증발: 표면 입자 위 경계 도달 시점 평가
+        const remain = [];
+        const topY = this.surfaceBand.y;
+        for (const sp of this.surfaceParticles) {
+            const r = sp.radius;
+            if (sp.y < topY + r && sp.vy < 0) {
+                const ke = sp.kineticEnergy();
+                const canEvap = ke > E_escape
+                              && Math.random() < p_evap
+                              && this.gasParticles.length < gasMax * 3
+                              && this.surfaceParticles.length > surfaceFloor;
+                if (canEvap) {
+                    // 탈출 — 기체 신규
+                    const gx = sp.x;
+                    const gy = this.surfaceY - GAS_PARTICLE_RADIUS - 1;
+                    const gvx = sp.vx;
+                    const gvy = -Math.abs(sp.vy) - 30; // 위쪽 강제
+                    this.gasParticles.push(new GasParticle(gx, gy, gvx, gvy));
+                    this.flashes.push(new VaporFlash(sp.x, this.surfaceY, this._evapRgb, -1, flashTtl));
+                    this._evapWin++;
+                    continue; // 표면에서 제거
+                }
+                // 미충족 — 위 경계에서 튕김
+                sp.vy = -sp.vy;
+                sp.y = topY + r;
             }
-            remainLiquid.push(lp);
+            remain.push(sp);
         }
-        this.liquidParticles = remainLiquid;
+        this.surfaceParticles = remain;
 
-        // 응축: 기체 표면 충돌 + 아래로 이동 + KE < E_stick + p_condense
+        // 응축: 기체 표면선 부근 + 아래로 이동 + KE < E_stick
         const remainGas = [];
         for (const gp of this.gasParticles) {
             const ke = gp.kineticEnergy();
             const distAboveSurface = this.surfaceY - gp.y;
             const nearSurface = (distAboveSurface >= 0 && distAboveSurface <= 6 && gp.vy > 0);
             if (nearSurface && ke < E_stick && Math.random() < p_condense) {
-                const nx = this.liquidZone.x + Math.random() * this.liquidZone.w;
-                const ny = this.liquidZone.y + Math.random() * this.liquidZone.h;
+                // 표면 입자 신규 (표면 띠 안 무작위 위치)
+                const nx = this.surfaceBand.x + Math.random() * this.surfaceBand.w;
+                const ny = this.surfaceBand.y + Math.random() * this.surfaceBand.h;
                 const nvx = (Math.random() - 0.5) * 4;
                 const nvy = (Math.random() - 0.5) * 4;
-                this.liquidParticles.push(new LiquidParticle(nx, ny, nvx, nvy));
+                const sp = new SurfaceParticle(nx, ny, nvx, nvy);
+                sp.radius = this.cfg.surface_particle_radius_px ?? 6;
+                this.surfaceParticles.push(sp);
                 this.flashes.push(new VaporFlash(gp.x, this.surfaceY, this._condRgb, +1, flashTtl));
                 this._condWin++;
                 continue;
@@ -287,7 +303,7 @@ class VaporWorld {
             const rateScale = 1000 / elapsed;
             const evapRate = (this._evapWin * rateScale).toFixed(1);
             const condRate = (this._condWin * rateScale).toFixed(1);
-            console.log(`[Vapor] evap=${evapRate}/s · cond=${condRate}/s · L=${this.liquidParticles.length} · G=${this.gasParticles.length}`);
+            console.log(`[Vapor] evap=${evapRate}/s · cond=${condRate}/s · S=${this.surfaceParticles.length} · G=${this.gasParticles.length}`);
             this._evapWin = 0;
             this._condWin = 0;
             this._lastStatsT = now;
@@ -300,13 +316,16 @@ class VaporWorld {
         p.stroke(180);
         p.strokeWeight(1);
         p.rect(this.gasZone.x, this.gasZone.y, this.gasZone.w, this.gasZone.h);
-        // 액체 영역 (하부) — 연한 청 배경
-        p.noStroke();
-        p.fill(225, 238, 250);
-        p.rect(this.liquidZone.x, this.liquidZone.y, this.liquidZone.w, this.liquidZone.h);
+        // 액체 영역 (하부) — 반투명 채움 (option Z 핵심: 입자 안 그림)
+        const fillStr = this.cfg.liquid_fill_color || "rgba(30, 64, 175, 0.3)";
+        if (p.drawingContext) {
+            p.drawingContext.fillStyle = fillStr;
+            p.drawingContext.fillRect(this.liquidZone.x, this.liquidZone.y, this.liquidZone.w, this.liquidZone.h);
+        }
         p.noFill();
-        p.stroke(160, 195, 230);
+        p.stroke(120, 150, 200);
         p.rect(this.liquidZone.x, this.liquidZone.y, this.liquidZone.w, this.liquidZone.h);
+
         // 가상 표면 — 점선
         const surfColor = p.color(this.cfg.surface_color || "#3B82F6");
         p.stroke(surfColor);
@@ -322,24 +341,17 @@ class VaporWorld {
 
     drawParticles(p) {
         const cfg = this.cfg;
-        const radL = cfg.liquid_particle_radius_px ?? 6;
-        const radS = cfg.surface_particle_radius_px ?? 8;
-        const liquidBase = p.color(cfg.liquid_color_base || "#1E40AF");
-        const liquidSurf = p.color(cfg.liquid_surface_color || "#2563EB");
+        const sRad = cfg.surface_particle_radius_px ?? 6;
+        const surfPColor = p.color(cfg.surface_particle_color || "#1E40AF");
 
+        // 표면 입자 — 진청 단색
         p.noStroke();
-        // 액체 — 표면 근처는 강조
-        for (const lp of this.liquidParticles) {
-            if (lp.isSurface) {
-                p.fill(liquidSurf);
-                p.circle(lp.x, lp.y, radS);
-            } else {
-                p.fill(liquidBase);
-                p.circle(lp.x, lp.y, radL);
-            }
+        p.fill(surfPColor);
+        for (const sp of this.surfaceParticles) {
+            p.circle(sp.x, sp.y, sRad * 2);
         }
 
-        // 기체 — KE 단순 lerp (느림=연청 ↔ 빠름=빨강). 보일 HSB 의 단순화 버전.
+        // 기체 — KE lerp (느림=연청 ↔ 빠름=빨강)
         const refKE = 0.5 * Math.pow(cfg.speed_scale_gas ?? 80, 2);
         const slow = p.color("#60A5FA");
         const fast = p.color("#EF4444");
@@ -350,7 +362,7 @@ class VaporWorld {
             p.circle(gp.x, gp.y, GAS_PARTICLE_RADIUS * 2);
         }
 
-        // flash + 트레일 (단순 3 점)
+        // flashes (트레일 3점)
         for (const f of this.flashes) {
             const a0 = 220 * (f.ttl / f.maxTtl);
             p.fill(f.rgb.r, f.rgb.g, f.rgb.b, a0);
