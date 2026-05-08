@@ -3182,6 +3182,7 @@ function initDaltonApp(params) {
             n_B: n_B,
             n_total: n_total,
             time: timeStr,
+            mode: daltonSensorManager.mode,  // D-(4): 출처 식별 ("mock" | "ws" | "real")
         };
         daltonState.measurementRecords.push(record);
 
@@ -3214,6 +3215,45 @@ function initDaltonApp(params) {
         if (daltonChartP5Instance) {
             daltonChartP5Instance.redraw();
         }
+    }
+
+    // ─────────────────────────────────────────────────────────
+    // Phase 5.9 D-(4): Vernier 모드 측정 기록 추가
+    // CAPTURED 진입 시 호출 — addRecord 의 INJECTED stage 가드 우회.
+    // P_A / P_B / n_A / n_B 는 null (Vernier 단일 센서로 분압 직접 측정 불가).
+    // 표 / CSV / 비교 모드는 record.mode === "vernier" 분기로 N/A 처리 필요.
+    // ─────────────────────────────────────────────────────────
+    function addVernierRecord() {
+        daltonState.recordsCount += 1;
+        const n = daltonState.recordsCount;
+        const v = daltonState.vernier;
+        const V_A_initial = daltonState.syringeA.volume;
+        const V_B = daltonState.syringeB.volume;
+        const theoryAtm = V_B > 0 ? (V_A_initial / V_B + 1) * 1.00 : 1.00;
+        const P_total_atm   = (v.P_total_kPa   != null) ? v.P_total_kPa   / 101.325 : null;
+        const P_initial_atm = (v.P_initial_kPa != null) ? v.P_initial_kPa / 101.325 : null;
+        const timeStr = new Date().toLocaleTimeString("ko-KR", { hour12: false });
+
+        const record = {
+            n: n,
+            V_A_initial: V_A_initial,
+            V_B: V_B,
+            V_A_current: v.V_A_current_mL,        // Vernier 한정 — 역산값
+            theoryAtm: theoryAtm,
+            P_total: P_total_atm,                 // Vernier 실측 (atm)
+            P_initial: P_initial_atm,             // Vernier 한정 — 결합 시스템 초기 압력
+            P_A: null,                            // Vernier 단일 센서로 분압 측정 불가
+            P_B: null,
+            gasA: daltonState.syringeA.gas,
+            gasB: daltonState.syringeB.gas,
+            n_A: null,                            // 분압 미측정 → 분자 수 산출 불가
+            n_B: null,
+            n_total: null,
+            time: timeStr,
+            timestamp: Date.now(),                // Vernier 한정 — 절대 시각
+            mode: "vernier",                      // D-(4): 출처 식별
+        };
+        daltonState.measurementRecords.push(record);
     }
 
     // ─────────────────────────────────────────────────────────
@@ -3414,17 +3454,23 @@ function initDaltonApp(params) {
             ? comparisonNs.map((n) => records.find((r) => r.n === n)).filter(Boolean)
             : [];
 
+        // D-(4): record.mode 분기로 mock/ws/real 과 vernier 측정의 의미 차이 명시.
+        // vernier = P_total 만 실측, P_A/P_B/n_* 산출 불가 → "N/A" 표기.
+        const formatRecordLine = (r) => {
+            if (r.mode === "vernier") {
+                const vAcur = (r.V_A_current != null) ? `${r.V_A_current.toFixed(1)} mL` : "미측정";
+                return `- 회차 ${r.n} [Vernier 실측]: V_A=${r.V_A_initial}, V_B=${r.V_B}, V_A_current=${vAcur}, P_total=${r.P_total.toFixed(2)} atm (실측), P_A/P_B=N/A (분압 직접 측정 불가), n_*=N/A, gas_A=${r.gasA}, gas_B=${r.gasB}`;
+            }
+            return `- 회차 ${r.n}: V_A=${r.V_A_initial}, V_B=${r.V_B}, P_total=${r.P_total.toFixed(2)} atm, P_A=${r.P_A.toFixed(2)} atm, P_B=${r.P_B.toFixed(2)} atm, n_A=${r.n_A}, n_B=${r.n_B}, n_total=${r.n_total}, gas_A=${r.gasA}, gas_B=${r.gasB}`;
+        };
+
         let dataContext = "";
         if (comparisonRecs.length === 2) {
-            dataContext = `\n[비교 중인 두 측정 (학생이 비교 모드 체크)]\n` + comparisonRecs.map((r) =>
-                `- 회차 ${r.n}: V_A=${r.V_A_initial}, V_B=${r.V_B}, P_total=${r.P_total.toFixed(2)} atm, P_A=${r.P_A.toFixed(2)} atm, P_B=${r.P_B.toFixed(2)} atm, n_A=${r.n_A}, n_B=${r.n_B}, n_total=${r.n_total}, gas_A=${r.gasA}, gas_B=${r.gasB}`
-            ).join("\n");
+            dataContext = `\n[비교 중인 두 측정 (학생이 비교 모드 체크)]\n` + comparisonRecs.map(formatRecordLine).join("\n");
         } else if (recentRecords.length > 0) {
-            dataContext = `\n[최근 측정 ${recentRecords.length}개]\n` + recentRecords.map((r) =>
-                `- 회차 ${r.n}: V_A=${r.V_A_initial}, V_B=${r.V_B}, P_total=${r.P_total.toFixed(2)} atm, P_A=${r.P_A.toFixed(2)} atm, P_B=${r.P_B.toFixed(2)} atm, n_A=${r.n_A}, n_B=${r.n_B}, n_total=${r.n_total}, gas_A=${r.gasA}, gas_B=${r.gasB}`
-            ).join("\n");
+            dataContext = `\n[최근 측정 ${recentRecords.length}개 — 모드별 P_A/P_B 산출 가능 여부 다름]\n` + recentRecords.map(formatRecordLine).join("\n");
         } else {
-            dataContext = "\n[측정 기록 없음 — 학생이 아직 [확인] 버튼을 누르지 않았습니다.]";
+            dataContext = "\n[측정 기록 없음 — 학생이 아직 측정을 진행하지 않았습니다.]";
         }
 
         // Phase 5.9 트랙 D-(3): 데이터 소스 분기 신설 (Boyle ui.js:1754-1789 패턴 미러링).
@@ -3463,7 +3509,7 @@ function initDaltonApp(params) {
         const sensorGuide = mode === "real"
             ? `[데이터 소스 고려사항]\n현재는 **실물 센서** (ESP32 + 압력 센서) 환경: 측정 오차·기밀 불량·온도 드리프트 등 실험 현실 요인을 질문/피드백에 적극 반영. 학생이 시린지 눈금을 직접 읽었다는 전제로 오차 원인 탐구를 유도.`
             : mode === "vernier"
-            ? `[데이터 소스 고려사항]\n현재는 **Vernier GDX-GP** (상용 BLE 압력 센서, ±3 kPa 검정 정확도) + **콕 결합 셋업** (3-way 콕은 A·B 연결 위치 고정, GDX는 측정 포트). 측정 단계 = 1번 클릭으로 결합 시스템 초기 P_initial 캡처 → 학생이 A 시린지 누름 → 평형 후 2번 클릭으로 P_total 캡처. **1센서 운용 한계**: P_A·P_B 동시 측정 불가, 시작·끝 두 점만 의미 있음 — Dalton 법칙 검증은 평형 P_total 비교로 진행. V_A_current 는 V_A' = P_initial·(V_A+V_B)/P_current − V_B 역산으로 학생 누름 정도 실시간 추정. 이론값: P_total = P_initial·(V_A+V_B)/V_B.`
+            ? `[데이터 소스 고려사항]\n현재는 **Vernier GDX-GP** (상용 BLE 압력 센서, ±3 kPa 검정 정확도) + **콕 결합 셋업** (3-way 콕은 A·B 연결 위치 고정, GDX는 측정 포트). 측정 단계 = 1번 클릭으로 결합 시스템 초기 P_initial 캡처 → 학생이 A 시린지 누름 → 평형 후 2번 클릭으로 P_total 캡처. **1센서 운용 한계**: P_A·P_B 동시 측정 불가, 시작·끝 두 점만 의미 있음 — Dalton 법칙 검증은 평형 P_total 비교로 진행. V_A_current 는 V_A' = P_initial·(V_A+V_B)/P_current − V_B 역산으로 학생 누름 정도 실시간 추정. 이론값: P_total = P_initial·(V_A+V_B)/V_B.\nVernier 모드에서는 GDX-GP 가 결합 시린지의 총 압력만 측정합니다. P_A, P_B (가스별 분압) 은 직접 측정 불가, records 에 null 로 기록됩니다. 학생의 실측 데이터는 P_total + V_A_current 두 값입니다. 이론값과의 비교 시 이 점을 고려하세요.`
             : mode === "ws"
             ? `[데이터 소스 고려사항]\n현재는 **펌웨어 에뮬레이터** (가짜 센서) 환경: 실험 노이즈는 없으나 학생이 시린지 눈금을 직접 입력. 측정 절차를 묻는 질문은 가능하되 측정 오차·드리프트 해석은 지양.`
             : `[데이터 소스 고려사항]\n현재는 **시뮬레이션** 환경: 이상기체 법칙이 정확히 성립하는 조건이므로 이론 중심 탐구. 분자 수 보존·부분 압력 가산성을 입자 시각으로 직접 확인 가능. "실험으로 검증하려면 어떻게 측정해야 할까?" 같은 확장 질문으로 현실과 연결 유도.`;
@@ -3543,6 +3589,11 @@ ${sensorGuide}
             return;
         }
         window.PchemDaltonTutor = daltonTutor;
+
+        // DEBUG: D-(4) 검증용 임시 핸들. 검증 통과 후 제거 또는 DEBUG_DIAGNOSTICS 가드 권장.
+        window._daltonBuildDataContext = () => daltonConfig.buildDataContext();
+        window._daltonBuildSystemPrompt = (level, qid) =>
+            daltonConfig.buildSystemPrompt(level, qid, daltonConfig.buildDataContext());
 
         // Q-B: Q4 [질문 생성] 버튼 — metaTabId="4" 활성 시 default empty state 가 #btn-generate-q4 동적 렌더
         document.addEventListener("click", (e) => {
@@ -3802,6 +3853,8 @@ ${sensorGuide}
             daltonState.vernier.P_total_kPa = daltonState.emaP_B_kPa;
             console.log(`[Vernier] P_total captured: ${daltonState.vernier.P_total_kPa.toFixed(2)} kPa`);
             setVernierStage("CAPTURED");
+            // D-(4): 측정 결과 records 에 누적 → AI 튜터 ctx 에 노출
+            addVernierRecord();
         }
         // 다른 stage 에선 버튼이 disabled 라 도달 안 함 (방어).
     });
