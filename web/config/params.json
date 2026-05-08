@@ -49,7 +49,7 @@
     },
 
     "vapor": {
-        "_comment": "Phase 6.1-b sub-step 1 — 응집 영역 + 외부 끌어당김 가속도장 모델. 분자간 인력 X (LJ 폐기, N=200 학교 시뮬 부담). 분자 phase 플래그 X. 색만 위치 기반 자동.",
+        "_comment": "Phase 6.1-b sub-step B-2 — Schroeder 2015 LJ + Velocity Verlet base (AJP 83 210, arXiv 1502.06169, MIT license). 자연 단위 (sigma=epsilon=m=k_B=1). 직전 자체 시도들 (응집영역+가속도장, LJ-like piecewise, 자유낙하, 격자, 표면추상화) 모두 폐기.",
         "V_flask_presets_mL": [100, 250, 500],
         "V_flask_default_mL": 250,
         "V_liquid_default_mL": 50,
@@ -58,20 +58,18 @@
         "canvas_height_px": 480,
 
         "N_molecules": 200,
-        "molecule_radius_px": 3.5,
-        "molecule_color_liquid": "#1E3A8A",
 
-        "g_y": 0.05,
-        "y_pull_weak": 0.1,
-        "y_pull_strong": 0.3,
-        "pull_margin_px": 30,
-        "escape_threshold_KE": 4.0,
-        "mb_init_temp_K": 280,
-        "dt": 0.0167,
-        "hard_sphere_repel_factor": 1.0,
-        "wall_repel_factor": 1.0,
+        "schroeder_box_width_sigma": 60,
+        "schroeder_dt": 0.005,
+        "schroeder_cutoff": 3.0,
+        "schroeder_init_temp": 0.4,
+        "schroeder_steps_per_frame": 25,
+        "schroeder_gravity": 0,
+
+        "molecule_color": "#1E3A8A",
+        "molecule_radius_scale": 0.85,
 
         "water_mol_per_mL": 0.05551,
-        "_units_note": "1 분자 ≈ V_liquid · water_mol_per_mL · 1000 / N_molecules mmol (응집 영역 모델). water_mol_per_mL = 0.05551 mol/mL (4°C 기준)."
+        "_units_note": "1 분자 ≈ V_liquid · water_mol_per_mL · 1000 / N_molecules mmol (Schroeder LJ MD). schroeder_init_temp 0.4 = LJ 자연 단위 (Ar 삼중점 ~0.7 이하 → 액체 영역). pxPerUnit = canvas_width_px / schroeder_box_width_sigma."
     }
 }

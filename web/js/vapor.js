@@ -1,112 +1,39 @@
 // =============================================================
-// vapor.js — 증기압 시뮬 본체 (Phase 6.1-b sub-step 1, 응집 영역 모델)
+// vapor.js — 증기압 시뮬 본체 (Phase 6.1-b sub-step B-2)
+//             Schroeder LJ + Velocity Verlet base
 //
-// 핵심 원칙 (LJ 폐기 후 신규):
-//   · 분자 200 개 항상 가시. 사라지지 않음. 같은 풀.
-//   · 분자간 인력 X. 분자-분자 hard sphere 반발만 (overlap 방지).
-//   · 응집 영역 (박스 하부) 에 외부 끌어당김 가속도장.
-//   · 영역 가장자리 + 영역 밖 분자에 +y 가속도 (영역 안으로 끌어당김).
-//   · 분자 KE > escape_threshold_KE 시 끌어당김 무력화 → 탈출 (증발).
-//   · 자유 비행 분자가 영역 진입 → 끌어당김에 잡힘 (응축).
+// 출처 attribution (MIT License, sub-step B-1 검증):
+//   Daniel V. Schroeder, "Interactive molecular dynamics,"
+//   American Journal of Physics 83(3), 210–218 (2015).
+//   arXiv:1502.06169 [physics.ed-ph].
+//   https://physics.weber.edu/schroeder/md/InteractiveMD.html
+//   Copyright 2013-2014, Daniel V. Schroeder. License: MIT-like
+//   (free use/copy/modify/redistribute, attribution 필수,
+//    저자 이름 광고 금지).
 //
-// 분자 phase 플래그 X. 색만 위치 기반 자동:
-//   · y >= zoneTopY (영역 안): 진청 단색 #1E3A8A
-//   · y <  zoneTopY (영역 밖): KE HSB lerp (느림 청 → 빠름 적)
+// 본 파일에 포팅된 Schroeder 본체 (그대로):
+//   · LJ 12-6 force: attract=r⁻⁶, repel=attract², fOverR=24(2·repel-attract)/r²
+//   · Velocity Verlet 적분 (half-step pos+vel → force → half-step vel)
+//   · Cell list O(N) — N≥100 + boxWidth ≥ 4·forceCutoff 자동
+//   · 격자 + jitter 초기 배치 (cellSize=1.3 sigma, addAtoms 알고리즘 모사)
+//   · Polar Box-Muller MB velocity
 //
-// LJ-like 모델 폐기 사유: N=200 학교 시뮬에서 안정 응집 실패 (분자
-// 균등 분포 = 그냥 기체). 자연 정합성 일부 손실 대신 시각 결과 단순 달성.
-// 학습 인지에 미치는 차이 없음 (docs/17 §6 정직한 한계 참조).
+// 본 프로젝트 변형 (Schroeder UI 통째 폐기 + 우리 특화):
+//   · Schroeder presets/sliders/save·load/data export 등 모두 제거
+//   · p5 instance mode wrapping (mountVaporSketch 인터페이스 유지)
+//   · 박스 영역 분할: 박스 사방 강한 반사 (입자 가둠) + 액체 박스
+//     위 경계 (V_liquid:V_gas 비율) = 시각 점선만 (통과 자유)
+//   · Sigma 단위 → 캔버스 px 변환 (pxPerUnit = canvasW/boxWidth)
+//   · 색은 단색 (molecule_color) — sub-step B-3 에서 자동 매핑
+//   · 사건 카운터·rate 그래프·학생 패널·자동 보정·4 모드 — sub-step B-4 ~ B-5
+//
+// Sub-step B-2 검증 기준: 200 입자 액체 박스 안 응집 + 가끔 탈출 + 50fps.
+// 폐기된 자체 시도들 (응집영역 + 가속도장, LJ-like piecewise, 자유낙하,
+// 격자 진동, 표면 추상화) docs/17 §6 참조.
 // =============================================================
 
-const VAPOR_DT_CAP = 0.05;
-const VAPOR_MARGIN_PX = 12;
+const VAPOR_DT_CAP = 0.05;   // p5 dt 인자 cap (Schroeder dt 별도)
 
-function vaporBoxMullerStandardNormal() {
-    const u1 = Math.random() || 1e-9;
-    const u2 = Math.random();
-    return Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
-}
-
-function vaporMBVelocity(speedScale) {
-    const u = vaporBoxMullerStandardNormal();
-    const v = vaporBoxMullerStandardNormal();
-    return [u * speedScale, v * speedScale];
-}
-
-class Molecule {
-    constructor(x, y, vx, vy) {
-        this.x = x;
-        this.y = y;
-        this.vx = vx;
-        this.vy = vy;
-        this.mass = 1.0;
-    }
-
-    kineticEnergy() {
-        return 0.5 * this.mass * (this.vx * this.vx + this.vy * this.vy);
-    }
-}
-
-// Hard sphere 반발 — d < 2r 시 normal 방향 impulse + 위치 분리. 인력 X.
-function vaporResolveCollisions(molecules, radius) {
-    const minD = 2 * radius;
-    const minD2 = minD * minD;
-    const n = molecules.length;
-    for (let i = 0; i < n; i++) {
-        const a = molecules[i];
-        for (let j = i + 1; j < n; j++) {
-            const b = molecules[j];
-            const dx = b.x - a.x;
-            const dy = b.y - a.y;
-            const d2 = dx * dx + dy * dy;
-            if (d2 < minD2 && d2 > 1e-9) {
-                const d = Math.sqrt(d2);
-                const nx = dx / d, ny = dy / d;
-                const dvx = b.vx - a.vx, dvy = b.vy - a.vy;
-                const vn = dvx * nx + dvy * ny;
-                if (vn < 0) {
-                    const j = -vn;
-                    a.vx -= j * nx; a.vy -= j * ny;
-                    b.vx += j * nx; b.vy += j * ny;
-                    const overlap = (minD - d) * 0.5;
-                    a.x -= nx * overlap; a.y -= ny * overlap;
-                    b.x += nx * overlap; b.y += ny * overlap;
-                }
-            }
-        }
-    }
-}
-
-// 분자 무작위 배치 — 최소 거리 2r overlap 회피
-function vaporPlaceMolecules(zone, count, minDist, mbScale) {
-    const placed = [];
-    const minDist2 = minDist * minDist;
-    let attempts = 0;
-    const maxAttempts = count * 200;
-    while (placed.length < count && attempts < maxAttempts) {
-        const x = zone.x + Math.random() * zone.w;
-        const y = zone.y + Math.random() * zone.h;
-        let ok = true;
-        for (const m of placed) {
-            const dx = m.x - x;
-            const dy = m.y - y;
-            if (dx * dx + dy * dy < minDist2) { ok = false; break; }
-        }
-        if (ok) {
-            const [vx, vy] = vaporMBVelocity(mbScale);
-            placed.push(new Molecule(x, y, vx, vy));
-        }
-        attempts++;
-    }
-    if (placed.length < count) {
-        console.warn(`[Vapor] 분자 배치: ${placed.length}/${count} 만 배치됨 (영역 좁음). minDist=${minDist.toFixed(2)}px`);
-    }
-    return placed;
-}
-
-// =============================================================
-// VaporWorld — 응집 영역 + 외부 끌어당김 가속도장
-// =============================================================
 class VaporWorld {
     constructor(cfg, vFlaskMl, vLiquidMl) {
         this.cfg = cfg;
@@ -115,153 +42,276 @@ class VaporWorld {
         this.vFlaskMl = vFlaskMl;
         this.vLiquidMl = vLiquidMl;
 
-        const innerW = this.canvasW - 2 * VAPOR_MARGIN_PX;
-        const innerH = this.canvasH - 2 * VAPOR_MARGIN_PX;
-        this.fullZone = { x: VAPOR_MARGIN_PX, y: VAPOR_MARGIN_PX, w: innerW, h: innerH };
+        // ── Schroeder 자연 단위 ──
+        this.cutoff   = cfg.schroeder_cutoff ?? 3.0;
+        this.cutoff2  = this.cutoff * this.cutoff;
+        this.pEatCutoff = 4 * (Math.pow(this.cutoff, -12) - Math.pow(this.cutoff, -6));
+        this.dt       = cfg.schroeder_dt ?? 0.005;
+        this.initT    = cfg.schroeder_init_temp ?? 0.4;
+        this.stepsPerFrame = cfg.schroeder_steps_per_frame ?? 25;
+        this.gravity  = cfg.schroeder_gravity ?? 0;
 
-        // 응집 영역 = 박스 하부, V_liquid:V_gas 비율
-        const liquidH = innerH * (vLiquidMl / vFlaskMl);
-        this.zoneTopY = VAPOR_MARGIN_PX + (innerH - liquidH);
+        // ── 박스 크기 (sigma 단위) ──
+        // canvas 가로:세로 비율 따라 자동. boxWidth 는 cfg 에서.
+        this.boxWidth  = cfg.schroeder_box_width_sigma ?? 60;
+        this.boxHeight = this.boxWidth * (this.canvasH / this.canvasW);
+        this.pxPerUnit = this.canvasW / this.boxWidth;  // 1 sigma = ? px
 
-        // 초기 배치 — 응집 영역 안 무작위
-        const initZone = {
-            x: VAPOR_MARGIN_PX,
-            y: this.zoneTopY,
-            w: innerW,
-            h: liquidH,
-        };
-        const r = cfg.molecule_radius_px;
-        const speedScale = Math.sqrt((cfg.mb_init_temp_K ?? 280) / 300) * 30;
-        this.molecules = vaporPlaceMolecules(initZone, cfg.N_molecules, 2 * r, speedScale);
+        // ── 액체 박스 영역 (Schroeder y ↑ 좌표, V_liquid 비율) ──
+        // Schroeder 좌표: 원점 좌하단, y ↑. 캔버스: 원점 좌상단, y ↓ → 렌더 시 flip.
+        this.liquidYTop = this.boxHeight * (this.vLiquidMl / this.vFlaskMl);
+
+        // ── 입자 배열 (SoA) ──
+        this.N = cfg.N_molecules ?? 200;
+        this.x  = new Array(this.N);
+        this.y  = new Array(this.N);
+        this.vx = new Array(this.N);
+        this.vy = new Array(this.N);
+        this.ax = new Array(this.N);
+        this.ay = new Array(this.N);
+
+        this._initAtoms();
+        this._computeAccelerations();
 
         this._lastStatsT = performance.now();
     }
 
-    update(dt) {
-        const cap = Math.min(dt, VAPOR_DT_CAP);
+    _initAtoms() {
+        // Schroeder addAtoms 격자 배치 변형 — 좌하단부터 채우고 위로 확장.
+        // V_liquid 영역에 우선 채우되 부족 시 위로 (사용자 V_liquid 작은 경우 대비).
+        const cellSize = 1.3;
+        const nCellsX = Math.floor(this.boxWidth / cellSize);
+        const epsilon = 0.01;
+        // MB velocity scale: <v_x²> = T → speedScale = √T
+        const speedScale = Math.sqrt(this.initT);
 
-        const cfg = this.cfg;
-        const gy           = cfg.g_y ?? 0.05;
-        const yPullWeak    = cfg.y_pull_weak ?? 0.1;
-        const yPullStrong  = cfg.y_pull_strong ?? 0.3;
-        const pullMargin   = cfg.pull_margin_px ?? 30;
-        const escapeKE     = cfg.escape_threshold_KE ?? 4.0;
-        const zoneTop      = this.zoneTopY;
+        let n = 0;
+        let cellY = 0;
+        while (n < this.N) {
+            const yPos = (cellY + 0.5) * cellSize;
+            if (yPos > this.boxHeight - cellSize / 2) break;
+            for (let cellX = 0; cellX < nCellsX && n < this.N; cellX++) {
+                this.x[n] = (cellX + 0.5) * cellSize + (Math.random() - 0.5) * epsilon;
+                this.y[n] = yPos + (Math.random() - 0.5) * epsilon;
+                // Polar Box-Muller (Schroeder 패턴)
+                let x1, x2, w;
+                do {
+                    x1 = 2 * Math.random() - 1;
+                    x2 = 2 * Math.random() - 1;
+                    w = x1 * x1 + x2 * x2;
+                } while (w >= 1.0 || w === 0);
+                const u = Math.sqrt(-2 * Math.log(w) / w);
+                this.vx[n] = u * x1 * speedScale;
+                this.vy[n] = u * x2 * speedScale;
+                this.ax[n] = 0;
+                this.ay[n] = 0;
+                n++;
+            }
+            cellY++;
+        }
+        if (n < this.N) {
+            console.warn(`[Vapor] _initAtoms: ${n}/${this.N} 만 배치됨 (박스 부족 — schroeder_box_width_sigma 또는 N_molecules 조정)`);
+            this.N = n;
+        }
+    }
 
-        // 1) 외력 계산 + 적분 (semi-implicit Euler)
-        for (const m of this.molecules) {
-            // 균일 중력
-            let ay = gy;
-            // 응집 영역 끌어당김 — KE 가드
-            const ke = m.kineticEnergy();
-            if (ke <= escapeKE) {
-                if (m.y >= zoneTop) {
-                    ay += yPullStrong;
-                } else if (m.y >= zoneTop - pullMargin) {
-                    ay += yPullWeak;
+    _computeAccelerations() {
+        const N = this.N;
+        const cutoff2 = this.cutoff2;
+        for (let i = 0; i < N; i++) {
+            this.ax[i] = 0;
+            this.ay[i] = -this.gravity;  // Schroeder gravity 부호: -y (아래쪽)
+        }
+
+        // Cell list 조건 — Schroeder 그대로
+        const useCellList = (N >= 100) && (this.boxWidth >= 4 * this.cutoff);
+
+        if (!useCellList) {
+            // O(N²) 단순 — Schroeder 코드 그대로
+            for (let i = 0; i < N; i++) {
+                for (let j = 0; j < i; j++) {
+                    const dx = this.x[i] - this.x[j];
+                    const dx2 = dx * dx;
+                    if (dx2 < cutoff2) {
+                        const dy = this.y[i] - this.y[j];
+                        const dy2 = dy * dy;
+                        if (dy2 < cutoff2) {
+                            const rSquared = dx2 + dy2;
+                            if (rSquared < cutoff2) {
+                                const rSqInv = 1.0 / rSquared;
+                                const attract = rSqInv * rSqInv * rSqInv;
+                                const repel = attract * attract;
+                                const fOverR = 24.0 * ((2.0 * repel) - attract) * rSqInv;
+                                const fx = fOverR * dx;
+                                const fy = fOverR * dy;
+                                this.ax[i] += fx; this.ay[i] += fy;
+                                this.ax[j] -= fx; this.ay[j] -= fy;
+                            }
+                        }
+                    }
                 }
             }
-            // KE > escapeKE: 끌어당김 무력화 (탈출 가능)
-
-            m.vy += ay * cap;
-            m.x  += m.vx * cap;
-            m.y  += m.vy * cap;
+        } else {
+            // Cell list O(N) — Schroeder 알고리즘 모사
+            const forceCutoff = this.cutoff;
+            const nCells  = Math.floor(this.boxWidth  / forceCutoff);
+            const nCellsY = Math.floor(this.boxHeight / forceCutoff);
+            const cellW = this.boxWidth  / nCells;
+            const cellH = this.boxHeight / nCellsY;
+            const total = nCells * nCellsY;
+            const listHeader = new Array(total);
+            for (let c = 0; c < total; c++) listHeader[c] = -1;
+            const linkedList = new Array(N);
+            for (let i = 0; i < N; i++) {
+                let cx = Math.floor(this.x[i] / cellW);
+                let cy = Math.floor(this.y[i] / cellH);
+                if (cx < 0) cx = 0; else if (cx >= nCells)  cx = nCells  - 1;
+                if (cy < 0) cy = 0; else if (cy >= nCellsY) cy = nCellsY - 1;
+                const ci = cx + nCells * cy;
+                linkedList[i] = listHeader[ci];
+                listHeader[ci] = i;
+            }
+            // Schroeder neighborOffset: self + E + NE + N + NW (5 cells, Newton 3rd)
+            const neighborOffset = [{x:0,y:0},{x:1,y:0},{x:1,y:1},{x:0,y:1},{x:-1,y:1}];
+            for (let cy = 0; cy < nCellsY; cy++) {
+                for (let cx = 0; cx < nCells; cx++) {
+                    const thisCell = cx + nCells * cy;
+                    for (const off of neighborOffset) {
+                        const nx2 = cx + off.x;
+                        const ny2 = cy + off.y;
+                        if (nx2 < 0 || nx2 >= nCells || ny2 < 0 || ny2 >= nCellsY) continue;
+                        const neigh = nx2 + nCells * ny2;
+                        for (let i = listHeader[thisCell]; i >= 0; i = linkedList[i]) {
+                            const startJ = (off.x === 0 && off.y === 0) ? linkedList[i] : listHeader[neigh];
+                            for (let j = startJ; j >= 0; j = linkedList[j]) {
+                                if (off.x === 0 && off.y === 0 && j >= i) continue;
+                                const dx = this.x[i] - this.x[j];
+                                const dx2 = dx * dx;
+                                if (dx2 >= cutoff2) continue;
+                                const dy = this.y[i] - this.y[j];
+                                const dy2 = dy * dy;
+                                if (dy2 >= cutoff2) continue;
+                                const rSquared = dx2 + dy2;
+                                if (rSquared >= cutoff2) continue;
+                                const rSqInv = 1.0 / rSquared;
+                                const attract = rSqInv * rSqInv * rSqInv;
+                                const repel = attract * attract;
+                                const fOverR = 24.0 * ((2.0 * repel) - attract) * rSqInv;
+                                const fx = fOverR * dx;
+                                const fy = fOverR * dy;
+                                this.ax[i] += fx; this.ay[i] += fy;
+                                this.ax[j] -= fx; this.ay[j] -= fy;
+                            }
+                        }
+                    }
+                }
+            }
         }
+    }
 
-        // 2) 분자-분자 hard sphere 반발 (인력 X)
-        vaporResolveCollisions(this.molecules, cfg.molecule_radius_px);
-
-        // 3) 박스 사방 벽 반사 + 위치 클램프
-        const r = cfg.molecule_radius_px;
-        const z = this.fullZone;
-        const left = z.x + r, right = z.x + z.w - r;
-        const top = z.y + r,  bottom = z.y + z.h - r;
-        for (const m of this.molecules) {
-            if (m.x < left  && m.vx < 0) m.vx = -m.vx;
-            if (m.x > right && m.vx > 0) m.vx = -m.vx;
-            if (m.y < top   && m.vy < 0) m.vy = -m.vy;
-            if (m.y > bottom && m.vy > 0) m.vy = -m.vy;
-            if (m.x < left)        m.x = left;
-            else if (m.x > right)  m.x = right;
-            if (m.y < top)         m.y = top;
-            else if (m.y > bottom) m.y = bottom;
+    // 단일 Verlet step — Schroeder doStep() 그대로
+    _doStep() {
+        const halfdt = 0.5 * this.dt;
+        const halfdt2 = halfdt * this.dt;
+        const N = this.N;
+        for (let i = 0; i < N; i++) {
+            this.x[i]  += this.vx[i] * this.dt + this.ax[i] * halfdt2;
+            this.y[i]  += this.vy[i] * this.dt + this.ay[i] * halfdt2;
+            this.vx[i] += this.ax[i] * halfdt;
+            this.vy[i] += this.ay[i] * halfdt;
         }
+        // 박스 사방 반사 (입자 가둠 — 우리 변형. Schroeder 원본은 동일 처리)
+        for (let i = 0; i < N; i++) {
+            if (this.x[i] < 0) {
+                this.x[i] = -this.x[i];
+                this.vx[i] = -this.vx[i];
+            } else if (this.x[i] > this.boxWidth) {
+                this.x[i] = 2 * this.boxWidth - this.x[i];
+                this.vx[i] = -this.vx[i];
+            }
+            if (this.y[i] < 0) {
+                this.y[i] = -this.y[i];
+                this.vy[i] = -this.vy[i];
+            } else if (this.y[i] > this.boxHeight) {
+                this.y[i] = 2 * this.boxHeight - this.y[i];
+                this.vy[i] = -this.vy[i];
+            }
+        }
+        this._computeAccelerations();
+        for (let i = 0; i < N; i++) {
+            this.vx[i] += this.ax[i] * halfdt;
+            this.vy[i] += this.ay[i] * halfdt;
+        }
+    }
 
-        // 4) stats
+    // p5 draw 콜백마다 호출 — stepsPerFrame 회 doStep
+    update(_dt) {
+        for (let s = 0; s < this.stepsPerFrame; s++) {
+            this._doStep();
+        }
         this._maybeLogStats();
     }
 
     _maybeLogStats() {
         const now = performance.now();
         if (now - this._lastStatsT < 1000) return;
-        let inZone = 0, outZone = 0;
-        for (const m of this.molecules) {
-            if (m.y >= this.zoneTopY) inZone++;
-            else outZone++;
+        let inBox = 0, outBox = 0;
+        for (let i = 0; i < this.N; i++) {
+            if (this.y[i] <= this.liquidYTop) inBox++;
+            else outBox++;
         }
-        console.log(`[Vapor] sub-step 1 (cohesion zone) · in_zone=${inZone} · out_zone=${outZone}`);
+        console.log(`[Vapor] sub-step B-2 (Schroeder LJ) · in_box=${inBox} · out_box=${outBox}`);
         this._lastStatsT = now;
     }
 
     drawWalls(p) {
-        // 박스 사방 테두리
+        // 박스 사방 테두리 (캔버스 외곽 = 박스 외곽 — 강한 반사 영역)
         p.noFill();
         p.stroke(180);
         p.strokeWeight(1);
-        const z = this.fullZone;
-        p.rect(z.x, z.y, z.w, z.h);
+        p.rect(0, 0, this.canvasW, this.canvasH);
 
-        // 응집 영역 위 경계 — 점선 (학생 시각 단서)
+        // 액체 박스 위 경계 — 점선 (V_liquid 영역 표시. 통과 자유)
+        const liquidPxY = this.canvasH - this.liquidYTop * this.pxPerUnit;
         p.stroke(120, 150, 200, 140);
         p.strokeWeight(1);
         if (p.drawingContext && typeof p.drawingContext.setLineDash === "function") {
             p.drawingContext.setLineDash([4, 4]);
-            p.line(z.x, this.zoneTopY, z.x + z.w, this.zoneTopY);
+            p.line(0, liquidPxY, this.canvasW, liquidPxY);
             p.drawingContext.setLineDash([]);
         } else {
-            p.line(z.x, this.zoneTopY, z.x + z.w, this.zoneTopY);
+            p.line(0, liquidPxY, this.canvasW, liquidPxY);
         }
     }
 
     drawMolecules(p) {
-        const r2 = (this.cfg.molecule_radius_px ?? 3.5) * 2;
-        const liquidColor = p.color(this.cfg.molecule_color_liquid || "#1E3A8A");
-        const slow = p.color("#60A5FA");
-        const fast = p.color("#EF4444");
-        // refKE — mb_init_temp_K 기준 평균 KE 의 4 배에서 fully fast 색
-        const refSpeed = Math.sqrt((this.cfg.mb_init_temp_K ?? 280) / 300) * 30;
-        const refKE = 0.5 * refSpeed * refSpeed;
-        const fastKE = refKE * 4;
-
+        // 단색 — sub-step B-3 에서 자동 매핑 추가
+        const c = p.color(this.cfg.molecule_color || "#1E3A8A");
         p.noStroke();
-        for (const m of this.molecules) {
-            if (m.y >= this.zoneTopY) {
-                p.fill(liquidColor);
-            } else {
-                const ke = m.kineticEnergy();
-                const t = Math.min(ke / fastKE, 1);
-                p.fill(p.lerpColor(slow, fast, t));
-            }
-            p.circle(m.x, m.y, r2);
+        p.fill(c);
+        // Schroeder 분자 시각 직경 = pxPerUnit (1 sigma). 우리 cfg.molecule_radius_scale 로 micro-tune.
+        const radiusPx = (this.pxPerUnit / 2) * (this.cfg.molecule_radius_scale ?? 1.0);
+        const diam = radiusPx * 2;
+        for (let i = 0; i < this.N; i++) {
+            const px = this.x[i] * this.pxPerUnit;
+            const py = this.canvasH - this.y[i] * this.pxPerUnit; // y ↑ → ↓ flip
+            p.circle(px, py, diam);
         }
     }
 }
 
 // =============================================================
-// p5 instance mount — vapor.html #vapor-canvas-container 부착
+// p5 instance mount — vapor.html #vapor-canvas-container 부착.
+// (인터페이스 유지: main.js 의 mountVaporSketch(world, container) 호출 그대로)
 // =============================================================
 function mountVaporSketch(world, container) {
     const sketch = (p) => {
-        let lastT = performance.now();
         p.setup = () => {
             p.createCanvas(world.canvasW, world.canvasH);
             p.frameRate(50);
         };
         p.draw = () => {
-            const now = performance.now();
-            const dt = Math.min((now - lastT) / 1000, VAPOR_DT_CAP);
-            lastT = now;
-            world.update(dt);
+            world.update(VAPOR_DT_CAP);
             p.background(248, 250, 252);
             world.drawWalls(p);
             world.drawMolecules(p);
