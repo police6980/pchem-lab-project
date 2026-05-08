@@ -62,9 +62,14 @@
         "N_particles_gas_init": 10,
         "mb_init_temp_K": 298.15,
         "speed_scale_gas": 80,
-        "speed_scale_liquid": 32,
+        "liquid_speed_scale": 0.2,
+
+        "liquid_particle_radius_px": 6,
+        "surface_particle_radius_px": 8,
+        "surface_band_px": 12,
 
         "liquid_color_base": "#1E40AF",
+        "liquid_surface_color": "#2563EB",
         "gas_color_base": "#60A5FA",
         "surface_color": "#3B82F6",
 
