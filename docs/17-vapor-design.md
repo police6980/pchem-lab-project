@@ -109,6 +109,23 @@ MVP 외 후속 트랙 학습 목표:
 - 학습 직결 — "동적 평형 = 두 속도가 같음" 시각화에 rate 가 누적보다 적합 (§11 결정 표 참조).
 - params.json 키: `rate_window_sec`, `rate_ema_alpha`
 
+### 핵심 시각화 원칙 (본 시뮬의 raison d'être)
+
+"증발/응축 차이가 잘 보임 + 결국 두 속도가 같아짐" 이 모든 시각화 결정의 기준점. 가시성 우선.
+
+**증발/응축 차별화**:
+- 색: 증발 = 청색, 응축 = 주황색
+- 방향 트레일: 증발 = 위쪽, 응축 = 아래쪽
+- flash 잔상 ≈ 150 ms
+
+**rate 그래프 수렴 시각화**:
+- 두 곡선 사이 반투명 면적 채움 — 평형 시 면적 → 0 으로 수렴
+- 평형도 % 게이지: amber → green, Δrate 기반
+- 평형 도달 표지: vertical line + 토스트
+- transient / plateau 음영 구분
+
+**params.json 키**: `flash_duration_ms`, `trail_length`, `equilibrium_threshold`, `evap_color`, `cond_color`
+
 **보일 시뮬 재사용 영역**:
 - 입자-벽 충돌, 충돌 빈도→압력 모듈
 - 추가 신규: 액체 영역 박스, 위상 통과 로직, 응집력 가정
@@ -170,7 +187,7 @@ MVP 외 후속 트랙 학습 목표:
 | Phase | 범위 | 검증 |
 |---|---|---|
 | **6.0** | 설계 문서 + CC 점검 보고. 코드 변경 0. 본 문서 commit. | (없음) |
-| **6.1** | 시뮬 + mock (P 채널만, T는 슬라이더). 동적 평형 시각화. | 평형 도달, 증발/응축 곡선 수렴 |
+| **6.1** | 시뮬 + mock (P 채널만, T는 슬라이더). 동적 평형 시각화. | 평형 도달, 증발/응축 곡선 수렴, 증발/응축 색·방향 차별화 가시성, rate 두 곡선 + 사이 면적 채움 → 평형 시 면적 → 0 시각 확인 |
 | **6.2** | T mock 추가. T 변화 → plateau 이동. | T 단계 변화 시 plateau 이동 정합 |
 | **6.3** | 펌웨어 v1.2 (DS18B20 채널 추가). 실물 P+T 통합. ws 모드 dual 채널 에뮬. | 실물 dual stream, ws 동시 송출 |
 | **6.4** | Vernier dual-device 모드. AI 튜터 분기 + system prompt anchoring. | 시간 동기, 튜터 응답 anchored |
