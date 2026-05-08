@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CAST — 증기압 (Phase 6)</title>
+    <link rel="stylesheet" href="css/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/p5@1.11.2/lib/p5.min.js"></script>
+    <script src="https://unpkg.com/docx@8.5.0/build/index.umd.js"></script>
+    <script src="https://unpkg.com/@vernier/godirect/dist/godirect.min.umd.js" defer></script>
+    <script src="js/simulation.js" defer></script>
+    <script src="js/renderer.js" defer></script>
+    <script src="js/protocol.js" defer></script>
+    <script src="js/serial.js" defer></script>
+    <script src="js/vernier.js" defer></script>
+    <script src="js/logger.js" defer></script>
+    <script src="js/tutor.js" defer></script>
+    <script src="js/ui.js" defer></script>
+    <script src="js/main.js" defer></script>
+</head>
+<body data-page="vapor">
+    <nav class="page-nav vapor-nav">
+        <a href="index.html" class="nav-home" title="홈으로 돌아가기">🏠 홈으로</a>
+        <span class="nav-title">증기압 — Phase 6.1-a 스켈레톤</span>
+    </nav>
+
+    <div id="vapor-layout" class="vapor-layout">
+        <aside id="vapor-control-panel" class="vapor-panel" aria-label="실험 제어 패널">
+            <section id="vapor-sensor-panel" class="vapor-section">
+                <h3>측정 모드</h3>
+                <div class="vapor-mode-toggle" role="radiogroup" aria-label="측정 모드 선택">
+                    <label><input type="radio" name="vapor-mode" value="mock" checked> Mock</label>
+                    <label title="Phase 6.x 진입 예정"><input type="radio" name="vapor-mode" value="ws" disabled> WebSocket</label>
+                    <label title="Phase 6.x 진입 예정"><input type="radio" name="vapor-mode" value="real" disabled> 실센서 (USB)</label>
+                    <label title="Phase 6.x 진입 예정"><input type="radio" name="vapor-mode" value="vernier" disabled> Vernier (BLE)</label>
+                </div>
+                <p class="vapor-placeholder-note">
+                    ws / real / vernier 모드는 Phase 6.3 ~ 6.4 에서 활성화됩니다.
+                </p>
+            </section>
+
+            <section id="vapor-experiment-setup" class="vapor-section">
+                <h3>실험 설정 <small>(6.1-b 이후 활성화)</small></h3>
+                <div class="vapor-placeholder-note">
+                    V_flask (100 / 250 / 500 mL) · V_liquid · 액체 종류 입력 UI는 후속 step 에서 활성화됩니다.
+                </div>
+            </section>
+
+            <section id="vapor-readouts" class="vapor-section">
+                <h3>측정값 <small>(6.1-b 이후 활성화)</small></h3>
+                <div class="vapor-placeholder-note">
+                    압력 게이지 / 온도 / rate · 평형도 표시는 후속 step 에서 활성화됩니다.
+                </div>
+            </section>
+        </aside>
+
+        <main id="vapor-main" class="vapor-main">
+            <div id="vapor-canvas-container" class="vapor-canvas-container">
+                <div class="vapor-canvas-placeholder">
+                    Phase 6.1-a 스켈레톤 — 시뮬 캔버스는 Phase 6.1-b 부터 활성화됩니다.
+                </div>
+            </div>
+        </main>
+
+        <aside id="ai-sidebar" class="ai-sidebar vapor-ai-sidebar" aria-label="AI 튜터 사이드바">
+            <h3>AI 튜터</h3>
+            <div class="vapor-placeholder-note">
+                AI 튜터 통합은 Phase 6.4 에서 진행됩니다 (createTutor(vaporConfig) 사용 예정).
+            </div>
+        </aside>
+    </div>
+</body>
+</html>

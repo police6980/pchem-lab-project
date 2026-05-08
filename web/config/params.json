@@ -46,5 +46,23 @@
             "mock_noise_sigma_kpa": 0.1,
             "safety_timeout_extra_ms": 1000
         }
+    },
+
+    "vapor": {
+        "_comment": "Phase 6.1-a placeholder values — 실제 튜닝은 후속 step (6.1-b 이후) 에서 시뮬 본체 가동 후 진행. 색상은 docs/17 §6 핵심 시각화 원칙 기준 (증발=청, 응축=주황).",
+        "V_flask_presets_mL": [100, 250, 500],
+        "E_escape": 1.0,
+        "E_stick": 0.3,
+        "p_evap": 0.5,
+        "p_condense": 0.7,
+        "surface_threshold": 0.5,
+        "gravity": 0.05,
+        "rate_window_sec": 2.0,
+        "rate_ema_alpha": 0.2,
+        "flash_duration_ms": 150,
+        "trail_length": 8,
+        "equilibrium_threshold": 0.05,
+        "evap_color": "#3B82F6",
+        "cond_color": "#F59E0B"
     }
 }

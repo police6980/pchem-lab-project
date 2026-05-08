@@ -3750,9 +3750,26 @@ ${sensorGuide}
     console.log("[Dalton] initDaltonApp B-3 완료. 상태 머신 + 버튼 + 기록 가동.");
 }
 
+// ─────────────────────────────────────────────────────────────────────
+// Phase 6.1-a — Vapor pressure track (skeleton)
+//
+// vapor.html (data-page="vapor") 진입 시 호출되는 placeholder. 본 step
+// 에서는 페이지 로드·라우팅·params.vapor 파싱만 검증. 시뮬 본체·입자·
+// 모드 분기·AI 튜터 통합은 Phase 6.1-b ~ 6.4 에서 추가.
+// ─────────────────────────────────────────────────────────────────────
+function initVaporApp(params) {
+    console.log("[Vapor] initVaporApp 호출 (Phase 6.1-a 스켈레톤). params.vapor =", params?.vapor);
+    // 후속 step 작업 영역:
+    // - 6.1-b: V_flask / V_liquid / 액체 종류 입력 UI 활성화 + 시뮬 캔버스 마운트
+    // - 6.1-c~e: 위상 통과·응집력·카운터·rate 그래프·핵심 시각화 원칙 (§6 docs/17)
+    // - 6.2~6.3: T mock / 펌웨어 v1.2 / ws dual-channel
+    // - 6.4: Vernier dual-device + AI 튜터 (createTutor(vaporConfig))
+}
+
 // 페이지 디스패처 — body.dataset.page 값으로 어느 초기화를 실행할지 결정.
 // boyle.html(기본 실험)은 data-page="boyle", particles.html(입자운동론)은
-// data-page="particles", dalton.html(돌턴 부분압력)은 data-page="dalton".
+// data-page="particles", dalton.html(돌턴 부분압력)은 data-page="dalton",
+// vapor.html(증기압)은 data-page="vapor".
 // 랜딩(index.html)은 이 main.js 를 로드하지 않는다.
 document.addEventListener("DOMContentLoaded", async () => {
     const params = await fetch("config/params.json").then(r => r.json());
@@ -3761,6 +3778,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         initAdvancedMode(params);
     } else if (page === "dalton") {
         initDaltonApp(params);
+    } else if (page === "vapor") {
+        initVaporApp(params);
     } else {
         // 기본값: boyle (data-page 미지정 시 하위 호환)
         await initBasicApp(params);
