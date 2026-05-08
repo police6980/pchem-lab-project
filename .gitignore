@@ -22,3 +22,8 @@ data-logs/*.csv
 
 # Claude Code 로컬 설정
 .claude/settings.local.json
+
+# Emulator 임시/오타 파일 (0-byte, npm/node CLI 오타 흔적)
+tools/firmware-emulator/node
+tools/firmware-emulator/npm
+tools/firmware-emulator/pchem-firmware-emulator@*

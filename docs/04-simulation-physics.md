@@ -2,6 +2,12 @@
 
 **문서 목적**: 시뮬레이션의 물리 모델, 박스 기하, 충돌 규칙, 시각화 규칙, 측정 UX 규칙을 정의한다. 구현의 기준이 된다.
 
+**마지막 업데이트**: 2026-04-28 (Phase 5.4: R1/R5 epsilon stuck patch 추가 / Matter.js 도입 안 함 결정).
+
+**Phase 5.4 변경 요약**:
+- 입자 stuck patch — A 박스 (R1, commit `d4b6979`) + B 박스 (R5, `72403ca`), 0.5 px epsilon 안전 마진. corrective clamp 가 boundary 정확 위치에 두고 vx≈0 → wall reflect 미발동 stuck 회피.
+- Matter.js 등 외부 물리 엔진 도입 안 함 — 직접 구현 충돌 시뮬 + 5-region 모델 + Maxwell-Boltzmann (Box-Muller) 유지 결정. 5 가치 (학습 도구 투명성 / 분포 정확성 / 5-region 도메인 적합성 / 논문 방법론 / 가벼움). 의사결정 본문 = `docs/10-dev-journal.md` 2026-04-28 Matter.js 결정.
+
 ---
 
 ## 1. 핵심 설계 철학
@@ -53,6 +59,29 @@ REFERENCE_KE  = ½ × REFERENCE_RMS²          ≈ 14400
 v_theory(T)   = REFERENCE_RMS × √(T / REFERENCE_TEMP_K)
 KE_theory(T)  = REFERENCE_KE × (T / REFERENCE_TEMP_K)
 ```
+
+### 2.4 돌턴 페이지 분자 수 단일 산출 함수 (Phase 5.3 신규)
+
+돌턴 페이지는 **시각 입자 수 = 분자 수 (1:1 매핑)** — V 비례. PV=nRT 직관 학습 정합.
+
+**`computeMoleCount(pressureAtm, volumeMl)`** (main.js):
+```js
+return Math.round(pressureAtm × volumeMl);   // 1 atm·mL = 1 분자 (학습용 정규화 단위)
+```
+
+**3 곳 동일 함수 사용 (Single Source of Truth)**:
+1. **시각 입자 생성** — `rebuildParticleSystem` 안 `particleCount = computeMoleCount(P_initial, V)`. A: P_initial = 1.00 (대기압), B: P_initial = `pressureBSensor`.
+2. **측정 row** — `addRecord` 안 `n_A = computeMoleCount(1.00, V_A_initial)`, `n_B = computeMoleCount(pressureBInitial_cached, V_B)`, `n_total = n_A + n_B` (분자 수 보존, 평형 후 P_B 변하더라도 n 불변).
+3. **좌측 패널 이론값 박스** — `updateTheoryBox` 안 동일 호출.
+
+**이전 결정 번복**: Step C-2 의 `SCENE.particleCountPerSyringe = 60` 고정 (V 변경 시 입자 재생성 불필요) 결정은 Phase 5.3 에서 **분자 수 학습 목표와 충돌 → 번복**. V 변경 시 `rebuildParticleSystem` 트리거 추가 (`onStateChange` 의 vChangedA/B 분기).
+
+**박스 자연 산출** (정정 v5):
+- `volumeToPistonY(V) = bodyBottom - (V / V_max) × bodyHeightPx` — 정확 비례 매핑 (V 시각 비율 = 실제 V 비율, 학습 정합)
+- `computeBox` 의 `Math.max(boxMinHeight, ...)` 강제 폐기 — 박스 자연 산출 (V_min=10 시 박스 ≈ 45 px, 입자 직경 6 px → 충분 수용)
+- 입자 생성 시 `radius` 안전 마진 (`box.x + r ~ box.x + width - r`)
+
+상세 결정 기록 (분자 수 정합화 / 끼임 정정 X1) 은 `docs/10-dev-journal.md` § Phase 5.3.
 
 ---
 
@@ -166,6 +195,33 @@ for i < j in particles:
 
 `ParticleSystem.update`에서 `isPiston: true`인 충돌만 `lastPistonCollisions` 배열에 누적. 이 배열이 **충돌 섬광 생성** + **진단 로그 / 연속 로그의 piston_collisions_per_s** 소스.
 
+### 4.5 돌턴 페이지 입자간 탄성 충돌 (Phase 5.3 신규, m1 ≠ m2 정확 식)
+
+**돌턴 페이지 한정**. 보일/입자운동의 등질량 충돌 (§ 4.3) 과 별개. `simulation.js` 무영향.
+
+**구현 위치**: `web/js/main.js` 의 `initDaltonApp` closure 안 `resolveCollision` 함수.
+
+**알고리즘**:
+1. **Spatial hash O(N)** — 격자 = 입자 직경 × 2 = 12 px. R1 + R5 의 입자만 검사 (R2/R3/R4 텔레포트 모드라 입자 부재).
+2. **위치 분리 W4-simple** — 겹친 입자를 질량비대로 분리 (가벼운 입자가 더 많이 밀려남). 분리량은 region 박스 안 한정 (`getRegionBoxLimits` 가 R1/R5 박스 4 변 반환, 박스 밖으로 나가는 양은 다음 frame 자연 분리).
+3. **1D 탄성 충돌 (m1 ≠ m2 정확 식)**:
+   ```
+   J = -2 × (v_rel · n) / (1/m1 + 1/m2)
+   v1 -= (J/m1) × n
+   v2 += (J/m2) × n
+   ```
+   m1, m2 같은 경우 § 4.3 의 임펄스 swap 식과 동치.
+
+**입자 질량**: 가스별 분자량 — `params.json dalton.gases[gasKey].M` (air=29, CO₂=44, He=4, N₂=28, O₂=32). 입자 객체에 `particle.M = gasData.M` 부여 (rebuildParticleSystem 시점).
+
+**Graham 법칙 (1/√M) 정합**: 초기 속도 = `speedFactor × baseScale`. speedFactor 정의 (params.json): air 1.00, CO₂ 0.81, He 2.69, N₂ 1.02, O₂ 0.95 — 1/√(M/29) 정확 일치 (소수 둘째자리). 등온 평형 시 무거운 가스가 느리게, 가벼운 가스가 빠르게 운동.
+
+→ 5종 정의 표 (`label`/`M`/`speedFactor`/`color`) + 새 가스 추가 절차 = `docs/15-params-config-guide.md` §7.
+
+**텔레포트 안전장치** (Phase 5.3 정정 v4): R3/R4 region 입자 처리 분기에 `daltonState.stage === "INJECTING"` 검사 추가. INJECTING 시만 `teleportToR5NozzleEntry` 발동, 그 외 stage 시 `rescueParticleToHomeRegion` (가까운 박스 안전 위치 복귀).
+
+**정량 검증**: `tests/dalton-collision-test.js` 7 검증 (보존 법칙 / Equipartition / Graham 법칙 √M 비율 / M-B 분포 / 안정성). 상세는 `docs/08-physics-validation.md` § 9.
+
 ---
 
 ## 5. 시간 축 처리
@@ -193,6 +249,38 @@ current += (target - current) × (dt / tau)
 | `TRANSITION_TAU` | 0.3 s | 온도 변경 시 속도 전이 |
 | EWMA α_P | 0.1 @ 20Hz | smoothedP 센서 스무딩 (≈475 ms) |
 | `HIST_TIME_ALPHA` | 0.03 @ 60Hz | 히스토그램 시간 평활 (≈550 ms) |
+
+### 5.4 재생 속도 제어 (Phase 4.6, `feature/responsive-canvas`)
+
+물리 코드(Particle, Box, ParticleSystem)를 건드리지 않고 시각적 재생 속도만 조절:
+
+**원칙**: dt는 update 루프 **진입점에서만** 스케일링. 내부 물리는 원래 dt 의미 그대로 받음.
+```
+기본 페이지(boyle.html) (main.js:79-101):
+  raw dt = min(deltaTime/1000, 0.05)         // renderer.js에서 계산
+  if (isPaused) return;                       // early-return
+  scaledDt = dt * speedMultiplier             // 0.25 / 0.5 / 1
+  system.update(scaledDt)
+  box.update(scaledDt, volume_tau_seconds)
+  currentSpeedRatio += ... * (scaledDt / TRANSITION_TAU)
+
+심화 페이지(particles.html) (main.js:494-517): 동일 + Flash.update(scaledDt)
+```
+
+**불변성**:
+- 내부 `vx, vy` 값 그대로 — 속도 게이지·히스토그램 x축은 배율 무관
+- 평균 속도 `v̄`, 평균 KE, 온도 K, 압력 kPa 전부 불변 (물리량은 시간 흐름과 독립)
+- 피스톤 충돌 주파수 `f₁` (시뮬 시간 기준)도 불변
+
+**배율이 영향 주는 것**:
+- wall-clock 대비 입자 이동 속도 (시각적으로 느려/빨라 보임)
+- wall-clock 기준 측정: 그대로 두면 `hitsPerSec_wall = k × f₁`로 편향됨
+  - 보정: main.js:167, 706에서 `/ speedMultiplier` 적용 → sim-time 기준 `f₁` 복원
+  - 라벨 `"충돌/s (시뮬 시간)"`로 명시
+
+**2x 배율 미지원 이유**: `simulation.js:185`의 `if (dt > DT_CAP) dt = DT_CAP;` (DT_CAP=0.05)가 `dt × 2 = 0.1`을 다시 0.05로 잘라버림. sub-step(한 프레임 updateFn 2회 호출) 방식 필요 — 후속 작업.
+
+**CFL 안전성**: 현재 3σ 이동거리 최대 ≈ 51px/frame (심화 He 500°C 기준 1x), 박스 최소 폭 180px 대비 여유. 0.5x/0.25x는 이동거리 감소 방향이라 항상 안전.
 
 ---
 
@@ -236,6 +324,45 @@ V_mL = box.width / baseline_gas_width_px × baseline_volume_mL
 
 - `baseline_gas_width_px = 600`, `baseline_volume_mL = 50` (params.json, 기준 T=298.15K 기준값)
 - 온도 변경 시 box.width 자체가 변하므로 V_mL도 자동 스케일 반영
+
+### 6.4 단위 병기 표시 정책 (Phase 4.6, `feature/responsive-canvas`)
+
+교육적 이해도를 높이기 위해 UI 표시 레이어에서 대체 단위를 **병기**. **내부 상태·물리 계산은 기존 단위(kPa, 입자수, mL, K) 그대로 유지**.
+
+**압력**:
+```
+atm = kPa / 101.325
+표시: "101.3 kPa (1.00 atm)"
+```
+- 심화 페이지(particles.html) 실시간 압력 패널(`main.js:407`)과 info 패널(`ui.js:205, 1725`)에 적용
+- `computeAdvPressure()`의 반환값은 여전히 kPa, `setTargetFromPressure`도 kPa 입력
+
+**물질량** (심화 페이지(particles.html) 전용):
+```
+n₀ = P₀V₀ / (R·T₀)
+   = (101.325 kPa × 0.050 L) / (8.31446 kPa·L·mol⁻¹·K⁻¹ × 298.15 K)
+   ≈ 2.044 mmol           (300 입자 기준)
+mmol = N × 0.006815     (입자당 mmol 계수)
+표시: "300개 (2.04 mmol)"
+```
+- 심화 페이지(particles.html) 입자수 슬라이더 값(`main.js:420`)에만 적용
+- 기본 페이지(boyle.html)는 입자수 UI 노출 없음 → 영향 없음
+- 기체 종류 무관 (이상기체 전제, `ADV_GAS_MASSES`는 속도 스케일 `√(m_ref/m)`에만 영향)
+
+**자가 일관성 검증**:
+- 학생이 병기값(atm·mmol·mL·K)으로 `PV = nRT` 수작업 검증 시 R = 0.0815 ~ 0.0822 L·atm·mol⁻¹·K⁻¹
+- 이론값 0.08206 대비 **최대 오차 0.63%** (극단 영역 0.06 atm·0.34 mmol·173.15 K), 일반 영역 <0.2%
+- toFixed(2) 반올림 누적 오차가 교육 실험 허용치(통상 2~3%) 대비 충분히 작음
+
+**의도적으로 kPa 유지되는 경로** (후속 동기화 가능):
+- AI 프롬프트 컨텍스트 (`ai-tutor.js:583, 607, 750`)
+- CSV 헤더 (`main.js:123-125`, 측정·연속 로그)
+- 그래프 축 라벨 (`ui.js:435, 439, 554, 558`)
+- 측정표 컬럼 (`ui.js:275-276, 2033-2035`)
+- HTML 정적 라벨 (`index.html:179, 191`)
+- 센서 원시 입력 (`smoothedP`, `sensorManager` 전 경로)
+
+**원칙**: raw 단위는 물리 코드의 단일 진실 공급원(single source of truth). 표시만 다국어 라벨처럼 병기.
 
 ---
 
@@ -441,6 +568,8 @@ pH 센서 기반 이온화 시각화는 추후 별도 문서에서 정의. 예�
 ## 11. 튜닝 가능 파라미터
 
 ### 11.1 `web/config/params.json`
+
+→ `params.dalton.sensor` 5 상수 (Phase 5.4 외부화) + `dalton.gases` + `SCENE` 좌표 + 갱신 흐름 권위 = `docs/15-params-config-guide.md` §4.1 / §6 / §7. 본 표는 보일·입자운동 공통 top-level 키만 다룸.
 
 | 파라미터 | 기본값 | 설명 |
 |---|---|---|

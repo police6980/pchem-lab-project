@@ -2,8 +2,22 @@
 
 **문서 목적**: AI 튜터의 설계 철학, 구조, 프롬프트, 운영 정책을 종합 정리한다. 논문·연구 발표 시 방법론 근거 자료로 사용하며, 구현 세부는 다른 문서에 위임한다.
 
-**마지막 업데이트**: 2026-04-21
-**구현 단계**: Part 3.5 완료 (대화 UI + 더미 응답), **Part 4 예정** (실 Anthropic API 호출)
+**마지막 업데이트**: 2026-04-28 (Phase 5.5 — **AI 튜터 설정 패널 기본 열림 (3 시뮬 일관)**. Phase 5.4 = Q3 ↔ Q4 swap + 입자운동 16 질문 차등 + 비활성 버그 fix).
+
+**Phase 5.9 추가 (2026-05-07)**: dataSource 4종 분기 (mock/ws/real/vernier) — Boyle (`ui.js:1754-1789`) 에 vernier 케이스 추가, Dalton (`main.js:3324-3416`) 에 분기 자체 첫 도입. Vernier 모드 학생이 sim 가이드를 받던 정합성 어긋남 정정. Vernier substate 컨텍스트 (Dalton 한정 — `daltonState.vernier` 4 필드) + 비교 모드 + Vernier 동시 정책 추가. 상세: §4.6 데이터 소스 분기.
+
+**Phase 5.5 추가**:
+- **설정 패널 기본 열림** — 3 시뮬 (보일 = `ai-tutor.js:1054` / 돌턴 = `main.js:3155` / 입자운동 = `ui.js:2129`) 모두 첫 진입 시 펼침. ⚙ 클릭 토글 동작 유지. 진입 장벽 ↓ — 학생 모델 / 사용량 / 키 즉시 인지.
+- 보고서 출력 = docx 단일 (PDF 출력 시도 후 폐기 — docx 와 중복 + html2canvas 차트 캡처 불안정).
+
+**Phase 5.4 변경 요약**:
+- **Q3 ↔ Q4 swap (보일/돌턴)**: 학습 흐름 = Q1~Q3 학습 질문 → Q4 메타 인지 (📊 질문 생성). 본문 swap (4 levels × 2 위치) + `btn-generate-q3` → `btn-generate-q4` ID rename + 핸들러 / `aiConversations` key / 다운로드 라벨 swap. 보고서 코드 변경 X — 위치 기반 (Q1/Q2/Q3 conversations) 그대로 사용 → 의미 자동 정합. 옵션 (c) hybrid 채택 (옵션 a 단순 swap = 보고서 의미 어긋남, 옵션 b 전면 swap = 변경 폭 큼).
+- **입자운동 16 질문 차등**: 기존 flat 5 tab (모든 level 동일) → `{ elem, middle, high, univ } × { Q1~Q4, free }` (16 신규 질문 + 공유 free). `getAdvQuestionText(level, qid)` helper (level fallback `high`). `setActiveTab` + `buildSystemPrompt` 모두 helper 사용 — UI snippet / AI 프롬프트 동시 차등. level 변경 핸들러에 snippet 즉시 갱신 추가. 보일/돌턴 패턴 일관.
+- **입자운동 ai-tutor.js 비활성 버그 fix**: particles.html 의 `<script src="js/ai-tutor.js">` 로드 제거. 원인 = ai-tutor.js 의 `updateTabAvailability` 가 `.ai-sidebar` 셀렉터로 입자운동 탭에도 영향 → 모든 탭 `aria-disabled="true"`. `createAdvAiTutor` 는 자체 핸들러 + measurement 변동 시 ai-tutor.js 의 `updateTabAvailability` 재호출 X → 영원히 시각 비활성. dalton 패턴 따름 (dalton 도 createDaltonTutor 자체 처리, ai-tutor.js 미사용).
+
+**Phase 5.3 변경 (2026-04-26)**: **돌턴 AI 튜터 추가**. 보일/입자운동/돌턴 3 페이지 모두 AI 튜터 동작. 돌턴은 `createDaltonTutor` 자체 closure (입자운동 패턴, `ai-tutor.js` 의존 X). 4 학습 목표 (분자 수 보존 / 부분 압력 / 합 = 전체 / 시뮬 ↔ 이론), Q1~Q4 × 4 학생 수준 = 16 문항, F1 비교 모드 통합 (`comparisonSelected` 2개 시 두 record 자동 주입), `[[LEVEL:xxx]]` 자동 학생 수준 갱신, MODEL_PRICING 자체 정의 (Sonnet 3/15, Opus 5/25 USD per MTok). 상세 결정: `docs/10-dev-journal.md` § Phase 5.3 의 AI 튜터 결정 2건.
+
+**구현 단계**: Part 3.5 완료 (대화 UI) → **Part 4 / Phase 2-B 완료** (실 Anthropic Messages API 연동, 멀티턴 대화, 비용 표시, docx 보고서, Q3 자동 생성, Q4 탭, 수준 자동 감지 원칙 9/10). 본 문서 본문의 "Part 4 예정" 표시는 설계 시점 기록 보존 차원에서 유지하며, **해당 항목 대부분은 구현 완료**됨.
 
 ---
 
@@ -43,7 +57,7 @@
 구성 요소:
 - 헤더: `⚙` 설정 토글 · `×` 사이드바 접기
 - 접이식 설정 패널: API 키 · 학생 수준 · 모델 선택 · 경고 배너 · 사용량 표시
-- 탭 4개: `Q1 | Q2 | Q3 | 💬 자유`
+- 탭 5개: `Q1 | Q2 | Q3 | Q4 | 💬 자유`. **Q4 = 메타 탭 (📊 [질문 생성])** — 학생이 자기 데이터에 맞는 탐구 질문을 생성하는 메타 인지 위치 (Phase 5.4 swap 후, 보일·돌턴·입자운동 3 시뮬 일관)
 - 질문 컨텍스트 미리보기
 - 메시지 영역 (자동 스크롤)
 - 입력창: `Enter` 전송, `Shift+Enter` 줄바꿈
@@ -51,13 +65,14 @@
 
 ### 2.2 대화 세션
 
-질문별 독립 세션이 4개 운영됨.
+질문별 독립 세션이 5개 운영됨 (Phase 5.4 swap 후 — Q4 = 메타 탭, 위치 키 그대로).
 
 ```js
 aiConversations = {
     1:    { messages: [], tokensIn: 0, tokensOut: 0 },
     2:    { messages: [], tokensIn: 0, tokensOut: 0 },
     3:    { messages: [], tokensIn: 0, tokensOut: 0 },
+    4:    { messages: [], tokensIn: 0, tokensOut: 0 },  // Q4 = 메타 탭 (📊 질문 생성)
     free: { messages: [], tokensIn: 0, tokensOut: 0 },
 }
 ```
@@ -74,7 +89,8 @@ aiConversations = {
 
 | 탭 | 활성 조건 |
 |---|---|
-| Q1 / Q2 / Q3 | 측정점 수 ≥ 3 (`datapoints.length >= 3`) |
+| Q1 / Q2 / Q3 | 측정점 수 ≥ 3 (`datapoints.length >= 3`) — 학습 질문, 데이터 누적 후 활성 |
+| Q4 (📊 질문 생성, 메타) | 측정점 수 ≥ 3 — 자기 데이터 기반 메타 인지 |
 | 💬 자유 | 항상 활성 |
 
 비활성 탭 클릭 시 2.5 초간 빨간 안내 토스트: **"측정점을 3개 이상 기록한 뒤 사용할 수 있습니다."**
@@ -83,10 +99,13 @@ aiConversations = {
 
 ### 2.4 파일 구성
 
-- `web/js/ai-tutor.js`: 상태·렌더링·이벤트·더미 응답
-- `web/index.html`: 사이드바 DOM 선언
-- `web/css/style.css`: 사이드바 레이아웃·말풍선
-- `web/js/ui.js` (클로저): BYOK 설정 함수 (`verifyKey`, `clearKey`, `updateUsageDisplay`), 프롬프트 빌더 (`buildSystemPrompt`, `buildUserPrompt`, `buildDataContext`)
+- `web/js/ai-tutor.js`: 보일 전용 **풀 AI 튜터** — 상태·렌더링·이벤트·실 Anthropic API 호출·Q3 자동·Q4 마무리·보고서 docx 생성·수준 자동 감지·토큰 비용 추적
+- `web/js/ui.js createAdvAiTutor`: 입자운동(particles.html) 전용 **경량 AI 튜터** — 자체 완결된 멀티턴 채팅, 토큰 추적·보고서·Q3 자동 등 고급 기능은 의도적 미포함. **Phase 5.4** 부터 4 levels × Q1~Q4 = 16 질문 차등 (보일/돌턴 패턴 일관). `getAdvQuestionText(level, qid)` helper 가 UI snippet + AI 시스템 프롬프트 양쪽에서 동일 본문 사용. **particles.html 은 ai-tutor.js script 로드 X** — 공통 모듈의 `.ai-sidebar` 셀렉터가 입자운동 탭에도 영향 → 비활성 버그 회피 (dalton 패턴 동일)
+- `web/boyle.html`: 보일 페이지 AI 사이드바 DOM (`#ai-sidebar`, id prefix 없음)
+- `web/particles.html`: 입자운동 페이지 AI 사이드바 DOM (`#adv-ai-sidebar`, id `adv-*` prefix)
+- `web/index.html` (랜딩): API 키 입력·저장·삭제 UI **단일 진입점**. sessionStorage `pchem_api_key` 로 두 실험 페이지와 공유
+- `web/css/style.css`: 사이드바 레이아웃·말풍선 (3 페이지 공유)
+- `web/js/ui.js createAnalysisPanel` (클로저): 보일 측 BYOK 관련 함수 (`verifyKey`, `clearKey`, `updateUsageDisplay`) — 현재 입력 UI 가 실험 페이지에서 제거되어 이벤트 배선이 null 가드로 차단됨 (dead code, 재사용 여지 유지). 프롬프트 빌더 (`buildSystemPrompt`, `buildUserPrompt`, `buildDataContext`) 는 활성
 
 Phase 2-B에서 `ai-tutor.js`의 `fakeApiDelay` + `generateDummyAiResponse`를 Anthropic Messages API 실 호출로 교체한다.
 
@@ -128,7 +147,7 @@ BYOK는 완벽한 키 보호를 제공하지 않는다. 다음을 수용한다:
 
 ## 4. 시스템 프롬프트 설계
 
-### 4.1 현재 `buildSystemPrompt(level, questionNum)` 전문 (ui.js:1028)
+### 4.1 현재 `buildSystemPrompt(level, questionNum)` 전문 (ui.js:1774, 보일 기준 — Dalton 은 §4.6 참조)
 
 ```
 당신은 영재 과학교육 튜터입니다.
@@ -160,12 +179,14 @@ BYOK는 완벽한 키 보호를 제공하지 않는다. 다음을 수용한다:
 **Q3 — 다음 실험 설계**
 > 학생이 제안한 조건의 과학적 의미를 확장. 샤를 법칙, 게이뤼삭 법칙, 이상기체 법칙 등 관련 개념 자연스럽게 소개 가능.
 
-**자유 모드 — 미구현 (Part 4 예정)**
-> 현재 `buildSystemPrompt`의 `questionNum` 파라미터는 Q1/Q2/Q3만 다루며, 자유 모드용 프롬프트 분기는 Part 4에서 추가된다. 자유 모드 설계 방침:
+**Q4 — 메타 탭 (📊 질문 생성, Phase 5.4 swap 후)**
+> 학생이 자기 측정 데이터에 맞는 탐구 질문을 직접 생성. AI 는 학생의 측정 패턴 / 이상값 / 흥미로운 추세를 짚어 학생 수준에 맞는 탐구 질문 1~3 개 제시 (정답 X, 질문 X). 학생 자기 질문이 학습 목표라 보고서 CSV 의 "AI 튜터 대화" 섹션에는 미포함 (Q1/Q2/Q3 학습 본문만 보고서 평가 대상).
+
+**자유 모드**
+> 자유 질문 — 직접 답해도 되지만 마지막에 한 단계 깊은 탐구 방향을 한 문장 제안. 400자 이내. 모든 학생 수준 동일 본문 (level 무관, `ADV_TUTOR_FREE_TEXT` 상수로 분리).
 > - 답을 직접 줘도 됨 (구조화 질문과 달리)
 > - 답 뒤에 한 단계 더 깊은 탐구 방향을 한 문장 덧붙임
 > - 오개념 발견 시 직접 교정하지 않고 **실험으로 확인할 방법** 제시
-> - 400자 이내 (구조화 질문보다 유연)
 
 ### 4.3 학생 수준별 가이드 (`LEVEL_GUIDES`)
 
@@ -217,6 +238,103 @@ univ (대학교 일반화학/물리화학 초기):
 8. 3~4턴 이상 진행 시 자연스럽게 학생이 답에 다가가도록 수렴
 9. 이전 턴의 학생 답변·AI 응답을 `messages` 배열로 전체 누적 전송 (맥락 유지)
 10. 대화 턴 수가 8회를 넘으면 시스템이 [세션 초기화]를 제안
+
+### 4.6 데이터 소스 분기 (Phase 5.5~5.9)
+
+**도입 배경**: 학생이 mock(시뮬) · ws(에뮬레이터) · real(ESP32 자작) · vernier(상용 BLE) 4 모드 중 어느 것을 쓰는지에 따라 측정 데이터의 성격이 다르다. 동일 프롬프트로 모든 모드를 다루면 vernier 학생에게 "이상기체 법칙이 정확히 성립" 같은 sim 가이드가 나가는 정합성 어긋남 발생.
+
+#### 4.6.1 분기 패턴 (4종)
+
+| mode | dataSource 라벨 | sensorGuide 톤 |
+|---|---|---|
+| `mock` | 시뮬레이션 (입자 시뮬, P 직접 산출) | 이상기체 법칙 성립, 이론 중심. (Dalton 한정) 분자 수 보존·부분 압력 가산성·입자 시각 강조 |
+| `ws` | 펌웨어 에뮬레이터 (개발용 가짜 센서) | 노이즈 X, 측정 절차는 가능하나 오차 해석 지양 |
+| `real` | 실물 센서 (ESP32 + 압력 센서) | 측정 오차·기밀·드리프트 적극 반영, 시린지 눈금 직접 읽기 전제 |
+| `vernier` | Vernier GDX-GP (상용 BLE 압력 센서) | ±3 kPa 검정 정확도. 노이즈 ↓ 이지만 기밀·드리프트 여전. 비이상성·측정 절차 분석 유도 |
+
+**구현 위치**:
+- Boyle: `ui.js:1754-1789` — `buildDataContext.dataSource` 4종 + `buildSystemPrompt.sensorGuide` 4종
+- Dalton: `main.js:3324-3416` — `buildDataContext` 콜백에서 `daltonSensorManager.mode` 직접 접근 (같은 closure) → `daltonBuildSystemPrompt(level, qid, ctx)` 의 `ctx.mode` 경유
+- 입자운동 (`ui.js:2235` `createAdvAiTutor`): dataSource 분기 X. 입자운동은 모드 운용 시나리오와 무관한 시뮬 전용 페이지라 추가 작업 X (현 보존)
+
+**vernier 본문 인용 (시뮬별 분량 차이 시각화)**:
+
+Boyle vernier (~110자, 단일 P·V 법칙 성격):
+
+```
+[데이터 소스 고려사항]
+현재는 **Vernier GDX-GP** (상용 BLE 압력 센서, ±3 kPa 검정 정확도) 실측 환경: 노이즈는 적지만 시린지 기밀·온도 드리프트 등 실험 현실 요인은 여전히 존재. 측정값과 이상기체 이론값의 차이를 기체 비이상성·측정 절차 측면에서 분석하도록 유도.
+```
+
+Dalton vernier (~290자, Phase 5.9 운용 시나리오 5요소 반영):
+
+```
+[데이터 소스 고려사항]
+현재는 **Vernier GDX-GP** (상용 BLE 압력 센서, ±3 kPa 검정 정확도) + **콕 결합 셋업** (3-way 콕은 A·B 연결 위치 고정, GDX는 측정 포트). 측정 단계 = 1번 클릭으로 결합 시스템 초기 P_initial 캡처 → 학생이 A 시린지 누름 → 평형 후 2번 클릭으로 P_total 캡처. **1센서 운용 한계**: P_A·P_B 동시 측정 불가, 시작·끝 두 점만 의미 있음 — Dalton 법칙 검증은 평형 P_total 비교로 진행. V_A_current 는 V_A' = P_initial·(V_A+V_B)/P_current − V_B 역산으로 학생 누름 정도 실시간 추정. 이론값: P_total = P_initial·(V_A+V_B)/V_B.
+```
+
+분량 차이 사유: Boyle = 단일 법칙 컨텍스트 / Dalton = 콕 셋업·단계별 측정·1센서 한계·역산식·이론식 5요소. 톤 일관성보다 정보 충실성 우선 (일지 결정 — 옵션 A 채택).
+
+mock/ws/real 본문은 각 시뮬 코드 직접 참조 (Boyle `ui.js:1782-1789` / Dalton `main.js:3378-3384`).
+
+#### 4.6.2 Vernier substate 컨텍스트 (Dalton 한정)
+
+`daltonState.vernier` substate (Phase 5.9 작업 1~4 도입):
+
+| 필드 | 타입 | 의미 |
+|---|---|---|
+| `stage` | string | `IDLE` / `INJECTING` / `STABILIZING` / `READY_TO_CAPTURE` / `CAPTURED` 5상태 |
+| `P_initial_kPa` | number\|null | 1번 클릭 캡처값 (결합 시스템 초기 압력) |
+| `P_total_kPa` | number\|null | 2번 클릭 캡처값 (평형 후 P_total) |
+| `V_A_current_mL` | number\|null | T 소거 식 역산: `P_initial·(V_A+V_B)/P_current − V_B` |
+
+**`buildDataContext` 반환 객체 (Dalton)**:
+
+```js
+{
+    mode: daltonSensorManager.mode,       // "mock" | "ws" | "real" | "vernier"
+    records: daltonState.measurementRecords,
+    comparisonSelected: daltonState.comparisonSelected,
+    V_A: daltonState.syringeA.volume,     // 모든 모드 공통
+    V_B: daltonState.syringeB.volume,
+    vernier: { stage, P_initial_kPa, P_total_kPa, V_A_current_mL },  // vernier 모드만 표시
+}
+```
+
+**시스템 프롬프트 표시 형식** (vernier 모드 진행 중 가정):
+
+```
+[현재 시린지 부피] V_A=80 mL, V_B=50 mL
+[Vernier 측정 진행 상태] stage=READY_TO_CAPTURE, P_initial=101.32 kPa, P_total=미측정, V_A_current=72.4 mL
+```
+
+`null` → "미측정" 한국어화. `stage` 는 영문 보존 (코드 일관성).
+
+**비교 모드 + Vernier 동시 정책**: 학생이 측정 기록 비교 체크 (`comparisonSelected.length === 2`) 와 Vernier 측정 진행 (`mode === "vernier"`) 동시인 경우, 두 블록 모두 표시 + 시스템 프롬프트에 1줄 우선순위 가이드 추가:
+
+> 학생이 비교 모드를 체크하고 동시에 Vernier 측정 진행 중입니다. 비교 분석을 우선하되, 진행 중인 측정도 인지해 답하세요.
+
+#### 4.6.3 톤 정책 (Boyle 패턴 미러링 + Dalton 보강)
+
+**미러링 원칙**: Dalton 분기 신설 시 Boyle (Phase 5.5 1차 검증 완료) 의 dataSource 라벨·sensorGuide 톤을 그대로 따른다. 두 시뮬 모두 영재 과학교육·동일 학생 대상이라 톤 통일이 자연스럽고, 1차 검증 본문 재사용으로 회귀 위험 ↓.
+
+**Dalton 보강**:
+- mock 본문: Dalton 학습 주제 (분자 수 보존·부분 압력 가산성·입자 시각) 1문장 추가
+- vernier 본문: Phase 5.9 운용 시나리오 5요소 신규 (Boyle 본문엔 없음)
+
+**중복 회피**: Dalton 만의 차별점 (분자 수·부분 압력) 은 sensorGuide 가 아니라 본문 다른 곳의 학습 목표 4 핵심에서 다룬다 — 이중 명시 회피.
+
+#### 4.6.4 Phase 5.9 D-(3) 완료 표기
+
+**commits**:
+- `8cb741e` — feat(tutor): Boyle 튜터 dataSource·sensorGuide 분기에 Vernier 추가 (+9/-6)
+- `10ae103` — feat(tutor): Dalton 튜터 데이터 소스 분기 신설 + Vernier 운용 시나리오 (+51/-1)
+
+**일지**: `docs/10-dev-journal.md § Phase 5.9 2026-05-07`
+
+**후속 의무**:
+- 부피 고정 기구 도착 후 V_A_current_mL 시각 검증 + Vernier sensorGuide 본문 응답 품질 평가 → 분량 단축 여부 재결정 (현 vernier 본문 ~290자 = 5요소 반영 우선, 실측 단계에서 약점 발견 시 단축)
+- 작업 D-(4) 측정 데이터 연동 점검 / D-(5) 응답 가드 (소크라테스식) 진입 시 본 §4.6 보강 가능
 
 ---
 
@@ -368,7 +486,7 @@ Phase 4+ 개선:
 - 한국어 과학 교육 맥락에 최적화된 프롬프트 실증 데이터 부재
 - 대화 품질이 모델 버전에 민감 (Sonnet 4.6 기준으로 작성됨, 후속 모델 교체 시 재튜닝 필요)
 - 오프라인 사용 불가 (인터넷 필수)
-- `QUESTION_TEXT` 중복 (ai-tutor.js + ui.js 양쪽 정의)
+- `QUESTION_TEXT` 중복 — Phase 5.4 시점 3 시뮬 (보일/돌턴/입자운동) 모두 자체 `QUESTION_TEXT` 정의. 보일 = `ai-tutor.js`, 돌턴 = `ui.js createDaltonTutor` closure, 입자운동 = `ui.js ADV_TUTOR_QUESTION_TEXT` (4 levels × 4 questions). 통합은 Phase 6/7 신규 시뮬 추가 직전 별 브랜치 (`phase5-tutor-unify`) 에서 — 셀렉터 / 책임 분리 명확화 후
 
 ### 9.2 Phase 2-B 작업 (자세한 내용은 `06` §3 참조)
 
@@ -384,7 +502,8 @@ Phase 4+ 개선:
 
 ### 9.3 Phase 3+ 계획
 
-- **실센서 데이터 연동**: Arduino 측정값이 이론과 다를 때 AI가 차이를 해석 ("실제 측정 P·V가 이론과 5% 다른 이유는?")
+- **실센서 데이터 연동**: Arduino 측정값이 이론과 다를 때 AI가 차이를 해석 ("실제 측정 P·V가 이론과 5% 다른 이유는?"). Phase 5.4 멀티채널 SensorSource 가 돌턴 2 채널을 동시 공급 → AI 컨텍스트에 채널별 P_A / P_B 자동 포함 가능
+- **[A] AI 튜터 통합 (`phase5-tutor-unify` 별 브랜치)**: Phase 6/7 신규 시뮬 추가 직전. 3 시뮬 (보일/돌턴/입자운동) 의 자체 closure 가 누적 → 공통 모듈로 통합 시 셀렉터 / 책임 분리 명확화 필요. Phase 5.4 의 입자운동 비활성 버그 (ai-tutor.js 의 `.ai-sidebar` 셀렉터 광역 영향) 가 통합 전 해결할 대표 이슈
 - **교사 대시보드**: 학생별 AI 사용 패턴 실시간 조회 (Phase 6)
 - **다국어**: 영어 영재 과정(해외 IB 등) 대응 시 시스템 프롬프트 번역 + 학생 수준 매핑 재설계
 

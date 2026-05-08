@@ -2,8 +2,14 @@
 
 **문서 목적**: 시뮬레이션이 통계역학 이론과 일치하는지 검증한 기록. 수업 투입·논문 발표·공동연구자 검토 시 근거 자료로 사용한다.
 
-**마지막 업데이트**: 2026-04-21
-**검증 단계**: Phase 1 MVP 완료 시점
+**마지막 업데이트**: 2026-04-28 (Phase 5.5 — sensor-guard 11/11 PASS + 시나리오 회귀 4/4 PASS + sequence replay 8/8 PASS 추가. Phase 5.3 = 돌턴 입자간 충돌 정량 검증 § 9).
+**검증 단계**: Phase 1 MVP / Phase 5.3 / Phase 5.4 / Phase 5.5
+
+**Phase 5.4/5.5 추가 검증** (회귀 인프라):
+- **outlier 가드 5 단계 단위 테스트** (`tests/sensor-guard-test.js`, node:test 11/11 PASS) — NaN drop / 음수 fallback / saturation clip / median spike / 채널별 분리 / rate-limit warn / mock 무영향. 권위 = `web/js/serial.js manager._dispatchData`.
+- **A-1 노이즈 시나리오 회귀** (`tools/firmware-emulator/run-all.js`, 4/4 PASS) — off / quiet / normal / harsh × 60s × ch0 의 σ / maxSpike 임계값 (σ ×1.5 안전 여유). quiet σ=509.83 ↔ preset σ=500 부합 검증.
+- **sequence replay** (`tools/firmware-emulator/run-replay.js`, 8/8 PASS) — `injection-sample.json` 의 step 8 개 ↔ 출력 sample 일치 (window 2000ms 안 첫 일치).
+- **CI 자동화** (`.github/workflows/ci.yml`) — push 시 sensor-guard + dalton-collision 단위 테스트 자동 실행.
 
 ---
 
@@ -250,6 +256,52 @@ V_baseline(T) = 50 mL × (T / 298.15 K)
 
 ---
 
+## 9. 돌턴 입자간 충돌 정량 검증 (Phase 5.3, 2026-04-26)
+
+Phase 5.3 에서 돌턴 페이지에 입자간 탄성 충돌 (직접 구현) 도입. `simulation.js` 의 `_resolveParticleCollisions` (보일/입자운동) 와 별개로 돌턴 전용 `resolveCollision` (1D 탄성 충돌 + 위치 분리 W4-simple, spatial hash O(N), 가스별 질량 `M`) 추가.
+
+### 9.1 검증 환경
+
+- **파일**: `tests/dalton-collision-test.js` (Node.js 단독 실행, main.js 의 충돌 함수 자립형 복사)
+- **결과**: `tests/dalton-collision-test-result.txt` (보존)
+- **시뮬 환경**: He 50 + CO₂ 50, 박스 1000×1000, dt=0.005, step=10000
+- **입자 속도**: Box-Muller 정규분포 × `speedFactor` (Graham 법칙: 1/√M, 공기=29 기준 정규화)
+
+### 9.2 7 검증 항목 + 결과 (5/7 PASS)
+
+| # | 검증 | 결과 | 수치 |
+|---|---|---|---|
+| 1 | KE 보존 (오차 < 0.5%) | **PASS** | 오차 0.0000% |
+| 2 | 운동량 (벽 반사 영향 정상) | **PASS** | 변화량 합리 범위 |
+| 3 | Equipartition (`<KE_He> ≈ <KE_CO₂>`) | FAIL (평형 미도달) | 비율 0.74 (기대 1.0) |
+| 4 | `<\|v\|_He> / <\|v\|_CO₂> ≈ √(M_CO₂/M_He) = √11 ≈ 3.32` | FAIL (평형 미도달) | 비율 2.85 (오차 14%) |
+| 5 | M-B 분포 (피크 + 꼬리) | **PASS** (시각) | 히스토그램 비대칭 확인 |
+| 6 | 입자 겹침 (10000 검사) | **PASS** | 0 회 |
+| 7 | KE 안정성 (CV) | **PASS** | CV 0.0000% |
+
+### 9.3 검증 3, 4 FAIL 원인 분석
+
+- **알고리즘 자체 정확** — 검증 1, 6, 7 PASS (KE 완전 보존, 겹침 0, CV 0%)
+- **1D 탄성 충돌 식 검증**: `v1'·n = v1·n × (m1-m2)/(m1+m2) + v2·n × 2m2/(m1+m2)` — 표준식 일치
+- **FAIL 원인**: 평형 미도달 (충돌 횟수 부족)
+  - 박스 1000×1000 × 입자 100 = 충진율 0.3% (낮음, 평균 자유 거리 큼)
+  - step=10000 × dt=0.005 = 50초 → 입자당 평균 ~8 충돌 (평형 도달에 부족, 보통 수백 충돌 필요)
+- **수정 방향** (후속): 박스 200~300 + step 30000~100000 으로 평형 도달 가능
+
+### 9.4 학습 정합
+
+- **Graham 법칙 (1/√M) 정확 적용 ✓**:
+  - 정의 (`web/config/params.json` dalton.gases): air 1.00, CO₂ 0.81 (= √(29/44)), He 2.69 (= √(29/4)), N₂ 1.02, O₂ 0.95 — 학술적으로 정확 (소수 둘째자리 반올림)
+- **NVE ensemble (KE 보존) ✓**: 시뮬 등온 평형 자연 거동
+- **R1 + R5 만 적용**: R2/R3/R4 텔레포트 모드라 입자 부재 — 충돌 처리 불필요
+- **simulation.js 무영향**: 돌턴 한정 `M` 속성, `resolveCollision` 함수 — 보일/입자운동 무영향
+
+### 9.5 라이브러리 도입 검토 (Matter.js)
+
+직접 구현 시 spatial hash / 1D 탄성 충돌 / 위치 분리 W4-simple / 끼임 정정 v1~v5 (~3시간 누적 손실) 등 라이브러리 영역 코드를 점진 직접 작성. **별 브랜치 (`experiment/matter-js`) 에서 추후 시도 의향** — 직접 구현 ↔ 라이브러리 비교 자료가 논문 강력한 1차 자료가 될 수 있음. 상세는 `docs/10-dev-journal.md` § Phase 5.3 의 결정 "입자간 탄성 충돌 — 직접 구현 (라이브러리 도입 보류)".
+
+---
+
 ## 9. 재현 가능성
 
 ### 9.1 속도·KE 비율 재현
@@ -297,4 +349,4 @@ runPVAccuracyTest()
 - `04-simulation-physics.md` — 시뮬레이션 물리 모델·충돌·시각화 (설계)
 - `06-project-status.md` — 프로젝트 진행 상태 (요약 및 마스터 링크)
 - `07-ai-tutor.md` — Phase 3+에서 AI 튜터가 편차·오차 해석 지원 예정
-- `09-roadmap.md` (예정) — Phase별 상세 로드맵
+- `09-roadmap.md` — Phase별 상세 로드맵

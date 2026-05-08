@@ -1,5 +1,11 @@
 // AI tutor conversation state and message rendering.
 // Part 4: Anthropic API wired; docx report direct download (no modal).
+//
+// Phase 5.7 (a-2 회귀 정정): tutor.js 도입 후 SOFT_TURN_LIMIT 글로벌 const
+// 충돌 → IIFE 캡슐화. dead code 영역 (line 1~1042) 모두 IIFE 안. DOMContentLoaded
+// (IIFE 밖) 가 사용하는 2 함수 (downloadConversations / getConversationSummary)
+// 만 window.__boyleAiTutorLegacy 로 노출.
+(function() {
 
 // === Anthropic Messages API ===
 // Accesses ui.js via window.PchemTutor surface (exposed inside
@@ -55,9 +61,9 @@ const SOFT_TURN_LIMIT = 8;
 
 let activeQuestion = "free";
 
-// Q3 first turn is AI-initiated (student clicks "질문 생성"). Tracks whether
+// Q4 first turn is AI-initiated (student clicks "질문 생성"). Tracks whether
 // the synthetic prompt-and-answer pair has been produced.
-let q3QuestionGenerated = false;
+let q4QuestionGenerated = false;
 
 // QUESTION_TEXT is owned by ui.js (createAnalysisPanel closure) and accessed
 // via window.PchemTutor.getQuestionText(level, qid). Uses optional chaining
@@ -108,12 +114,12 @@ function renderConversation(questionId) {
                 '아래 입력창에 자유롭게 질문해보세요.<br><br>' +
                 '<small style="color:#999">예: "왜 입자 색깔이 다른가요?"<br>' +
                 '"온도가 더 높으면 어떻게 되나요?"</small>';
-        } else if (questionId === "3" && !q3QuestionGenerated) {
+        } else if (questionId === "4" && !q4QuestionGenerated) {
             emptyEl.innerHTML =
                 '<p>AI가 내 측정 데이터를 분석해서<br>탐구 질문을 만들어줍니다.</p>' +
-                '<button id="btn-generate-q3" class="btn-generate-question">🔍 질문 생성</button>';
-            const genBtn = emptyEl.querySelector("#btn-generate-q3");
-            if (genBtn) genBtn.addEventListener("click", generateQ3Question);
+                '<button id="btn-generate-q4" class="btn-generate-question">🔍 질문 생성</button>';
+            const genBtn = emptyEl.querySelector("#btn-generate-q4");
+            if (genBtn) genBtn.addEventListener("click", generateQ4Question);
         } else {
             emptyEl.innerHTML =
                 '<div class="prompt-question">' +
@@ -247,7 +253,7 @@ function resetAllConversations() {
         updateTabClosedLabel(q);
         clearTabNew(q);
     });
-    q3QuestionGenerated = false;
+    q4QuestionGenerated = false;
     renderConversation(activeQuestion);
     updateInputAvailability();
     updateEndControlsVisibility();
@@ -258,7 +264,7 @@ function resetQuestion(qid) {
     aiConversations[qid] = {
         messages: [], tokensIn: 0, tokensOut: 0, contextSnapshot: null, isClosed: false,
     };
-    if (String(qid) === "3") q3QuestionGenerated = false;
+    if (String(qid) === "4") q4QuestionGenerated = false;
     updateTabClosedLabel(qid);
     clearTabNew(qid);
     if (String(activeQuestion) === String(qid)) {
@@ -398,28 +404,28 @@ async function closeQuestion(qid) {
     }
 }
 
-// Q3 AI-generated question: AI produces the opening question from student
+// Q4 AI-generated question: AI produces the opening question from student
 // data; stored as [synthetic user prompt (hidden) + assistant response].
-async function generateQ3Question() {
+async function generateQ4Question() {
     const T = window.PchemTutor;
     if (!T) return;
 
     const ctx = T.buildDataContext();
     const level = T.getLevel();
-    const systemPrompt = T.buildSystemPrompt(level, "3");
-    const userMsgContent = T.buildUserPrompt("3_generate", null, ctx, T.getLevel());
+    const systemPrompt = T.buildSystemPrompt(level, "4");
+    const userMsgContent = T.buildUserPrompt("4_generate", null, ctx, T.getLevel());
 
     // Synthetic user message — sent to API, hidden from display
-    aiConversations["3"].messages.push({
+    aiConversations["4"].messages.push({
         role: "user",
         content: "",
         apiContent: userMsgContent,
         timestamp: Date.now(),
         isPromptInternal: true,
     });
-    aiConversations["3"].contextSnapshot = ctx;
+    aiConversations["4"].contextSnapshot = ctx;
 
-    const btn = document.getElementById("btn-generate-q3");
+    const btn = document.getElementById("btn-generate-q4");
     if (btn) btn.disabled = true;
 
     showTypingIndicator();
@@ -430,7 +436,7 @@ async function generateQ3Question() {
         );
         hideTypingIndicator();
 
-        aiConversations["3"].messages.push({
+        aiConversations["4"].messages.push({
             role: "assistant",
             content: result.content,
             timestamp: Date.now(),
@@ -438,38 +444,38 @@ async function generateQ3Question() {
             tokensOut: result.outputTokens,
             model:     result.model,
         });
-        aiConversations["3"].tokensIn  += result.inputTokens;
-        aiConversations["3"].tokensOut += result.outputTokens;
+        aiConversations["4"].tokensIn  += result.inputTokens;
+        aiConversations["4"].tokensOut += result.outputTokens;
         T.addTokens(result.inputTokens, result.outputTokens);
 
-        q3QuestionGenerated = true;
-        if (String(activeQuestion) === "3") {
-            renderConversation("3");
+        q4QuestionGenerated = true;
+        if (String(activeQuestion) === "4") {
+            renderConversation("4");
             updateInputAvailability();
         } else {
-            markTabNew("3");
+            markTabNew("4");
         }
         updateReportButtonState();
     } catch (e) {
         hideTypingIndicator();
         // Roll back the synthetic user message so retry shows the generate button again
-        aiConversations["3"].messages.pop();
+        aiConversations["4"].messages.pop();
 
         // If the student navigated away, don't touch the current view; surface
-        // the error later by flagging Q3 as having new activity.
-        if (String(activeQuestion) !== "3") {
-            markTabNew("3");
+        // the error later by flagging Q4 as having new activity.
+        if (String(activeQuestion) !== "4") {
+            markTabNew("4");
             return;
         }
 
         // Restore empty-state visibility and recreate the generate button.
         // showTypingIndicator() had set emptyEl display:none; renderConversation
         // undoes that and re-inserts a fresh button with its click handler.
-        renderConversation("3");
+        renderConversation("4");
 
         let errMsg;
         if (e.type === "no_key") {
-            errMsg = "⚠️ API 키가 설정되지 않았습니다. 오른쪽 상단 설정 패널을 확인하세요.";
+            errMsg = "⚠️ API 키가 설정되지 않았습니다. 🏠 홈 페이지에서 먼저 입력해주세요.";
         } else if (e.type === "api_error") {
             if (e.status === 401)      errMsg = "⚠️ API 키가 유효하지 않습니다.";
             else if (e.status === 429) errMsg = "⚠️ 요청이 너무 많습니다. 잠시 후 다시 시도해주세요.";
@@ -508,7 +514,10 @@ function getConversationSummary() {
 function updateReportButtonState() {
     const btn = document.getElementById("btn-generate-report");
     if (!btn) return;
-    const visibleCount = (qid) => (aiConversations[qid]?.messages
+    // (a-2) 회귀 정정: source = boyleTutor.getConversations() (createTutor closure) 우선,
+    // fallback = IIFE 안 aiConversations (dead, 항상 빈)
+    const convs = window.PchemBoyleTutor?.getConversations?.() ?? aiConversations;
+    const visibleCount = (qid) => (convs[qid]?.messages
         .filter(m => !m.isPromptInternal).length ?? 0);
     const q1ok = visibleCount("1") > 0;
     const q2ok = visibleCount("2") > 0;
@@ -523,17 +532,19 @@ function downloadConversations() {
     const LABELS = {
         "1": "Q1 — 메커니즘 설명",
         "2": "Q2 — 극단 조건 외삽",
-        "3": "Q3 — AI 탐구 질문",
-        "4": "Q4 — 다음 실험 설계",
+        "3": "Q3 — 다음 실험 설계",
+        "4": "Q4 — AI 탐구 질문",
         "free": "자유 질문",
     };
 
     let text = "=== 탐구 대화 기록 ===\n";
     text += `저장 시각: ${new Date().toLocaleString("ko-KR")}\n\n`;
 
+    // (a-2) 회귀 정정: source = boyleTutor.getConversations() 우선
+    const convsSrc = window.PchemBoyleTutor?.getConversations?.() ?? aiConversations;
     let hasAny = false;
     ["1", "2", "3", "4", "free"].forEach(qid => {
-        const conv = aiConversations[qid];
+        const conv = convsSrc[qid];
         if (!conv) return;
         const visible = conv.messages.filter(m => !m.isPromptInternal);
         if (visible.length === 0) return;
@@ -602,6 +613,7 @@ async function generateReport() {
 - 한국어로 작성하세요.`;
 
     const userPrompt = `[실험 데이터]
+[데이터 소스] ${ctx.dataSource}
 온도: ${ctx.tempC}°C (${ctx.tempK}K)
 측정점: ${ctx.N}개
 평균 P·V: ${ctx.meanPV} kPa·mL
@@ -946,10 +958,10 @@ async function sendMessage() {
         hideTypingIndicator();
         let msg;
         if (e.type === "no_key") {
-            msg = "⚠️ API 키가 설정되지 않았습니다. 오른쪽 상단 설정 패널을 확인하세요.";
+            msg = "⚠️ API 키가 설정되지 않았습니다. 🏠 홈 페이지에서 먼저 입력해주세요.";
         } else if (e.type === "api_error") {
             if (e.status === 401) {
-                msg = "⚠️ API 키가 유효하지 않습니다. 설정 패널에서 키를 다시 확인하세요.";
+                msg = "⚠️ API 키가 유효하지 않습니다. 🏠 홈 페이지에서 키를 다시 확인하세요.";
             } else if (e.status === 429) {
                 msg = "⚠️ 요청이 너무 많습니다. 잠시 후 다시 시도해주세요. (Rate limit)";
             } else if (e.status === 529) {
@@ -1040,85 +1052,102 @@ function switchToQuestion(questionId) {
     updateReportButtonState();
 }
 
-// === Init ===
+// === IIFE 끝 — DOMContentLoaded 가 사용할 2 함수 window 노출 ===
+window.__boyleAiTutorLegacy = {
+    downloadConversations,
+    getConversationSummary,
+    updateReportButtonState,  // (a-2) 회귀 정정: 신규 wiring 에서 sendMessage 후 호출
+};
+
+// (a-2) 회귀 정정: ui.js refresh() 가 typeof updateTabAvailability === "function" 검사 후 호출.
+// IIFE 캡슐화로 전역 미정의 → 측정 갱신해도 탭 활성/비활성 처리 X. 전역 노출.
+window.updateTabAvailability = updateTabAvailability;
+
+})();  // IIFE 끝
+
+// === Init === (Phase 5.7 트랙 6-a-2 — Hybrid wrapper)
+//
+// 기존 wiring (탭 click / sendMessage / closeQuestion / generate-report click
+// delegation 등) 모두 제거. createTutor(boyleConfig) 단일 호출로 대체.
+// 본 파일의 closeQuestion / generateQ4Question / sendMessage / switchToQuestion /
+// renderConversation 등 함수 본문은 dead code 보존 (호출 경로 우회됨).
+//
+// PchemTutor (ui.js createAnalysisPanel closure) / PchemTutorModule (tutor.js) /
+// PchemBoyleReport (tutor-report-boyle.js) 도착 폴링.
 document.addEventListener("DOMContentLoaded", () => {
-    const settingsPanel = document.getElementById("ai-settings-panel");
-    const toggleBtn = document.getElementById("btn-toggle-settings");
-    if (toggleBtn && settingsPanel) {
-        toggleBtn.addEventListener("click", () => {
-            settingsPanel.classList.toggle("open");
+    // 회귀 1 정정 — 설정 패널 즉시 펼침 (Phase 5.5 보존, tutor.js init 의 add 와 무관 보강)
+    document.getElementById("ai-settings-panel")?.classList.add("open");
+
+    function tryInitBoyleTutor() {
+        if (!window.PchemTutorModule || !window.PchemBoyleReport || !window.PchemTutor) {
+            setTimeout(tryInitBoyleTutor, 50);
+            return;
+        }
+        const T = window.PchemTutor;
+
+        const boyleConfig = {
+            simName: "boyle",
+            sidebarSelector: "#ai-sidebar",
+            tabIds: ["1", "2", "3", "4", "free"],
+            metaTabId: "4",
+            autoQuestionTabIds: ["3"],   // Q3 첫 진입 시 자동 질문 (보일 패턴)
+            closeConfig: { /* 기본 prompt 사용 */ },  // 대화 마무리 활성
+            reportEnabled: true,
+            reportConfig: {
+                generateAndDownload: (ctx, conv) =>
+                    window.PchemBoyleReport.generateBoyleReport(ctx, conv),
+            },
+            getQuestionText:   (level, qid) => T.getQuestionText?.(level, qid) ?? "",
+            buildSystemPrompt: (level, qid)  => T.buildSystemPrompt?.(level, qid) ?? "",
+            buildDataContext:  ()             => T.buildDataContext?.() ?? {},
+            onLevelDetect: (level) => {
+                console.log(`[boyle tutor] 학생 수준 자동 감지: ${level}`);
+                const sel = document.getElementById("ai-student-level");
+                if (sel) sel.value = level;
+            },
+            // 토큰 누적 source = ui.js (createAnalysisPanel closure 의 totalInputTokens)
+            // — createTutor 의 마지막 turn delta 만 ui.js addTokens 로 누적
+            onTokenUsage: (model, deltaIn, deltaOut /*, totalIn, totalOut, costKrw */) => {
+                if (typeof T.addTokens === "function") T.addTokens(deltaIn, deltaOut);
+                // (a-2) 회귀 정정: sendMessage 후 보고서 버튼 활성 갱신
+                window.__boyleAiTutorLegacy?.updateReportButtonState?.();
+            },
+            // tokensUsed / costEstimate dom = ui.js updateUsageDisplay 측 갱신만 사용 (이중 갱신 회피)
+            domSelectors: {
+                tokensUsed:   "#__tutor_tokens_unused__",   // 의도적 부재 selector
+                costEstimate: "#__tutor_cost_unused__",
+            },
+        };
+
+        const boyleTutor = window.PchemTutorModule.createTutor(boyleConfig);
+        if (!boyleTutor) {
+            console.error("[boyle] createTutor 실패");
+            return;
+        }
+        window.PchemBoyleTutor = boyleTutor;
+
+        // [✓ 대화 마무리] 버튼 wiring (sidebar 안 #btn-close-q)
+        const closeBtn = document.getElementById("btn-close-q");
+        if (closeBtn) {
+            closeBtn.addEventListener("click", () => boyleTutor.closeConversation());
+        }
+        // Q4 [질문 생성] 버튼 wiring — ui.js / sidebar HTML 의 #btn-generate-q4
+        document.addEventListener("click", (e) => {
+            if (e.target?.closest?.("#btn-generate-q4")) {
+                boyleTutor.generateMetaQuestion();
+            } else if (e.target?.closest?.("#btn-generate-report")) {
+                boyleTutor.generateReport();
+            } else if (e.target?.closest?.("#btn-download-conversations")) {
+                window.__boyleAiTutorLegacy?.downloadConversations?.();
+            }
         });
-        // First-time user (no saved key) → auto-open to guide setup
-        if (!sessionStorage.getItem("pchem_api_key")) {
-            settingsPanel.classList.add("open");
+
+        boyleTutor.init();
+
+        // ui.js 측 PchemTutor.getConversationSummary 노출 (보고서 호환 영역)
+        if (window.PchemTutor && window.__boyleAiTutorLegacy) {
+            window.PchemTutor.getConversationSummary = window.__boyleAiTutorLegacy.getConversationSummary;
         }
     }
-
-    document.querySelectorAll(".ai-sidebar .tab-btn").forEach(btn => {
-        btn.addEventListener("click", () => {
-            const q = btn.dataset.q;
-            if (!q) return;
-            if (q === "free") {
-                switchToQuestion("free");
-                return;
-            }
-            if (btn.getAttribute("aria-disabled") === "true") {
-                showTabDisabledToast(q);
-                return;
-            }
-            switchToQuestion(q);
-        });
-    });
-
-    // 탭별 초기화 버튼 (탭 전환 이벤트 차단)
-    document.querySelectorAll(".ai-sidebar .tab-reset").forEach(btn => {
-        btn.addEventListener("click", (e) => {
-            e.stopPropagation();
-            const qid = btn.dataset.resetQ;
-            if (!qid) return;
-            const label = qid === "free" ? "자유" : `Q${qid}`;
-            if (!confirm(`${label} 탭의 대화를 초기화하시겠습니까?\n(누적 비용 표시는 유지됩니다)`)) return;
-            resetQuestion(qid);
-        });
-    });
-
-    const messageInput = document.getElementById("message-input");
-    const sendBtn = document.getElementById("btn-send-message");
-    if (messageInput && sendBtn) {
-        messageInput.addEventListener("input", updateInputAvailability);
-        messageInput.addEventListener("keydown", (e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                sendMessage();
-            }
-        });
-        sendBtn.addEventListener("click", sendMessage);
-    }
-
-    const closeBtn = document.getElementById("btn-close-q");
-    if (closeBtn) {
-        closeBtn.addEventListener("click", () => closeQuestion(activeQuestion));
-    }
-
-    // Event delegation — the target buttons (generate-report, download-conversations)
-    // are inserted into the DOM after this handler runs by createAnalysisPanel
-    // in ui.js (which is called from main.js's async DOMContentLoaded handler,
-    // after a fetch). Delegation works regardless of when the buttons appear.
-    document.addEventListener("click", (e) => {
-        if (e.target?.closest?.("#btn-generate-report")) generateReport();
-        else if (e.target?.closest?.("#btn-download-conversations")) downloadConversations();
-    });
-
-    // Attach getConversationSummary to PchemTutor if the surface is ready
-    // (ui.js's createAnalysisPanel may populate window.PchemTutor after
-    //  this handler runs; generateReport still works via direct reference).
-    if (window.PchemTutor) {
-        window.PchemTutor.getConversationSummary = getConversationSummary;
-    }
-
-    // main.js createAnalysisPanel runs asynchronously after a fetch; setting
-    // initial tab state here avoids a brief flash where Q1-Q3 look enabled
-    // before refresh() updates them with the real datapoint count.
-    updateTabAvailability(0);
-    switchToQuestion("free");
+    tryInitBoyleTutor();
 });

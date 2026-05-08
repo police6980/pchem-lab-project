@@ -1,6 +1,6 @@
 // p5.js drawing - particles, flashes, histogram, HSB color mapping
 
-const SIM_CANVAS_WIDTH = 900;
+const SIM_CANVAS_WIDTH = 1000;
 const SIM_CANVAS_HEIGHT = 360;
 const HIST_CANVAS_WIDTH = 560;
 const HIST_CANVAS_HEIGHT = 260;
@@ -47,6 +47,81 @@ function getAndResetFrameCount() {
     const count = frameCounter;
     frameCounter = 0;
     return count;
+}
+
+// Draw primitives shared between basic and advanced sim sketches. They use
+// the module-level CYLINDER_* constants, so callers must use the same box
+// geometry (x = BOX_INITIAL_X, y = BOX_INITIAL_Y, height = BOX_INITIAL_HEIGHT)
+// for the visuals to line up.
+function drawCylinderShell(p) {
+    const HATCH_W = 18;
+    const HATCH_STEP = 10;
+    p.stroke(0, 0, 55);
+    p.strokeWeight(1);
+    for (let y = CYLINDER_TOP + 4; y < CYLINDER_BOTTOM - HATCH_W + 4; y += HATCH_STEP) {
+        p.line(CYLINDER_LEFT, y, CYLINDER_LEFT - HATCH_W, y + HATCH_W);
+    }
+    p.stroke(0, 0, 31);
+    p.strokeWeight(1);
+    p.line(CYLINDER_LEFT, CYLINDER_TOP, CYLINDER_RIGHT, CYLINDER_TOP);
+    p.line(CYLINDER_LEFT, CYLINDER_BOTTOM, CYLINDER_RIGHT, CYLINDER_BOTTOM);
+    p.strokeWeight(4);
+    p.line(CYLINDER_LEFT, CYLINDER_TOP, CYLINDER_LEFT, CYLINDER_BOTTOM);
+}
+
+function drawPiston(p, pistonX) {
+    const midY = (CYLINDER_TOP + CYLINDER_BOTTOM) / 2;
+    p.noStroke();
+    p.fill(0, 0, 48);
+    p.rect(pistonX, CYLINDER_TOP, 12, CYLINDER_BOTTOM - CYLINDER_TOP);
+    p.fill(0, 0, 62);
+    p.rect(pistonX + 12, midY - 7, 70, 14);
+    p.fill(0, 0, 42);
+    p.rect(pistonX + 82, midY - 16, 6, 32);
+}
+
+function drawParticlesHSB(p, particles, vMaxColor, alpha = 255) {
+    p.noStroke();
+    for (const particle of particles) {
+        const speed = Math.sqrt(particle.vx * particle.vx + particle.vy * particle.vy);
+        const ratio = Math.min(speed / vMaxColor, 1.0);
+        const hue = 240 - 240 * ratio;
+        const sat = 40 + 60 * ratio;
+        const bri = 70 + 30 * ratio;
+        p.fill(hue, sat, bri, alpha);
+        p.circle(particle.x, particle.y, particle.radius * 2);
+    }
+}
+
+// Wall-collision flash ring. Pulled out of createRenderer's closure so the
+// advanced-mode sim sketch can reuse the exact same class. `lifetime` is
+// passed in (basic uses params.flash_duration_sec).
+class Flash {
+    constructor(x, y, strength, hue, lifetime) {
+        this.x = x;
+        this.y = y;
+        this.hue = hue;
+        this.age = 0;
+        this.lifetime = lifetime;
+        this.baseRadius = 2 + strength * 0.015;
+    }
+
+    update(dt) {
+        this.age += dt;
+    }
+
+    isDead() {
+        return this.age >= this.lifetime;
+    }
+
+    draw(p) {
+        const t = this.age / this.lifetime;
+        const alpha = 180 * (1 - t);
+        const radius = this.baseRadius * (1 + t * 0.2);
+        p.noStroke();
+        p.fill(this.hue, 60, 100, alpha);
+        p.circle(this.x, this.y, radius * 2);
+    }
 }
 
 function createRenderer(box, particleSystem, params, updateFn) {
@@ -190,34 +265,6 @@ function createRenderer(box, particleSystem, params, updateFn) {
         }
     }
 
-    class Flash {
-        constructor(x, y, strength, hue) {
-            this.x = x;
-            this.y = y;
-            this.hue = hue;
-            this.age = 0;
-            this.lifetime = flashDuration;
-            this.baseRadius = 2 + strength * 0.015;
-        }
-
-        update(dt) {
-            this.age += dt;
-        }
-
-        isDead() {
-            return this.age >= this.lifetime;
-        }
-
-        draw(p) {
-            const t = this.age / this.lifetime;
-            const alpha = 180 * (1 - t);
-            const radius = this.baseRadius * (1 + t * 0.2);
-            p.noStroke();
-            p.fill(this.hue, 60, 100, alpha);
-            p.circle(this.x, this.y, radius * 2);
-        }
-    }
-
     const simSketch = (p) => {
         p.setup = () => {
             p.createCanvas(SIM_CANVAS_WIDTH, SIM_CANVAS_HEIGHT);
@@ -232,58 +279,15 @@ function createRenderer(box, particleSystem, params, updateFn) {
 
             const collisions = particleSystem.getLastPistonCollisions();
             for (const c of collisions) {
-                flashes.push(new Flash(c.x, c.y, c.momentumTransfer, computeHueFromSpeed(c.speed)));
+                flashes.push(new Flash(c.x, c.y, c.momentumTransfer, computeHueFromSpeed(c.speed), flashDuration));
             }
             for (const f of flashes) f.update(dt);
             flashes = flashes.filter(f => !f.isDead());
 
             p.background(0, 0, 98);
-
-            const pistonX = box.x + box.width;
-            const midY = (CYLINDER_TOP + CYLINDER_BOTTOM) / 2;
-
-            const HATCH_W = 18;
-            const HATCH_STEP = 10;
-            p.stroke(0, 0, 55);
-            p.strokeWeight(1);
-            for (let y = CYLINDER_TOP + 4; y < CYLINDER_BOTTOM - HATCH_W + 4; y += HATCH_STEP) {
-                p.line(CYLINDER_LEFT, y, CYLINDER_LEFT - HATCH_W, y + HATCH_W);
-            }
-
-            p.stroke(0, 0, 31);
-            p.strokeWeight(1);
-            p.line(CYLINDER_LEFT, CYLINDER_TOP, CYLINDER_RIGHT, CYLINDER_TOP);
-            p.line(CYLINDER_LEFT, CYLINDER_BOTTOM, CYLINDER_RIGHT, CYLINDER_BOTTOM);
-
-            p.strokeWeight(4);
-            p.line(CYLINDER_LEFT, CYLINDER_TOP, CYLINDER_LEFT, CYLINDER_BOTTOM);
-
-            p.noStroke();
-            p.fill(0, 0, 48);
-            p.rect(pistonX, CYLINDER_TOP, 12, CYLINDER_BOTTOM - CYLINDER_TOP);
-
-            p.fill(0, 0, 62);
-            const rodLen = 70;
-            const rodH = 14;
-            p.rect(pistonX + 12, midY - rodH / 2, rodLen, rodH);
-
-            p.fill(0, 0, 42);
-            const handleW = 6;
-            const handleH = 32;
-            p.rect(pistonX + 12 + rodLen, midY - handleH / 2, handleW, handleH);
-
-            p.noStroke();
-            const particles = particleSystem.getParticles();
-            for (const particle of particles) {
-                const speed = Math.sqrt(particle.vx * particle.vx + particle.vy * particle.vy);
-                const ratio = Math.min(speed / vMaxColor, 1.0);
-                const hue = computeHueFromSpeed(speed);
-                const sat = 40 + 60 * ratio;
-                const bri = 70 + 30 * ratio;
-                p.fill(hue, sat, bri);
-                p.circle(particle.x, particle.y, particle.radius * 2);
-            }
-
+            drawCylinderShell(p);
+            drawPiston(p, box.x + box.width);
+            drawParticlesHSB(p, particleSystem.getParticles(), vMaxColor);
             for (const f of flashes) f.draw(p);
         };
     };

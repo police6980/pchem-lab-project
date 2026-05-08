@@ -1,0 +1,11 @@
+{
+  "name": "off-60s",
+  "description": "노이즈 off (raw) 60초 — σ ≈ 0 검증 (시뮬 본체 deterministic)",
+  "preset": "off",
+  "duration": 60,
+  "channel": 0,
+  "expect": {
+    "sigma_max_pa": 1,
+    "maxSpike_max_pa": 1
+  }
+}

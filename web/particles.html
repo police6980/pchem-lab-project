@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ChemViz AI — 입자운동론 탐구</title>
+    <link rel="stylesheet" href="css/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/p5@1.11.2/lib/p5.min.js"></script>
+    <script src="https://unpkg.com/docx@8.5.0/build/index.umd.js"></script>
+    <script src="js/simulation.js" defer></script>
+    <script src="js/renderer.js" defer></script>
+    <script src="js/protocol.js" defer></script>
+    <script src="js/serial.js" defer></script>
+    <script src="js/logger.js" defer></script>
+    <!-- ai-tutor.js 미사용 — createAdvAiTutor (ui.js) 가 자체 처리. ai-tutor.js 의 .ai-sidebar 셀렉터가 입자운동 탭까지 영향 → 비활성 버그 (Phase 5.4) 회피 -->
+    <!-- Phase 5.7 트랙 6-b: tutor.js (통합 모듈) 추가 -->
+    <script src="js/tutor.js" defer></script>
+    <script src="js/ui.js" defer></script>
+    <script src="js/main.js" defer></script>
+</head>
+<body data-page="particles">
+    <nav class="page-nav">
+        <a href="index.html" class="nav-home" title="홈으로 돌아가기">🏠 홈으로</a>
+    </nav>
+    <div id="advanced-mode">
+        <main id="adv-main-container" class="main-area">
+            <section id="adv-section-controls">
+                <div class="control-row adv-control-row-temperature">
+                    <span class="adv-temp-label">온도:</span>
+                    <div class="adv-temp-presets">
+                        <button data-celsius="-100">-100°C</button>
+                        <button data-celsius="0">0°C</button>
+                        <button data-celsius="25" class="active">25°C</button>
+                        <button data-celsius="100">100°C</button>
+                        <button data-celsius="300">300°C</button>
+                        <button data-celsius="500">500°C</button>
+                    </div>
+                    <div class="adv-temp-custom">
+                        <input type="number" id="adv-temp-custom-input" min="-100" max="500" step="1" placeholder="°C">
+                        <button id="adv-btn-temp-set" disabled>설정</button>
+                    </div>
+                    <span class="adv-temp-current">현재: <strong id="adv-temp-current-celsius">25</strong>°C / <strong id="adv-temp-current-kelvin">298</strong>K</span>
+                </div>
+                <div class="control-row adv-control-row-actuators">
+                    <div id="adv-volume-slider-wrap">
+                        <label for="adv-volume-slider">부피</label>
+                        <div class="adv-slider-wrap">
+                            <input type="range" id="adv-volume-slider" min="20" max="80" step="1" value="50">
+                            <div class="adv-range-hint"><span>20 mL</span><span>80 mL</span></div>
+                        </div>
+                        <span id="adv-volume-value" class="adv-slider-value">50 mL</span>
+                    </div>
+                    <div id="adv-pressure-wrap">
+                        <span class="adv-pressure-label">압력</span>
+                        <strong id="adv-pressure-value">101.3 kPa</strong>
+                    </div>
+                    <div id="adv-particle-slider-wrap">
+                        <label for="adv-particle-slider">입자 수</label>
+                        <div class="adv-slider-wrap">
+                            <input type="range" id="adv-particle-slider" min="50" max="800" step="50" value="300">
+                            <div class="adv-range-hint"><span>50</span><span>800</span></div>
+                        </div>
+                        <span id="adv-particle-value" class="adv-slider-value">300개</span>
+                    </div>
+                    <div id="adv-gas-select-wrap">
+                        <label for="adv-gas-select">기체</label>
+                        <select id="adv-gas-select">
+                            <option value="He">He</option>
+                            <option value="N2" selected>N₂</option>
+                            <option value="Ar">Ar</option>
+                            <option value="CO2">CO₂</option>
+                        </select>
+                    </div>
+                    <button id="adv-btn-record">기록</button>
+                </div>
+                <div class="adv-control-row-playback">
+                    <span class="playback-label">재생 속도:</span>
+                    <div class="playback-btn-group">
+                        <button class="playback-btn" data-speed="0.25">0.25x</button>
+                        <button class="playback-btn" data-speed="0.5">0.5x</button>
+                        <button class="playback-btn active" data-speed="1">1x</button>
+                    </div>
+                    <button class="pause-btn" id="adv-btn-pause">⏸</button>
+                </div>
+            </section>
+            <section id="adv-section-canvas">
+                <div id="adv-sim-canvas-container"></div>
+                <div id="adv-tracker-column">
+                    <div id="adv-tracker-canvas-container"></div>
+                    <div id="adv-tracker-gauge">
+                        <div class="adv-gauge-label">추적 입자 속도</div>
+                        <div class="adv-gauge-bar-track">
+                            <div id="adv-gauge-bar-fill"></div>
+                            <div id="adv-gauge-mean-mark" title="전체 평균"></div>
+                        </div>
+                        <div class="adv-gauge-stats">
+                            <span>현재: <strong id="adv-gauge-current">— px/s</strong></span>
+                            <span>평균: <strong id="adv-gauge-mean-value">— px/s</strong></span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            <section id="adv-section-visuals">
+                <div id="adv-histogram-area"></div>
+                <div id="adv-info-panel-area"></div>
+            </section>
+            <section id="adv-section-measurements"></section>
+        </main>
+        <aside id="adv-ai-sidebar" class="ai-sidebar">
+            <header class="sidebar-header">
+                <h2>🤖 AI 튜터</h2>
+                <div class="header-actions">
+                    <button id="adv-btn-toggle-settings" title="설정" aria-label="설정 토글" class="icon-btn">⚙</button>
+                    <button id="adv-btn-ai-collapse" title="사이드바 접기" aria-label="사이드바 접기" class="icon-btn">×</button>
+                </div>
+            </header>
+            <div id="adv-ai-settings-panel" class="settings-panel">
+                <div class="api-key-hint">
+                    🔑 API 키는 <a href="index.html">🏠 홈</a> 에서 설정합니다.
+                </div>
+                <div class="options-row">
+                    <label>학생 수준
+                        <select id="adv-ai-student-level">
+                            <option value="elem">초등학생</option>
+                            <option value="middle">중학생</option>
+                            <option value="high" selected>고등학생</option>
+                            <option value="univ">대학생</option>
+                        </select>
+                    </label>
+                    <label>모델
+                        <select id="adv-ai-model">
+                            <option value="claude-sonnet-4-6" selected>Sonnet</option>
+                            <option value="claude-opus-4-7">Opus</option>
+                        </select>
+                    </label>
+                </div>
+                <div class="usage-display">
+                    이번 세션 사용량:
+                    <span id="adv-tokens-used">0</span> 토큰
+                    (약 <span id="adv-cost-estimate">0</span>원)
+                </div>
+            </div>
+            <div class="sidebar-body">
+                <nav class="question-tabs">
+                    <button class="tab-btn active" data-q="1"><span>Q1</span></button>
+                    <button class="tab-btn" data-q="2"><span>Q2</span></button>
+                    <button class="tab-btn" data-q="3"><span>Q3</span></button>
+                    <button class="tab-btn" data-q="4"><span>Q4</span></button>
+                    <button class="tab-btn tab-btn-free" data-q="free"><span>💬 자유</span></button>
+                </nav>
+                <div class="question-context">
+                    <small>현재 대화 주제:</small>
+                    <p class="question-snippet" id="adv-question-snippet">—</p>
+                </div>
+                <div class="conversation-scroll" id="adv-conversation-scroll">
+                    <div class="empty-state" id="adv-conversation-empty">
+                        실험이 궁금한 게 생겼나요?<br>
+                        아래 입력창에 자유롭게 질문해보세요.<br><br>
+                        <small>
+                            예: "왜 온도가 높으면 입자가 빨라지나요?"<br>
+                            &nbsp;&nbsp;&nbsp;&nbsp;"평균 속도와 최빈 속도는 왜 다를까요?"
+                        </small>
+                    </div>
+                    <div class="messages-list" id="adv-messages-list"></div>
+                </div>
+            </div>
+            <div class="message-input-area">
+                <textarea id="adv-message-input"
+                          placeholder="메시지 입력 (Enter 전송, Shift+Enter 줄바꿈)"
+                          rows="2"></textarea>
+                <button id="btn-send-message" title="전송">↑</button>
+            </div>
+        </aside>
+        <button id="adv-ai-reopen-btn" title="AI 튜터 열기">💬</button>
+    </div>
+</body>
+</html>

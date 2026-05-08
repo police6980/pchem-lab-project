@@ -1,0 +1,39 @@
+name: CI
+
+# Phase 5.5 트랙 5 — 단위 테스트 자동 실행 (sensor-guard + dalton-collision).
+# 시나리오 회귀 (run-all.js, 4 시나리오 × 60s) 는 시간 부담 (~4분+) 으로
+# CI 외 (개발자 수동). baseline.js 도 동일.
+
+on:
+  push:
+    branches: ['**']  # 모든 브랜치
+  pull_request:
+    branches: [main, phase5-real-sensor]
+
+jobs:
+  unit-tests:
+    name: Node unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install firmware-emulator deps
+        working-directory: tools/firmware-emulator
+        run: npm install --no-audit --no-fund
+
+      - name: outlier 가드 5 단계 unit test
+        run: node --test tests/sensor-guard-test.js
+
+      - name: protocol.js parseV11Line unit test
+        run: node --test tests/protocol-test.js
+
+      - name: 돌턴 입자간 충돌 7 검증
+        run: node tests/dalton-collision-test.js
+
+      # 시나리오 회귀 (run-all.js) — CI 외 (시간 부담 + emulator spawn 환경 의존).
+      # 개발자 수동 실행 권장: cd tools/firmware-emulator && node run-all.js

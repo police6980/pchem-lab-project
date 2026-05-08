@@ -1,3 +1,14 @@
+/* DSEG7 Classic — 7-segment 디스플레이 폰트
+   출처: @fontsource/dseg7@4.5.4 (npm), 원본 keshikan/DSEG (SIL Open Font License)
+   자체 호스팅 (web/assets/fonts/) — CDN 의존 0, 학교 환경 안정성 확보 */
+@font-face {
+    font-family: 'DSEG7 Classic';
+    src: url('../assets/fonts/DSEG7Classic-Bold.woff2') format('woff2');
+    font-weight: bold;
+    font-style: normal;
+    font-display: swap;
+}
+
 /* Boyle's law experiment - layout and styling */
 
 body {
@@ -5,6 +16,9 @@ body {
     padding: 16px;
     background: #f5f5f5;
     font-family: system-ui, sans-serif;
+}
+
+#basic-mode {
     display: flex;
     gap: 16px;
     align-items: flex-start;
@@ -30,7 +44,8 @@ body {
     flex-shrink: 0;
     border: 1px solid #d0d0d0;
     border-radius: 8px;
-    height: calc(100vh - 32px);
+    height: min(720px, calc(100vh - 32px));
+    overflow: hidden;
     position: sticky;
     top: 16px;
     display: flex;
@@ -911,7 +926,7 @@ body.sidebar-collapsed #ai-sidebar {
     display: flex;
 }
 
-#info-panel {
+.info-panel-styled {
     padding: 20px;
     background: white;
     border-radius: 8px;
@@ -922,11 +937,11 @@ body.sidebar-collapsed #ai-sidebar {
     flex: 1;
 }
 
-#info-panel .info-section + .info-section {
+.info-panel-styled .info-section + .info-section {
     margin-top: 14px;
 }
 
-#info-panel .info-section-title {
+.info-panel-styled .info-section-title {
     font-size: 12px;
     font-weight: 600;
     color: #888;
@@ -937,7 +952,7 @@ body.sidebar-collapsed #ai-sidebar {
     border-bottom: 1px solid #e5e5e5;
 }
 
-#info-panel .info-row {
+.info-panel-styled .info-row {
     display: flex;
     justify-content: space-between;
     align-items: baseline;
@@ -945,11 +960,11 @@ body.sidebar-collapsed #ai-sidebar {
     font-size: 14px;
 }
 
-#info-panel .info-label {
+.info-panel-styled .info-label {
     color: #666;
 }
 
-#info-panel .info-value {
+.info-panel-styled .info-value {
     font-family: ui-monospace, "SF Mono", Consolas, monospace;
     color: #222;
     font-weight: 500;
@@ -957,7 +972,7 @@ body.sidebar-collapsed #ai-sidebar {
     text-align: right;
 }
 
-#info-panel .info-unit {
+.info-panel-styled .info-unit {
     color: #888;
     font-size: 11px;
     font-weight: 400;
@@ -965,24 +980,45 @@ body.sidebar-collapsed #ai-sidebar {
 }
 
 /* Section 4: Measurement table + PV plot */
+/* Measurements row: three equal-footprint cards with generous breathing room.
+   Outer section is a transparent flex container; each child is its own card. */
 #section-measurements {
-    padding: 16px 20px;
+    padding: 0;
+    background: transparent;
+    box-shadow: none;
+    border-radius: 0;
+    display: flex;
+    gap: 24px;
+}
+
+#section-measurements #measurement-panel,
+#section-measurements #pv-plot-area,
+#section-measurements #invv-plot-area {
     background: white;
     border-radius: 8px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-    display: flex;
-    gap: 20px;
-}
-
-#section-measurements #measurement-panel {
-    flex: 6;
-}
-
-#section-measurements #pv-plot-area {
-    flex: 4;
+    min-width: 0;
     display: flex;
     flex-direction: column;
     gap: 8px;
+}
+
+#section-measurements #measurement-panel {
+    flex: 4;
+    padding: 16px 20px;
+}
+#section-measurements #pv-plot-area,
+#section-measurements #invv-plot-area {
+    flex: 3;
+    padding: 10px 12px;
+}
+
+/* Table empty-state cell (shows "측정점을 2개 이상 기록하세요" when no rows). */
+#measurement-panel table {
+    table-layout: auto;
+}
+#measurement-panel .summary {
+    text-align: center;
 }
 
 #measurement-panel {
@@ -1100,14 +1136,17 @@ body.sidebar-collapsed #ai-sidebar {
     margin: 0 2px;
 }
 
-#pv-plot-area .plot-toggles {
+#pv-plot-area .plot-toggles,
+#invv-plot-area .plot-toggles {
     display: flex;
-    gap: 16px;
+    gap: 12px;
     font-size: 12px;
     color: #555;
+    flex-wrap: wrap;
 }
 
-#pv-plot-area .plot-toggles label {
+#pv-plot-area .plot-toggles label,
+#invv-plot-area .plot-toggles label {
     display: inline-flex;
     align-items: center;
     gap: 6px;
@@ -1115,17 +1154,39 @@ body.sidebar-collapsed #ai-sidebar {
     user-select: none;
 }
 
-#pv-plot-area .plot-toggles input[type="checkbox"] {
+#pv-plot-area .plot-toggles input[type="checkbox"],
+#invv-plot-area .plot-toggles input[type="checkbox"] {
     cursor: pointer;
 }
 
-#pv-plot-area .plot-toggles input[type="checkbox"]:disabled {
+#pv-plot-area .plot-toggles input[type="checkbox"]:disabled,
+#invv-plot-area .plot-toggles input[type="checkbox"]:disabled {
     cursor: not-allowed;
 }
 
-#pv-plot-area .plot-toggles label:has(input:disabled) {
+#pv-plot-area .plot-toggles label:has(input:disabled),
+#invv-plot-area .plot-toggles label:has(input:disabled) {
     color: #aaa;
     cursor: not-allowed;
+}
+
+/* Canvas-wrap takes the remaining vertical space in the card and centres the
+   canvas on both axes. Canvas itself is capped at 100% of wrap so narrow
+   containers shrink it; on wider containers it sits at its native 380 px
+   with symmetric whitespace left and right. */
+#pv-plot-canvas-wrap,
+#invv-plot-canvas-wrap {
+    flex: 1;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+#pv-plot-canvas-wrap canvas,
+#invv-plot-canvas-wrap canvas {
+    max-width: 100%;
+    height: auto;
+    display: block;
 }
 
 @media (max-width: 900px) {
@@ -1264,27 +1325,45 @@ body.sidebar-collapsed #ai-sidebar {
     opacity: 0.5;
     cursor: not-allowed;
 }
-#sensor-real-controls {
+#sensor-real-controls,
+#sensor-ws-controls {
     display: flex;
     align-items: center;
     gap: 8px;
 }
-#sensor-real-controls button {
+#sensor-real-controls button,
+#sensor-ws-controls button {
     padding: 6px 10px;
     font-size: 0.88rem;
     cursor: pointer;
 }
-#sensor-real-controls button:disabled {
+#sensor-real-controls button:disabled,
+#sensor-ws-controls button:disabled {
     opacity: 0.5;
     cursor: not-allowed;
 }
-#serial-status {
+#serial-status,
+#ws-status {
     font-size: 0.85rem;
     font-weight: 500;
 }
-.status-connected { color: #27ae60; }
+#ws-sensor-label {
+    font-size: 0.8rem;
+    color: #555;
+}
+.status-connected    { color: #27ae60; }
 .status-disconnected { color: #c0392b; }
-.status-error { color: #e67e22; }
+.status-error        { color: #e67e22; }
+.status-connecting   { color: #7f8ba5; }
+.volume-reminder {
+    margin: 4px 0 8px;
+    padding: 8px 12px;
+    background: #fff3cd;
+    border-left: 4px solid #ffc107;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    color: #856404;
+}
 #serial-sensor-label {
     font-size: 0.8rem;
     color: #555;
@@ -1698,4 +1777,1873 @@ body.sidebar-collapsed #ai-sidebar {
 }
 body.sidebar-collapsed #ai-reopen-btn {
   display: block;
+}
+
+/* Advanced-mode sidebar — scoped collapse class so it's independent of basic's. */
+#advanced-mode {
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+}
+#advanced-mode > #adv-main-container {
+    flex: 1;
+    min-width: 0;
+}
+#advanced-mode > #adv-ai-sidebar {
+    flex-basis: 380px;
+    flex-shrink: 0;
+}
+body.adv-sidebar-collapsed #adv-ai-sidebar {
+    display: none;
+}
+#adv-ai-reopen-btn {
+    display: none;
+    position: fixed;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 9999;
+    background: #1e2433;
+    color: #cdd6f4;
+    border: 1px solid #2e3650;
+    border-right: none;
+    border-radius: 8px 0 0 8px;
+    padding: 12px 8px;
+    font-size: 18px;
+    cursor: pointer;
+    writing-mode: vertical-rl;
+}
+#adv-ai-reopen-btn:hover {
+    background: #2e3650;
+}
+body.adv-sidebar-collapsed #adv-ai-reopen-btn {
+    display: block;
+}
+
+/* ============================================================
+   Advanced-mode tabs + pane. All additive; no basic-mode styles
+   are overridden except `body`, which had to lose its flex so
+   mode-tabs can stack above the basic-mode layout.
+   ============================================================ */
+
+#mode-tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+#mode-tabs .tab-btn {
+    padding: 10px 20px;
+    font-size: 15px;
+    font-family: system-ui, sans-serif;
+    background: #f5f5f5;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    cursor: pointer;
+    color: #555;
+    font-weight: 500;
+}
+#mode-tabs .tab-btn:hover {
+    background: #eaeaea;
+}
+#mode-tabs .tab-btn.active {
+    background: #e8f0ff;
+    border-color: #6090d0;
+    color: #2050c0;
+}
+
+/* --- Advanced-mode layout — mirrors basic-mode structure --- */
+#adv-main-container {
+    padding: 0 20px;
+    font-family: system-ui, sans-serif;
+    color: #333;
+    width: 100%;
+    box-sizing: border-box;
+}
+#adv-main-container > section {
+    margin-bottom: 20px;
+}
+#adv-main-container > section:last-child {
+    margin-bottom: 0;
+}
+
+#adv-section-controls {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+    padding: 14px 20px;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+#adv-section-controls .control-row {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+}
+
+/* Temperature controls — same visual language as basic #temperature-control */
+.adv-control-row-temperature {
+    font-size: 14px;
+    color: #333;
+    flex-wrap: wrap;
+}
+.adv-control-row-temperature .adv-temp-label {
+    color: #666;
+    font-weight: 500;
+    white-space: nowrap;
+}
+.adv-control-row-temperature .adv-temp-presets {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+.adv-control-row-temperature .adv-temp-presets button,
+.adv-control-row-temperature .adv-temp-custom button {
+    padding: 4px 10px;
+    font-size: 13px;
+    background: #f5f5f5;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    cursor: pointer;
+    color: #333;
+    font-family: inherit;
+}
+.adv-control-row-temperature .adv-temp-presets button {
+    min-width: 56px;
+}
+.adv-control-row-temperature .adv-temp-presets button:hover,
+.adv-control-row-temperature .adv-temp-custom button:hover:not(:disabled) {
+    background: #eaeaea;
+}
+.adv-control-row-temperature .adv-temp-presets button.active {
+    background: #e8f0ff;
+    border-color: #6090d0;
+    color: #2050c0;
+}
+.adv-control-row-temperature .adv-temp-custom {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+}
+.adv-control-row-temperature .adv-temp-custom input {
+    font-family: ui-monospace, "SF Mono", Consolas, monospace;
+    font-size: 13px;
+    width: 80px;
+    padding: 4px 6px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    text-align: right;
+}
+.adv-control-row-temperature .adv-temp-custom input.invalid {
+    border-color: #d04040;
+}
+.adv-control-row-temperature .adv-temp-custom button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+.adv-control-row-temperature .adv-temp-current {
+    font-size: 13px;
+    color: #666;
+}
+.adv-control-row-temperature .adv-temp-current strong {
+    font-family: ui-monospace, "SF Mono", Consolas, monospace;
+    color: #222;
+    font-weight: 500;
+}
+
+/* Actuator row — volume + pressure + particle + gas + record on a single
+   compact line, with vertical dividers between logical groups. */
+.adv-control-row-actuators {
+    flex-wrap: wrap;
+    gap: 14px;
+}
+.adv-control-row-actuators > * + * {
+    padding-left: 14px;
+    border-left: 1px solid #e5e5e5;
+}
+.adv-control-row-actuators #adv-btn-record {
+    border-left: none;
+    padding-left: 18px;
+}
+#adv-volume-slider-wrap,
+#adv-particle-slider-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    color: #333;
+    flex: 0 0 auto;
+}
+#adv-volume-slider-wrap label,
+#adv-particle-slider-wrap label,
+#adv-gas-select-wrap label {
+    color: #666;
+    font-weight: 500;
+    white-space: nowrap;
+}
+.adv-slider-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 150px;
+}
+.adv-slider-wrap input[type="range"] {
+    width: 100%;
+    accent-color: #6090d0;
+    cursor: pointer;
+}
+.adv-range-hint {
+    display: flex;
+    justify-content: space-between;
+    font-size: 10px;
+    color: #999;
+}
+.adv-slider-value {
+    font-family: ui-monospace, "SF Mono", Consolas, monospace;
+    font-size: 13px;
+    color: #222;
+    min-width: 58px;
+    text-align: right;
+}
+#adv-gas-select-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 0 0 auto;
+}
+#adv-gas-select {
+    font-family: inherit;
+    font-size: 14px;
+    padding: 4px 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    background: white;
+    cursor: pointer;
+}
+
+/* Canvas row — main simulation on the left, single-particle tracker on
+   the right. Canvases are created at native 900×360; CSS scales them down
+   to fit the container via flex ratios (7 : 3). Main stays dominant; the
+   tracker is ~43% the width of main but keeps the same aspect ratio. */
+/* Canvas row — matches the basic #section-canvas pattern exactly: flex
+   container with justify-content:center, no canvas size overrides. Each
+   canvas displays at its native p5 resolution (main 1000×360, tracker
+   400×144 with internal p.scale). */
+#adv-section-canvas {
+    display: flex;
+    justify-content: center;
+    gap: 24px;
+    align-items: stretch;
+    padding: 10px;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+#adv-sim-canvas-container,
+#adv-tracker-canvas-container {
+    flex: 0 0 auto;
+    line-height: 0;
+}
+
+/* Tracker column: canvas on top, speed gauge below. */
+#adv-tracker-column {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    flex: 0 0 auto;
+}
+
+#adv-tracker-gauge {
+    background: #f6f7f9;
+    border: 1px solid #e1e4ea;
+    border-radius: 6px;
+    padding: 10px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    font-family: system-ui, sans-serif;
+    line-height: 1.3;
+    /* With parent column aligned to the main sim's 360px height, the gauge
+       sits at its natural size in the middle of the leftover vertical space
+       below the tracker canvas (margin-top:auto + margin-bottom:auto
+       distributes the free height equally above and below). */
+    margin-top: auto;
+    margin-bottom: auto;
+}
+.adv-gauge-label {
+    font-size: 11px;
+    font-weight: 500;
+    color: #666;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+.adv-gauge-bar-track {
+    position: relative;
+    height: 12px;
+    background: #dcdfe5;
+    border-radius: 6px;
+    overflow: visible;
+}
+#adv-gauge-bar-fill {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 0%;
+    background: hsl(240, 60%, 55%);
+    border-radius: 6px;
+    transition: width 0.12s linear, background-color 0.12s linear;
+}
+#adv-gauge-mean-mark {
+    position: absolute;
+    top: -3px;
+    bottom: -3px;
+    left: 0;
+    width: 2px;
+    background: #222;
+    transform: translateX(-1px);
+    transition: left 0.12s linear;
+}
+.adv-gauge-stats {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: #666;
+}
+.adv-gauge-stats strong {
+    font-family: ui-monospace, "SF Mono", Consolas, monospace;
+    color: #222;
+    font-weight: 500;
+    margin: 0 2px;
+}
+
+/* Pressure readout next to volume slider (row 2) */
+#adv-pressure-wrap {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 6px;
+    font-size: 14px;
+    flex: 0 0 auto;
+}
+#adv-pressure-wrap .adv-pressure-label {
+    color: #666;
+}
+#adv-pressure-wrap #adv-pressure-value {
+    font-family: ui-monospace, "SF Mono", Consolas, monospace;
+    color: #2050c0;
+    font-size: 15px;
+    min-width: 92px;
+}
+
+/* Record button — sits at the far right of the actuators row, accent-coloured
+   so it reads as the primary action on the control bar. */
+.adv-control-row-actuators #adv-btn-record {
+    padding: 7px 18px;
+    font-size: 14px;
+    font-weight: 500;
+    background: #e8f0ff;
+    border: 1px solid #6090d0;
+    border-radius: 4px;
+    cursor: pointer;
+    color: #2050c0;
+    font-family: system-ui, sans-serif;
+    white-space: nowrap;
+}
+.adv-control-row-actuators #adv-btn-record:hover {
+    background: #d7e4ff;
+}
+/* Horizontal layout identical to basic #section-visuals:
+   histogram on the left (flex:6), info panel on the right (flex:4). */
+#adv-section-visuals {
+    display: flex;
+    gap: 20px;
+}
+#adv-histogram-area {
+    flex: 6;
+    padding: 10px;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+}
+.adv-hist-header {
+    font-size: 16px;
+    font-weight: 500;
+    color: #333;
+    padding: 2px 0;
+}
+.adv-hist-header strong {
+    font-family: ui-monospace, "SF Mono", Consolas, monospace;
+    color: #2050c0;
+    font-size: 18px;
+    font-weight: 600;
+    margin: 0 2px;
+}
+#adv-info-panel-area {
+    flex: 4;
+    display: flex;
+}
+
+/* Measurements section — mirrors basic #section-measurements visual language. */
+#adv-section-measurements {
+    padding: 16px 20px;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    display: flex;
+    gap: 20px;
+}
+#adv-section-measurements #adv-measurement-panel {
+    flex: 6;
+    font-family: system-ui, sans-serif;
+    color: #333;
+    font-size: 13px;
+}
+#adv-section-measurements #adv-pvnt-plot-area {
+    flex: 4;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+#adv-measurement-panel .section-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+#adv-measurement-panel .section-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: #888;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+#adv-measurement-panel .section-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+#adv-measurement-panel .section-actions button {
+    padding: 6px 14px;
+    font-size: 12px;
+    background: #f5f5f5;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    cursor: pointer;
+    color: #555;
+    font-family: inherit;
+}
+#adv-measurement-panel .section-actions button:hover:not(:disabled) {
+    background: #eaeaea;
+}
+#adv-measurement-panel .section-actions button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+#adv-measurement-panel table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 12px;
+}
+#adv-measurement-panel th {
+    text-align: left;
+    padding: 6px 8px;
+    border-bottom: 1px solid #e5e5e5;
+    color: #888;
+    font-weight: 600;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+#adv-measurement-panel th.num-col, #adv-measurement-panel td.num {
+    text-align: right;
+}
+#adv-measurement-panel td {
+    padding: 5px 8px;
+    border-bottom: 1px solid #f0f0f0;
+}
+#adv-measurement-panel td.num {
+    font-family: ui-monospace, "SF Mono", Consolas, monospace;
+}
+#adv-measurement-panel td.pvnt {
+    background: #fbf9ec;
+    font-weight: 500;
+}
+#adv-measurement-panel .btn-delete {
+    padding: 2px 8px;
+    background: transparent;
+    border: none;
+    color: #999;
+    cursor: pointer;
+    font-size: 14px;
+    line-height: 1;
+}
+#adv-measurement-panel .btn-delete:hover {
+    color: #c04040;
+}
+#adv-measurement-panel .summary {
+    padding: 10px 14px;
+    background: #f8f8f8;
+    border-radius: 4px;
+    color: #555;
+}
+#adv-measurement-panel .summary strong {
+    color: #222;
+    font-family: ui-monospace, "SF Mono", Consolas, monospace;
+    font-weight: 500;
+    margin: 0 2px;
+}
+#adv-pvnt-plot-area .plot-toggles {
+    display: flex;
+    gap: 16px;
+    font-size: 12px;
+    color: #666;
+}
+#adv-pvnt-plot-area .plot-toggles label {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+}
+#adv-pvnt-plot-wrap {
+    flex: 1;
+    background: #fcfcfc;
+    border: 1px solid #eee;
+    border-radius: 4px;
+    padding: 6px;
+}
+#adv-pvnt-plot-wrap svg {
+    display: block;
+    width: 100%;
+    height: auto;
+}
+
+.hidden {
+    display: none !important;
+}
+
+/* ============================================================
+   Responsive Step 1 — AI sidebar overlay mode on narrow viewports.
+   Below 1600px, both sidebars leave the flex flow (position:fixed)
+   and slide in from the right like a drawer. Push-mode (≥1600px)
+   is untouched; all rules live inside @media so rollback is clean.
+   ============================================================ */
+@media (max-width: 1599px) {
+    #ai-sidebar,
+    #adv-ai-sidebar {
+        position: fixed;
+        top: 74px;
+        bottom: auto;
+        right: 0;
+        max-height: calc(100vh - 106px);
+        width: 380px;
+        z-index: 1000;
+        box-shadow: -4px 0 12px rgba(0, 0, 0, 0.1);
+        overflow: hidden;
+        transform: translateX(0);
+        transition: transform 0.3s ease;
+    }
+
+    /* Override the base rules' `display: none` so the element stays
+       rendered and the transform can animate the slide-out.
+       pointer-events disabled while off-screen so it can't intercept
+       clicks on the main content. */
+    body.sidebar-collapsed #ai-sidebar,
+    body.adv-sidebar-collapsed #adv-ai-sidebar {
+        display: flex;
+        transform: translateX(100%);
+        pointer-events: none;
+    }
+}
+
+/* ============================================================
+   Responsive Step 2a — Advanced tab tracker column stacks below
+   the main canvas on narrow viewports. Breakpoint (1919px) is
+   higher than the sidebar overlay breakpoint (1599px) to cover
+   the 1600–1911 dead zone where the overlay hasn't triggered
+   yet but the tracker row (1000 + 24 + 400 px) overflows the
+   container card.
+   ============================================================ */
+@media (max-width: 1919px) {
+    #adv-section-canvas {
+        flex-direction: column;
+        gap: 16px;
+    }
+    #adv-tracker-column {
+        align-self: center;
+    }
+}
+
+/* ============================================================
+   Responsive Step 2b — CSS-scale the p5 canvases when they can
+   no longer fit their parents at native resolution. The canvas
+   bitmap stays at its createCanvas() value (1000×360 etc.) —
+   only the display size shrinks, so world coordinates and the
+   physics simulation are unaffected. height:auto preserves the
+   aspect ratio.
+   ============================================================ */
+@media (max-width: 1279px) {
+    #section-canvas canvas,
+    #histogram-area canvas,
+    #adv-sim-canvas-container canvas,
+    #adv-tracker-canvas-container canvas,
+    #adv-histogram-area canvas {
+        max-width: 100%;
+        height: auto;
+    }
+}
+
+/* ============================================================
+   Responsive Step 2c — Visual rows (histogram+info, measurement+
+   graphs) fold into vertical stacks when horizontal space runs
+   out entirely. An existing `@media (max-width: 900px)` already
+   stacks #section-measurements; this rule raises that breakpoint
+   to 1023px and adds the #adv- counterparts.
+   ============================================================ */
+@media (max-width: 1023px) {
+    #section-visuals,
+    #adv-section-visuals,
+    #section-measurements,
+    #adv-section-measurements {
+        flex-direction: column;
+    }
+}
+
+/* ============================================================
+   Playback controls — slowmo (0.25x / 0.5x / 1x) + pause.
+   Added as a 3rd row in #section-controls / #adv-section-controls.
+   Separated from the actuator/temperature rows with a subtle top
+   border to signal "meta control" (affects time itself, not the
+   experiment state).
+   ============================================================ */
+.control-row-playback,
+.adv-control-row-playback {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding-top: 8px;
+    margin-top: 8px;
+    border-top: 1px solid #e0e0e0;
+}
+
+.playback-label {
+    font-size: 13px;
+    color: #666;
+    margin-right: 4px;
+}
+
+.playback-btn-group {
+    display: inline-flex;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.playback-btn-group .playback-btn {
+    border: none;
+    padding: 6px 12px;
+    background: #f5f5f5;
+    cursor: pointer;
+    font-size: 13px;
+    font-family: inherit;
+    color: #333;
+    transition: background 0.15s;
+}
+
+.playback-btn-group .playback-btn:not(:last-child) {
+    border-right: 1px solid #ccc;
+}
+
+.playback-btn-group .playback-btn:hover {
+    background: #e8e8e8;
+}
+
+.playback-btn-group .playback-btn.active {
+    background: #4a7de8;
+    color: white;
+}
+
+.pause-btn {
+    padding: 6px 14px;
+    background: #f5f5f5;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    font-family: inherit;
+    color: #333;
+    transition: background 0.15s;
+}
+
+.pause-btn:hover {
+    background: #e8e8e8;
+}
+
+.pause-btn.active {
+    background: #e8743c;
+    color: white;
+}
+
+/* =========================
+ * Landing page (web/index.html) — 실험 허브
+ * 기존 실험 UI 규칙과 격리되도록 .landing-page 스코프로 진입.
+ * ========================= */
+.landing-page {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 40px 20px;
+    background: #ffffff;
+    color: #222;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+.landing-header {
+    text-align: center;
+    margin-bottom: 40px;
+}
+
+/* .landing-header h1 의 font-size 는 .chemviz-logo 로 이관됨.
+   여기선 공통 margin/letter-spacing 만 유지 (신규 로고가 상속). */
+.landing-header h1 {
+    margin: 0 0 12px;
+    letter-spacing: -0.02em;
+}
+
+.landing-header .subtitle {
+    color: #666;
+    font-size: 1.05rem;
+    margin: 0;
+}
+
+.api-key-section {
+    background: #f8f9fb;
+    border: 1px solid #e1e4ec;
+    border-radius: 8px;
+    padding: 24px;
+    margin-bottom: 32px;
+}
+
+.api-key-section h2 {
+    margin: 0 0 12px;
+    font-size: 1.2rem;
+}
+
+.api-key-description {
+    color: #555;
+    font-size: 0.95rem;
+    line-height: 1.5;
+    margin: 0 0 8px;
+}
+
+.api-key-input-row {
+    display: flex;
+    gap: 8px;
+    margin: 12px 0;
+}
+
+.api-key-input-row input {
+    flex: 1;
+    padding: 8px 12px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+    font-size: 0.95rem;
+}
+
+.api-key-input-row button {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 4px;
+    background: #2e7cf6;
+    color: white;
+    cursor: pointer;
+    font-size: 0.95rem;
+}
+
+.api-key-input-row button.secondary {
+    background: #999;
+}
+
+.api-key-input-row button:hover {
+    filter: brightness(1.05);
+}
+
+.api-key-status {
+    font-size: 0.9rem;
+    margin-top: 4px;
+}
+
+.api-key-status.saved { color: #2a7a2a; }
+.api-key-status.empty { color: #999; }
+
+.api-key-help {
+    margin-top: 12px;
+    font-size: 0.9rem;
+    color: #666;
+}
+
+.api-key-help summary {
+    cursor: pointer;
+    color: #2e7cf6;
+}
+
+.api-key-help ol {
+    margin-top: 8px;
+    padding-left: 20px;
+    line-height: 1.7;
+}
+
+.api-key-help a {
+    color: #2e7cf6;
+}
+
+.api-key-help code {
+    background: #eef1f6;
+    padding: 1px 6px;
+    border-radius: 3px;
+    font-size: 0.85em;
+}
+
+.experiments-section h2 {
+    margin: 0 0 20px;
+    font-size: 1.3rem;
+}
+
+.experiment-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 20px;
+}
+
+.experiment-card {
+    display: block;
+    background: #ffffff;
+    border: 1px solid #e1e4ec;
+    border-radius: 8px;
+    padding: 24px;
+    text-decoration: none;
+    color: inherit;
+    transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+}
+
+.experiment-card.available:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    border-color: #2e7cf6;
+}
+
+.experiment-card.disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+.experiment-icon {
+    font-size: 2.5rem;
+    line-height: 1;
+    margin-bottom: 8px;
+}
+
+.experiment-card h3 {
+    margin: 8px 0;
+    font-size: 1.25rem;
+}
+
+.experiment-desc {
+    color: #666;
+    font-size: 0.95rem;
+    margin: 0 0 12px;
+}
+
+.experiment-tags {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 12px;
+}
+
+.tag {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+
+.tag-mbl { background: #e3f2fd; color: #1565c0; }
+.tag-sim { background: #f3e5f5; color: #7b1fa2; }
+.tag-ai  { background: #fef3c7; color: #92400e; }
+
+.experiment-detail {
+    color: #555;
+    font-size: 0.9rem;
+    line-height: 1.5;
+    margin: 0;
+}
+
+.experiment-detail em {
+    color: #999;
+    font-style: normal;
+}
+
+.experiment-detail code {
+    background: #eef1f6;
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-size: 0.85em;
+}
+
+.landing-footer {
+    text-align: center;
+    margin-top: 48px;
+    padding-top: 24px;
+    border-top: 1px solid #eee;
+    color: #999;
+    font-size: 0.9rem;
+}
+
+.landing-footer a {
+    color: #2e7cf6;
+    text-decoration: none;
+    margin: 0 8px;
+}
+
+/* =========================
+ * Page navigation — 실험 페이지 상단(boyle.html 등) 의 홈 복귀 네비
+ * ========================= */
+.page-nav {
+    padding: 10px 20px;
+    border-bottom: 1px solid #cfd6e4;
+    background: #e8f0fe;
+    margin-bottom: 12px;
+}
+
+.nav-home {
+    display: inline-block;
+    padding: 8px 16px;
+    background: white;
+    color: #2e7cf6;
+    border: 1px solid #2e7cf6;
+    text-decoration: none;
+    font-size: 0.95rem;
+    font-weight: 500;
+    border-radius: 6px;
+    transition: background 0.15s, color 0.15s;
+}
+
+.nav-home:hover {
+    background: #2e7cf6;
+    color: white;
+    text-decoration: none;
+}
+
+/* =========================
+ * API 키 안내 — 실험 페이지(boyle/particles) 설정 패널에
+ * API 키 입력 UI 가 없을 때 "홈에서 설정" 을 가리키는 hint 박스
+ * ========================= */
+.api-key-hint {
+    padding: 12px;
+    background: #f0f4f8;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    color: #555;
+    text-align: center;
+    margin: 8px 0;
+}
+
+.api-key-hint a {
+    color: #2e7cf6;
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.api-key-hint a:hover {
+    text-decoration: underline;
+}
+
+/* =========================
+ * ChemViz AI logo — 랜딩 헤더
+ * Chem(짙은 네이비) / Viz(파랑·강조) / AI(옅은 회색·보조) 삼색 구성
+ * ========================= */
+.chemviz-logo {
+    font-size: 3.5rem;
+    font-weight: 700;
+    line-height: 1.1;
+}
+
+.chemviz-logo .logo-chem {
+    color: #1a1a2e;
+}
+
+.chemviz-logo .logo-viz {
+    color: #2e7cf6;
+    font-weight: 800;
+}
+
+.chemviz-logo .logo-ai {
+    color: #9ca3af;
+    font-weight: 400;
+    margin-left: 4px;
+    font-size: 2.8rem;
+}
+
+@media (max-width: 600px) {
+    .chemviz-logo { font-size: 2.5rem; }
+    .chemviz-logo .logo-ai { font-size: 2rem; }
+}
+
+/* ============================================================
+   Phase 5 — Dalton Experiment 최소 레이아웃
+   Step A 보완. 완전한 디자인 마감은 Phase 5.6-a 에서.
+   목적: Step B 이후 작업 시 레이아웃이 무너져 보이지 않도록
+         body[data-page="dalton"] 스코프로 다른 페이지 무영향.
+   ============================================================ */
+
+body[data-page="dalton"] {
+    padding-right: 412px;  /* AI 사이드바 380px + 좌우 여백 */
+}
+
+/* AI 사이드바 접힘 시: 우측 padding 풀어 본문이 자동으로 가용 폭 차지 */
+body[data-page="dalton"].sidebar-collapsed {
+    padding-right: 16px;
+}
+
+body[data-page="dalton"] .dalton-nav {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 20px;
+}
+
+body[data-page="dalton"] .dalton-page-title {
+    flex: 1;
+    margin: 0;
+    font-size: 1.2rem;
+}
+
+body[data-page="dalton"] .dalton-page-utilities {
+    display: flex;
+    gap: 8px;
+}
+
+/* 메인 그리드 — 좌측 패널 + 중앙 메인 (≥1280px). 기록 테이블은 두 칼럼 가로질러. */
+body[data-page="dalton"] #dalton-mode.dalton-layout {
+    display: grid;
+    grid-template-columns: 320px 1fr 1.4fr;
+    grid-template-areas:
+        "panel main main"
+        "panel chart records";
+    gap: 20px;
+    align-items: start;
+}
+
+body[data-page="dalton"] #dalton-control-panel { grid-area: panel; }
+body[data-page="dalton"] #dalton-main { grid-area: main; }
+/* Step F 정정: chart 영역 매핑 */
+body[data-page="dalton"] #dalton-chart-wrap { grid-area: chart; }
+body[data-page="dalton"] #dalton-records-section { grid-area: records; }
+
+/* Step F 정정 (재): grid 자식의 min-width: auto (= 컨텐츠 본래 폭) 함정 차단 */
+/* fr 분배 정상화 — chart/records 칼럼이 자식 컨텐츠에 의해 부풀어오르지 않도록 */
+body[data-page="dalton"] #dalton-chart-wrap,
+body[data-page="dalton"] #dalton-records-section,
+body[data-page="dalton"] #dalton-main {
+    min-width: 0;
+}
+
+body[data-page="dalton"] #dalton-control-panel,
+body[data-page="dalton"] #dalton-main,
+body[data-page="dalton"] #dalton-records-section {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 16px;
+}
+
+body[data-page="dalton"] .dalton-section {
+    margin-bottom: 24px;
+}
+
+body[data-page="dalton"] .dalton-section-title {
+    font-size: 1.05rem;
+    font-weight: 600;
+    margin: 0 0 12px 0;
+    color: #1f2937;
+}
+
+/* 공통 필드 레이아웃 — 라벨 + 값 정렬 */
+body[data-page="dalton"] .dalton-field {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+    font-size: 0.95rem;
+}
+
+body[data-page="dalton"] .dalton-field label {
+    font-weight: 500;
+    color: #374151;
+    min-width: 64px;
+}
+
+body[data-page="dalton"] .dalton-field-label {
+    font-weight: 500;
+    color: #374151;
+    min-width: 64px;
+}
+
+body[data-page="dalton"] .dalton-controls {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 16px;
+}
+
+body[data-page="dalton"] .dalton-controls .dalton-btn {
+    flex: 1;
+    min-width: 80px;
+    padding: 10px 14px;
+    font-size: 0.95rem;
+    font-family: inherit;
+    font-weight: 500;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+/* primary: [주입 시작] */
+body[data-page="dalton"] .dalton-btn-primary {
+    background: #2563eb;
+    color: #fff;
+    border: 1px solid #1d4ed8;
+}
+body[data-page="dalton"] .dalton-btn-primary:hover:not(:disabled) {
+    background: #1d4ed8;
+}
+body[data-page="dalton"] .dalton-btn-primary:disabled {
+    background: #d1d5db;
+    color: #6b7280;
+    border-color: #d1d5db;
+    cursor: not-allowed;
+}
+
+/* secondary: [초기화] */
+body[data-page="dalton"] .dalton-btn-secondary {
+    background: #fff;
+    color: #374151;
+    border: 1px solid #d1d5db;
+}
+body[data-page="dalton"] .dalton-btn-secondary:hover:not(:disabled) {
+    background: #f9fafb;
+    border-color: #9ca3af;
+}
+body[data-page="dalton"] .dalton-btn-secondary:disabled {
+    background: #f3f4f6;
+    color: #9ca3af;
+    cursor: not-allowed;
+}
+
+/* .dalton-pressure-readout — 좌측 패널로 기능 이전, 제거 (Step C-1 v3) */
+
+/* Phase 5.4: 측정 기록 — 토글 폐기, 항상 펼침. 좁은 폭에서 12 컬럼 가로 스크롤 */
+body[data-page="dalton"] .dalton-records-section {
+    overflow-x: auto;
+}
+body[data-page="dalton"] .dalton-records-title {
+    font-size: 0.95rem;
+    font-weight: 600;
+    margin: 0 0 8px 0;
+    color: #111827;
+}
+body[data-page="dalton"] .dalton-records-table .delete-col {
+    width: 40px;
+    text-align: center;
+}
+body[data-page="dalton"] .dalton-records-table .delete-cell {
+    text-align: center;
+}
+body[data-page="dalton"] .record-delete-btn {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 2px 6px;
+    font-size: 0.95rem;
+    opacity: 0.6;
+    transition: opacity 0.15s;
+}
+body[data-page="dalton"] .record-delete-btn:hover {
+    opacity: 1.0;
+}
+
+body[data-page="dalton"] .dalton-records-table {
+    width: 100%;
+    font-size: 0.8rem;
+    border-collapse: collapse;
+    margin-top: 8px;
+}
+
+body[data-page="dalton"] .dalton-records-table th,
+body[data-page="dalton"] .dalton-records-table td {
+    padding: 4px 8px;
+    border-bottom: 1px solid #e5e7eb;
+    text-align: right;
+}
+
+/* Phase 5.3 기능 4: 비교 모드 — 체크박스 컬럼 + 비교 결과 영역 */
+body[data-page="dalton"] .dalton-records-table .compare-col {
+    width: 32px;
+    text-align: center;
+}
+body[data-page="dalton"] .dalton-records-table .compare-cell {
+    text-align: center;
+}
+body[data-page="dalton"] .dalton-records-table .compare-cell input[type="checkbox"] {
+    cursor: pointer;
+    margin: 0;
+}
+body[data-page="dalton"] .dalton-comparison-result {
+    margin-top: 16px;
+    padding: 12px 16px;
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    font-size: 0.85rem;
+}
+body[data-page="dalton"] .dalton-comparison-result.hidden {
+    display: none;
+}
+body[data-page="dalton"] .dalton-comparison-result .comparison-header {
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: #111827;
+}
+body[data-page="dalton"] .dalton-comparison-result .comparison-body {
+    color: #374151;
+    line-height: 1.6;
+}
+body[data-page="dalton"] .dalton-comparison-result .comparison-body table {
+    border-collapse: collapse;
+    margin: 4px 0 8px 0;
+}
+body[data-page="dalton"] .dalton-comparison-result .comparison-body th,
+body[data-page="dalton"] .dalton-comparison-result .comparison-body td {
+    padding: 2px 12px 2px 0;
+    text-align: left;
+    border-bottom: none;
+}
+body[data-page="dalton"] .dalton-comparison-result .interpretation {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px dashed #d1d5db;
+    color: #1f2937;
+}
+
+/* AI 사이드바 — 돌턴 페이지 한정 fixed 위치 (boyle/particles 무영향) */
+body[data-page="dalton"] .ai-sidebar {
+    position: fixed;
+    top: 16px;
+    right: 16px;
+    width: 380px;
+    margin: 0;
+}
+
+/* ─── 반응형 ─── */
+/* ≤1279px: AI 사이드바 숨김. drawer 화는 Phase 5.6-a 예정. */
+@media (max-width: 1279px) {
+    /* AI 사이드바를 drawer 방식으로 전환.
+       기본 숨김, 우측 상단 재열기 버튼으로 다시 펼침. */
+    body[data-page="dalton"] {
+        padding-right: 16px;
+    }
+    body[data-page="dalton"] .ai-sidebar {
+        /* 드로어 외형: 화면 오른쪽 끝에서 슬라이드.
+           기본 상태 = 숨김. body.sidebar-collapsed 이면 보임 전환 불가,
+           역으로 body 에 sidebar-collapsed 가 없을 때 drawer 펼침 상태 해석. */
+        position: fixed;
+        top: 16px;
+        right: 16px;
+        width: min(380px, calc(100vw - 32px));
+        max-height: calc(100vh - 32px);
+        overflow-y: auto;
+        z-index: 1000;
+        box-shadow: -4px 0 16px rgba(0, 0, 0, 0.15);
+        display: none;  /* 기본 숨김 */
+    }
+    /* Phase 5.4: 돌턴 #ai-reopen-btn 보일 형식 통일 (vertical-rl 세로 사각형) */
+    body[data-page="dalton"] #ai-reopen-btn {
+        display: block;     /* drawer 트리거로 상시 노출 */
+        position: fixed;
+        right: 0;
+        top: 50%;
+        transform: translateY(-50%);
+        bottom: auto;
+        width: auto;
+        height: auto;
+        z-index: 999;
+        background: #1e2433;
+        color: #cdd6f4;
+        border: 1px solid #2e3650;
+        border-right: none;
+        border-radius: 8px 0 0 8px;
+        padding: 12px 8px;
+        font-size: 18px;
+        cursor: pointer;
+        writing-mode: vertical-rl;
+        box-shadow: -2px 0 8px rgba(0, 0, 0, 0.15);
+    }
+    body[data-page="dalton"] #ai-reopen-btn:hover {
+        background: #2e3650;
+    }
+    /* drawer 펼침 상태: body 에 sidebar-open 클래스 */
+    body[data-page="dalton"].sidebar-open .ai-sidebar {
+        display: flex;
+    }
+    body[data-page="dalton"].sidebar-open #ai-reopen-btn {
+        display: none;
+    }
+}
+
+/* ============================================================
+   중간 너비(1024~1279px) — 2칼럼 유지하되 패널 축소
+   drawer 모드 (변경 1) 와 병행 동작
+   ============================================================ */
+@media (max-width: 1279px) and (min-width: 1024px) {
+    body[data-page="dalton"] #dalton-mode.dalton-layout {
+        /* Step F 정정 (재): 3 칼럼 + 비율 1fr:1.4fr (메인 룰과 일관) */
+        grid-template-columns: 280px 1fr 1.4fr;
+        gap: 16px;
+    }
+    body[data-page="dalton"] .dalton-panel {
+        padding: 12px;
+    }
+    body[data-page="dalton"] .dalton-section-title {
+        font-size: 0.95rem;
+    }
+}
+
+/* ≤1023px: 패널 + 메인 + 그래프 + 기록 단일 칼럼 stack */
+@media (max-width: 1023px) {
+    body[data-page="dalton"] #dalton-mode.dalton-layout {
+        grid-template-columns: 1fr;
+        grid-template-areas:
+            "panel"
+            "main"
+            "chart"
+            "records";
+    }
+}
+
+/* ============================================================
+   canvas 유연화 — 모든 뷰포트에서 overflow 방지
+   ============================================================ */
+/* 캔버스 wrap 카드 스타일 — 보일/particles 의 #section-canvas / #adv-section-canvas 와 통일 (Step C-1 v3) */
+body[data-page="dalton"] #dalton-canvas-wrap {
+    position: relative;          /* absolute 자식 (게이지 overlay) 기준점 */
+    display: flex;
+    justify-content: center;
+    padding: 10px;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    max-width: 1180px;           /* 캔버스 1160 + padding 20 — 좌·우 빈 영역 제거 (v4 마무리) */
+    margin: 0 auto;              /* 메인 영역 안 가운데 정렬 보존 */
+}
+
+/* Step C-3 v10: 안정화 indicator — absolute 카드 (정상 흐름 밖, layout 흔들림 방지) */
+body[data-page="dalton"] .dalton-stabilization {
+    position: absolute;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    padding: 8px 16px;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    white-space: nowrap;            /* 가로 배치 강제 */
+    font-size: 0.95rem;
+    color: #374151;
+    z-index: 3;                     /* 게이지 overlay (z-index 2) 보다 위 */
+}
+body[data-page="dalton"] .dalton-stab-label {
+    font-weight: 500;
+}
+body[data-page="dalton"] .dalton-stab-countdown {
+    font-weight: 700;
+    color: #1F2937;
+    font-variant-numeric: tabular-nums;
+}
+
+/* 압력 게이지 overlay — 캔버스 wrap 안 absolute 배치 (Step C-1 v3 마무리) */
+body[data-page="dalton"] .dalton-gauge-overlay {
+    position: absolute;
+    top: 170px;                  /* 본체 가운데 정렬 (bodyTop 30 + height 450/2 - overlay 높이/2) — v3 마무리 v4 */
+    width: 200px;                /* SVG 200 수용 위해 확장 — v3 마무리 v4 */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    z-index: 2;                  /* 캔버스 위 */
+    /* 카드 배경 — 시린지와 시각 분리 (v4 디자인 개선) */
+    padding: 10px 8px;
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+
+/* Step C-3 v14: 부분 압력 list (INJECTED 후 표시) */
+body[data-page="dalton"] .dalton-partial-pressure-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-top: 6px;
+    padding-top: 6px;
+    border-top: 1px solid #e5e7eb;
+    width: 100%;
+}
+body[data-page="dalton"] .dalton-partial-pressure-list[hidden] {
+    display: none;
+}
+body[data-page="dalton"] .dalton-partial-pressure-line {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    padding: 2px 4px;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    transition: opacity 0.15s, background 0.15s;
+    user-select: none;
+}
+body[data-page="dalton"] .dalton-partial-pressure-line:hover {
+    background: #f3f4f6;
+}
+body[data-page="dalton"] .dalton-partial-pressure-line.gas-hidden {
+    /* Step C-3 v15 + v16: 흐림 더 강화 — 0.4 → 0.25 → 0.15 */
+    opacity: 0.15;
+}
+/* Step C-3 v15: dot → checkbox 교체 */
+body[data-page="dalton"] .dalton-partial-pressure-checkbox {
+    width: 14px;
+    height: 14px;
+    margin: 0;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+body[data-page="dalton"] .dalton-partial-pressure-label {
+    flex-grow: 1;
+    color: #374151;
+}
+body[data-page="dalton"] .dalton-partial-pressure-value {
+    font-variant-numeric: tabular-nums;
+    color: #1F2937;
+    font-weight: 500;
+}
+
+body[data-page="dalton"] .dalton-gauge-overlay-left {
+    left: 10px;                  /* wrap padding-left 안쪽 */
+}
+
+body[data-page="dalton"] .dalton-gauge-overlay-right {
+    right: 10px;                 /* wrap padding-right 안쪽 */
+}
+
+/* overlay 안 게이지 SVG 확대 (160×89 → 200×111, viewBox 비율 유지) — v4 디자인 개선 */
+body[data-page="dalton"] .dalton-gauge-overlay .dalton-pressure-gauge {
+    width: 200px;
+    height: 111px;               /* 200 * 100/180 = 111.1 → 111 (viewBox 100/180 비율) */
+}
+
+/* overlay 안 라벨·LCD 폰트도 약간 축소 */
+/* overlay 안 라벨 ("압력 P_A") 굵게 — v4 디자인 개선 */
+body[data-page="dalton"] .dalton-gauge-overlay .dalton-pressure-label {
+    font-weight: 600;
+}
+
+body[data-page="dalton"] .dalton-gauge-overlay .dalton-pressure-readout-line .dalton-field-value {
+    font-size: 1.4rem;     /* DSEG7 LCD — overlay 안에서도 큼직하게 (가독성 보강) */
+}
+
+body[data-page="dalton"] .dalton-gauge-overlay .dalton-gauge-warning {
+    font-size: 0.78rem;     /* 원본 복원 */
+    text-align: center;
+    line-height: 1.3;
+}
+
+/* p5 DaltonScene 이 동적 append 하는 canvas + 차트 (Step C-1 부터) */
+body[data-page="dalton"] #dalton-canvas-wrap canvas,
+body[data-page="dalton"] #dalton-chart {
+    max-width: 100%;
+    height: auto;
+    display: block;
+}
+
+/* Step F 정정 (재): 그래프 영역 — grid 자식 (chart area), 카드 스타일 */
+body[data-page="dalton"] #dalton-chart-wrap {
+    display: flex;
+    justify-content: center;
+    padding: 16px;
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+body[data-page="dalton"] #dalton-chart-wrap.hidden {
+    display: none;
+}
+/* Step F 정정 (재): 캔버스 가운데 정렬 (flex justify-center 안전장치) */
+body[data-page="dalton"] #dalton-chart-wrap canvas {
+    display: block;
+    margin: 0 auto;
+    max-width: 100%;
+    height: auto;
+}
+
+/* ============================================================
+   신규 클래스 정의 (87a1614·dfc6595 커밋에서 도입, CSS 미정의 해소)
+   ============================================================ */
+
+/* 주사기 A·B 제목 옆 역할 배지 */
+body[data-page="dalton"] .dalton-role-badge {
+    display: inline-block;
+    margin-left: 8px;
+    padding: 2px 8px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    background: #eef2ff;
+    color: #4338ca;
+    border-radius: 4px;
+    vertical-align: middle;
+}
+
+/* 압력 표시 블록 (라벨 윗줄, 게이지+디지털 가로 한 줄) */
+body[data-page="dalton"] .dalton-pressure-block {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 0;
+}
+
+body[data-page="dalton"] .dalton-pressure-label {
+    /* 라벨이 윗줄에 단독으로 표시, 가운데 정렬 */
+    min-width: auto;
+    text-align: center;
+}
+
+/* 숫자 + 단위 한 줄 묶음 (LCD 박스 + 일반 폰트 단위) */
+body[data-page="dalton"] .dalton-pressure-readout-line {
+    display: flex;
+    flex-direction: row;
+    align-items: baseline;
+    gap: 6px;
+}
+
+/* 단위 (atm / kPa) — 일반 폰트, 박스 밖 */
+body[data-page="dalton"] .dalton-pressure-unit {
+    font-family: system-ui, -apple-system, sans-serif;
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: #4b5563;
+}
+
+body[data-page="dalton"] .dalton-pressure-gauge {
+    width: 160px;
+    height: 89px;
+    display: block;
+    flex-shrink: 0;
+}
+
+/* 바늘 회전 부드러운 transition (압력 변화 시 자연스럽게) */
+body[data-page="dalton"] .dalton-gauge-needle {
+    transition: transform 0.3s ease;
+}
+
+/* 바늘 색상 변환 transition (5+ 경고 시 검정 → 빨강 부드럽게) */
+body[data-page="dalton"] .dalton-gauge-needle line {
+    transition: stroke 0.3s ease;
+}
+
+body[data-page="dalton"] .dalton-gauge-warning {
+    font-size: 0.78rem;
+    color: #dc2626;
+    font-weight: 600;
+    margin-top: 2px;
+}
+
+body[data-page="dalton"] .dalton-gauge-warning[hidden] {
+    display: none;
+}
+
+/* ─────────────────────────────────────────────────────────
+   압력 디지털 readout — 7-segment LCD 스타일
+   참조: 자동차 계기판/엘리베이터 LED 표시
+   ───────────────────────────────────────────────────────── */
+body[data-page="dalton"] .dalton-pressure-readout-line .dalton-field-value {
+    font-family: 'DSEG7 Classic', 'Courier New', Consolas, monospace;
+    font-size: 1.05rem;
+    font-weight: bold;
+    color: #ffffff;
+    background: #0a0a0a;
+    padding: 4px 10px;
+    border-radius: 3px;
+    border: 1px solid #2a2a2a;
+    letter-spacing: 0.05em;
+    display: inline-block;
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.5);
+    /* LED 발광 효과 */
+    text-shadow:
+        0 0 3px rgba(255, 255, 255, 0.4),
+        0 0 6px rgba(255, 255, 255, 0.2);
+    /* 폰트 로딩 전 fallback 시 시각 안정화 */
+    font-variant-numeric: tabular-nums;
+}
+
+/* 도움말 텍스트 (예: "실험 시작 후에는 변경할 수 없습니다...") */
+body[data-page="dalton"] .dalton-help-text {
+    font-size: 0.85rem;
+    color: #6b7280;
+    margin: 8px 0;
+    line-height: 1.5;
+}
+
+/* [확인] 버튼 (기존 [기록] → 의미 재정의) */
+body[data-page="dalton"] .dalton-btn-confirm {
+    background: #059669;
+    color: #fff;
+    border: 1px solid #047857;
+}
+body[data-page="dalton"] .dalton-btn-confirm:hover:not(:disabled) {
+    background: #047857;
+}
+body[data-page="dalton"] .dalton-btn-confirm:disabled {
+    background: #d1d5db;
+    color: #6b7280;
+    border-color: #d1d5db;
+    cursor: not-allowed;
+}
+
+/* Phase 5.9: Vernier 모드 단계 표시 + READY 강조 */
+body[data-page="dalton"] .dalton-vernier-stage {
+    margin-top: 10px;
+    padding: 10px 14px;
+    background: #f1f5f9;
+    border-left: 3px solid #64748b;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    color: #334155;
+    line-height: 1.4;
+}
+body[data-page="dalton"] #dalton-btn-vernier-measure.ready {
+    background: #16a34a;
+    border-color: #15803d;
+    box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.25);
+    animation: vernier-ready-pulse 1.4s ease-in-out infinite;
+}
+@keyframes vernier-ready-pulse {
+    0%, 100% { box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.25); }
+    50%      { box-shadow: 0 0 0 6px rgba(22, 163, 74, 0.15); }
+}
+
+/* 이론값 박스 하단 공식 힌트 */
+body[data-page="dalton"] .dalton-formula-hint {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px dashed #e5e7eb;
+    font-size: 0.85rem;
+    color: #4b5563;
+    text-align: center;
+    font-family: 'Segoe UI', monospace;
+}
+
+/* 숫자 입력 필드 (주사기 B 직접 입력) */
+body[data-page="dalton"] .dalton-field-number-input {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 4px;
+}
+body[data-page="dalton"] .dalton-field-number-input label {
+    font-size: 0.95rem;
+    font-weight: 500;
+    color: #374151;
+    min-width: 64px;
+}
+body[data-page="dalton"] .dalton-field-number-input input[type="number"] {
+    flex: 0 0 100px;
+    padding: 6px 10px;
+    border: 1px solid #d1d5db;
+    border-radius: 4px;
+    font-size: 1rem;
+    font-family: inherit;
+    text-align: right;
+    color: #1f2937;
+}
+body[data-page="dalton"] .dalton-field-number-input input[type="number"]:hover {
+    border-color: #9ca3af;
+}
+body[data-page="dalton"] .dalton-field-number-input input[type="number"]:focus {
+    outline: none;
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+body[data-page="dalton"] .dalton-field-number-input input[type="number"]:disabled {
+    background: #f3f4f6;
+    color: #9ca3af;
+    cursor: not-allowed;
+}
+
+/* 숫자 입력 옆 단위 */
+body[data-page="dalton"] .dalton-field-unit {
+    font-size: 0.95rem;
+    color: #4b5563;
+}
+
+/* ============================================================
+   폼 요소 — 기체 select
+   (사전 조사에서 돌턴 스코프 select 규칙 0건 발견 → Step B-1 후속 보정)
+   ============================================================ */
+body[data-page="dalton"] .dalton-field select {
+    flex: 1;
+    min-width: 120px;
+    padding: 6px 10px;
+    font-size: 0.95rem;
+    font-family: inherit;
+    color: #1f2937;
+    background: #fff;
+    border: 1px solid #d1d5db;
+    border-radius: 4px;
+    cursor: pointer;
+}
+body[data-page="dalton"] .dalton-field select:hover {
+    border-color: #9ca3af;
+}
+body[data-page="dalton"] .dalton-field select:focus {
+    outline: none;
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+body[data-page="dalton"] .dalton-field select:disabled {
+    background: #f3f4f6;
+    color: #9ca3af;
+    cursor: not-allowed;
+}
+
+/* ── Phase 5.4: 돌턴 센서 패널 ── */
+body[data-page="dalton"] .dalton-sensor-panel {
+    border: 1px solid #d1d5db;
+    background: #f8fafc;
+}
+body[data-page="dalton"] .dalton-sensor-mode-toggle {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 10px;
+}
+body[data-page="dalton"] .dalton-sensor-mode-toggle button {
+    flex: 1;
+    padding: 6px 8px;
+    font-size: 0.82rem;
+    border: 1px solid #d1d5db;
+    border-radius: 4px;
+    background: #fff;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+}
+body[data-page="dalton"] .dalton-sensor-mode-toggle button.active {
+    background: #2563eb;
+    color: #fff;
+    border-color: #2563eb;
+}
+body[data-page="dalton"] .dalton-sensor-mode-toggle button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+body[data-page="dalton"] .dalton-sensor-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+    font-size: 0.85rem;
+}
+body[data-page="dalton"] .dalton-channel-status {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid #e5e7eb;
+}
+body[data-page="dalton"] .dalton-ch-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.82rem;
+}
+body[data-page="dalton"] .dalton-ch-label {
+    font-weight: 600;
+    min-width: 52px;
+    color: #374151;
+}
+body[data-page="dalton"] .dalton-ch-sensor {
+    color: #6b7280;
+    flex: 1;
+}
+body[data-page="dalton"] .dalton-ch-live {
+    font-family: 'DSEG7Classic-Bold', monospace;
+    font-size: 0.92rem;
+    color: #374151;
+    min-width: 5rem;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+body[data-page="dalton"] .dalton-ch-calib {
+    color: #9ca3af;
+    font-style: italic;
+    min-width: 90px;
+}
+body[data-page="dalton"] .dalton-btn-ch-calib {
+    padding: 2px 8px;
+    font-size: 0.78rem;
+    border: 1px solid #d1d5db;
+    border-radius: 4px;
+    background: #fff;
+    cursor: pointer;
+}
+body[data-page="dalton"] .dalton-btn-ch-calib:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+body[data-page="dalton"] #dalton-btn-calib-all {
+    margin-top: 6px;
+    width: 100%;
+    padding: 4px;
+    font-size: 0.82rem;
+}
+body[data-page="dalton"] .dalton-pressure-freeze-btn {
+    margin-top: 6px;
+    width: 100%;
+    padding: 6px;
+    font-size: 0.85rem;
+    border: 1px solid #d1d5db;
+    border-radius: 4px;
+    background: #fff;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+}
+body[data-page="dalton"] .dalton-pressure-freeze-btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+body[data-page="dalton"] .dalton-pressure-freeze-btn.dalton-frozen {
+    background: #fef3c7;
+    border-color: #f59e0b;
+    color: #92400e;
+    font-weight: 600;
 }

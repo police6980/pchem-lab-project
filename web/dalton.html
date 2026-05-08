@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CAST — 돌턴의 부분압력</title>
+    <!-- DSEG7 Classic 폰트는 style.css 의 @font-face 에서 자체 호스팅 (web/assets/fonts/) -->
+    <link rel="stylesheet" href="css/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/p5@1.11.2/lib/p5.min.js"></script>
+    <script src="https://unpkg.com/docx@8.5.0/build/index.umd.js"></script>
+    <script src="https://unpkg.com/@vernier/godirect/dist/godirect.min.umd.js" defer></script>
+    <script src="js/simulation.js" defer></script>
+    <script src="js/renderer.js" defer></script>
+    <script src="js/protocol.js" defer></script>
+    <script src="js/serial.js" defer></script>
+    <script src="js/vernier.js" defer></script>
+    <script src="js/logger.js" defer></script>
+    <!-- Phase 5.7 트랙 6-c: tutor.js (통합 모듈) 추가 — main.js createDaltonTutor 가 createTutor(daltonConfig) 로 교체 -->
+    <script src="js/tutor.js" defer></script>
+    <script src="js/ui.js" defer></script>
+    <script src="js/main.js" defer></script>
+</head>
+<body data-page="dalton">
+    <nav class="page-nav dalton-nav">
+        <a href="index.html" class="nav-home" title="홈으로 돌아가기">🏠 홈으로</a>
+        <h1 class="dalton-page-title">CAST — 돌턴의 부분압력</h1>
+        <div class="dalton-page-utilities">
+            <button id="dalton-unit-toggle" type="button" title="단위 전환 (atm ⇄ kPa)">단위: atm</button>
+            <button id="dalton-csv-download" type="button" title="측정 기록 CSV 내려받기">📥 CSV</button>
+        </div>
+    </nav>
+
+    <div id="dalton-mode" class="dalton-layout">
+        <!-- ─── 좌측: 설정 패널 ─── -->
+        <aside id="dalton-control-panel" class="dalton-panel">
+
+            <!-- 센서 모드 선택 (Phase 5.4: 멀티채널 v1.2) -->
+            <section id="dalton-sensor-panel" class="dalton-section dalton-sensor-panel">
+                <h2 class="dalton-section-title">센서 모드</h2>
+                <div id="dalton-sensor-mode-toggle" class="dalton-sensor-mode-toggle">
+                    <button id="dalton-btn-mode-mock" class="active">🖥 시뮬레이션</button>
+                    <button id="dalton-btn-mode-ws">🔌 에뮬레이터</button>
+                    <button id="dalton-btn-mode-real">⚡ 실센서</button>
+                    <button id="dalton-btn-mode-vernier">📡 Vernier</button>
+                </div>
+                <!-- 실센서(WebSerial) 컨트롤 -->
+                <div id="dalton-sensor-real-controls" class="dalton-sensor-controls hidden">
+                    <button id="dalton-btn-serial-connect">🔌 포트 연결</button>
+                    <button id="dalton-btn-serial-disconnect" class="hidden">✖ 연결 해제</button>
+                    <span id="dalton-serial-status">연결 안 됨</span>
+                </div>
+                <!-- 에뮬레이터(WebSocket) 컨트롤 -->
+                <div id="dalton-sensor-ws-controls" class="dalton-sensor-controls hidden">
+                    <span id="dalton-ws-status">연결 중...</span>
+                </div>
+                <!-- Vernier (BLE) 컨트롤 -->
+                <div id="dalton-sensor-vernier-controls" class="dalton-sensor-controls hidden">
+                    <button id="dalton-btn-vernier-connect">📡 Vernier 연결</button>
+                    <button id="dalton-btn-vernier-disconnect" class="hidden">✖ 연결 해제</button>
+                    <span id="dalton-vernier-status">연결 안 됨</span>
+                    <span id="dalton-vernier-sensor-label"></span>
+                </div>
+                <!-- 채널별 상태 (v1.2 멀티채널) -->
+                <div id="dalton-channel-status" class="dalton-channel-status hidden">
+                    <div class="dalton-ch-row" data-ch="0">
+                        <span class="dalton-ch-label">ch0 (B)</span>
+                        <span class="dalton-ch-sensor" id="dalton-ch0-sensor"></span>
+                        <span class="dalton-ch-live" id="dalton-ch0-live">—</span>
+                        <span class="dalton-ch-calib" id="dalton-ch0-calib">미보정</span>
+                        <button class="dalton-btn-ch-calib" id="dalton-btn-calib-ch0" disabled>🎯 영점</button>
+                    </div>
+                    <div class="dalton-ch-row" data-ch="1">
+                        <span class="dalton-ch-label">ch1 (A)</span>
+                        <span class="dalton-ch-sensor" id="dalton-ch1-sensor"></span>
+                        <span class="dalton-ch-live" id="dalton-ch1-live">—</span>
+                        <span class="dalton-ch-calib" id="dalton-ch1-calib">미보정</span>
+                        <button class="dalton-btn-ch-calib" id="dalton-btn-calib-ch1" disabled>🎯 영점</button>
+                    </div>
+                    <button id="dalton-btn-calib-all" class="dalton-btn dalton-btn-secondary" disabled>🎯 전체 캘리브</button>
+                    <button id="dalton-btn-pressure-freeze" class="dalton-btn dalton-pressure-freeze-btn" disabled>🔒 압력 확정</button>
+                </div>
+                <div id="dalton-sensor-error" class="sensor-error"></div>
+            </section>
+
+            <!-- 주사기 A -->
+            <section id="dalton-syringe-a" class="dalton-section">
+                <h2 class="dalton-section-title">주사기 A <span class="dalton-role-badge">능동</span></h2>
+                <div class="dalton-field">
+                    <label for="dalton-gas-a">기체</label>
+                    <select id="dalton-gas-a">
+                        <option value="air">공기 (29)</option>
+                        <option value="co2">CO₂ (44)</option>
+                        <option value="he">He (4)</option>
+                        <option value="n2">N₂ (28)</option>
+                        <option value="o2">O₂ (32)</option>
+                    </select>
+                </div>
+                <div class="dalton-field dalton-field-number-input">
+                    <label for="dalton-volume-a-number">부피 V<sub>A</sub></label>
+                    <input type="number" id="dalton-volume-a-number" min="10" max="100" step="1" value="50">
+                    <span class="dalton-field-unit">mL</span>
+                </div>
+                <!-- 압력 블록 캔버스 wrap 안 absolute overlay 로 이전 (Step C-1 v3 마무리) -->
+            </section>
+
+            <!-- 주사기 B -->
+            <section id="dalton-syringe-b" class="dalton-section">
+                <h2 class="dalton-section-title">주사기 B <span class="dalton-role-badge">수용·고정</span></h2>
+                <div class="dalton-field">
+                    <label for="dalton-gas-b">기체</label>
+                    <select id="dalton-gas-b">
+                        <option value="air">공기 (29)</option>
+                        <option value="co2">CO₂ (44)</option>
+                        <option value="he">He (4)</option>
+                        <option value="n2">N₂ (28)</option>
+                        <option value="o2">O₂ (32)</option>
+                    </select>
+                </div>
+                <div class="dalton-field dalton-field-number-input">
+                    <label for="dalton-volume-b-number">부피 V<sub>B</sub></label>
+                    <input type="number" id="dalton-volume-b-number" min="10" max="100" step="1" value="50">
+                    <span class="dalton-field-unit">mL</span>
+                </div>
+                <p class="dalton-help-text">실험 시작 후에는 변경할 수 없습니다. 피스톤은 고정됩니다.</p>
+                <!-- 압력 블록 캔버스 wrap 안 absolute overlay 로 이전 (Step C-1 v3 마무리) -->
+            </section>
+
+
+            <!-- 이론값 박스 (Step B 에서 V_A, V_B 슬라이더 변경 시 실시간 업데이트) -->
+            <section id="dalton-theory-box" class="dalton-section dalton-section-theory">
+                <h2 class="dalton-section-title">이론값 (실시간)</h2>
+                <div class="dalton-theory-row">
+                    <span class="dalton-theory-label">주입 전 P</span>
+                    <span class="dalton-theory-value" id="dalton-theory-before">1.00 atm</span>
+                </div>
+                <div class="dalton-theory-row">
+                    <span class="dalton-theory-label">주입 후 P<sub>total</sub></span>
+                    <span class="dalton-theory-value" id="dalton-theory-after">— atm</span>
+                </div>
+                <div class="dalton-theory-row">
+                    <span class="dalton-theory-label">분자 수 n<sub>total</sub></span>
+                    <span class="dalton-theory-value" id="dalton-theory-n">—</span>
+                </div>
+                <p class="dalton-help-text dalton-formula-hint">P<sub>total</sub> = (V<sub>A</sub> / V<sub>B</sub> + 1) × 1 atm</p>
+            </section>
+
+            <!-- 제어 버튼 (3개, 설계 §4.2 기준) -->
+            <div id="dalton-controls" class="dalton-controls">
+                <button id="dalton-btn-inject" type="button" class="dalton-btn dalton-btn-primary">
+                    주입 시작
+                </button>
+                <button id="dalton-btn-confirm" type="button" class="dalton-btn dalton-btn-confirm" disabled>
+                    확인
+                </button>
+                <!-- Phase 5.9: Vernier 모드 한정 측정 버튼. mock/ws/real 에선 hidden. -->
+                <button id="dalton-btn-vernier-measure" type="button" class="dalton-btn dalton-btn-primary hidden" disabled>
+                    측정
+                </button>
+                <button id="dalton-btn-reset" type="button" class="dalton-btn dalton-btn-secondary">
+                    초기화
+                </button>
+            </div>
+            <!-- Phase 5.9: Vernier 모드 단계 표시. mock/ws/real 에선 hidden. -->
+            <div id="dalton-vernier-stage-text" class="dalton-vernier-stage hidden">
+                초기 상태 — 측정 버튼을 눌러 시작 압력을 기록하세요
+            </div>
+        </aside>
+
+        <!-- ─── 중앙: 메인 시각화 ─── -->
+        <main id="dalton-main" class="dalton-main">
+            <div id="dalton-canvas-wrap">
+                <!-- p5.js DaltonScene 이 이 wrap 안에 canvas 를 동적 append (Step C-1) -->
+                <!-- 압력 게이지 P_A overlay (좌측, 시린지 A 옆) -->
+                <div class="dalton-field dalton-pressure-block dalton-gauge-overlay dalton-gauge-overlay-left">
+                    <span class="dalton-field-label dalton-pressure-label">압력 P<sub>A</sub></span>
+                    <svg class="dalton-pressure-gauge" id="dalton-gauge-a" viewBox="-10 0 180 100" aria-label="주사기 A 압력 게이지"></svg>
+                    <div class="dalton-pressure-readout-line">
+                        <span class="dalton-field-value dalton-pressure-number" id="dalton-pressure-a">1.00</span>
+                        <span class="dalton-pressure-unit" id="dalton-pressure-a-unit">atm</span>
+                    </div>
+                    <span class="dalton-gauge-warning" id="dalton-gauge-warning-a" hidden>⚠ 게이지 범위 초과 (5 atm)</span>
+                </div>
+                <!-- 압력 게이지 P_B overlay (우측, 시린지 B 옆) -->
+                <div class="dalton-field dalton-pressure-block dalton-gauge-overlay dalton-gauge-overlay-right">
+                    <span class="dalton-field-label dalton-pressure-label">압력 P<sub>B</sub></span>
+                    <svg class="dalton-pressure-gauge" id="dalton-gauge-b" viewBox="-10 0 180 100" aria-label="주사기 B 압력 게이지"></svg>
+                    <div class="dalton-pressure-readout-line">
+                        <span class="dalton-field-value dalton-pressure-number" id="dalton-pressure-b">1.00</span>
+                        <span class="dalton-pressure-unit" id="dalton-pressure-b-unit">atm</span>
+                    </div>
+                    <span class="dalton-gauge-warning" id="dalton-gauge-warning-b" hidden>⚠ 게이지 범위 초과 (5 atm)</span>
+                    <!-- Step C-3 v14: 부분 압력 list (INJECTED 후 표시. 라인 클릭 시 입자 흐릿) -->
+                    <div class="dalton-partial-pressure-list" id="dalton-partial-pressure-list" hidden>
+                    </div>
+                </div>
+                <div id="dalton-stabilization" class="dalton-stabilization hidden" aria-live="polite">
+                    <span class="dalton-stab-label">측정 안정화 중</span>
+                    <span class="dalton-stab-countdown" id="dalton-stab-countdown">5</span>
+                </div>
+            </div>
+            <!-- pressure readout 좌측 패널의 dalton-pressure-block 으로 이전 (Phase 5 Step A 완료) — stale DOM 제거 (Step C-1 v3) -->
+        </main>
+
+        <!-- Step F 정정: chart-wrap 을 main 밖 grid 직속 자식으로 (records 와 2 column 동행) -->
+        <!-- p5 의 createCanvas 가 자체 canvas 동적 생성 + parent("dalton-chart-wrap") — placeholder canvas 불필요 (Step F 정정 재) -->
+        <div id="dalton-chart-wrap"></div>
+
+        <!-- ─── 하단: 측정 기록 (Phase 5.4: 토글 폐기, 항상 펼침) ─── -->
+        <section id="dalton-records-section" class="dalton-records-section">
+            <h3 class="dalton-records-title">측정 기록</h3>
+            <table class="dalton-records-table">
+                <thead>
+                    <tr>
+                        <th class="compare-col">비교</th>
+                        <th>회차</th>
+                        <th>V<sub>A</sub></th>
+                        <th>V<sub>B</sub></th>
+                        <th>P(이론)</th>
+                        <th>P(시뮬)</th>
+                        <th>P<sub>A</sub></th>
+                        <th>P<sub>B</sub></th>
+                        <th>n<sub>A</sub></th>
+                        <th>n<sub>B</sub></th>
+                        <th>n<sub>total</sub></th>
+                        <th class="delete-col">삭제</th>
+                    </tr>
+                </thead>
+                <tbody id="dalton-records"></tbody>
+            </table>
+            <p class="dalton-records-empty" id="dalton-records-empty">
+                아직 기록된 측정이 없습니다.
+            </p>
+            <!-- Phase 5.3 기능 4: 비교 결과 영역 (체크박스 2개 선택 시 표시) -->
+            <div id="dalton-comparison-result" class="dalton-comparison-result hidden">
+                <div class="comparison-header">📊 비교 분석</div>
+                <div class="comparison-body" id="dalton-comparison-body"></div>
+            </div>
+        </section>
+    </div>
+
+    <!-- AI 사이드바 토글 핸들러 — 뷰포트에 따라 push / drawer 모드 분기 -->
+    <script>
+      document.addEventListener("DOMContentLoaded", () => {
+        const isDrawerViewport = () => window.matchMedia("(max-width: 1279px)").matches;
+
+        document.getElementById("btn-ai-collapse")?.addEventListener("click", () => {
+          if (isDrawerViewport()) {
+            document.body.classList.remove("sidebar-open");
+          } else {
+            document.body.classList.toggle("sidebar-collapsed");
+          }
+        });
+        document.getElementById("ai-reopen-btn")?.addEventListener("click", () => {
+          if (isDrawerViewport()) {
+            document.body.classList.add("sidebar-open");
+          } else {
+            document.body.classList.remove("sidebar-collapsed");
+          }
+        });
+      });
+    </script>
+
+    <!-- ─── AI 튜터 사이드바 (boyle와 동일 DOM, Phase 5.4에서 프롬프트 교체) ─── -->
+    <aside id="ai-sidebar" class="ai-sidebar">
+        <header class="sidebar-header">
+            <h2>🤖 AI 튜터</h2>
+            <div class="header-actions">
+                <button id="btn-toggle-settings" title="설정" aria-label="설정 토글" class="icon-btn">⚙</button>
+                <button id="btn-ai-collapse" title="사이드바 접기" aria-label="사이드바 접기" class="icon-btn">×</button>
+            </div>
+        </header>
+        <div id="ai-settings-panel" class="settings-panel">
+            <div class="api-key-hint">
+                🔑 API 키는 <a href="index.html">🏠 홈</a> 에서 설정합니다.
+            </div>
+            <div class="options-row">
+                <label>학생 수준
+                    <select id="ai-student-level">
+                        <option value="elem">초등학생</option>
+                        <option value="middle">중학생</option>
+                        <option value="high" selected>고등학생</option>
+                        <option value="univ">대학생</option>
+                    </select>
+                </label>
+                <label>모델
+                    <select id="ai-model">
+                        <option value="claude-sonnet-4-6" selected>Sonnet</option>
+                        <option value="claude-opus-4-7">Opus</option>
+                    </select>
+                </label>
+            </div>
+            <div class="usage-display">
+                이번 세션 사용량:
+                <span id="tokens-used">0</span> 토큰
+                (약 <span id="cost-estimate">0</span>원)
+            </div>
+        </div>
+        <div class="sidebar-body">
+            <nav class="question-tabs">
+                <button class="tab-btn active" data-q="1">
+                    <span>Q1</span>
+                    <span class="tab-reset" data-reset-q="1" title="이 탭 대화 초기화" aria-label="Q1 초기화">↺</span>
+                </button>
+                <button class="tab-btn" data-q="2">
+                    <span>Q2</span>
+                    <span class="tab-reset" data-reset-q="2" title="이 탭 대화 초기화" aria-label="Q2 초기화">↺</span>
+                </button>
+                <button class="tab-btn" data-q="3">
+                    <span>Q3</span>
+                    <span class="tab-reset" data-reset-q="3" title="이 탭 대화 초기화" aria-label="Q3 초기화">↺</span>
+                </button>
+                <button class="tab-btn" data-q="4" aria-disabled="true">
+                    <span>Q4</span>
+                    <span class="tab-reset" data-reset-q="4" title="이 탭 대화 초기화" aria-label="Q4 초기화">↺</span>
+                </button>
+                <button class="tab-btn tab-btn-free" data-q="free">
+                    <span>💬 자유</span>
+                    <span class="tab-reset" data-reset-q="free" title="이 탭 대화 초기화" aria-label="자유 초기화">↺</span>
+                </button>
+            </nav>
+            <div class="question-context" id="question-context">
+                <small>현재 대화 주제:</small>
+                <p class="question-snippet" id="question-snippet"></p>
+            </div>
+            <div class="conversation-scroll" id="conversation-scroll">
+                <div class="empty-state" id="conversation-empty">
+                    아직 대화가 없습니다.<br>
+                    왼쪽에서 [대화 시작]을 눌러주세요.
+                </div>
+                <div class="messages-list" id="messages-list"></div>
+            </div>
+        </div>
+        <div id="conversation-end-controls" class="conversation-end-controls" hidden>
+            <button id="btn-close-q" type="button" title="이 탭의 탐구를 마무리하고 요약받기">✓ 대화 마무리</button>
+        </div>
+        <div class="message-input-area">
+            <textarea id="message-input"
+                      placeholder="메시지 입력 (Enter 전송, Shift+Enter 줄바꿈)"
+                      rows="2" disabled></textarea>
+            <button id="btn-send-message" title="전송" disabled>↑</button>
+        </div>
+    </aside>
+    <button id="ai-reopen-btn" title="AI 튜터 열기">💬</button>
+</body>
+</html>
