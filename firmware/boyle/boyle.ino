@@ -11,6 +11,9 @@
  *   - 전압 분배기: R1=10kΩ (센서-ADC), R2=27kΩ (ADC-GND)
  *   - GPIO34 (ADC1_CH6) 입력
  *
+ * 임시 모드: BMP280/DFRobot 미도착 — readPressurePa()는 가짜 sin 데이터
+ *   송신 중. 센서 도착 시 원본 복원.
+ *
  * Wokwi 검증: 포텐셔미터로 0~3.3V 아날로그 출력을 흉내.
  *   포텐셔미터 양끝 3V3/GND, SIG → GPIO34 (실물 배선과 동일 핀).
  *   실물 전환 시 배선만 센서 + 전압 분배기로 바꾸면 코드 수정 0.
@@ -20,7 +23,7 @@
 
 #include <Arduino.h>
 
-const int    POT_PIN         = 34;            // ADC1_CH6
+const int    POT_PIN         = 1;             // ADC1_CH0 (ESP32-S3)
 const char*  SENSOR_NAME     = "DFRobot-1.6MPa";
 const char*  FIRMWARE_VER    = "1.1.0-real";
 const unsigned long REPORT_MS = 200;          // 5Hz
@@ -35,6 +38,8 @@ const float V_SENSOR_ZERO = 0.5f;        // 0 Pa 출력
 const float V_SENSOR_FULL = 4.5f;        // 1.6 MPa 출력
 const long  P_FULL_PA     = 1600000L;    // 1.6 MPa
 
+// 원본 — 센서 도착 시 #if 0 → #if 1 로 복원하고 아래 가짜 함수 제거
+#if 0
 long readPressurePa() {
   int raw = analogRead(POT_PIN);
 
@@ -55,6 +60,13 @@ long readPressurePa() {
   if (pa > P_FULL_PA)  pa = P_FULL_PA;
 
   return pa;
+}
+#endif
+
+// 임시 가짜 데이터 — 6초 주기, 70~130 kPa sin 진동
+long readPressurePa() {
+  float t = millis() / 1000.0f;
+  return 100000L + (long)(30000.0 * sin(t * 2.0 * PI / 6.0));
 }
 
 void sendHello() {
