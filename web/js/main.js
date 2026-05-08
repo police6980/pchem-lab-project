@@ -3326,37 +3326,77 @@ function initDaltonApp(params) {
         univ:   "대학 일반화학. 맥스웰-볼츠만 분포, 반데르발스 방정식 수준 가능.",
     };
 
-    // R1: Q1~Q4 ↔ 학습 목표 1, 2, 동적, 4 매핑 (16 질문 차등)
+    // Q1~Q4 매핑: 관찰 (목표1+3) / 해석 (목표2) / 예측·검증 (목표4) / 메타 (Q4 자동 생성)
+    // 16개 본문은 학생 측정 데이터 anchor 강화. high/univ 동적 placeholder.
+    // 매핑 재설계 결정: Bloom 인지 흐름. journal Phase 5.9 D-(?) 참조.
+    // high/univ Q1~Q3 는 함수 형태 — ctx.records[0] 의 실제 측정값 인용.
+    // ctx 미전달 시 daltonGetQuestionText 가 closure 의 daltonState 로 lazy 채움.
     const DALTON_QUESTION_TEXT = {
         elem: {
-            1: "주사기 두 개를 합치기 전과 후, 가스 분자 수는 어떻게 변할까요? 표의 n_A, n_B, n_total 을 직접 세보세요.",
-            2: "두 가스가 섞이면 각 가스가 만드는 압력은 어떻게 될까요? 표의 P_A, P_B 를 보며 생각해보세요.",
-            3: "다음 측정에서 V_A 를 두 배로 하면 P_total 도 두 배가 될까요? 이유는?",
+            1: "방금 측정한 결과를 표에서 봐요. P_A, P_B, P_total이 적혀 있죠? 이 세 숫자 사이에 어떤 관계가 보이나요?",
+            2: "P_A와 P_B가 다르게 나왔어요. 두 시린지에는 같은 부피의 가스를 넣었는데 왜 다를까요? 분자가 몇 개씩 들어있는지 생각해보세요.",
+            3: "지금까지 측정한 V_A와 V_B 값으로 측정해봤어요. V_A를 두 배로 (예: 100 mL) 만들면 P_total은 어떻게 될까요? 예상한 다음 실제로 측정해서 비교해보세요.",
             4: "📊 [질문 생성] 버튼을 눌러 내 데이터에 맞는 질문을 받아보세요.",
         },
         middle: {
-            1: "두 시린지 결합 전후 분자 수 변화를 표의 n_A, n_B, n_total 로 확인하세요. 분자가 사라지지 않는다면 무엇이 변할까요?",
-            2: "각 가스의 부분 압력 (P_A, P_B) 이 어떻게 결정되는지 표의 V_A, V_B 와 비교해보세요.",
-            3: "P_total 과 부분 압력의 합을 비교해보세요. 어떤 관계가 보이나요?",
+            1: "방금 측정한 회차의 P_A, P_B, P_total을 표에서 보세요. 두 가스의 분자 수(n_A, n_B)와 비교했을 때 어떤 패턴이 보이나요? 본 그대로 적어주세요.",
+            2: "방금 측정한 회차의 P_A와 P_B 값을 보세요. P_A와 P_B의 비율이 n_A와 n_B의 비율과 어떻게 비교되나요? 같으면 왜 같고, 다르면 왜 다를까요?",
+            3: "방금 측정한 V_A, V_B 조건에서 P_total을 얻었어요. V_A를 그대로 두고 V_B만 절반(예: 25 mL)으로 줄이면 P_total은 어떻게 변할까요? 이론값을 예측하고 실제 측정값과 비교해보세요. 예측이 맞나요?",
             4: "📊 [질문 생성] 버튼을 눌러 내 데이터에 맞는 탐구 질문을 받아보세요.",
         },
         high: {
-            1: "주입 전후 분자 수 (n) 가 보존된다고 가정할 때, 부피 변화 시 압력은 어떻게 변할까요? PV=nRT 로 설명해보세요.",
-            2: "부분 압력의 비율과 분자 수의 비율을 비교해보세요. 돌턴 법칙이 어떻게 표현되나요?",
-            3: "측정값 P_total (시뮬) 과 이론값 P(이론) 을 비교해보세요. 차이가 있다면 그 원인은?",
+            1: (ctx) => {
+                const r = ctx?.records?.length ? ctx.records.slice(-1)[0] : null;
+                const va = r?.V_A_initial ?? "(측정 전)";
+                const vb = r?.V_B ?? "(측정 전)";
+                return `방금 측정에서 V_A=${va}, V_B=${vb}일 때 P_A, P_B, P_total 값이 나왔습니다. 이 값들 사이의 정량적 관계를 발견해보세요. 어떤 식이 성립할까요?`;
+            },
+            2: (ctx) => {
+                const r = ctx?.records?.length ? ctx.records.slice(-1)[0] : null;
+                const pa = (r?.P_A != null) ? r.P_A.toFixed(2) : "(측정 전)";
+                const pb = (r?.P_B != null) ? r.P_B.toFixed(2) : "(측정 전)";
+                const na = r?.n_A ?? "(측정 전)";
+                const nb = r?.n_B ?? "(측정 전)";
+                return `측정 결과 P_A=${pa} atm, P_B=${pb} atm, n_A=${na}, n_B=${nb}이 나왔습니다. P_A/P_total과 n_A/n_total의 비율을 계산해보세요. 두 비율의 관계를 식으로 나타낼 수 있나요?`;
+            },
+            3: (ctx) => {
+                const r = ctx?.records?.length ? ctx.records.slice(-1)[0] : null;
+                const n = r?.n ?? "?";
+                const va = r?.V_A_initial ?? "(측정 전)";
+                const vb = r?.V_B ?? "(측정 전)";
+                const pt = (r?.P_total != null) ? r.P_total.toFixed(2) : "(측정 전)";
+                return `회차 ${n}에서 V_A=${va}, V_B=${vb}, P_total=${pt} atm을 측정했습니다. 다른 V_A/V_B 조건(예: V_A=2배, V_B=절반)에서 P_total은 어떻게 변할지 PV=nRT로 예측하고 실제 측정값과 비교해보세요. 차이가 있다면 어디서 왔을까요?`;
+            },
             4: "📊 [질문 생성] 버튼을 눌러 내 데이터에 맞는 심화 질문을 받아보세요.",
         },
         univ: {
-            1: "이상기체 가정 하 분자 수 보존을 PV=nRT 와 결합해 P_total 을 V_A, V_B, T 로 유도하세요.",
-            2: "돌턴 법칙 P_total = ΣP_i 의 가정 (이상기체, 비반응성) 을 명시하고, 실제 기체에서 어긋날 조건을 논하세요.",
-            3: "측정값과 이론값의 차이를 통계적으로 분석하고, 시뮬레이션 모델의 한계를 논하세요.",
+            1: "측정 데이터에서 P_total과 P_A, P_B의 관계, 그리고 분자 수 n_A, n_B와의 관계를 동시에 관찰하세요. 이 두 관계가 어떻게 연결되는지 정량적으로 기술해보세요.",
+            2: (ctx) => {
+                const r = ctx?.records?.length ? ctx.records.slice(-1)[0] : null;
+                const pa = (r?.P_A != null) ? r.P_A.toFixed(2) : "(측정 전)";
+                const pb = (r?.P_B != null) ? r.P_B.toFixed(2) : "(측정 전)";
+                const na = r?.n_A ?? "(측정 전)";
+                const nb = r?.n_B ?? "(측정 전)";
+                return `측정에서 P_A=${pa} atm, P_B=${pb} atm을 얻었습니다. 분자 수 n_A=${na}, n_B=${nb}로부터 P_i = (n_i / n_total) × P_total 관계가 어떻게 도출되는지 통계역학적 관점에서 설명해보세요. 이 관계가 비반응성 가스에 한정되는 이유도 함께.`;
+            },
+            3: (ctx) => {
+                const r = ctx?.records?.length ? ctx.records.slice(-1)[0] : null;
+                const pt = (r?.P_total != null) ? r.P_total.toFixed(2) : "(측정 전)";
+                return `현재 측정값 P_total=${pt} atm을 기준으로, V_A 또는 V_B를 변화시킨 다른 조건에서 P_total을 예측한 후 실제 측정으로 검증하세요. 예측-측정 차이의 원인 (이상기체 가정 한계, 실험 오차, 시뮬레이션 모델 한계 등)을 다층적으로 분석해보세요.`;
+            },
             4: "📊 [질문 생성] 버튼을 눌러 내 데이터에 맞는 정량 분석 질문을 받아보세요.",
         },
     };
 
-    function daltonGetQuestionText(level, qid) {
+    function daltonGetQuestionText(level, qid, ctx) {
         if (qid === "free") return "💬 자유 질문 모드";
-        return DALTON_QUESTION_TEXT[level]?.[qid] || "";
+        const tpl = DALTON_QUESTION_TEXT[level]?.[qid];
+        if (typeof tpl === "function") {
+            // ctx 미전달 (tutor.js 의 2-arg 호출) 시 closure 의 daltonState 로 lazy 채움
+            const lazyCtx = ctx || { records: daltonState.measurementRecords };
+            return tpl(lazyCtx);
+        }
+        return tpl || "";
     }
 
     // F1: 비교 모드 통합 — ctx.comparisonSelected 2개면 두 row 데이터 자동 주입
@@ -3412,7 +3452,7 @@ function initDaltonApp(params) {
 
         const focusLine = qid === "free"
             ? "현재 모드: 자유 질문 — 학생 질문에 부분 압력 법칙 / 분자 수 / 시뮬 데이터와 연결해 답변. 400자 이내."
-            : `현재 탐구 질문: ${DALTON_QUESTION_TEXT[level]?.[qid] || ""}`;
+            : `현재 탐구 질문: ${daltonGetQuestionText(level, qid, ctx) || ""}`;
 
         // 데이터 소스 라벨 + 분기 가이드 (Boyle 패턴 미러링, 4종)
         const dataSourceLabel =
@@ -3424,7 +3464,7 @@ function initDaltonApp(params) {
         const sensorGuide = mode === "real"
             ? `[데이터 소스 고려사항]\n현재는 **실물 센서** (ESP32 + 압력 센서) 환경: 측정 오차·기밀 불량·온도 드리프트 등 실험 현실 요인을 질문/피드백에 적극 반영. 학생이 시린지 눈금을 직접 읽었다는 전제로 오차 원인 탐구를 유도.`
             : mode === "vernier"
-            ? `[데이터 소스 고려사항]\n현재는 **Vernier GDX-GP** (상용 BLE 압력 센서, ±3 kPa 검정 정확도) + **콕 결합 셋업** (3-way 콕은 A·B 연결 위치 고정, GDX는 측정 포트). 측정 단계 = 1번 클릭으로 결합 시스템 초기 P_initial 캡처 → 학생이 A 시린지 누름 → 평형 후 2번 클릭으로 P_total 캡처. **1센서 운용 한계**: P_A·P_B 동시 측정 불가, 시작·끝 두 점만 의미 있음 — Dalton 법칙 검증은 평형 P_total 비교로 진행. V_A_current 는 V_A' = P_initial·(V_A+V_B)/P_current − V_B 역산으로 학생 누름 정도 실시간 추정. 이론값: P_total = P_initial·(V_A+V_B)/V_B.\nVernier 모드에서는 GDX-GP 가 결합 시린지의 총 압력만 측정합니다. P_A, P_B (가스별 분압) 은 직접 측정 불가, records 에 null 로 기록됩니다. 학생의 실측 데이터는 P_total + V_A_current 두 값입니다. 이론값과의 비교 시 이 점을 고려하세요.`
+            ? `[데이터 소스 고려사항]\n현재는 **Vernier GDX-GP** (상용 BLE 압력 센서, ±3 kPa 검정 정확도) + **콕 결합 셋업** (3-way 콕은 A·B 연결 위치 고정, GDX는 측정 포트). 측정 단계 = 1번 클릭으로 결합 시스템 초기 P_initial 캡처 → 학생이 A 시린지 누름 → 평형 후 2번 클릭으로 P_total 캡처. **1센서 운용 한계**: P_A·P_B 동시 측정 불가, 시작·끝 두 점만 의미 있음 — Dalton 법칙 검증은 평형 P_total 비교로 진행. V_A_current 는 V_A' = P_initial·(V_A+V_B)/P_current − V_B 역산으로 학생 누름 정도 실시간 추정. 이론값: P_total = P_initial·(V_A+V_B)/V_B.\nVernier 모드에서는 GDX-GP 가 결합 시린지의 총 압력만 측정합니다. P_A, P_B (가스별 분압) 은 직접 측정 불가, records 에 null 로 기록됩니다. 학생의 실측 데이터는 P_total + V_A_current 두 값입니다. 이론값과의 비교 시 이 점을 고려하세요.\nVernier 한정: Q1·Q2 에서 P_A/P_B 인용 X. P_total + V_A/V_B + V_A_current 세 값으로 분석 유도. "분압 직접 측정 못 했지만 P_total 과 부피로 P_A+P_B = P_total 은 간접 검증 가능" 안내.`
             : mode === "ws"
             ? `[데이터 소스 고려사항]\n현재는 **펌웨어 에뮬레이터** (가짜 센서) 환경: 실험 노이즈는 없으나 학생이 시린지 눈금을 직접 입력. 측정 절차를 묻는 질문은 가능하되 측정 오차·드리프트 해석은 지양.`
             : `[데이터 소스 고려사항]\n현재는 **시뮬레이션** 환경: 이상기체 법칙이 정확히 성립하는 조건이므로 이론 중심 탐구. 분자 수 보존·부분 압력 가산성을 입자 시각으로 직접 확인 가능. "실험으로 검증하려면 어떻게 측정해야 할까?" 같은 확장 질문으로 현실과 연결 유도.`;
@@ -3445,6 +3485,15 @@ ${sensorGuide}
 3. 전체 압력 = 부분 압력의 합 (P_total = P_A + P_B). 가산성.
 4. 시뮬 ↔ 이론 일치 — V·P 비례 (PV=nRT). 측정값 P(시뮬) 과 이론값 P(이론) 비교.
 (Graham 법칙 — 학생이 분자 속도 / 분자량 차이 질문 시만 다룰 것)
+
+[Q별 데이터 인용 가이드]
+Q1 (관찰): 학생 답변에 회차 N의 P_A, P_B, P_total, n_A, n_B 구체 숫자를 직접 인용하며 피드백. 학생이 발견한 패턴을 인정하고 한 단계 깊은 관찰 유도.
+Q2 (해석): 학생이 계산한 비율(P_A/P_total vs n_A/n_total)을 학생 데이터로 직접 검증하며 피드백. Vernier 모드에선 P_A/P_B null이므로 V_A/V_B 비율과 P_total로 분기.
+Q3 (예측·검증): 학생 예측값과 측정값을 records 다회 비교. comparisonSelected 비어있으면 비교 모드 사용 권장. 차이 원인 분석은 학생 측정 데이터에 anchor.
+Q4 (메타): 현행 유지 — 학생 데이터 기반 자기 질문 생성.
+
+[측정 기록 0건 처리]
+records 비어있으면 학생 질문에 답하지 말고 먼저 측정 1회 진행 안내. 예: "먼저 가스를 주입하고 측정 데이터를 기록한 후 다시 질문해주세요. 그래야 당신의 실험 결과를 바탕으로 함께 분석할 수 있어요."
 
 절대 원칙:
 1. 학생이 아직 생각하지 못한 답을 직접 알려주지 마세요. 답변을 인정하고 한 단계 더 깊은 질문을 던지세요.
