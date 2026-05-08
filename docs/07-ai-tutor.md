@@ -2,9 +2,9 @@
 
 **문서 목적**: AI 튜터의 설계 철학, 구조, 프롬프트, 운영 정책을 종합 정리한다. 논문·연구 발표 시 방법론 근거 자료로 사용하며, 구현 세부는 다른 문서에 위임한다.
 
-**마지막 업데이트**: 2026-04-28 (Phase 5.5 — **AI 튜터 설정 패널 기본 열림 (3 시뮬 일관)**. Phase 5.4 = Q3 ↔ Q4 swap + 입자운동 16 질문 차등 + 비활성 버그 fix).
+**마지막 업데이트**: 2026-05-08 (Phase 5.9 D-(2)/(3)/(4)/(5) 완료 표기. Phase 5.5 = AI 튜터 설정 패널 기본 열림. Phase 5.4 = Q3 ↔ Q4 swap + 입자운동 16 질문 차등 + 비활성 버그 fix).
 
-**Phase 5.9 추가 (2026-05-07)**: dataSource 4종 분기 (mock/ws/real/vernier) — Boyle (`ui.js:1754-1789`) 에 vernier 케이스 추가, Dalton (`main.js:3324-3416`) 에 분기 자체 첫 도입. Vernier 모드 학생이 sim 가이드를 받던 정합성 어긋남 정정. Vernier substate 컨텍스트 (Dalton 한정 — `daltonState.vernier` 4 필드) + 비교 모드 + Vernier 동시 정책 추가. 상세: §4.6 데이터 소스 분기.
+**Phase 5.9 추가 (2026-05-07 ~ 08, D-(2)/(3)/(4)/(5))**: 4 트랙 완료. (1) D-(3) dataSource 4종 분기 (mock/ws/real/vernier) — Boyle (`ui.js:1754-1789`) 에 vernier 케이스 추가, Dalton (`main.js:3324-3416`) 에 분기 자체 첫 도입. Vernier 모드 학생이 sim 가이드를 받던 정합성 어긋남 정정. Vernier substate 컨텍스트 (Dalton 한정 — `daltonState.vernier` 4 필드) + 비교 모드 + Vernier 동시 정책 추가. (2) D-(4) Vernier 모드 측정 records 연동 — `addVernierRecord()` + record.mode 필드 + formatRecordLine helper. (3) D-(2) Q1~Q4 인지 흐름 재설계 (관찰/해석/예측·검증/메타, Bloom 흐름) + 16개 본문 학생 데이터 anchor (high/univ 동적 placeholder). (4) D-(5) 응답 가드 소크라테스식 — 절대 원칙 11~13 + Few-shot 3개. 상세: §4.6 데이터 소스 분기 (§4.6.4~7).
 
 **Phase 5.5 추가**:
 - **설정 패널 기본 열림** — 3 시뮬 (보일 = `ai-tutor.js:1054` / 돌턴 = `main.js:3155` / 입자운동 = `ui.js:2129`) 모두 첫 진입 시 펼침. ⚙ 클릭 토글 동작 유지. 진입 장벽 ↓ — 학생 모델 / 사용량 / 키 즉시 인지.
@@ -250,7 +250,7 @@ univ (대학교 일반화학/물리화학 초기):
 | `mock` | 시뮬레이션 (입자 시뮬, P 직접 산출) | 이상기체 법칙 성립, 이론 중심. (Dalton 한정) 분자 수 보존·부분 압력 가산성·입자 시각 강조 |
 | `ws` | 펌웨어 에뮬레이터 (개발용 가짜 센서) | 노이즈 X, 측정 절차는 가능하나 오차 해석 지양 |
 | `real` | 실물 센서 (ESP32 + 압력 센서) | 측정 오차·기밀·드리프트 적극 반영, 시린지 눈금 직접 읽기 전제 |
-| `vernier` | Vernier GDX-GP (상용 BLE 압력 센서) | ±3 kPa 검정 정확도. 노이즈 ↓ 이지만 기밀·드리프트 여전. 비이상성·측정 절차 분석 유도 |
+| `vernier` | Vernier GDX-GP (상용 BLE 압력 센서) | ±3 kPa 검정 정확도. 노이즈 ↓ 이지만 기밀·드리프트 여전. 비이상성·측정 절차 분석 유도. **records.P_A/P_B/n_*=null** (분압·분자수 산출 불가, mode='vernier' 식별 — D-(4)) |
 
 **구현 위치**:
 - Boyle: `ui.js:1754-1789` — `buildDataContext.dataSource` 4종 + `buildSystemPrompt.sensorGuide` 4종
@@ -337,6 +337,7 @@ mock/ws/real 본문은 각 시뮬 코드 직접 참조 (Boyle `ui.js:1782-1789` 
 - 부피 고정 기구 도착 후 V_A_current_mL 시각 검증 + Vernier sensorGuide 본문 응답 품질 평가 → 분량 단축 여부 재결정 (현 vernier 본문 ~290자 = 5요소 반영 우선, 실측 단계에서 약점 발견 시 단축)
 - 작업 D-(4) 측정 데이터 연동 점검 / D-(5) 응답 가드 (소크라테스식) 진입 시 본 §4.6 보강 가능
 
+
 #### 4.6.5 Phase 6.4 fixup 17a vapor AI 튜터 통합
 
 **Phase 6.4 예약 실행**: `tutor.js` 헤더 docstring 안 "Phase 6.4 예약: vapor 도 본 factory 사용 예정" (Phase 6.1-a `b3972b3` 선언) → fixup 17a (`f0acb06`) 실행. tutor.js 자체 변경 0 (factory + 공통 logic 그대로). 페이지 간 UX 일관성 (boyle/particles/dalton/vapor 동일 사이드바 + 학습 흐름).
@@ -406,6 +407,89 @@ vaporTutor.init();   // ← fixup 17b 누락 수정 (silent regression 본질, d
 **일지**: `docs/10-dev-journal.md § Phase 6.4 fixup 17a~17g-1` (17h-1d entry).
 
 **자세**: `docs/17-vapor-design.md` §14 (vapor AI 튜터 통합) + §15 (시스템 layout).
+
+#### 4.6.6 D-(4) Vernier records 연동 (2026-05-08, commit `105c226`)
+
+**배경**: D-(3) 완료 후 발견 — Vernier 모드에서 N회 측정해도 records 0건 유지. `addRecord()` 는 mock stage `INJECTED` 일 때만 호출, Vernier 측정 버튼은 `vernier.stage` 만 갱신. AI 튜터는 "측정 기록 없음 — [확인] 버튼 안 누름" 메시지로 잘못 안내 ([확인] 은 mock 전용 UI).
+
+**해결**:
+- Vernier 측정 버튼 `CAPTURED` 진입 시 `addVernierRecord()` 호출 (mock 과 records 배열 공유)
+- record 객체에 `mode` 필드 신설 (`mock` / `ws` / `real` / `vernier` 출처 식별)
+- `P_A` / `P_B` / `n_A` / `n_B` / `n_total = null` (Vernier 단일 센서로 분압·분자수 산출 불가)
+- `daltonBuildSystemPrompt formatRecordLine` helper 에서 mode 분기 — vernier 는 "회차 N [Vernier 실측]: P_total=... atm (실측), P_A/P_B=N/A" 표시
+- `[측정 기록 없음 — [확인] 버튼 ...]` → `[측정 기록 없음 — 학생이 아직 측정을 진행하지 않았습니다.]` 메시지 정합화
+- 디버그 핸들 추가 — `window._daltonBuildDataContext` / `window._daltonBuildSystemPrompt`
+
+**근거**: 옵션 A2 (별도 `vernierRecords` 배열) 대신 옵션 A1 (records 통합) 채택 — 비교 모드·CSV·표 그래프 등 기존 UI 자동 재사용 가능.
+
+**검증**: mock 모드에서 `_daltonBuildDataContext().records[0].mode === "mock"` 확인, `_daltonBuildSystemPrompt` 출력에 학생 측정값 라인 포함 확인. Vernier 모드 record 형식 검증은 BT 어댑터 부재로 보류.
+
+**후속**: 표 row 렌더 / 그래프 갱신 / CSV null 처리는 D-(4) 범위 외 — 후속 트랙.
+
+#### 4.6.7 D-(2) Q1~Q4 인지 흐름 재설계 + 본문 anchored (2026-05-08, commit `7dedd21` — message 라벨 D-(?))
+
+**배경**: D-(4) 검증 중 발견 — Q1~Q3 본문이 학생 측정 데이터와 무관한 일반 이론 질문. 예: high.q1 = "주입 전후 분자 수 보존을 가정할 때 PV=nRT 로 설명" (가정 기반, 학생 데이터 0% 사용). 매핑 (목표 1/2/동적/4) 은 사후 문서화일 뿐, journal·docs 에 학습학적 결정 근거 미기록 — 변경 자유 확인.
+
+**해결 — 매핑 재설계 (Bloom 인지 흐름)**:
+- Q1 = **관찰** (Observation) — 학생 데이터 직접 보기
+- Q2 = **해석** (Interpretation) — 관찰값을 이론과 연결, 부분 압력·분자수 비율
+- Q3 = **예측·검증** (Prediction & Verification) — 다른 조건 예측 → 측정 검증
+- Q4 = **메타** (현행 유지)
+
+**해결 — 16개 본문 재작성**:
+- elem / middle: 정적 문자열, 자연 표현 ("방금 측정한 회차의 ...")
+- high / univ: `(ctx) => string` 함수 형태 — 동적 placeholder `${ctx.records.slice(-1)[0].FIELD}` 치환
+- 0건 fallback: `?? "(측정 전)"` 안전 처리
+- 학습 목표 4개 유지 (분자 수 보존 / 부분 압력 / 가산성 / 시뮬↔이론)
+- `daltonGetQuestionText(level, qid, ctx)` — `typeof` check 로 함수/문자열 분기, lazy ctx fallback (`tutor.js` 의 2-arg 호출 시 closure `daltonState.measurementRecords` 자동 사용)
+
+**해결 — system prompt 가이드 강화**:
+- `[Q별 데이터 인용 가이드]` 섹션 신설 — Q1~Q4 별 어떤 측정 필드 인용해야 하는지 명시
+- `[측정 기록 0건 처리]` 섹션 신설 — records 빔 시 측정 진행 먼저 안내
+- `sensorGuide` vernier 분기 추가 보강 — Q1·Q2 에서 P_A/P_B 인용 X, V_A/V_B 비율과 P_total 로 분기
+
+**참고**: commit message 는 `D-(?)` 잔존. journal cross-ref 표 (`docs/10-dev-journal.md` line 3132) 에 "D-(2) = 7dedd21 (msg D-(?))" 명시.
+
+**검증**: mock 1회 측정 후 `_daltonBuildSystemPrompt("high", "1")` 본문에 "방금 측정에서 V_A=50, V_B=50일 때..." 확인. records 0건 fallback "(측정 전)" 정상 표시.
+
+#### 4.6.8 D-(5) 응답 가드 — 소크라테스식 (2026-05-08, commit `ffdf92c`)
+
+**배경**: 기존 절대 원칙 1·6·7·9 가 소크라테스식 의도 일부 반영했으나 실효 약함. AI 가 학생 압박 ("정답이 뭐야", "그냥 알려줘") 에 굴복할 위험. 직답 표현 명시적 금지 부재. Few-shot 예시 부재로 LLM 패턴 학습 약함.
+
+**해결 — 절대 원칙 11~13 신설**:
+- **11**: 학생 직답 요청 거부 + 힌트성 질문 전환 (예: "직접 답을 드리진 않을게요. 대신 [학생 마지막 관찰] 에서 다음으로 어떤 게 궁금하세요?")
+- **12**: 직답 표현 금지 ("정답은", "결론적으로", "~이기 때문입니다" 단정형) + 가능성 표현 ("~할 수도", "~라면 어떨까요") 권장
+- **13**: 학생 추론 단계 보존 — 한 단계만 답하기, 두 단계 이상 X
+
+**해결 — Few-shot 예시 3개 (Q1·Q2·Q3) system prompt 통합**:
+- 학생 답변 시뮬 + 나쁜 응답 / 좋은 응답 대비 + 핵심 패턴 정리 (학생 데이터 인용 / 직답 차단 / 발견 인정 / 깊은 질문 / 가설 검증 유도)
+- system prompt 분량 ~2050자 → ~2700자 (Claude sonnet-4-6 입력 토큰 ~$0.0003/호출, 비용 미미)
+
+**근거**: 트랙 1 (programmatic 응답 후처리) 은 false positive 위험 큼 — 정상 응답도 거부될 가능성. 트랙 2 (system prompt 강화) + Few-shot 결합이 효과·작업 균형 최적.
+
+**검증** (실 AI 호출, claude-sonnet-4-6):
+- 학생 답변 'P_A=0.96, P_B=1.04, 합치면 P_total=2.00. 정답인가요?'
+  → 응답: "합 관계를 정확히 찾으셨네요. P_A + P_B = 2.00, P_total = 2.00... 부피·온도 같은데 압력 다른 이유는?"
+  → 학생 데이터 인용 + 단정형 표현 없음 + 깊은 질문 마무리 ✅
+- 직답 요청 회귀 '그냥 답 알려줘. 정답이 뭐야?'
+  → 응답: "직접 답을 드리진 않을게요. 두 기체 사이 다른 점이 있을 텐데... 분자 수(n) 확인해보셨나요?"
+  → 직답 거부 + 힌트성 질문 전환 ✅
+
+**후속**: Few-shot 예시 안의 단정형 인용 ("정답입니다", "맞습니다") LLM 이 그대로 따라할 위험 — 실측 검증 통과로 위험 낮음 확인. 다양한 학생 입력 (오개념·회피·메타) 회귀 검증은 별도 트랙. 보일·입자운동 튜터에도 같은 가드 적용은 별도 트랙.
+
+#### 4.6.9 D 시리즈 일련번호 (2026-05-08 시점)
+
+journal `docs/10-dev-journal.md § Phase 5.9 D 트랙` 표와 정합:
+
+| ID | 명칭 | 상태 | commit |
+|---|---|---|---|
+| D-(1) | 돌턴 보고서 자동 생성 | 후속 | — (보일 `tutor-report-boyle.js` 패턴 재사용 예정) |
+| D-(2) | Q1~Q4 인지 흐름 재설계 + 본문 anchored | 완료 | `7dedd21` (msg D-(?)) |
+| D-(3) | 데이터 소스 분기 (Vernier) | 완료 | `8cb741e` / `10ae103` |
+| D-(4) | 측정 데이터 연동 점검 (Vernier records) | 완료 | `105c226` |
+| D-(5) | 응답 가드 (소크라테스식) | 완료 | `ffdf92c` |
+| D-(6) | 학생 수준 자동 판단 검증 | 후속 | — (`[[LEVEL:xxx]]` 동작 실측 필요) |
+
 
 ---
 
