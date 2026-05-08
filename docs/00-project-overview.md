@@ -107,3 +107,5 @@
 - `05-data-format.md`: 센서·로그 데이터 포맷.
 
 추후 추가 예정: 산염기 장비 명세, LLM 튜터 설계, UI 설계 등.
+
+> **Phase 5+ 트랙 문서**: `phase5-real-sensor` (보일/돌턴/Vernier·실센서·튜터 D-시리즈), `phase6-vapor-design` (증기압 실험 — `17-vapor-design.md`). main 기준 archive 시점이므로 본 인덱스에 미반영. 트랙별 상세는 해당 브랜치의 `docs/10-dev-journal.md` 참조.
