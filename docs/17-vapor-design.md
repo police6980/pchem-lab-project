@@ -113,8 +113,9 @@ MVP 외 후속 트랙 학습 목표:
 
 **vernier dual-device 시간 동기**: 압력 패킷 도착 시점을 측정 tick으로 삼고, T는 직전 도착값 사용. 증기압 timescale(수십 초~분)에서 BLE drift 무시 가능.
 
-**아키텍처 영향 (`web/js/serial.js`)**:
-- 옵션 1 채택: `VernierSensorSource` 내부에 두 godirect 디바이스 캡슐화. 외부 인터페이스는 단일 source처럼.
+**아키텍처 영향 (`web/js/serial.js` / `web/js/vernier.js`)**:
+- 현행 클래스: `VernierBridgeSensorSource` — 단일 디바이스 가정. Phase 5.9 시점 vernier.js 에 단일 enabled 센서·`ch:0` 고정·`kPa` 단위 하드코딩으로 구현됨.
+- 옵션 1 채택: 신규 `VernierDualSensorSource` (가칭, 6.4 진입 시 최종 명명) 내부에 두 godirect 디바이스 캡슐화. 기존 `VernierBridgeSensorSource` 와 별도 클래스로 분리 (boyle/dalton 호출부 영향 회피). 외부 인터페이스는 단일 source처럼.
 - 출력 포맷은 `{P, T, t}` channel array로 통일. 후일 SensorComposer 도입 여지 보존.
 
 **배제된 대안**: 옵션 2 (SensorComposer 일반화) — vapor 외 사용처 불명확. YAGNI.
@@ -169,7 +170,7 @@ MVP 외 후속 트랙 학습 목표:
 | V_liquid 상한 = 0.5·V_flask | 기체상 충분 확보, 액체 넘침 방지 | 자유 입력 (이상 케이스 다수) |
 | 입력 시점 = 시작 전 1회 + 잠금 | 측정 데이터와 시뮬 상태 어긋남 방지 | 도중 수정 (상태 정합성 부담) |
 | Vernier dual-device 시간 동기 = latching | 증기압 timescale에서 충분, 구현 단순 | timestamped interpolation (오버엔지니어링) |
-| VernierSensorSource 내부 캡슐화 | YAGNI, 단일 인터페이스 유지 | SensorComposer 일반화 (사용처 불명확) |
+| 신규 `VernierDualSensorSource` (가칭) 캡슐화 — 기존 `VernierBridgeSensorSource` 와 분리 | YAGNI, 단일 인터페이스 유지 / boyle·dalton 호출부 영향 회피 | SensorComposer 일반화 (사용처 불명확), 기존 클래스 일반화 (단일 디바이스 호출부 영향) |
 | 액체 = 물 (MVP) | 안전, 익숙도, 데이터 검증 용이 | 에탄올 (가연성, 후속) |
 | 세기 성질 발견 활동은 후속 | MVP에 입력 UI만 노출해도 자발 발견 가능. 명시 가이드는 6.5 | MVP에 정식 학습 활동 포함 (범위 비대) |
 
