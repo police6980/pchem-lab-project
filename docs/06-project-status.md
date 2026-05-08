@@ -2,11 +2,11 @@
 
 **문서 목적**: 현재 구현 상태와 남은 작업의 마스터 트래커. 다른 설계 문서는 "어떻게 만들어졌는가"를 설명하고, 이 문서는 "어디까지 왔는가"를 기록한다.
 
-**마지막 업데이트**: 2026-04-28 (Phase 5.4 완료 + Phase 5.5 회귀 인프라 + 학습 보강 완료)
+**마지막 업데이트**: 2026-05-08 (Phase 5.6 / 5.7 / 5.8 / 5.9 / 5.10 진행 정합)
 **프로젝트 정식명**: **CAST** (Chemistry AI-assisted Simulation & MBL Tools). 저장소 이름 `pchem-lab-project` 는 개발 초기 명칭 호환 차원에서 유지.
-**현재 상태**: 보일 법칙 실험 + 입자운동론 심화 모듈 + AI 튜터 완성. **Phase 3 소프트웨어 완성** (`phase3-real-sensor` 브랜치 — Step 3-6 실물 조립·검증만 하드웨어 대기). **랜딩 페이지 + 3 페이지 분리 완성** (`feature/landing-page` 브랜치). **Phase 5.1 + 5.2 + 5.3 완료** (`feature/dalton-experiment` 브랜치). **Phase 5.4 완료** (`phase5-real-sensor` 브랜치, 2026-04-27 ~ 28): protocol v1.2 멀티채널 + multi-channel SensorSource + calibration pipeline + `params.dalton.sensor` 5 상수 외부화 + outlier 가드 5 단계 + A-1 노이즈 시나리오 (off/quiet/normal/harsh) + baseline.js + 시나리오 회귀 (run-scenario.js + run-all.js) + AI 튜터 Q3↔Q4 swap + 16 질문 차등 + R1/R5 stuck patch. **Phase 5.5 완료** (2026-04-28): 회귀 인프라 (sequence replay run-replay.js + outlier 가드 unit test 11/11 PASS) + 학습 보강 (보일 측정 통계 σ/min-max/ln-ln 회귀 + 입자운동 가스 비교 Graham 직관) + AI 설정 패널 기본 열림 + docs 권위 정합화 (docs/15 신규 + docs/03 갱신 + cross-ref 8 위치).
-**최신 태그**: `v0.4-boyle-complete` (main). 추가 브랜치 태그: `phase5.1-complete` (`feature/dalton-experiment`). 병합 대기 브랜치 6개: `phase3-real-sensor` / `feature/landing-page` / `feature/particle-controls` / `feature/responsive-canvas` / `feature/dalton-experiment` / `phase5-real-sensor`.
-**다음 단계**: (1) **Step I 실센서 본편** (실물 DFRobot Gravity 1.6MPa × 2 입수 후 — `docs/19-real-sensor-integration-checklist.md` 따라 진행, baseline.js 실물 모드 추가 + 시나리오 실물 baseline), (2) **[A] AI 튜터 통합 별 브랜치** (`phase5-tutor-unify`) — Phase 6/7 신규 시뮬 추가 직전, (3) **Phase 7** (샤를 페이지) 분기 결정, (4) 병합 대기 브랜치들 순차 main 통합. **폐기**: Matter.js 별 브랜치 (Phase 5.5 결정 — 직접 구현 + patch fix 정책 확정).
+**현재 상태**: 보일 법칙 실험 + 입자운동론 심화 모듈 + AI 튜터 완성. **Phase 3 소프트웨어 완성** (`phase3-real-sensor` 브랜치 — Step 3-6 실물 조립·검증만 하드웨어 대기). **랜딩 페이지 + 3 페이지 분리 완성** (`feature/landing-page` 브랜치). **Phase 5.1 + 5.2 + 5.3 완료** (`feature/dalton-experiment` 브랜치). **Phase 5.4 완료** (`phase5-real-sensor` 브랜치, 2026-04-27 ~ 28): protocol v1.2 멀티채널 + multi-channel SensorSource + calibration pipeline + `params.dalton.sensor` 5 상수 외부화 + outlier 가드 5 단계 + A-1 노이즈 시나리오 (off/quiet/normal/harsh) + baseline.js + 시나리오 회귀 (run-scenario.js + run-all.js) + AI 튜터 Q3↔Q4 swap + 16 질문 차등 + R1/R5 stuck patch. **Phase 5.5 완료** (2026-04-28): 회귀 인프라 (sequence replay run-replay.js + outlier 가드 unit test 11/11 PASS) + 학습 보강 (보일 측정 통계 σ/min-max/ln-ln 회귀 + 입자운동 가스 비교 Graham 직관) + AI 설정 패널 기본 열림 + docs 권위 정합화 (docs/15 신규 + docs/03 갱신 + cross-ref 8 위치). **Phase 5.6 완료** (2026-04-28): CI workflow + 5 docs 정합화 + protocol-test 12/12 PASS. **Phase 5.7 완료** (`phase5-tutor-unify` 브랜치, 2026-04-29, 14 commits): AI 튜터 통합 모듈 — 보일/돌턴/입자운동 3 시뮬 단일 factory `tutor.js createTutor(config)` + Hybrid wrapper 패턴. **Phase 5.8 완료** (`phase5-real-sensor`, 2026-05-06): Vernier GDX-GP (BLE) 4번째 SensorSource 정식 편입 (`vernier.js` + godirect-js UMD). **Phase 5.9 진행 중** (`phase5.9-stabilization` + `tutor-D-series` 브랜치, 2026-05-06 ~ 08): Vernier Dalton 작업 1~5 (작업 1~3 완료, 작업 4 검증 보류 — 부피 고정 기구 미도착, 작업 5 검증 보류 — BT 어댑터 부재, 작업 6 폐기 — V_A+V_B 합과 시린지 한도 무관) + AI 튜터 D 트랙 D-(2)(3)(4)(5) 완료 (D-(2) Q1~Q4 인지 흐름 재설계 / D-(3) 데이터 소스 분기 / D-(4) Vernier records 연동 / D-(5) 응답 가드 소크라테스식). **Phase 5.10 진행 중** (`firmware-esp32` 브랜치, 2026-05-08): 펌웨어 ESP32-S3 N16R8 환경 셋업 — POT_PIN 1 (ADC1_CH0) + 가짜 sin 임시 모드 (70~130 kPa, 6초 주기) + v1.1 RX 처리 (ping/calib/cfg, strstr 수동 파서) → WebSerial 검증 통과.
+**최신 태그**: `v0.4-boyle-complete` (main). 추가 브랜치 태그: `phase5.1-complete` (`feature/dalton-experiment`). 병합 대기 브랜치 9개: `phase3-real-sensor` / `feature/landing-page` / `feature/particle-controls` / `feature/responsive-canvas` / `feature/dalton-experiment` / `phase5-real-sensor` / `firmware-esp32` / `phase5.9-stabilization` / `tutor-D-series`.
+**다음 단계**: (1) **작업 4·5 실측 검증** (BT 어댑터 + 부피 고정 기구 도착 후 — Vernier 자동 안정화 / V_A_current_mL plunger 시각), (2) **Step I 실센서 본편** (실물 DFRobot Gravity 1.6MPa × 2 입수 후 — `docs/19-real-sensor-integration-checklist.md` 따라 진행, baseline.js 실물 모드 추가 + 시나리오 실물 baseline), (3) **D-(1) 돌턴 보고서 자동 생성** + **D-(6) 학생 수준 자동 판단 검증** (튜터 트랙 잔여), (4) 디버그 핸들 일괄 정리 (`window._sensorManager` / `_advanceVernier` / `_daltonBuildDataContext` / `_daltonBuildSystemPrompt`), (5) **Phase 7** (샤를 페이지) 분기 결정, (6) 병합 대기 브랜치 9개 순차 main 통합. **폐기**: Matter.js 별 브랜치 (Phase 5.5 결정), Phase 5.9 작업 6 시린지 60mL 가드 (Phase 5.9 D 트랙 결정 — 물리 부정합).
 
 ---
 
@@ -391,15 +391,68 @@ Arduino·ESP32 하드웨어 입수 전 선행 가능한 브라우저·프로토�
 - [x] **트랙 6 docs/16 §9 stale 정리**
 - [x] **AI 튜터 설정 패널 기본 열림** — 3 시뮬 (보일/돌턴/입자운동) 일관
 
-**남은 작업 (Phase 5.4 → Step I)**
-- [ ] Step I 본편: 실물 DFRobot Gravity 1.6MPa × 2 조립·플래시·캘리브 검증·본 데이터 수집 — `docs/19-real-sensor-integration-checklist.md` 따라
-- [ ] baseline.js 실물 모드 — `npm install serialport` + `--source` 분기 (도착 후)
+**완료 (Phase 5.6, 2026-04-28)** — CI workflow + docs 정합 + 단위 테스트 인프라
+- [x] **CI workflow 신규** — `.github/workflows/ci.yml` (commit `f6c54ce`)
+- [x] **protocol-test 12/12 PASS** — `tests/protocol-test.js` (commit `6be7ca7`)
+- [x] **5 docs stale 정리** — Phase 5.4/5.5 정합 (commit `224e203`)
+- [x] **README 외부 진입점 정합** (commit `51c7288`)
+- [x] **트랙 6 AI 튜터 통합 = 보류** — `phase5-tutor-unify` 별 브랜치로 분리 결정 (Phase 5.7 진입)
 
-**Phase 3 잔여**: `phase3-real-sensor` 브랜치 SW 완료. Step 3-6 실물 조립·검증 하드웨어 도착 대기. Phase 5.4/5.5 → Step I 와 동시 진행 가능.
+**완료 (Phase 5.7, 2026-04-29, `phase5-tutor-unify` 브랜치)** — AI 튜터 통합 모듈 (14 commits)
+- [x] **`tutor.js` 신규** — `createTutor(config)` factory + 공통 logic (~800줄, commit `1c87c56`)
+- [x] **`tutor-report-boyle.js` 분리** — 보일 보고서 docx 조립 callback (~300줄, commit `f480c58`)
+- [x] **3 시뮬 적용** — Hybrid wrapper 패턴, 핵심 함수만 wrapper / 보조 함수 dead code 보존 (보일 `4538546` / 입자운동 `7b5c589` / 돌턴 `231e1cc`)
+- [x] **회귀 정정 9건** — 보일 7건 / 입자운동 0건 / 돌턴 1건 (Q-A 재결정 `closeConfig` AI 요약 채택, commit `836bffe`)
+- [x] **사용자 31항 시나리오 통과** — 보일 11 + 입자운동 9 + 돌턴 11
+- [x] **롤백 태그 3개** — `tutor-unify-before-a2` / `before-b` / `before-c`
+- [x] 머지 commit `5bd4358` (저널 `fafcbd2` 14 commits 묶음 기록)
+
+**완료 (Phase 5.8, 2026-05-06, `phase5-real-sensor` 브랜치)** — Vernier GDX-GP 정식 편입
+- [x] **`web/js/vernier.js` 신규** — `VernierBridgeSensorSource` (SensorSource 어댑터, BLE via godirect-js UMD CDN, commit `3d55b44`)
+- [x] **boyle.html 모드 토글에 📡 Vernier 추가** (commit `3d55b44`)
+- [x] **dataSource 4번째 정식 편입** — mock/ws/real/**vernier** 4종, kPa 단위 검증 가드
+- [x] **카드 썸네일 외부 파일 분리** + Boyle/Dalton 카드에 Arduino 키워드 (commits `fde0f05`/`d8bb704`)
+- [x] **머지** `9450115` (`test/vernier-bridge` → `phase5-real-sensor`)
+
+**진행 중 (Phase 5.9, 2026-05-06 ~ 08, `phase5.9-stabilization` + `tutor-D-series` 브랜치)** — Vernier Dalton 적용 + AI 튜터 D 트랙
+
+작업 트랙 (UI/상태머신/측정):
+- [x] **작업 1~3** — dalton.html Vernier 모드 UI + 5상태 머신 (IDLE → INJECTING → STABILIZING → READY_TO_CAPTURE → CAPTURED) + 측정 버튼 단계별 캡처 (commit `6a547e1`)
+- [x] **작업 4** — A plunger 역산 시각화 (V_A' = P_initial·(V_A+V_B)/P_current − V_B, commit `d608bbc`) — **검증 보류** (부피 고정 기구 미도착)
+- [x] **작업 5** — 자동 안정화 감지 (peak-to-peak (max-min)/window 변화율 < 0.1 kPa/s, 3초 hold → READY_TO_CAPTURE 자동 전환, commit `d6c6dbe`) — **검증 보류** (BT 어댑터 부재)
+- [x] **작업 6 폐기** — V_A+V_B 시린지 60mL 가드 (저널 D 트랙 결정 — 가스 압축성으로 V_A=60·V_B=60도 물리 가능, 시린지 한도 무관)
+
+D 트랙 (AI 튜터 데이터·응답 강화):
+- [x] **D-(2) Q1~Q4 인지 흐름 재설계** — 관찰 / 해석 / 예측·검증 / 메타 (Bloom 인지 흐름) + 16개 본문 학생 데이터 anchor (high/univ 동적 placeholder) (commit `7dedd21`, 메시지 D-(?) 였음)
+- [x] **D-(3) 데이터 소스 분기 (Vernier)** — Boyle `8cb741e` + Dalton `10ae103` (Phase 5.9 D-(3), 2026-05-07)
+- [x] **D-(4) Vernier 모드 측정 records 연동** — addVernierRecord() 신설, mode 필드 (mock/ws/real/vernier 출처 식별), formatRecordLine helper (commit `105c226`)
+- [x] **D-(5) 응답 가드 (소크라테스식)** — 절대 원칙 11~13 + Few-shot 3개 (Q1·Q2·Q3) (commit `ffdf92c`)
+- [x] **저널 정합화** — Phase 5.9 D 트랙 + 작업 6 폐기 정정 (commit `112e131`, 244 줄 추가)
+
+**진행 중 (Phase 5.10, 2026-05-08, `firmware-esp32` 브랜치)** — 펌웨어 ESP32-S3 환경 셋업
+- [x] **ESP32 → ESP32-S3 N16R8 변경** — POT_PIN 34 → 1 (ADC1_CH0) (commit `854aaaf`)
+- [x] **가짜 sin 임시 모드** — `100000 + 30000·sin(2π·t/6)` Pa, 70~130 kPa, 6초 주기 (원본 `#if 0` 보존)
+- [x] **v1.1 RX 처리** — handleSerialRx + handleLine + sendCalibAck + parseCfgRate, ping 무응답 / calib ACK / cfg rate 갱신, LINE_BUF_MAX 256, '\r' 무시, overflow 가드 (commit `091c730`)
+- [x] **strstr 수동 파서** — ArduinoJson 의존성 회피
+- [x] **검증 통과** — Arduino IDE 2.3.8 + ESP32 패키지 3.3.8, ESP32-S3 UART 포트 (USB CDC On Boot=Enabled), WebSerial 5Hz 송신 + calib·cfg 콘솔 검증
+- [x] **디버그 핸들 추가** — `window._sensorManager` (검증 후 제거 예정)
+
+**남은 작업 (Phase 5.x → Step I)**
+- [ ] **작업 4·5 실측 검증** — BT 어댑터 + 부피 고정 기구 도착 후 (Vernier sensorGuide 본문 응답 품질 평가, plunger 시각 동작 확인)
+- [ ] **D-(1) 돌턴 보고서 자동 생성** — 보일 `tutor-report-boyle.js` 패턴 재사용 (Phase 5.9 D 트랙 후속)
+- [ ] **D-(6) 학생 수준 자동 판단 검증** — `[[LEVEL:xxx]]` 동작 실측
+- [ ] **디버그 핸들 일괄 정리** — `_sensorManager` / `_advanceVernier` / `_daltonBuildDataContext` / `_daltonBuildSystemPrompt`
+- [ ] **README + firmware/README + docs/15·16 정합화** — ESP32-S3 + 가짜 sin 모드 + Vernier 4번째 모드 + dalton.vernier 그룹
+- [ ] **Step I 본편**: 실물 DFRobot Gravity 1.6MPa × 2 조립·플래시·캘리브 검증·본 데이터 수집 — `docs/19-real-sensor-integration-checklist.md` 따라
+- [ ] **baseline.js 실물 모드** — `npm install serialport` + `--source` 분기 (도착 후)
+
+**Phase 3 잔여**: `phase3-real-sensor` 브랜치 SW 완료. Step 3-6 실물 조립·검증 하드웨어 도착 대기. Phase 5.4 ~ 5.10 → Step I 와 동시 진행 가능.
 
 ---
 
 ## 4. 남은 Phase (로드맵)
+
+본 §4는 거시 로드맵 요약. 상세 단계·소요 추정·결정 이슈는 `docs/09-roadmap.md` 권위. **재정의 이력**: 2026-04-24 이전 Phase 5 = "다른 법칙 확장 (샤를·게이뤼삭)" → 돌턴 부분압력으로 재정의, 다른 법칙은 Phase 7로 이연.
 
 ### Phase 3: Arduino 실센서 연동 (진행 중)
 - [x] Web Serial 어댑터 + 프로토콜 v1.1 + UI 패널
@@ -414,13 +467,18 @@ Arduino·ESP32 하드웨어 입수 전 선행 가능한 브라우저·프로토�
 - 반데르발스 편차 탐구 모듈 (§7 부산물 참조)
 - 이상기체 vs 실제 기체 비교 그래프
 
-### Phase 5: 다른 법칙 확장
-- 샤를 법칙 — 별도 하드웨어 (`docs/02-hardware-charles.md`), DS18B20 + 에어챔버
-- 게이뤼삭·이상기체 법칙 통합 UX
+### Phase 5: 돌턴의 부분압력 (진행 중 — `docs/09-roadmap.md §5` 정합)
+Phase 5.1 ~ 5.10 진행 (위 §3 참조). 본편 Step I (실물 데이터 수집)은 실물 DFRobot Gravity 1.6MPa × 2 입수 후. 작업 4·5 실측 검증은 BT 어댑터 + 부피 고정 기구 도착 후.
 
 ### Phase 6: 교사 도구
 - 학생 활동 모니터링 대시보드
 - 다중 사용자 지원 (서버·DB 필요, 아키텍처 변화 수반)
+- 진입 조건: Phase 5 본편 (Step I + D-(1)·(6)) 완료
+
+### Phase 7: 다른 법칙 확장 (보류)
+- 샤를 법칙 — 별도 하드웨어 (`docs/02-hardware-charles.md`), DS18B20 + 에어챔버
+- 게이뤼삭·이상기체 법칙 통합 UX
+- 기존 Phase 5 에서 이연 (2026-04-24 결정)
 
 ---
 

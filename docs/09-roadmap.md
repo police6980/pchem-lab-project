@@ -2,8 +2,8 @@
 
 **문서 목적**: Phase 2-B 이후 모든 개발 단계 통합 계획. 우선순위·의존관계·예상 소요·결정 이슈 기록. **06**이 "현재 상태"라면 **09**는 "미래 방향".
 
-**마지막 업데이트**: 2026-04-28 (Phase 5.4 / 5.5 완료 — 멀티채널 + 회귀 인프라 + 학습 보강)
-**기준 상태**: Phase 1 MVP 완료, Phase 2-A/2-B 완료 (v0.4-boyle-complete), **Phase 3 소프트웨어 완료** (Step 3-6 실물 대기 — `phase3-real-sensor` 브랜치), **Phase 4.5 심화 탐구 모드 완료** (`feature/particle-controls`, 병합 대기), **반응형 레이아웃 + 단위 병기 완료** (`feature/responsive-canvas`, 병합 대기), **Phase 5.1 + 5.2 + 5.3 돌턴 완료** (`feature/dalton-experiment`), **Phase 5.4 완료** (`phase5-real-sensor` — protocol v1.2 + multi-channel SensorSource + outlier 가드 + A-1 노이즈 + baseline.js + 시나리오 회귀 + docs 권위 정합화), **Phase 5.5 완료** (회귀 인프라 6 트랙 + 학습 보강 + AI 설정 패널 기본 열림 + CI workflow). **Step I 실물 대기**.
+**마지막 업데이트**: 2026-05-08 (Phase 5.6 / 5.7 / 5.8 / 5.9 / 5.10 진행 정합)
+**기준 상태**: Phase 1 MVP 완료, Phase 2-A/2-B 완료 (v0.4-boyle-complete), **Phase 3 소프트웨어 완료** (Step 3-6 실물 대기 — `phase3-real-sensor` 브랜치), **Phase 4.5 심화 탐구 모드 완료** (`feature/particle-controls`, 병합 대기), **반응형 레이아웃 + 단위 병기 완료** (`feature/responsive-canvas`, 병합 대기), **Phase 5.1 + 5.2 + 5.3 돌턴 완료** (`feature/dalton-experiment`), **Phase 5.4 완료** (`phase5-real-sensor` — protocol v1.2 + multi-channel SensorSource + outlier 가드 + A-1 노이즈 + baseline.js + 시나리오 회귀 + docs 권위 정합화), **Phase 5.5 완료** (회귀 인프라 6 트랙 + 학습 보강 + AI 설정 패널 기본 열림). **Phase 5.6 완료** (CI workflow + 5 docs 정합 + protocol-test 12/12). **Phase 5.7 완료** (`phase5-tutor-unify`, AI 튜터 통합 모듈 14 commits). **Phase 5.8 완료** (`phase5-real-sensor`, Vernier GDX-GP 4번째 SensorSource 정식 편입). **Phase 5.9 진행 중** (`phase5.9-stabilization` + `tutor-D-series`, Vernier Dalton 작업 1~5 + AI 튜터 D 트랙 D-(2)(3)(4)(5) — 작업 4·5 실측 검증 보류, 작업 6 폐기). **Phase 5.10 진행 중** (`firmware-esp32`, 펌웨어 ESP32-S3 환경 셋업 + 가짜 sin 모드 + v1.1 RX 처리 — WebSerial 검증 통과). **Step I 실물 대기**.
 
 ---
 
@@ -16,11 +16,17 @@
 - [계획] **Phase 4**: Mock ↔ 실센서 비교 UX
 - [완료·병합 대기] **Phase 4.5**: 심화 탐구 모드 (`feature/particle-controls`)
 - [완료·병합 대기] **반응형 레이아웃 + 단위 병기**: `feature/responsive-canvas` (§4.6 참조)
-- [완료] **Phase 5**: 돌턴의 부분압력 (Phase 5.1 ~ 5.5 완료, **Step I 본편 실물 대기**)
+- [진행] **Phase 5**: 돌턴의 부분압력 (Phase 5.1 ~ 5.10 진행, **Step I 본편 실물 대기 + 작업 4·5 실측 검증 보류**)
   - Phase 5.4 = 실센서 사전 준비 (멀티채널 + outlier 가드 + A-1 노이즈 + baseline.js + 시나리오 + docs 정합화)
-  - Phase 5.5 = 회귀 인프라 + 학습 보강 6 트랙 + 후속 (PDF 폐기 + 설정 패널) + CI workflow
+  - Phase 5.5 = 회귀 인프라 + 학습 보강 6 트랙 + 후속 (PDF 폐기 + 설정 패널)
+  - Phase 5.6 = CI workflow + 5 docs 정합 + protocol-test 12/12 PASS
+  - Phase 5.7 = AI 튜터 통합 모듈 (`phase5-tutor-unify`, 14 commits) — `tutor.js createTutor(config)` factory + 3 시뮬 (보일/돌턴/입자운동) Hybrid wrapper 적용
+  - Phase 5.8 = Vernier GDX-GP (BLE) 4번째 SensorSource 정식 편입 (`vernier.js`, godirect-js UMD)
+  - Phase 5.9 = Vernier Dalton 적용 + AI 튜터 D 트랙 (작업 1~5 + 작업 6 폐기 + D-(2)(3)(4)(5) 완료, D-(1)·(6) 후속)
+  - Phase 5.10 = 펌웨어 ESP32-S3 환경 셋업 + 가짜 sin 임시 모드 + v1.1 RX 처리 (`firmware-esp32`)
 - [폐기] ~~Phase 5.x Matter.js 별 브랜치~~ — Phase 5.5 결정: 직접 구현 + patch fix 정책 확정 (`docs/10` Matter.js 결정)
-- [보류] **[A] AI 튜터 통합**: `phase5-tutor-unify` — 실물 도착 후 Step I 완료 뒤 별 세션 (CC 권장 분기 시점)
+- [폐기] ~~Phase 5.9 작업 6 시린지 60mL 가드~~ — 가스 압축성으로 V_A=60·V_B=60도 물리 가능, 시린지 한도 무관 (`docs/10` Phase 5.9 D 트랙 결정)
+- [완료] **Phase 5.7 AI 튜터 통합** — `phase5-tutor-unify` 완료 (D-(2)(3)(4)(5) 진행 시 활용)
 - [계획] **Phase 6**: 교사 도구 (대시보드, 다중 사용자)
 - [계획] **Phase 7**: 다른 법칙 확장 (샤를, 게이뤼삭) — 기존 Phase 5 에서 이연
 - [장기] **Phase 8+**: 배포·상용화·연구 발표
@@ -281,10 +287,86 @@ Phase 5 목표를 **돌턴 부분압력** 으로 재정의. 샤를·게이뤼삭
 - [ ] 캘리브레이션 검증 (영점 + 2점 보정 — `docs/14` 명세)
 - [ ] 본 데이터 수집 — 돌턴 부분 압력 검증 (이론 vs 실측 편차 < 5% 목표)
 
-### 5-6. 예상 소요
-Phase 5.2 (시뮬 엔진): 완료 (3일, 14 commits). Phase 5.3 (학습 기능): 완료 (1일, 8 commits). Phase 5.4 (실센서 사전): 완료 (1일, 약 20 commits). Step I (실센서 본편): 하드웨어 입수 시 1~2일.
+### 5-6. Phase 5.5: 회귀 인프라 + 학습 보강 (완료, 2026-04-28, 6 트랙)
+- ✅ 트랙 1 sequence replay (옵션 B) — emulator `--sequence` + run-replay.js + injection-sample.json 8/8 PASS
+- ✅ 트랙 2 outlier 가드 unit test — `tests/sensor-guard-test.js` 11/11 PASS
+- ✅ 트랙 3 보일 측정 통계 — σ_PV + min/max + ln-ln 회귀 (slope/R²)
+- ✅ 트랙 4 가스 비교 (단순화) — 입자운동 Graham 법칙 직관 (이론 vs 실측 v̄ 비율)
+- ✅ ~~트랙 5 PDF 출력~~ → **폐기** (docx 와 중복, html2canvas 차트 캡처 불안정)
+- ✅ 트랙 6 docs/16 §9 stale 정리
+- ✅ AI 튜터 설정 패널 기본 열림 — 3 시뮬 (보일/돌턴/입자운동) 일관
 
-### 5-7. 별 브랜치 후보
+### 5-7. Phase 5.6: CI workflow + docs 정합 (완료, 2026-04-28, 5 commits)
+- ✅ CI workflow 신규 — `.github/workflows/ci.yml` (commit `f6c54ce`)
+- ✅ protocol-test 12/12 PASS — `tests/protocol-test.js` (commit `6be7ca7`)
+- ✅ 5 docs stale 정리 — Phase 5.4/5.5 정합 (commit `224e203`)
+- ✅ README 외부 진입점 정합 (commit `51c7288`)
+- ✅ 트랙 6 AI 튜터 통합 = 보류 → `phase5-tutor-unify` 별 브랜치로 분리 결정 (Phase 5.7 진입)
+
+### 5-8. Phase 5.7: AI 튜터 통합 모듈 (완료, 2026-04-29, `phase5-tutor-unify` 14 commits)
+
+**배경**: 3 시뮬 패턴 분산 (보일 = `ai-tutor.js` 모듈 전역 / 입자운동 = `createAdvAiTutor` closure / 돌턴 = `createDaltonTutor` closure). Phase 6/7 신규 시뮬 추가 시 4번째 패턴 또는 코드 복붙 부담. 공통 변경 (모델 가격표 / 토큰 한도) 시 3 곳 동시 수정 = 정합 실수 위험.
+
+**구현 완료**:
+- ✅ `web/js/tutor.js` 신규 — `createTutor(config)` factory + 공통 logic (~800줄, commit `1c87c56`)
+- ✅ `web/js/tutor-report-boyle.js` 분리 — 보일 보고서 docx 조립 callback (~300줄, commit `f480c58`)
+- ✅ 3 시뮬 적용 — Hybrid wrapper 패턴 (보일 `4538546` / 입자운동 `7b5c589` / 돌턴 `231e1cc`)
+- ✅ 회귀 정정 9건 — 보일 7건 / 입자운동 0건 / 돌턴 1건 (Q-A 재결정 `closeConfig` AI 요약, commit `836bffe`)
+- ✅ 사용자 31항 시나리오 통과 — 보일 11 + 입자운동 9 + 돌턴 11
+- ✅ 머지 commit `5bd4358` (저널 `fafcbd2` 14 commits 묶음 기록)
+
+### 5-9. Phase 5.8: Vernier GDX-GP 정식 편입 (완료, 2026-05-06, `phase5-real-sensor`)
+
+**배경**: Boyle/Dalton 두 시뮬 모두 mock/ws/real 3종 SensorSource. 사용자 보유 Vernier Go Direct GDX-GP (BLE) 활용해 별도 회로 제작 없이 즉시 사용 가능한 4번째 옵션 도입.
+
+**구현 완료**:
+- ✅ `web/js/vernier.js` 신규 — `VernierBridgeSensorSource` (SensorSource 어댑터, BLE via godirect-js UMD CDN, commit `3d55b44`)
+- ✅ 단일 enabled 센서 → SensorSource frame shape (kPa) 변환, kPa 단위 검증 가드 (실측값 다른 단위 시 silent bug 방지)
+- ✅ boyle.html / dalton.html 모드 토글에 📡 Vernier 추가
+- ✅ 카드 썸네일 외부 파일 분리 + Boyle/Dalton 카드에 Arduino 키워드 (commits `fde0f05`/`d8bb704`)
+- ✅ 머지 `9450115` (`test/vernier-bridge` → `phase5-real-sensor`)
+
+**제약**: 멀티채널·캘리브·재연결은 1차 검증 범위 외 (Phase 5.9 작업 4 V_A 역산이 1센서 운용 한계 보완).
+
+### 5-10. Phase 5.9: Vernier Dalton 적용 + AI 튜터 D 트랙 (진행 중, 2026-05-06 ~ 08, `phase5.9-stabilization` + `tutor-D-series`)
+
+**작업 트랙 (UI/상태머신/측정)**:
+- ✅ 작업 1~3 — dalton.html Vernier 모드 UI + 5상태 머신 (IDLE → INJECTING → STABILIZING → READY_TO_CAPTURE → CAPTURED) + 측정 버튼 단계별 캡처 (commit `6a547e1`)
+- ✅ 작업 4 — A plunger 역산 시각화 (V_A' = P_initial·(V_A+V_B)/P_current − V_B, commit `d608bbc`) — **검증 보류** (부피 고정 기구 미도착)
+- ✅ 작업 5 — 자동 안정화 감지 (peak-to-peak (max-min)/window 변화율 < 0.1 kPa/s, 3초 hold → READY_TO_CAPTURE 자동 전환, commit `d6c6dbe`) — **검증 보류** (BT 어댑터 부재)
+- ✅ 작업 6 폐기 — V_A+V_B 시린지 60mL 가드 (가스 압축성으로 V_A=60·V_B=60도 물리 가능, 시린지 한도 무관 — `docs/10` Phase 5.9 D 트랙 결정)
+
+**D 트랙 (AI 튜터 데이터·응답 강화)**:
+- ✅ D-(2) Q1~Q4 인지 흐름 재설계 — 관찰 / 해석 / 예측·검증 / 메타 (Bloom 인지 흐름) + 16개 본문 학생 데이터 anchor (high/univ 동적 placeholder) (commit `7dedd21`, 메시지 D-(?) 였음)
+- ✅ D-(3) 데이터 소스 분기 (Vernier) — Boyle `8cb741e` + Dalton `10ae103` (Phase 5.9 D-(3), 2026-05-07)
+- ✅ D-(4) Vernier 모드 측정 records 연동 — `addVernierRecord()` 신설, mode 필드 (mock/ws/real/vernier 출처 식별), formatRecordLine helper (commit `105c226`)
+- ✅ D-(5) 응답 가드 (소크라테스식) — 절대 원칙 11~13 + Few-shot 3개 (Q1·Q2·Q3) (commit `ffdf92c`)
+- ✅ 저널 정합화 — Phase 5.9 D 트랙 + 작업 6 폐기 정정 (commit `112e131`, 244 줄 추가)
+
+**남은 작업**:
+- [ ] D-(1) 돌턴 보고서 자동 생성 — 보일 `tutor-report-boyle.js` 패턴 재사용
+- [ ] D-(6) 학생 수준 자동 판단 검증 — `[[LEVEL:xxx]]` 동작 실측
+
+### 5-11. Phase 5.10: 펌웨어 ESP32-S3 환경 셋업 (진행 중, 2026-05-08, `firmware-esp32`)
+
+**배경**: ESP32 → ESP32-S3 N16R8 변경 (조달 시점). 압력 센서 (BMP280, DFRobot 1.6MPa) 미도착 동안 펌웨어 송신 흐름 + RX 처리를 분리 검증.
+
+**구현 완료**:
+- ✅ ESP32-S3 호환 — POT_PIN 34 → 1 (ADC1_CH0) (commit `854aaaf`)
+- ✅ 가짜 sin 임시 모드 — `100000 + 30000·sin(2π·t/6)` Pa, 70~130 kPa, 6초 주기 (원본 `#if 0` 보존)
+- ✅ v1.1 RX 처리 — handleSerialRx + handleLine + sendCalibAck + parseCfgRate, ping 무응답 / calib ACK / cfg rate 갱신, LINE_BUF_MAX 256, '\r' 무시, overflow 가드 (commit `091c730`)
+- ✅ strstr 수동 파서 — ArduinoJson 의존성 회피
+- ✅ 검증 통과 — Arduino IDE 2.3.8 + ESP32 패키지 3.3.8, ESP32-S3 UART 포트 (USB CDC On Boot=Enabled), WebSerial 5Hz 송신 + calib·cfg 콘솔 검증
+- ✅ 디버그 핸들 추가 — `window._sensorManager` (검증 후 제거 예정)
+
+**남은 작업**:
+- [ ] 실물 BMP280 / DFRobot Gravity 1.6MPa 도착 시 `readPressurePa()` `#if 0` → `#if 1` 복원 + 가짜 sin 함수 제거
+- [ ] firmware/README.md 정합화 (ESP32-S3 + 가짜 sin 모드 + RX 처리 명시)
+
+### 5-12. 예상 소요
+Phase 5.2 (시뮬 엔진): 완료 (3일, 14 commits). Phase 5.3 (학습 기능): 완료 (1일, 8 commits). Phase 5.4 (실센서 사전): 완료 (1일, 약 20 commits). Phase 5.5 ~ 5.7 (회귀 인프라 + CI + AI 튜터 통합): 완료 (3일). Phase 5.8 ~ 5.10 (Vernier 편입 + Dalton 적용 + 펌웨어 셋업): 완료 (3일, 검증 보류 2건). Step I (실센서 본편): 하드웨어 입수 시 1~2일.
+
+### 5-13. 별 브랜치 후보
 - **`experiment/matter-js` (Phase 5.x)** — 입자간 충돌을 Matter.js 라이브러리로 재구현. 배경 = Phase 5.3 직접 구현 + Phase 5.4 patch (R1/R5 epsilon) 누적 → patch 패턴의 한계 명확. 직접 구현 ↔ 라이브러리 비교 자료, 논문 강력한 1차 자료가 될 수 있음. 5-region 모델 통합 + 회귀 검증 후 합류. 실물 작업 후 또는 병행.
 - **`phase5-tutor-unify` ([A] AI 튜터 통합)** — Phase 6/7 신규 시뮬 추가 직전. 3 시뮬 (보일/돌턴/입자운동) 의 자체 closure → 공통 모듈 통합. Phase 5.4 의 입자운동 비활성 버그 (ai-tutor.js 의 `.ai-sidebar` 셀렉터 광역 영향) 가 통합 전 해결할 대표 이슈. 셀렉터 / 책임 분리 명확화 우선.
 
