@@ -124,35 +124,37 @@ MVP 외 후속 트랙 학습 목표:
 - 기체상: 박스 상부 자유 운동. 보일 시뮬 입자·충돌·압력 코드 재활용
 - 위상 경계: 가상의 표면. 액→기 통과(증발) 조건은 KE 임계 초과. 기→액 통과(응축)는 표면 충돌 시 일정 확률
 
-### 액체상·기체상 모델 — 응집 영역 + 외부 끌어당김
+### 액체상·기체상 모델 — Schroeder 2015 LJ MD base
 
-본 시뮬은 분자에 phase 플래그를 두지 않고, 분자간 인력 (LJ) 도 사용하지 않음. 대신 박스 하부 응집 영역에 외부 끌어당김 가속도장을 적용하여 같은 결과를 단순하게 달성.
+본 시뮬은 Schroeder 의 정통 LJ 12-6 분자 동역학 시뮬 (AAPT AJP 83(3) 210-218, 2015 / arXiv:1502.06169) 을 base 로 채택. N=수백 50fps 검증 + cell list 최적화 + MIT 라이선스. 우리 직전 piecewise·응집영역·자유낙하·격자·사건추상화 모델은 모두 안정 응집 실패 또는 비물리.
 
-- 분자 200 개 항상 가시, 사라지지 않음. 같은 풀.
-- 분자간 인력 X. 분자-분자는 hard sphere 반발 (overlap 방지).
-- 응집 영역 = 박스 하부 `V_liquid:V_gas` 비율 영역.
-- 영역 가장자리 지대 (`pull_margin_px`) + 영역 밖에 외부 +y 가속도장 (`y_pull_weak` / `y_pull_strong`) — 분자를 영역 안으로 끌어당김.
-- 분자 KE > `escape_threshold_KE` 시 끌어당김 무력화 → 탈출 (증발).
-- 자유 비행 분자가 영역에 진입 → 끌어당김에 잡힘 (응축).
-- 색 자동: 영역 안 진청 단색 (`molecule_color_liquid`), 영역 밖 KE HSB lerp.
+**Schroeder 그대로 포팅** (sub-step B-2):
+- 표준 LJ 12-6: potential `4(r⁻¹² - r⁻⁶) - pEatCutoff`, force `24(2r⁻¹² - r⁻⁶)/r²`.
+- Velocity Verlet 적분: half-step position+velocity → 새 force → half-step velocity.
+- Cell list O(N) — `N ≥ 100` + 박스 충분히 큰 경우 자동. linked list 기반 (`neighborOffset` 5개 cell만).
+- LJ natural units (σ = ε = m = k_B = 1; Argon 환산: σ=3.4Å, ε=0.012eV, time unit ≈ 2ps).
+- 기본 N=250, dt=0.020, forceCutoff=3 직경 단위. T=0.5 (Ar 삼중점 ~0.7, 임계 ~1.32 → 액체 거동 영역).
 
-### 자동 발생 동역학
+**우리 변형 영역**:
+- 단일 박스 → 액체 박스 (박스 하부 `V_liquid:V_gas` 비율) 시각 영역 + 박스 전체에서 LJ 자연 거동. 응집·탈출은 LJ 결과로 자연 발생 (사건 확률 게이트 X).
+- 색 자동: 위치 (액체 영역 안/밖) + 이웃 수 / KE 기반 (sub-step B-3).
+- Schroeder UI 통째 폐기: presets / sliders / save·load / data export 등 제거. 학생 전용 패널만.
+- 신규: 증발/응축 사건 카운터·rate 그래프 (sub-step B-4), 학생 가시 패널·자동 보정 (§4.5)·4 모드 분기 (sub-step B-5).
+- Schroeder `fixedTList[]` Andersen 열역학 (Box-Muller polar 로 T 고정 분자 v 재할당) — 6.2 T mock 활용 후보.
 
-- 시작 시 분자 200 개 영역 안 응집 분포.
-- 시간 경과: 빠른 분자 가끔 탈출, 자유 비행 분자 가끔 응축, 평형 도달.
-- T-증기압: T ↑ → 평균 KE ↑ → 탈출 빈도 ↑ → 평형 압력 ↑.
+**자동 발생 동역학** (LJ + Verlet 자연 결과):
+- 표면 = 클러스터 가장자리, 자연 발생.
+- 증발 = 빠른 분자가 LJ 진폭 초과해 탈출 (KE 통계 결과).
+- 응축 = 기체 분자가 cluster 진입 시 LJ 인력으로 잡힘.
+- T-증기압: T ↑ → 평균 KE ↑ → 탈출 빈도 ↑ → 평형 압력 ↑. Clausius-Clapeyron 자연 발생.
 - MB 분포 직접 가시 (히스토그램 별도, 후속).
 
-### 배제된 대안
-
-- LJ 풀 시뮬 (직전 시도): N=200 학교 시뮬에서 안정 응집 실패 (분자 균등 분포 = 그냥 기체). 검증·튜닝 비용 과대.
-- 사건 추상화 (옵션 Z·이전 후보): 분자 사라짐·생성 → fake animation, 학생 인지 어색.
-- 격자 + 진동: 고체 인상.
+**배제된 대안 (모두 직전 시도, 시간순)**:
+- 동일 입자 모델 + 영역 분할 (6.1-b 초기): 액체 분자도 통통 튀어 학생 인지 충돌.
 - 자유 이동 + 중력 only (6.1-b''): 응집력 부재로 모든 분자 바닥에 깔림.
-
-### 정직한 한계
-
-본 모델은 외부 가속도장을 사용 — "분자간 인력" 의 자연 정합성 일부 손실. 단 학생 인지에 미치는 차이 없음 ("액체 = 분자 모여 있음, 기체 = 흩어짐" 시각 동일). 학습 목표 ①③④ 모두 충족. 학습 목표 외 (분자간 힘의 정확한 모델) 는 후속 워크시트로 분리.
+- 사건 추상화 / 표면 분자 + 띠 (옵션 Z, 6.1-b'''): fake animation, 학생 인지 어색.
+- 자체 LJ-like piecewise (6.1-b sub-step 1 LJ 시도): 정통 LJ 와 함수 모양 본질 차이 + Velocity Verlet 아닌 semi-implicit Euler + 단위 임의값. 안정 응집 실패.
+- 응집 영역 + 외부 끌어당김 가속도장 (직전): 분자간 인력 자연 정합성 손실. Schroeder 채택으로 해소.
 
 **T 입력 → 시뮬 결합**:
 - 수조 T → 액체상 입자 평균 KE → MB 분포 꼬리 비율 변동
@@ -299,6 +301,7 @@ MVP 외 후속 트랙 학습 목표:
 | 카운터 = rate + EMA, 누적은 sub-panel | "동적 평형 = 두 속도가 같음" 가시화에 rate 가 직결. 누적은 평형 시 두 곡선이 평행해질 뿐(slope 비교 필요), rate 는 두 값이 같은 y 에서 만남. 보일 EMA 패턴 재사용. | 누적 only (해석 부담 큼), 즉시 카운트 (노이즈 과다) |
 | 액체 종류 (α) + 액체 양 (β) 비교 활동을 6.5 로 통합 | 두 항목 모두 "탐구·발견 활동" 성격. UI 패턴 (설정 변경 → 비교) 유사. 분리 처리는 코드·학습 흐름 중복 단절. | 분리 유지 (β=6.5, α=6.7) |
 | 자동 보정 (옵션 A), 학생 가시 = P_vap 만 (§4.5) | 본 시뮬 핵심은 동적 평형 가시화. 압력 분해 학습은 별 활동으로 분리. 단순화로 학생 인지 부담↓. | 옵션 B 학생 직접 분해 (시뮬 학습 흐름 분리), 옵션 C 셋 다 표시 (화면 복잡도↑) |
+| Schroeder 2015 LJ MD base 채택 (vapor 시뮬) | 정통 LJ 12-6 + Velocity Verlet + cell list O(N) 검증 (AJP 83 210-218, arXiv 1502.06169). N=수백 50fps. MIT 라이선스. 직전 자체 시도들 (piecewise LJ-like / 응집영역 / 표면추상화 / 자유낙하 / 격자) 모두 실패한 안정 응집 문제 해소. | 자체 LJ 재구현 (검증 비용↑·튜닝 사이클 다수), 외부 가속도장 (분자간 인력 자연 정합성 손실), 사건 추상화 (학생 인지 어색), 격자 (고체 인상) |
 
 ---
 
@@ -311,6 +314,43 @@ MVP 외 후속 트랙 학습 목표:
 3. `docs/13-multi-channel-interface.md` — dual channel 설계 기재 여부. 있으면 본 문서가 보강 트리거, 없으면 docs/13 신규 추가 검토
 
 점검 결과는 `docs/10-dev-journal.md` Phase 6 첫 항목으로 기록.
+
+---
+
+## Schroeder MD base 출처 + 라이선스 (sub-step B-1)
+
+**출처**: Daniel V. Schroeder, "Interactive molecular dynamics," *American Journal of Physics* **83**(3), 210–218 (2015). arXiv:1502.06169 [physics.ed-ph]. Web: <https://physics.weber.edu/schroeder/md/InteractiveMD.html>.
+
+**라이선스 본문 발췌** (`InteractiveMD.html` HTML comment 헤더, sub-step B-1 fetch 검증):
+
+> Copyright 2013-2014, Daniel V. Schroeder
+>
+> Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated data and documentation (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+>
+> The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+>
+> THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND ...
+>
+> Except as contained in this notice, the name of the author shall not be used in advertising or otherwise to promote the sale, use or other dealings in this Software without prior written authorization.
+
+표준 MIT License + name endorsement 추가 조항. 본 프로젝트 (교육·학술) 사용 적합 — copyright notice 포함만 필수, 광고 용도 X.
+
+**확인된 코드 메타** (sub-step B-1):
+- `InteractiveMD.html` 1962 lines (풀버전). `MDv0.html` 597 lines, `MolecularDynamics.html` 220 lines.
+- 핵심 함수: `init` (631) / `simulate` (657) / `doStep` (675, Velocity Verlet) / `computeAccelerations` (715, LJ 12-6) / `computeStats` (882) / `updateTandP` (899) / `addAtoms` (1479).
+- 외부 의존: `articlepresets.js` (preset 데이터 — 우리 케이스에 불필요, 제외).
+- LJ 함수 본문 (`computeAccelerations` line 766–770): `attract = (1/r²)³`, `repel = attract²`, `potentialE = 4(repel-attract) - pEatCutoff`, `fOverR = 24(2·repel - attract)/r²` — 표준 LJ 12-6.
+- Cell list O(N): `N ≥ 100` AND `boxWidth ≥ 4·forceCutoff` 조건에서 자동 활성. linked list + neighborOffset 5개 cell.
+- 추가 발견: `fixedList[]` (벽처럼 동작 분자), `fixedTList[]` (Andersen 열역학 — Box-Muller polar 로 T 고정 분자 v 재할당, 5·dt 확률).
+
+**우리 변형 영역 체크리스트** (sub-step B-2 ~ B-5):
+- [B-2] LJ 12-6 + Verlet 본체 포팅 + p5 instance mode wrapping. 액체 박스 영역 분할 (사방 강한 반발, 위 경계 통과 가능). Schroeder UI (presets/sliders/save·load) 제거.
+- [B-3] 색 자동 매핑 (이웃 수 또는 위치 + KE 기반).
+- [B-4] 증발/응축 사건 카운터 + rate 미니 그래프.
+- [B-5] 학생 가시 패널 (P, T, 측정점 표) + 자동 보정 (§4.5) + 4 모드 분기 (mock/ws/real/vernier).
+- 모든 변형 부분은 `web/js/vapor.js` 헤더 주석에 명시 (라이선스 attribution 포함).
+
+**sub-step B-2 진입 조건**: 본 sub-section commit 후 사용자 승인.
 
 ---
 
