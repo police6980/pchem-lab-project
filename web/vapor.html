@@ -16,6 +16,7 @@
     <script src="js/logger.js" defer></script>
     <script src="js/tutor.js" defer></script>
     <script src="js/ui.js" defer></script>
+    <script src="js/vapor.js" defer></script>
     <script src="js/main.js" defer></script>
 </head>
 <body data-page="vapor">
@@ -40,9 +41,33 @@
             </section>
 
             <section id="vapor-experiment-setup" class="vapor-section">
-                <h3>실험 설정 <small>(6.1-b 이후 활성화)</small></h3>
-                <div class="vapor-placeholder-note">
-                    V_flask (100 / 250 / 500 mL) · V_liquid · 액체 종류 입력 UI는 후속 step 에서 활성화됩니다.
+                <h3>실험 설정</h3>
+                <div class="vapor-input-row">
+                    <label for="vapor-v-flask">플라스크 부피</label>
+                    <select id="vapor-v-flask">
+                        <option value="100">100 mL</option>
+                        <option value="250" selected>250 mL</option>
+                        <option value="500">500 mL</option>
+                    </select>
+                </div>
+                <div class="vapor-input-row">
+                    <label for="vapor-v-liquid">액체 부피</label>
+                    <input type="number" id="vapor-v-liquid" min="1" step="1" value="50">
+                    <span class="vapor-input-suffix">mL</span>
+                </div>
+                <small id="vapor-v-liquid-guard" class="vapor-guard-note"></small>
+                <div class="vapor-input-row">
+                    <label for="vapor-liquid-type">액체 종류</label>
+                    <select id="vapor-liquid-type">
+                        <option value="water" selected>물 (H₂O)</option>
+                    </select>
+                </div>
+                <div class="vapor-input-row vapor-button-row">
+                    <button id="vapor-btn-start" type="button">실험 시작</button>
+                    <button id="vapor-btn-reset" type="button" disabled>리셋</button>
+                </div>
+                <div id="vapor-mole-readout" class="vapor-mole-readout">
+                    <small>1 입자 ≈ <span id="vapor-mmol-per-particle">—</span> mmol (시작 후 갱신)</small>
                 </div>
             </section>
 

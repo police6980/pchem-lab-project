@@ -3758,12 +3758,109 @@ ${sensorGuide}
 // 모드 분기·AI 튜터 통합은 Phase 6.1-b ~ 6.4 에서 추가.
 // ─────────────────────────────────────────────────────────────────────
 function initVaporApp(params) {
-    console.log("[Vapor] initVaporApp 호출 (Phase 6.1-a 스켈레톤). params.vapor =", params?.vapor);
-    // 후속 step 작업 영역:
-    // - 6.1-b: V_flask / V_liquid / 액체 종류 입력 UI 활성화 + 시뮬 캔버스 마운트
-    // - 6.1-c~e: 위상 통과·응집력·카운터·rate 그래프·핵심 시각화 원칙 (§6 docs/17)
-    // - 6.2~6.3: T mock / 펌웨어 v1.2 / ws dual-channel
-    // - 6.4: Vernier dual-device + AI 튜터 (createTutor(vaporConfig))
+    const cfg = params?.vapor;
+    if (!cfg) {
+        console.error("[Vapor] params.vapor 부재 — params.json 확인 필요.");
+        return;
+    }
+    console.log("[Vapor] initVaporApp 시작 (Phase 6.1-b). params.vapor keys:", Object.keys(cfg));
+
+    const dom = {
+        vFlaskSel:     document.getElementById("vapor-v-flask"),
+        vLiquidIn:     document.getElementById("vapor-v-liquid"),
+        liquidTypeSel: document.getElementById("vapor-liquid-type"),
+        btnStart:      document.getElementById("vapor-btn-start"),
+        btnReset:      document.getElementById("vapor-btn-reset"),
+        guardNote:     document.getElementById("vapor-v-liquid-guard"),
+        mmolSpan:      document.getElementById("vapor-mmol-per-particle"),
+        canvasCt:      document.getElementById("vapor-canvas-container"),
+    };
+    for (const [k, v] of Object.entries(dom)) {
+        if (!v) {
+            console.error(`[Vapor] DOM 누락: ${k}`);
+            return;
+        }
+    }
+    const placeholderEl = dom.canvasCt.querySelector(".vapor-canvas-placeholder");
+
+    if (cfg.V_flask_default_mL)  dom.vFlaskSel.value = String(cfg.V_flask_default_mL);
+    if (cfg.V_liquid_default_mL) dom.vLiquidIn.value = String(cfg.V_liquid_default_mL);
+
+    let p5Handle = null;
+    let world = null;
+
+    const getInputs = () => ({
+        vFlask:  Number(dom.vFlaskSel.value),
+        vLiquid: Number(dom.vLiquidIn.value),
+        liquid:  dom.liquidTypeSel.value,
+    });
+
+    function validate() {
+        const { vFlask, vLiquid } = getInputs();
+        const maxLiquid = 0.5 * vFlask;
+        dom.vLiquidIn.max = String(maxLiquid);
+        if (!Number.isFinite(vLiquid) || vLiquid <= 0) {
+            dom.guardNote.textContent = "액체 부피는 0 보다 커야 합니다.";
+            dom.btnStart.disabled = true;
+            return false;
+        }
+        if (vLiquid > maxLiquid) {
+            dom.guardNote.textContent = `액체 부피 상한 ${maxLiquid} mL 초과 (V_liquid ≤ 0.5·V_flask).`;
+            dom.btnStart.disabled = true;
+            return false;
+        }
+        dom.guardNote.textContent = `OK — V_gas = ${vFlask - vLiquid} mL`;
+        dom.btnStart.disabled = false;
+        return true;
+    }
+
+    dom.vFlaskSel.addEventListener("change", validate);
+    dom.vLiquidIn.addEventListener("input",  validate);
+
+    dom.btnStart.addEventListener("click", () => {
+        if (!validate()) return;
+        const { vFlask, vLiquid, liquid } = getInputs();
+
+        // 입력 잠금
+        dom.vFlaskSel.disabled = true;
+        dom.vLiquidIn.disabled = true;
+        dom.liquidTypeSel.disabled = true;
+        dom.btnStart.disabled = true;
+        dom.btnReset.disabled = false;
+
+        if (placeholderEl) placeholderEl.style.display = "none";
+
+        world = new VaporWorld(cfg, vFlask, vLiquid);
+        p5Handle = mountVaporSketch(world, dom.canvasCt);
+
+        // 1 입자 ≈ X mmol — 현재 물만 (cfg.water_mol_per_mL)
+        const molPerMl = (liquid === "water") ? cfg.water_mol_per_mL : 0;
+        const totalMmol = vLiquid * molPerMl * 1000;
+        const mmolPerParticle = totalMmol / cfg.N_particles_liquid;
+        dom.mmolSpan.textContent = mmolPerParticle.toFixed(3);
+
+        console.log(`[Vapor] 시뮬 시작 — V_flask=${vFlask}mL · V_liquid=${vLiquid}mL · V_gas=${vFlask - vLiquid}mL · liquid=${liquid} · mmol/particle=${mmolPerParticle.toFixed(3)}`);
+    });
+
+    dom.btnReset.addEventListener("click", () => {
+        if (p5Handle) {
+            try { p5Handle.remove(); } catch (_) {}
+            p5Handle = null;
+        }
+        world = null;
+
+        dom.vFlaskSel.disabled = false;
+        dom.vLiquidIn.disabled = false;
+        dom.liquidTypeSel.disabled = false;
+        dom.btnReset.disabled = true;
+
+        if (placeholderEl) placeholderEl.style.display = "";
+        dom.mmolSpan.textContent = "—";
+        validate();
+        console.log("[Vapor] 시뮬 리셋. 입력 재오픈.");
+    });
+
+    validate();
 }
 
 // 페이지 디스패처 — body.dataset.page 값으로 어느 초기화를 실행할지 결정.

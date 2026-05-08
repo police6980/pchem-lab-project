@@ -49,20 +49,42 @@
     },
 
     "vapor": {
-        "_comment": "Phase 6.1-a placeholder values — 실제 튜닝은 후속 step (6.1-b 이후) 에서 시뮬 본체 가동 후 진행. 색상은 docs/17 §6 핵심 시각화 원칙 기준 (증발=청, 응축=주황).",
+        "_comment": "Phase 6.1-b placeholder values — 시뮬 본체 가동 후 튜닝. 색상은 docs/17 §6 핵심 시각화 원칙 기준.",
         "V_flask_presets_mL": [100, 250, 500],
+        "V_flask_default_mL": 250,
+        "V_liquid_default_mL": 50,
+
+        "canvas_width_px": 800,
+        "canvas_height_px": 480,
+
+        "N_particles_liquid": 200,
+        "N_particles_gas_max": 30,
+        "N_particles_gas_init": 10,
+        "mb_init_temp_K": 298.15,
+        "speed_scale_gas": 80,
+        "speed_scale_liquid": 32,
+
+        "liquid_color_base": "#1E40AF",
+        "gas_color_base": "#60A5FA",
+        "surface_color": "#3B82F6",
+
         "E_escape": 1.0,
         "E_stick": 0.3,
         "p_evap": 0.5,
         "p_condense": 0.7,
         "surface_threshold": 0.5,
         "gravity": 0.05,
+
         "rate_window_sec": 2.0,
         "rate_ema_alpha": 0.2,
+
         "flash_duration_ms": 150,
         "trail_length": 8,
         "equilibrium_threshold": 0.05,
         "evap_color": "#3B82F6",
-        "cond_color": "#F59E0B"
+        "cond_color": "#F59E0B",
+
+        "water_mol_per_mL": 0.05551,
+        "_units_note": "water_mol_per_mL = 1000/(18.015·1000) = 0.05551 mol/mL ≈ 55.51 mmol/mL (4°C 기준)."
     }
 }
