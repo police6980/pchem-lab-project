@@ -3018,3 +3018,247 @@ vernier 본문은 운용 시나리오 5요소 신규.
 - docs/07-ai-tutor.md cross-ref 갱신 (3 시뮬 sensorGuide 4종 분기 명시) 
   — 별 turn
 
+---
+
+## Phase 5.10 — 펌웨어 ESP32-S3 환경 셋업 (2026-05-08)
+
+### 2026-05-08 — 펌웨어 ESP32-S3 호환 + 가짜 sin 모드
+
+#### 한 일
+- ESP32 → ESP32-S3 N16R8 변경 (조달 시점에 결정, 코드 호환성 확인)
+- POT_PIN 34 → 1 (S3 ADC1_CH0)
+- readPressurePa() 가짜 sin 함수 신설: 100000 + 30000·sin(2π·t/6) Pa, 70~130 kPa, 6초 주기
+- 원본 코드는 #if 0 으로 보존
+- v1.1 프로토콜 RX 처리 (handleSerialRx / handleLine): ping 무응답, calib ACK, cfg rate 갱신
+- LINE_BUF_MAX 256, '\r' 무시, overflow 가드, strstr 기반 수동 파서
+- ArduinoJson 의존성 회피
+- Arduino IDE 2.3.8 + ESP32 패키지 by Espressif Systems 3.3.8 설치, COM4 인식
+- ESP32-S3 듀얼 USB 포트 중 UART 포트 사용 (자동 reset OK), USB CDC On Boot=Enabled
+- WebSerial 검증 통과: 5Hz JSON 송신, P 게이지 88~113 kPa 진동, calib·cfg 콘솔 검증 통과
+- main.js에 window._sensorManager 디버그 핸들 추가 (검증 후 제거 예정)
+
+#### 결정: 가짜 sin 임시 모드 도입
+
+**배경**: ESP32-S3 + 펌웨어 RX 처리 변경 후 즉시 검증 필요. 그러나 압력 센서(BMP280, DFRobot 1.6MPa) 미도착.
+
+**결정**: 센서 부재 동안 readPressurePa()를 가짜 sin 함수로 대체. 원본 코드는 #if 0 으로 보존.
+
+**근거**: 
+- 펌웨어 송신 흐름(JSON 패킷 + 5Hz 주기)과 RX 처리(ping/calib/cfg)는 센서 종류와 무관
+- 센서 도착 전에 v1.1 프로토콜을 분리 검증해두면 통합 시 회귀 위험 감소
+- sin 함수는 70~130 kPa 범위로 실험 시나리오 모사
+
+**배제된 대안**:
+- 센서 도착까지 대기: 시간 손실 + 트랙 분리 못함
+- 고정값 송신: 송신 흐름은 검증되지만 EMA·outlier guard 같은 동적 처리 미검증
+- mock 모드만 사용: 펌웨어 자체 검증이 빠짐
+
+#### 결정: ESP32 → ESP32-S3 N16R8 변경
+
+**배경**: 조달 시점에 ESP32 표준판 대신 S3 N16R8 입수.
+
+**결정**: S3로 변경. 코드는 POT_PIN 34 → 1 (ADC1_CH0)만 수정.
+
+**근거**: S3는 native USB 지원으로 USB-Serial 칩 불필요, 듀얼 포트(native + UART)로 디버깅 유연. 메모리 16MB Flash + 8MB PSRAM이라 향후 확장 여지.
+
+**배제된 대안**: 표준 ESP32 추가 조달 — 시간 손실, S3가 상위 호환.
+
+#### 결정: 분화 + 회귀 가능 패턴
+
+**배경**: 4대 PC 환경에서 작업, 펌웨어·시뮬·튜터 트랙이 서로 다른 영역.
+
+**결정**: 펌웨어 트랙은 firmware-esp32 별도 브랜치 분기. phase5-real-sensor에서 분기 후 origin push로 안전판 확보.
+
+**근거**: 트랙 섞이면 회귀 추적 어려움 + PC 간 동기화 부담. 분기별 영역 분리하면 다른 PC에서도 즉시 작업 재개 가능.
+
+---
+
+## Phase 5.9 작업 5 — Vernier 자동 안정화 감지 (2026-05-08)
+
+### 2026-05-08 — peak-to-peak 변화율 기반 자동 전환
+
+#### 한 일
+- params.json dalton.vernier 그룹 신설 (stability_threshold_kpa_per_sec 0.1, hold_sec 3.0, window_sec 1.0)
+- daltonState.vernier에 _stabilityHistory[] / _stableSince 추가
+- evaluateVernierStability(p_kPa, now_ms) 함수: peak-to-peak (max-min)/window 변화율 측정
+- INJECTING 단계에서만 동작, threshold 미달 시 hold timer 시작, hold_sec 도달 시 setVernierStage("READY_TO_CAPTURE") 자동 전환
+- onChannelData(0) INJECTING 분기에서 호출 (call site 가드)
+- setVernierStage 분기 보강: INJECTING/STABILIZING wrapper visible, READY_TO_CAPTURE/IDLE/CAPTURED hidden
+- UI 텍스트: dom.stabCountdown에 "안정화 도달까지 N.N초" 카운트다운
+
+#### 결정: peak-to-peak (max-min)/window 측정 방식 채택
+
+**배경**: dP/dt 측정 방식 3 옵션 (양 끝점 슬로프 / max-min / 선형 회귀).
+
+**결정**: max-min / window. 노이즈에 강건, 직관 일치, 코드 간결.
+
+**근거**:
+- Vernier GDX-GP는 손으로 누르는 실험 → noise도 일정. max-min이 0.1 kPa/s 임계 아래로 떨어지는 시점 = 학생이 손을 가만히 둔 순간. 의미 명확
+- EMA(α=0.2) 이미 적용된 emaP_B_kPa에 max-min 적용 → 충분히 부드러움
+- 양 끝점 슬로프는 noise 민감, 선형 회귀는 오버킬
+
+#### 결정: STABILIZING 단계 사실상 우회
+
+**배경**: 자동 경로는 INJECTING → READY_TO_CAPTURE 직진 (STABILIZING 코드상 미경유).
+
+**결정**: 자동 전환 즉시 실행. STABILIZING 단계는 mock 5초 카운트다운 / 디버그 _advanceVernier 전용으로 잔존.
+
+**근거**: 학생 시점에선 INJECTING 동안 카운트다운이 보이고 자동 전환되는 게 깔끔. 5상태 머신이 4상태로 단순화되지만 학습학적 문제 없음.
+
+**검증 보류**: BT 어댑터 부재로 Vernier 실 셋업 검증 불가. 코드 명세 8개 ✅ 확인, 로직 단순. BT 가용 환경에서 차후 카운트다운 가시화 + 자동 전환 통과 확인 필요.
+
+---
+
+## Phase 5.9 D 트랙 — AI 튜터 데이터·응답 강화 (2026-05-08)
+
+### 작업 6 (시린지 60mL 가드) 폐기 — 정정
+
+이전 핸드오프 메시지에 "작업 6 = V_A+V_B 시린지 60mL 한도 입력 가드"가 명시되어 있었으나, 이전 세션(2026-05-08, 다른 chat) 결정 재확인 결과 폐기됨.
+
+**폐기 근거**:
+- V_A=60, V_B=60도 물리적으로 가능 (가스는 압축 가능)
+- A를 끝까지 눌러도 60mL 분량 가스가 B의 60mL 공간으로 압축 (P_total = 2P)
+- V_A+V_B 합과 시린지 한도는 무관
+
+이전에 발견했던 "Console 가드 폭주"의 진짜 원인 = GDX를 충분히 누르지 않아 대기압 ±0.03 변동으로 V_A' 클램프 반복. 강하게 누르면(P>150) V_A'=17.5 mL 정상 동작. 시린지 한도와 무관.
+
+### D 시리즈 일련번호 재정의
+
+핸드오프 메시지에 D-(1)~D-(6) 명시되어 있었으나 D-(1)(2)(6) 정의가 레포·docs 어디에도 없음. 본 Phase에서 새 정의 부여:
+
+| ID | 명칭 | 상태 | 비고 |
+|---|---|---|---|
+| D-(1) | 돌턴 보고서 자동 생성 | 후속 | 보일 tutor-report-boyle.js 패턴 재사용 |
+| D-(2) | Q1~Q4 인지 흐름 재설계 + 본문 anchored | 완료 (7dedd21) | 이전 commit message D-(?) 였음 |
+| D-(3) | 데이터 소스 분기 (Vernier) | 완료 (8cb741e/10ae103) | 이전 세션 |
+| D-(4) | 측정 데이터 연동 점검 | 완료 (105c226) | |
+| D-(5) | 응답 가드 (소크라테스식) | 완료 (ffdf92c) | |
+| D-(6) | 학생 수준 자동 판단 검증 | 후속 | [[LEVEL:xxx]] 동작 실측 |
+
+### 2026-05-08 — D-(4) Vernier 모드 측정 records 연동
+
+#### 한 일
+- Vernier 측정 버튼 CAPTURED 진입 직후 addVernierRecord() 호출 추가
+- addVernierRecord() 신설: P_total/P_initial atm 환산, P_A/P_B/n_A/n_B/n_total = null, mode="vernier", timestamp
+- mock addRecord에 mode 필드 추가 (값은 daltonSensorManager.mode 사용 — mock/ws/real 정확 캡처)
+- daltonBuildSystemPrompt formatRecordLine helper: mode === "vernier" → "회차 N [Vernier 실측]: ... P_A/P_B=N/A" 표시
+- sensorGuide vernier 분기 보강: "P_A/P_B 직접 측정 불가, 학생 실측 데이터는 P_total + V_A_current 두 값" 안내
+- "측정 기록 없음" 메시지 정합화 ([확인] 버튼 → 측정 진행)
+- 디버그 핸들 추가: window._daltonBuildDataContext, window._daltonBuildSystemPrompt
+
+#### 결정: Vernier records.push (옵션 A1) + system prompt 정합화 (옵션 B) 채택
+
+**배경**: D-(3) 후 발견 — Vernier 모드에서 N회 측정해도 records 0건 유지. addRecord()는 mock stage INJECTED일 때만 호출, Vernier 측정 버튼은 vernier.stage만 갱신. AI 튜터는 "측정 기록 없음 — [확인] 버튼 안 누름"으로 잘못 안내 ([확인]은 mock 전용 UI, Vernier 학생에겐 거짓 안내).
+
+**결정**: 
+- Vernier CAPTURED 진입 시 addVernierRecord() 호출 (mock과 같은 records 배열 재사용)
+- P_A/P_B/n_A/n_B = null (Vernier 단일 센서로 분압·분자수 산출 불가)
+- mode 필드 신설 (mock/ws/real/vernier 출처 식별)
+- system prompt formatRecordLine에서 mode 분기로 표시 형식 차등
+
+**근거**:
+- 옵션 A2 (별도 vernierRecords 배열 분리)보다 통합 — 비교 모드·CSV·표 그래프 등 기존 UI 자동 재사용 가능
+- 옵션 B (system prompt 본문만 수정, 데이터 흐름 미변경)는 근본 문제(records 빔) 미해결
+- mode === "vernier" 분기로 P_A/P_B 산출 불가 사실 명시 → AI가 학생에게 정확한 안내 가능
+
+**배제된 대안**:
+- A2 vernierRecords 분리: ctx 구조 + system prompt 분기 추가 부담, UI 재사용 손실
+- B만: AI가 records 빔 진단으로 빠지면서 부정확
+
+**검증**: mock 모드에서 records 1건 추가 후 _daltonBuildDataContext().records[0].mode === "mock" 확인, _daltonBuildSystemPrompt 출력에 "회차 1: V_A=50, V_B=50, P_total=2.00 atm" 라인 포함 확인. Vernier 모드 record 형식 검증은 BT 어댑터 부재로 보류.
+
+### 2026-05-08 — D-(2) Q1~Q4 인지 흐름 재설계 + 본문 anchored
+
+#### 한 일
+- DALTON_QUESTION_TEXT 16개 본문 전부 재작성 (elem/middle/high/univ × Q1~Q4)
+- Q1~Q4 매핑 재설계 (R1 주석 갱신): 관찰 / 해석 / 예측·검증 / 메타
+- 학습 목표 4개 유지 (분자 수 보존 / 부분 압력 / 가산성 / 시뮬↔이론)
+- high/univ 본문은 (ctx) => string 함수 형태 — 동적 placeholder ${ctx.records.slice(-1)[0].FIELD} 치환
+- elem/middle은 정적 문자열 (자연 표현)
+- daltonGetQuestionText(level, qid, ctx) — typeof check로 함수/문자열 분기, lazy ctx fallback
+- system prompt에 [Q별 데이터 인용 가이드] 섹션 신설 (Q1~Q4별 어떤 측정 필드 인용해야 하는지 명시)
+- system prompt에 [측정 기록 0건 처리] 섹션 신설 (records 빔 시 측정 진행 안내)
+- sensorGuide vernier 분기 추가 보강: "Q1·Q2에서 P_A/P_B 인용 X, V_A/V_B 비율과 P_total로 분기"
+
+#### 결정: 매핑 재설계 (Bloom 인지 흐름) 채택
+
+**배경**: D-(4) 검증 중 발견 — Q1~Q3 본문이 학생 측정 데이터와 무관한 일반 이론 질문. 예: high.q1 = "주입 전후 분자 수 보존을 가정할 때 PV=nRT로 설명" (가정 기반, 학생 데이터 0% 사용). Q1~Q4 매핑(목표 1·2·동적·4)은 사후 문서화일 뿐, journal·docs에 학습학적 결정 근거 미기록 — 변경 자유 확인.
+
+**결정**: 매핑 재설계 (관찰 / 해석 / 예측·검증 / 메타). 학습 목표 4개는 유지하되 인지 흐름에 맞춰 16개 본문 전부 재작성.
+
+**근거**:
+- Bloom의 인지영역 순서 (관찰 → 해석 → 적용·예측) 학습학적으로 자연스러움
+- 학생 시점 = 측정 직후 → 자기 데이터를 직접 보는 것이 첫 단계 (관찰)
+- 이론·가정 질문(현행 Q1)은 측정 후 사고 흐름 깨뜨림
+- "정답은 X" 직답형 Q3 → "다른 조건 예측 + 측정 검증"으로 학습 가설 검증 흐름 회복
+
+**배제된 대안**:
+- 옵션 1 (placeholder만 추가): 매핑 미수정으로 Q1·Q2·Q3 학습 목표 매핑 모순 잔존
+- 옵션 2 (system prompt에 강제 명령 추가): 본문이 데이터 무관이면 AI도 일반론으로 빠짐
+- 옵션 3 (Q1~Q3 본문 재작성, 매핑 유지): R1 주석의 매핑 자체가 Q3↔Q4 swap 후 정합 깨진 상태
+
+#### 결정: high/univ 동적 placeholder, elem/middle 일반 표현
+
+**배경**: 학생 측정값을 본문에 직접 인용 vs 일반 표현으로 두는지.
+
+**결정**: 수준별 차등 — high/univ는 ${ctx.records.slice(-1)[0].FIELD} 동적 치환 (정량 사고 자극), elem/middle은 자연 표현 ("방금 측정한 회차의 ...").
+
+**근거**:
+- high/univ는 정량 사고 단계 — 구체 숫자 anchor가 사고 강화
+- elem/middle은 추상 처리 부담 → "회차 N", "방금 측정" 자연 표현이 인지 친숙
+- 0건 fallback: ?? "(측정 전)" 안전 처리
+
+**참고**: 최신 측정 인용 = ctx.records.slice(-1)[0]. 다회 측정 시 직전 측정값 anchor (첫 측정 [0] 아님).
+
+**검증**: mock 1회 측정 후 _daltonBuildSystemPrompt("high", "1") 본문에 "방금 측정에서 V_A=50, V_B=50일 때..." 확인. records 0건 fallback "(측정 전)" 정상 표시.
+
+### 2026-05-08 — D-(5) 응답 가드 (소크라테스식)
+
+#### 한 일
+- 절대 원칙 11~13 신설:
+  · 11: 직답 요청 거부 + 힌트성 질문 전환
+  · 12: 직답 표현 금지 ("정답은", "결론적으로", "~이기 때문입니다" 단정형) + 가능성 표현 ("~할 수도", "~라면 어떨까요") 권장
+  · 13: 학생 추론 단계 보존 (한 단계만 답하기)
+- Few-shot 예시 3개 (Q1·Q2·Q3) 신설: 학생 답변 시뮬 + 나쁜 응답 / 좋은 응답 대비 + 핵심 패턴 정리
+- system prompt 분량 ~2050자 → ~2700자 (토큰 비용 미미)
+
+#### 결정: 트랙 2 (system prompt 강화) + 일부 트랙 3 (input 가드) 채택
+
+**배경**: 기존 절대 원칙 1·6·7·9가 소크라테스식 의도 일부 반영했으나 실효 약함. AI가 학생 압박("정답이 뭐야", "그냥 알려줘")에 굴복할 위험. 직답 표현 명시적 금지 부재. Few-shot 예시 부재로 패턴 학습 약함.
+
+**결정**: 절대 원칙 11~13 추가 + Few-shot 3개 (Q1·Q2·Q3) 통합.
+
+**근거**:
+- 트랙 1 (programmatic 응답 후처리)은 false positive 위험 큼 — 정상 응답도 거부될 가능성
+- 트랙 2 (system prompt 강화)는 AI에게 명확한 행동 패턴 제시 — 효과 큼, 작업 작음
+- Few-shot 예시는 LLM이 패턴 학습하도록 prompt에 직접 포함 — 토큰 비용 미미하지만 효과 강
+
+**배제된 대안**: 트랙 1 (응답 후처리 검증)은 false positive로 정상 학습 흐름 저해 우려.
+
+**검증** (실 AI 호출):
+- 학생 답변 "P_A=0.96, P_B=1.04, 합치면 P_total=2.00. 정답인가요?"
+  → 응답: "합 관계를 정확히 찾으셨네요. P_A + P_B = 2.00, P_total = 2.00... 부피·온도 같은데 압력 다른 이유는?" — 학생 데이터 인용 + 단정형 표현 없음 + 깊은 질문 마무리
+- 직답 요청 회귀 "그냥 답 알려줘. 정답이 뭐야?"
+  → 응답: "직접 답을 드리진 않을게요. 두 기체 사이 다른 점이 있을 텐데... 분자 수(n) 확인해보셨나요?" — 직답 거부 + 힌트성 질문 전환
+
+**후속 검토**: Few-shot 예시 안의 단정형 인용 ("정답입니다", "맞습니다") LLM이 그대로 따라할 위험 — 실측 검증 통과로 위험 낮음 확인. 다양한 학생 입력 (오개념, 회피, 메타) 회귀 검증은 별도 트랙. 보일·입자운동 튜터에도 같은 가드 적용은 후속.
+
+### Phase 5.9 마일스톤 (2026-05-08 시점)
+
+완료:
+- 작업 1~3 (Vernier UI·상태머신·측정 버튼)
+- 작업 4 (plunger 역산 시각화, 검증 보류 — 부피 고정 기구 미도착)
+- 작업 5 (자동 안정화 감지, 검증 보류 — BT 어댑터 부재)
+- D-(2)(3)(4)(5) 튜터 트랙
+
+폐기:
+- 작업 6 (시린지 60mL 가드 — 물리적 부정합 발견, 핸드오프 stale 정정)
+
+후속:
+- 작업 4·5 BT/부피 고정 기구 도착 후 실측 검증
+- D-(1) 돌턴 보고서 자동 생성
+- D-(6) 학생 수준 자동 판단 검증
+- 디버그 핸들 일괄 정리 (window._sensorManager / _advanceVernier / _daltonBuildDataContext / _daltonBuildSystemPrompt)
+- README.md 정합화 (ESP32-S3 + 가짜 sin 모드 명시)
+- docs/06-project-status.md 갱신 (Phase 5.7~5.9 반영)
+
