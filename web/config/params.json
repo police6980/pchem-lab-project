@@ -49,7 +49,7 @@
     },
 
     "vapor": {
-        "_comment": "Phase 6.1-b''' option Z — 액체 = 정적 영역(반투명 채움), 표면 입자만 운동. 중력 0 (액체에 자유낙하 부적합 — 분자간 인력이 중력보다 강함).",
+        "_comment": "Phase 6.1-b sub-step 1 — LJ-like 분자간 인력 모델. 분자 phase 플래그 X. 액체/기체 자연 발생. 사건 확률·KE 임계 등 상수는 폐기됨.",
         "V_flask_presets_mL": [100, 250, 500],
         "V_flask_default_mL": 250,
         "V_liquid_default_mL": 50,
@@ -57,38 +57,20 @@
         "canvas_width_px": 800,
         "canvas_height_px": 480,
 
-        "N_surface_particles": 40,
-        "N_particles_gas_max": 30,
-        "N_particles_gas_init": 0,
-        "mb_init_temp_K": 298.15,
-        "speed_scale_gas": 80,
-        "surface_speed_scale": 0.3,
+        "N_molecules": 200,
+        "molecule_radius_px": 3.5,
+        "molecule_color": "#1E3A8A",
 
-        "surface_band_px": 12,
-        "surface_particle_radius_px": 6,
-
-        "liquid_fill_color": "rgba(30, 64, 175, 0.3)",
-        "surface_particle_color": "#1E40AF",
-        "gas_color_base": "#60A5FA",
-        "surface_color": "#3B82F6",
-
-        "E_escape": 1.0,
-        "E_stick": 0.3,
-        "p_evap": 0.5,
-        "p_condense": 0.7,
-        "surface_threshold": 0.5,
-        "gravity": 0,
-
-        "rate_window_sec": 2.0,
-        "rate_ema_alpha": 0.2,
-
-        "flash_duration_ms": 150,
-        "trail_length": 8,
-        "equilibrium_threshold": 0.05,
-        "evap_color": "#3B82F6",
-        "cond_color": "#F59E0B",
+        "r_eq_factor": 2.0,
+        "cutoff_factor": 5.0,
+        "k_repel": 800,
+        "k_attract": 50,
+        "mb_init_temp_K": 280,
+        "gravity_y": 0.05,
+        "dt": 0.0167,
+        "wall_repel_factor": 1000,
 
         "water_mol_per_mL": 0.05551,
-        "_units_note": "water_mol_per_mL = 1000/(18.015·1000) = 0.05551 mol/mL ≈ 55.51 mmol/mL (4°C 기준). 1 표면 입자 ≈ V_liquid · water_mol_per_mL · 1000 / N_surface_particles (표면 추상화)."
+        "_units_note": "1 분자 ≈ V_liquid · water_mol_per_mL · 1000 / N_molecules mmol (자연 응집 모델). water_mol_per_mL = 0.05551 mol/mL (4°C 기준)."
     }
 }

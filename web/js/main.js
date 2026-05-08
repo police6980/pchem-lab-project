@@ -3833,13 +3833,13 @@ function initVaporApp(params) {
         world = new VaporWorld(cfg, vFlask, vLiquid);
         p5Handle = mountVaporSketch(world, dom.canvasCt);
 
-        // 1 표면 입자 ≈ X mmol — option Z 표면 추상화 (정확한 의미는 6.1-d 측정 패널에서 정밀화)
+        // 1 분자 ≈ X mmol — LJ-like 자연 응집 모델 (sub-step 1)
         const molPerMl = (liquid === "water") ? cfg.water_mol_per_mL : 0;
         const totalMmol = vLiquid * molPerMl * 1000;
-        const mmolPerParticle = totalMmol / cfg.N_surface_particles;
+        const mmolPerParticle = totalMmol / cfg.N_molecules;
         dom.mmolSpan.textContent = mmolPerParticle.toFixed(3);
 
-        console.log(`[Vapor] 시뮬 시작 — V_flask=${vFlask}mL · V_liquid=${vLiquid}mL · V_gas=${vFlask - vLiquid}mL · liquid=${liquid} · mmol/surface-particle=${mmolPerParticle.toFixed(3)}`);
+        console.log(`[Vapor] 시뮬 시작 — V_flask=${vFlask}mL · V_liquid=${vLiquid}mL · V_gas=${vFlask - vLiquid}mL · liquid=${liquid} · mmol/molecule=${mmolPerParticle.toFixed(3)}`);
     });
 
     dom.btnReset.addEventListener("click", () => {
