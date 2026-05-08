@@ -889,6 +889,8 @@ function initDaltonApp(params) {
             P_total_kPa: null,
             V_A_current_mL: null,    // 작업 4: 매 GDX 프레임 역산 결과 보존 (T 소거 식: V_A' = P_initial·(V_A+V_B)/P_current − V_B)
             _lastGuardWarnTime: 0,   // 작업 4: 가드 경고 rate-limit (10 Hz 송신 로그 폭주 방지)
+            _stabilityHistory: [],   // 작업 5: peak-to-peak 변화율 산출용 슬라이딩 윈도우 [{t, p}, ...]
+            _stableSince: null,      // 작업 5: 최초 안정 진입 시각 (ms). null = 안정 아님
         },
     };
 
@@ -1030,6 +1032,11 @@ function initDaltonApp(params) {
                     // displayedVolume 은 lerpDisplayedVolumes() 가 매 프레임 보간 → 시각 부드러움
                 }
             }
+            // 작업 5: 자동 안정화 감지 — INJECTING 또는 STABILIZING 단계에서만 호출 (call site 가드)
+            const vStage = daltonState.vernier.stage;
+            if (vStage === "INJECTING" || vStage === "STABILIZING") {
+                evaluateVernierStability(daltonState.emaP_B_kPa, performance.now());
+            }
             return;
         }
         maybeUpdateParticleTarget("B", false, isMock);
@@ -1071,6 +1078,53 @@ function initDaltonApp(params) {
             daltonState.vernier._lastGuardWarnTime = now;
         }
     }
+
+    // Phase 5.9 작업 5: Vernier 자동 안정화 감지
+    //   peak-to-peak 변화율 = (max - min) / window_sec  [kPa/s]
+    //   < threshold 이 hold_sec 동안 유지되면 INJECTING → READY_TO_CAPTURE 자동 전환.
+    //   호출 조건: vernier.stage === INJECTING 또는 STABILIZING (call site 가드).
+    //   함수 본체는 INJECTING 일 때만 동작 — 그 외 stage 진입 시 state 리셋.
+    function evaluateVernierStability(p_kPa, now_ms) {
+        const v = daltonState.vernier;
+        if (v.stage !== "INJECTING") {
+            v._stabilityHistory = [];
+            v._stableSince = null;
+            return;
+        }
+        const vc = cfg.vernier || {};
+        const threshold = vc.stability_threshold_kpa_per_sec ?? 0.1;
+        const holdSec = vc.stability_hold_sec ?? 3.0;
+        const windowSec = vc.stability_window_sec ?? 1.0;
+
+        v._stabilityHistory.push({ t: now_ms, p: p_kPa });
+        const cutoff = now_ms - windowSec * 1000;
+        while (v._stabilityHistory.length > 0 && v._stabilityHistory[0].t < cutoff) {
+            v._stabilityHistory.shift();
+        }
+        if (v._stabilityHistory.length < 2) return;  // 윈도우 미충족
+
+        let minP = Infinity, maxP = -Infinity;
+        for (const e of v._stabilityHistory) {
+            if (e.p < minP) minP = e.p;
+            if (e.p > maxP) maxP = e.p;
+        }
+        const rate = (maxP - minP) / windowSec;
+
+        if (rate < threshold) {
+            if (v._stableSince === null) v._stableSince = now_ms;
+            const elapsedMs = now_ms - v._stableSince;
+            if (elapsedMs >= holdSec * 1000) {
+                setVernierStage("READY_TO_CAPTURE");
+            } else if (dom.stabCountdown) {
+                const remaining = (holdSec * 1000 - elapsedMs) / 1000;
+                dom.stabCountdown.textContent = `안정화 도달까지 ${remaining.toFixed(1)}초`;
+            }
+        } else {
+            v._stableSince = null;
+            if (dom.stabCountdown) dom.stabCountdown.textContent = "";
+        }
+    }
+
     daltonSensorManager.onChannelData(1, (data) => {
         const isMock = daltonSensorManager.mode === "mock";
         daltonState.emaP_A_kPa = isMock ? data.value : applyEMA(daltonState.emaP_A_kPa, data.value);
@@ -2864,6 +2918,20 @@ function initDaltonApp(params) {
         // fixup 16a — [입력]/[수정] 버튼도 잠금
         if (dom.volumeAApply)   dom.volumeAApply.disabled  = lockInputs;
         if (dom.volumeBApply)   dom.volumeBApply.disabled  = lockInputs;
+
+        // 작업 5: 안정화 추적 state + UI wrapper 분기 (mock 분기와 동일 DOM 재사용)
+        //   INJECTING: state 리셋 + wrapper visible (자동 경로 카운트다운 가시화)
+        //   STABILIZING: wrapper visible (디버그 helper / 미래 수동 경로 호환)
+        //   READY_TO_CAPTURE / IDLE / CAPTURED: wrapper hidden (잔류 방지)
+        if (newStage === "INJECTING") {
+            daltonState.vernier._stabilityHistory = [];
+            daltonState.vernier._stableSince = null;
+            if (dom.stabilization) dom.stabilization.classList.remove("hidden");
+        } else if (newStage === "STABILIZING") {
+            if (dom.stabilization) dom.stabilization.classList.remove("hidden");
+        } else if (newStage === "READY_TO_CAPTURE" || newStage === "IDLE" || newStage === "CAPTURED") {
+            if (dom.stabilization) dom.stabilization.classList.add("hidden");
+        }
     }
 
     // Phase 5.9: 디버그 helper — INJECTING → STABILIZING → READY_TO_CAPTURE 수동 진행.
