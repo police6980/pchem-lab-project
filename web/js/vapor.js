@@ -1,27 +1,21 @@
 // =============================================================
-// vapor.js — 증기압 시뮬 본체 (Phase 6.1-b sub-step 1)
-//             LJ-like 분자간 인력 모델 — 자연 응집·표면·증발·응축
+// vapor.js — 증기압 시뮬 본체 (Phase 6.1-b sub-step 1, 응집 영역 모델)
 //
-// 핵심 원칙:
-//   · 분자에 phase 플래그 X. 액체/기체는 위치·이웃 수의 자연 결과.
-//   · 모든 분자 동일 크기·동일 운동 방정식.
-//   · LJ-like piecewise 인력 + cutoff 만으로 모든 거동 발생.
-//   · 사건 확률 / KE 임계 상수 X. 인력 함수 + 초기 KE 분포만 튜닝.
+// 핵심 원칙 (LJ 폐기 후 신규):
+//   · 분자 200 개 항상 가시. 사라지지 않음. 같은 풀.
+//   · 분자간 인력 X. 분자-분자 hard sphere 반발만 (overlap 방지).
+//   · 응집 영역 (박스 하부) 에 외부 끌어당김 가속도장.
+//   · 영역 가장자리 + 영역 밖 분자에 +y 가속도 (영역 안으로 끌어당김).
+//   · 분자 KE > escape_threshold_KE 시 끌어당김 무력화 → 탈출 (증발).
+//   · 자유 비행 분자가 영역 진입 → 끌어당김에 잡힘 (응축).
 //
-// Sub-step 1 범위 (본 commit):
-//   · Molecule 클래스 + LJ-like 힘 계산 (O(N²))
-//   · Semi-implicit Euler 적분
-//   · 박스 사방 벽 반사 + 약한 중력
-//   · 200 분자 박스 하부 무작위 배치 (overlap r_eq 회피)
-//   · 자연 응집 클러스터 형성 검증
+// 분자 phase 플래그 X. 색만 위치 기반 자동:
+//   · y >= zoneTopY (영역 안): 진청 단색 #1E3A8A
+//   · y <  zoneTopY (영역 밖): KE HSB lerp (느림 청 → 빠름 적)
 //
-// 미포함 (sub-step 2~5):
-//   · 본격 증발/응축 가시화 (sub-step 2~3)
-//   · 색 차별화 (이웃 수 기반, sub-step 4)
-//   · rate 그래프·평형도 (sub-step 5)
-//   · 표면 가시화·교과서 정합 추가 단서 (후속)
-//
-// 이전 모델 (사건 추상화·표면 분자·영역 진동·자유 이동+중력) 전면 폐기.
+// LJ-like 모델 폐기 사유: N=200 학교 시뮬에서 안정 응집 실패 (분자
+// 균등 분포 = 그냥 기체). 자연 정합성 일부 손실 대신 시각 결과 단순 달성.
+// 학습 인지에 미치는 차이 없음 (docs/17 §6 정직한 한계 참조).
 // =============================================================
 
 const VAPOR_DT_CAP = 0.05;
@@ -45,28 +39,18 @@ class Molecule {
         this.y = y;
         this.vx = vx;
         this.vy = vy;
-        this.fx = 0;
-        this.fy = 0;
         this.mass = 1.0;
+    }
+
+    kineticEnergy() {
+        return 0.5 * this.mass * (this.vx * this.vx + this.vy * this.vy);
     }
 }
 
-// LJ-like piecewise (사용자 명세):
-//   d < r_eq           : fmag = -k_repel * (r_eq - d) / r_eq        (반발, 음수)
-//   r_eq <= d < cutoff : fmag = +k_attract * (1 - (d - r_eq) / (cutoff - r_eq))  (인력, 양수)
-//   d >= cutoff        : 0
-// fmag 양수 = a 가 b 방향으로 끌림 (n = (b - a)/|b - a|).
-function vaporComputeForces(molecules, cfg) {
-    const r       = cfg.molecule_radius_px;
-    const r_eq    = cfg.r_eq_factor   * r;
-    const cutoff  = cfg.cutoff_factor * r;
-    const k_repel    = cfg.k_repel;
-    const k_attract  = cfg.k_attract;
-    const cutoff2 = cutoff * cutoff;
-    const denom_attract = (cutoff - r_eq);
-
-    for (const m of molecules) { m.fx = 0; m.fy = 0; }
-
+// Hard sphere 반발 — d < 2r 시 normal 방향 impulse + 위치 분리. 인력 X.
+function vaporResolveCollisions(molecules, radius) {
+    const minD = 2 * radius;
+    const minD2 = minD * minD;
     const n = molecules.length;
     for (let i = 0; i < n; i++) {
         const a = molecules[i];
@@ -75,31 +59,28 @@ function vaporComputeForces(molecules, cfg) {
             const dx = b.x - a.x;
             const dy = b.y - a.y;
             const d2 = dx * dx + dy * dy;
-            if (d2 >= cutoff2 || d2 < 1e-9) continue;
-            const d = Math.sqrt(d2);
-            const nx = dx / d;
-            const ny = dy / d;
-
-            let fmag;
-            if (d < r_eq) {
-                fmag = -k_repel * (r_eq - d) / r_eq;
-            } else {
-                const t = (d - r_eq) / denom_attract;
-                fmag = +k_attract * (1 - t);
+            if (d2 < minD2 && d2 > 1e-9) {
+                const d = Math.sqrt(d2);
+                const nx = dx / d, ny = dy / d;
+                const dvx = b.vx - a.vx, dvy = b.vy - a.vy;
+                const vn = dvx * nx + dvy * ny;
+                if (vn < 0) {
+                    const j = -vn;
+                    a.vx -= j * nx; a.vy -= j * ny;
+                    b.vx += j * nx; b.vy += j * ny;
+                    const overlap = (minD - d) * 0.5;
+                    a.x -= nx * overlap; a.y -= ny * overlap;
+                    b.x += nx * overlap; b.y += ny * overlap;
+                }
             }
-
-            a.fx += fmag * nx;
-            a.fy += fmag * ny;
-            b.fx -= fmag * nx;
-            b.fy -= fmag * ny;
         }
     }
 }
 
-// 분자 무작위 배치 — overlap r_eq 회피 (rejection sampling)
-function vaporPlaceMolecules(zone, count, r_eq, mbScale) {
+// 분자 무작위 배치 — 최소 거리 2r overlap 회피
+function vaporPlaceMolecules(zone, count, minDist, mbScale) {
     const placed = [];
-    const r_eq2 = r_eq * r_eq;
+    const minDist2 = minDist * minDist;
     let attempts = 0;
     const maxAttempts = count * 200;
     while (placed.length < count && attempts < maxAttempts) {
@@ -109,7 +90,7 @@ function vaporPlaceMolecules(zone, count, r_eq, mbScale) {
         for (const m of placed) {
             const dx = m.x - x;
             const dy = m.y - y;
-            if (dx * dx + dy * dy < r_eq2) { ok = false; break; }
+            if (dx * dx + dy * dy < minDist2) { ok = false; break; }
         }
         if (ok) {
             const [vx, vy] = vaporMBVelocity(mbScale);
@@ -118,13 +99,13 @@ function vaporPlaceMolecules(zone, count, r_eq, mbScale) {
         attempts++;
     }
     if (placed.length < count) {
-        console.warn(`[Vapor] 분자 배치: ${placed.length}/${count} 만 배치됨 (overlap 가드 한계 — V_liquid 영역 좁음). r_eq=${r_eq.toFixed(2)}px`);
+        console.warn(`[Vapor] 분자 배치: ${placed.length}/${count} 만 배치됨 (영역 좁음). minDist=${minDist.toFixed(2)}px`);
     }
     return placed;
 }
 
 // =============================================================
-// VaporWorld — 단일 fullZone (영역 분할 X). 액체/기체 자연 발생.
+// VaporWorld — 응집 영역 + 외부 끌어당김 가속도장
 // =============================================================
 class VaporWorld {
     constructor(cfg, vFlaskMl, vLiquidMl) {
@@ -138,22 +119,20 @@ class VaporWorld {
         const innerH = this.canvasH - 2 * VAPOR_MARGIN_PX;
         this.fullZone = { x: VAPOR_MARGIN_PX, y: VAPOR_MARGIN_PX, w: innerW, h: innerH };
 
-        // 초기 분자 배치는 V_liquid : V_flask 비율로 박스 하부 영역에 한정 (응집 출발점)
+        // 응집 영역 = 박스 하부, V_liquid:V_gas 비율
         const liquidH = innerH * (vLiquidMl / vFlaskMl);
+        this.zoneTopY = VAPOR_MARGIN_PX + (innerH - liquidH);
+
+        // 초기 배치 — 응집 영역 안 무작위
         const initZone = {
             x: VAPOR_MARGIN_PX,
-            y: VAPOR_MARGIN_PX + (innerH - liquidH),
+            y: this.zoneTopY,
             w: innerW,
             h: liquidH,
         };
-
-        // 초기 속도 — MB. 액체 거동 위해 mb_init_temp_K 낮게.
-        // speedScale 단위: px/s. T=300K 기준 30 px/s 로 정규화.
-        const speedScale = Math.sqrt((cfg.mb_init_temp_K ?? 280) / 300) * 30;
         const r = cfg.molecule_radius_px;
-        const r_eq = cfg.r_eq_factor * r;
-
-        this.molecules = vaporPlaceMolecules(initZone, cfg.N_molecules, r_eq, speedScale);
+        const speedScale = Math.sqrt((cfg.mb_init_temp_K ?? 280) / 300) * 30;
+        this.molecules = vaporPlaceMolecules(initZone, cfg.N_molecules, 2 * r, speedScale);
 
         this._lastStatsT = performance.now();
     }
@@ -161,20 +140,39 @@ class VaporWorld {
     update(dt) {
         const cap = Math.min(dt, VAPOR_DT_CAP);
 
-        // 1) 힘 계산 (LJ-like piecewise)
-        vaporComputeForces(this.molecules, this.cfg);
+        const cfg = this.cfg;
+        const gy           = cfg.g_y ?? 0.05;
+        const yPullWeak    = cfg.y_pull_weak ?? 0.1;
+        const yPullStrong  = cfg.y_pull_strong ?? 0.3;
+        const pullMargin   = cfg.pull_margin_px ?? 30;
+        const escapeKE     = cfg.escape_threshold_KE ?? 4.0;
+        const zoneTop      = this.zoneTopY;
 
-        // 2) 적분 (semi-implicit Euler) + 약한 중력
-        const gy = this.cfg.gravity_y ?? 0.05;
+        // 1) 외력 계산 + 적분 (semi-implicit Euler)
         for (const m of this.molecules) {
-            m.vx += (m.fx / m.mass) * cap;
-            m.vy += (m.fy / m.mass + gy) * cap;
+            // 균일 중력
+            let ay = gy;
+            // 응집 영역 끌어당김 — KE 가드
+            const ke = m.kineticEnergy();
+            if (ke <= escapeKE) {
+                if (m.y >= zoneTop) {
+                    ay += yPullStrong;
+                } else if (m.y >= zoneTop - pullMargin) {
+                    ay += yPullWeak;
+                }
+            }
+            // KE > escapeKE: 끌어당김 무력화 (탈출 가능)
+
+            m.vy += ay * cap;
             m.x  += m.vx * cap;
             m.y  += m.vy * cap;
         }
 
+        // 2) 분자-분자 hard sphere 반발 (인력 X)
+        vaporResolveCollisions(this.molecules, cfg.molecule_radius_px);
+
         // 3) 박스 사방 벽 반사 + 위치 클램프
-        const r = this.cfg.molecule_radius_px;
+        const r = cfg.molecule_radius_px;
         const z = this.fullZone;
         const left = z.x + r, right = z.x + z.w - r;
         const top = z.y + r,  bottom = z.y + z.h - r;
@@ -189,48 +187,61 @@ class VaporWorld {
             else if (m.y > bottom) m.y = bottom;
         }
 
-        // 4) stats — 이웃 수 ≥ 4 인 분자 = clustered (1초 간격)
+        // 4) stats
         this._maybeLogStats();
     }
 
     _maybeLogStats() {
         const now = performance.now();
         if (now - this._lastStatsT < 1000) return;
-        const cutoff = this.cfg.cutoff_factor * this.cfg.molecule_radius_px;
-        const cutoff2 = cutoff * cutoff;
-        const n = this.molecules.length;
-        let clustered = 0;
-        for (let i = 0; i < n; i++) {
-            let neighbors = 0;
-            for (let j = 0; j < n; j++) {
-                if (i === j) continue;
-                const dx = this.molecules[i].x - this.molecules[j].x;
-                const dy = this.molecules[i].y - this.molecules[j].y;
-                if (dx * dx + dy * dy < cutoff2) {
-                    neighbors++;
-                    if (neighbors >= 4) break;
-                }
-            }
-            if (neighbors >= 4) clustered++;
+        let inZone = 0, outZone = 0;
+        for (const m of this.molecules) {
+            if (m.y >= this.zoneTopY) inZone++;
+            else outZone++;
         }
-        const free = n - clustered;
-        console.log(`[Vapor] sub-step 1 · N=${n} · clustered(neighbors≥4)=${clustered} · free=${free}`);
+        console.log(`[Vapor] sub-step 1 (cohesion zone) · in_zone=${inZone} · out_zone=${outZone}`);
         this._lastStatsT = now;
     }
 
     drawWalls(p) {
+        // 박스 사방 테두리
         p.noFill();
         p.stroke(180);
         p.strokeWeight(1);
         const z = this.fullZone;
         p.rect(z.x, z.y, z.w, z.h);
+
+        // 응집 영역 위 경계 — 점선 (학생 시각 단서)
+        p.stroke(120, 150, 200, 140);
+        p.strokeWeight(1);
+        if (p.drawingContext && typeof p.drawingContext.setLineDash === "function") {
+            p.drawingContext.setLineDash([4, 4]);
+            p.line(z.x, this.zoneTopY, z.x + z.w, this.zoneTopY);
+            p.drawingContext.setLineDash([]);
+        } else {
+            p.line(z.x, this.zoneTopY, z.x + z.w, this.zoneTopY);
+        }
     }
 
     drawMolecules(p) {
-        p.noStroke();
-        p.fill(p.color(this.cfg.molecule_color || "#1E3A8A"));
         const r2 = (this.cfg.molecule_radius_px ?? 3.5) * 2;
+        const liquidColor = p.color(this.cfg.molecule_color_liquid || "#1E3A8A");
+        const slow = p.color("#60A5FA");
+        const fast = p.color("#EF4444");
+        // refKE — mb_init_temp_K 기준 평균 KE 의 4 배에서 fully fast 색
+        const refSpeed = Math.sqrt((this.cfg.mb_init_temp_K ?? 280) / 300) * 30;
+        const refKE = 0.5 * refSpeed * refSpeed;
+        const fastKE = refKE * 4;
+
+        p.noStroke();
         for (const m of this.molecules) {
+            if (m.y >= this.zoneTopY) {
+                p.fill(liquidColor);
+            } else {
+                const ke = m.kineticEnergy();
+                const t = Math.min(ke / fastKE, 1);
+                p.fill(p.lerpColor(slow, fast, t));
+            }
             p.circle(m.x, m.y, r2);
         }
     }
