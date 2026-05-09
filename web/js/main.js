@@ -3768,6 +3768,7 @@ function initVaporApp(params) {
     const dom = {
         vFlaskSel:        document.getElementById("vapor-v-flask"),
         vLiquidIn:        document.getElementById("vapor-v-liquid"),
+        vGasInput:        document.getElementById("vapor-v-gas"),  // fixup 15m — readonly auto-fill display
         liquidTypeSel:    document.getElementById("vapor-liquid-type"),
         btnStart:         document.getElementById("vapor-btn-start"),
         btnReset:         document.getElementById("vapor-btn-reset"),
@@ -3838,6 +3839,8 @@ function initVaporApp(params) {
 
     function validate() {
         // fixup 15b — V_liquid + tConfirmed 둘 다 OK 시만 시작 enable
+        // fixup 15m — V_gas 칸 자동 채워짐 (OK 시 vGasInput.value 설정, error 시 "—")
+        //             가드 노트 = error 시만 텍스트 (OK 시 V_gas 칸이 시각화)
         const { vFlask, vLiquid } = getInputs();
         const maxLiquid = 0.5 * vFlask;
         dom.vLiquidIn.max = String(maxLiquid);
@@ -3845,14 +3848,17 @@ function initVaporApp(params) {
         if (!Number.isFinite(vLiquid) || vLiquid <= 0) {
             dom.guardNote.textContent = "액체 부피는 0 보다 커야 합니다.";
             dom.guardNote.dataset.state = "error";
+            dom.vGasInput.value = "—";
             liquidOk = false;
         } else if (vLiquid > maxLiquid) {
             dom.guardNote.textContent = `액체 부피 상한 ${maxLiquid} mL 초과 (V_liquid ≤ 0.5·V_flask).`;
             dom.guardNote.dataset.state = "error";
+            dom.vGasInput.value = "—";
             liquidOk = false;
         } else {
-            dom.guardNote.textContent = `OK — V_gas = ${vFlask - vLiquid} mL`;
+            dom.guardNote.textContent = "";
             dom.guardNote.dataset.state = "ok";
+            dom.vGasInput.value = String(vFlask - vLiquid);
             liquidOk = true;
         }
         dom.btnStart.disabled = !tConfirmed || !liquidOk;

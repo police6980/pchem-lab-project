@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CAST — 증기압 (Phase 6.1-b finalization fixup 15l + 6.2 부분)</title>
+    <title>CAST — 증기압 (Phase 6.1-b finalization fixup 15m + 6.2 부분)</title>
     <link rel="stylesheet" href="css/style.css">
     <script src="https://cdn.jsdelivr.net/npm/p5@1.11.2/lib/p5.min.js"></script>
     <script src="https://unpkg.com/docx@8.5.0/build/index.umd.js"></script>
@@ -22,7 +22,7 @@
 <body data-page="vapor">
     <nav class="page-nav vapor-nav">
         <a href="index.html" class="nav-home" title="홈으로 돌아가기">🏠 홈으로</a>
-        <span class="nav-title">증기압 — Phase 6.1-b finalization fixup 15l + 6.2 (T 통합)</span>
+        <span class="nav-title">증기압 — Phase 6.1-b finalization fixup 15m + 6.2 (T 통합)</span>
     </nav>
 
     <div id="vapor-layout-v2" class="vapor-layout-v2">
@@ -47,6 +47,14 @@
                         <span class="vapor-field-unit">mL</span>
                     </div>
                 </div>
+                <!-- fixup 15m — V_gas 칸 신규 (input + readonly, 자동 채워짐 V_flask - V_liquid) -->
+                <div class="vapor-top-field">
+                    <label for="vapor-v-gas">기체 부피</label>
+                    <div class="vapor-top-field-number-row">
+                        <input type="number" id="vapor-v-gas" value="200" readonly tabindex="-1">
+                        <span class="vapor-field-unit">mL</span>
+                    </div>
+                </div>
                 <small id="vapor-v-liquid-guard" class="vapor-guard-note vapor-guard-inline" data-state="ok"></small>
                 <div class="vapor-top-field">
                     <label for="vapor-liquid-type">액체 종류</label>
@@ -58,10 +66,7 @@
                     <button id="vapor-btn-start" type="button" class="vapor-btn-primary">실험 시작</button>
                     <button id="vapor-btn-reset" type="button" class="vapor-btn-secondary" disabled>리셋</button>
                 </div>
-                <div class="vapor-top-info">
-                    <span class="vapor-info-label">1 입자 ≈</span>
-                    <span class="vapor-info-value"><span id="vapor-mmol-per-particle">—</span> mmol</span>
-                </div>
+                <!-- fixup 15m — .vapor-top-info (1 입자 ≈ X mmol) 폐기, 시뮬 헤더 옆 이동 -->
             </div>
 
             <!-- Row 2: 측정 모드 4 button + help-text -->
@@ -87,6 +92,10 @@
                 <header class="vapor-sim-header">
                     <span class="vapor-sim-elapsed">
                         ⏱ <span id="vapor-elapsed-time">—</span>
+                    </span>
+                    <!-- fixup 15m — 보조 정보 (1 입자 ≈ X mmol) 시뮬 헤더 옆 이동 -->
+                    <span class="vapor-sim-mmol-info">
+                        1 입자 ≈ <span id="vapor-mmol-per-particle">—</span> mmol
                     </span>
                     <!-- 평형 배지 — mock 모드 활성 (fixup 13, ratio 기반 평형 판정 통일) -->
                     <span id="vapor-equilibrium-badge" class="vapor-eq-badge" data-state="none">

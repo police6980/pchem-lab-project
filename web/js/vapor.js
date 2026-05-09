@@ -1,6 +1,6 @@
 // =============================================================
 // vapor.js — 증기압 시뮬 본체
-// Phase 6.1-b finalization fixup 15l (여백 ↓ + rate 그래프 정렬 + 시뮬↔카드 height 정합)
+// Phase 6.1-b finalization fixup 15m (height 정합 옵션 C flex stretch + V_gas 칸 + mmol 이동)
 //
 // 핵심 철학 (정공법):
 //   학생 가시 = 실측 / 시뮬 = 미시 가시화 (정성적)
@@ -195,6 +195,22 @@
 //     CSS scaling ~1.22× 시각 정합). resizeObserver / 동적 attr 변경 X (단순).
 //   · .vapor-card 기본 min-height 400 → 408 (카드 합산 360+12+408=780 ≈ 시뮬 box height 정확 정합).
 //     사용자 비판: "시뮬 box vs cards-region height 미세 어긋남 → 시뮬 박스 끝 좌측 회색 여백" 해소.
+//
+// 추가 (fixup 15m — height 정합 옵션 C flex stretch + V_gas 칸 + 보조 정보 이동):
+//   · 15l 정합 시도 (rate min-height 408) → 검증 실패 (실제 시뮬-region outer ~836 vs 카드 합산 780,
+//     ~56px 어긋남). 사용자 보고 ~100~150px 어긋남 → 15m 옵션 C 구조적 정합.
+//   · .vapor-top-row align-items flex-start → stretch (cards-region 자동 height 정합).
+//     .vapor-card-tp flex 0 0 auto + min-height 360 보존 (5 프리셋 + 입력 + P 영역 정합).
+//     .vapor-card-rate flex 1 1 auto + min-height 0 (cards-region 내 남은 height 자동 흡수).
+//     → viewport-independent 구조적 정합 (1366 laptop / 1920 desktop / resize 모두 자동).
+//   · V_gas 칸 form 변경: 가드 노트 "OK — V_gas = 200 mL" 텍스트 형태 → readonly input + 자동 채워짐.
+//     vapor.html top-control Row 1 액체 부피 다음 신규 .vapor-top-field (input readonly tabindex=-1).
+//     main.js validate(): error 시 vGasInput.value = "—" + 가드 메시지, OK 시 vGasInput.value = (vFlask-vLiquid)
+//     + 가드 메시지 빈. CSS readonly 시각 (회색 배경).
+//   · 보조 정보 (1 입자 ≈ X mmol) 위치 이동: top-control Row 1 우측 끝 .vapor-top-info 폐기.
+//     시뮬 헤더 (.vapor-sim-header) 안 elapsed time 옆 inline (.vapor-sim-mmol-info 신규).
+//     #vapor-mmol-per-particle ID 보존 → main.js 갱신 호출 site 0 변동.
+//     학습 단서 정합 (시뮬 시작 직후 자연 인지) + top-control 너비 부담 ↓.
 //
 // docs/17 §6 참조.
 // =============================================================

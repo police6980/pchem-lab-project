@@ -3697,7 +3697,7 @@ body[data-page="vapor"] .vapor-learning-note {
     color: #475569;
 }
 
-/* =============== Vapor 3-region layout (Phase 6.1-b finalization fixup 15l) ===============
+/* =============== Vapor 3-region layout (Phase 6.1-b finalization fixup 15m) ===============
    fixup 15j — P 영역 부활 (.vapor-tp-pressure vapor-real-only hidden 제거 + placeholder 폐기 +
    단순화) + measurement-region mock placeholder 폐기 + 측정 표 이론 컬럼 폐기.
    .vapor-tp-pressure-mock + 자식 styles 폐기.
@@ -3713,7 +3713,16 @@ body[data-page="vapor"] .vapor-learning-note {
    max-width 1700 → 1900 (시뮬 좌우 여백 ~150 → ~20~40px 적정).
    #vapor-rate-canvas max-width 256 폐기 → 100% (카드 폭 자동 채움, 좌측 치우침 해소,
                                                 drawVaporRateGraph2D W 인자 응답).
-   .vapor-card 기본 (rate) min-height 400 → 408 (카드 합산 360+12+408=780 시뮬 box 정합). */
+   .vapor-card 기본 (rate) min-height 400 → 408 (카드 합산 360+12+408=780 시뮬 box 정합).
+
+   fixup 15m — 시뮬↔카드 height 정합 (옵션 C flex stretch, 15l 검증 실패 보정) +
+              V_gas 칸 form 변경 + 보조 정보 시뮬 헤더 옆 이동.
+   .vapor-top-row align-items flex-start → stretch (cards-region 자동 height 정합).
+   .vapor-card-tp { flex: 0 0 auto, min-height 360 보존 } / .vapor-card-rate { flex: 1 1 auto,
+                                                                              min-height: 0 }
+   → rate 카드가 cards-region 내 남은 height 흡수, viewport-independent 구조적 정합.
+   readonly input 시각 (.vapor-top-field input[readonly]) 회색 배경. V_gas 칸 자동 채워짐.
+   .vapor-sim-mmol-info 신규 (시뮬 헤더 옆 inline, 11px gray). */
 body[data-page="vapor"] .vapor-layout-v2 {
     display: flex;
     flex-direction: column;
@@ -3787,6 +3796,12 @@ body[data-page="vapor"] .vapor-top-field select {
 body[data-page="vapor"] .vapor-top-field input[type="number"] {
     width: 64px;
 }
+/* fixup 15m — readonly input 시각 (V_gas 칸 자동 채워짐, 사용자 입력 X) */
+body[data-page="vapor"] .vapor-top-field input[readonly] {
+    background: #f1f5f9;
+    color: #475569;
+    cursor: default;
+}
 body[data-page="vapor"] .vapor-top-field-number-row {
     display: flex;
     align-items: center;
@@ -3822,7 +3837,8 @@ body[data-page="vapor"] .vapor-top-row {
     display: flex;
     flex-direction: row;
     gap: 12px;
-    align-items: flex-start;
+    /* fixup 15m — flex-start → stretch (cards-region 자동 height 정합, 시뮬 box 정합) */
+    align-items: stretch;
 }
 /* fixup 15h — .vapor-control-narrow + .vapor-section + .vapor-field 사이드바 CSS 폐기.
    대체: .vapor-top-control-row + .vapor-top-field (상단 가로 영역, 위에 정의). */
@@ -3948,6 +3964,12 @@ body[data-page="vapor"] .vapor-sim-header {
 body[data-page="vapor"] .vapor-sim-elapsed {
     font-variant-numeric: tabular-nums;
     font-weight: 500;
+}
+/* fixup 15m — 보조 정보 (1 입자 ≈ X mmol) 시뮬 헤더 옆 inline (top-control 우측 끝에서 이동) */
+body[data-page="vapor"] .vapor-sim-mmol-info {
+    font-size: 11px;
+    color: #64748b;
+    font-variant-numeric: tabular-nums;
 }
 body[data-page="vapor"] .vapor-eq-badge {
     padding: 4px 10px;
@@ -4191,7 +4213,15 @@ body[data-page="vapor"] .vapor-card {
 }
 /* fixup 15h — T+P 카드 200 → 300 (5 프리셋 + 입력 row + 가드 노트 여유)
    fixup 15k — 300 → 360 (P 영역 부활 흡수, 시뮬 780 정합) */
-body[data-page="vapor"] .vapor-card-tp { min-height: 360px; }
+body[data-page="vapor"] .vapor-card-tp {
+    min-height: 360px;
+    flex: 0 0 auto;  /* fixup 15m — T+P 카드 = 고정 (5 프리셋 + 입력 + P 영역 정합) */
+}
+/* fixup 15m — rate 카드 flex grow (cards-region 내 남은 height 자동 흡수, 시뮬 box 정합) */
+body[data-page="vapor"] .vapor-card-rate {
+    flex: 1 1 auto;
+    min-height: 0;
+}
 /* fixup 15h — .vapor-card-counter min-height 폐기 (분자 수 카드 폐기) */
 body[data-page="vapor"] .vapor-card h4 {
     font-size: 12px;
