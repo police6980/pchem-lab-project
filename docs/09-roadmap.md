@@ -286,11 +286,53 @@ Phase 5.2 (시뮬 엔진): 완료 (3일, 14 commits). Phase 5.3 (학습 기능):
 
 ### 5-7. 별 브랜치 후보
 - **`experiment/matter-js` (Phase 5.x)** — 입자간 충돌을 Matter.js 라이브러리로 재구현. 배경 = Phase 5.3 직접 구현 + Phase 5.4 patch (R1/R5 epsilon) 누적 → patch 패턴의 한계 명확. 직접 구현 ↔ 라이브러리 비교 자료, 논문 강력한 1차 자료가 될 수 있음. 5-region 모델 통합 + 회귀 검증 후 합류. 실물 작업 후 또는 병행.
-- **`phase5-tutor-unify` ([A] AI 튜터 통합)** — Phase 6/7 신규 시뮬 추가 직전. 3 시뮬 (보일/돌턴/입자운동) 의 자체 closure → 공통 모듈 통합. Phase 5.4 의 입자운동 비활성 버그 (ai-tutor.js 의 `.ai-sidebar` 셀렉터 광역 영향) 가 통합 전 해결할 대표 이슈. 셀렉터 / 책임 분리 명확화 우선.
+- **`phase5-tutor-unify` ([A] AI 튜터 통합)** — Phase 6/7 신규 시뮬 추가 직전. 3 시뮬 (보일/돌턴/입자운동) 의 자체 closure → 공통 모듈 통합. Phase 5.4 의 입자운동 비활성 버그 (ai-tutor.js 의 `.ai-sidebar` 셀렉터 광역 영향) 가 통합 전 해결할 대표 이슈. 셀렉터 / 책임 분리 명확화 우선. **(완료)**: Phase 5.7 트랙 6 `tutor.js` factory 신설 (createTutor(config), 14 commits, 2026-04-29). Phase 6.4 17a 에서 vapor 통합.
+
+### 5-8. Phase 5.5~5.10 누적 (2026-04-28~2026-05-08)
+
+- **Phase 5.5** (2026-04-28) — 회귀 인프라 + 학습 보강 자율 6 트랙 (sequence replay / outlier 가드 unit test / 보일 측정 통계 / 가스 비교 / docs/16 §9 stale 정리).
+- **Phase 5.6** (2026-04-28) — docs 정합 점검 + tests 보강 + CI 통합.
+- **Phase 5.7** (2026-04-29) — `tutor.js` factory 통합 (트랙 6, 14 commits). 보일 / 입자운동 / 돌턴 Hybrid wrapper.
+- **Phase 5.8** (2026-05-06) — Vernier GDX-GP 4번째 SensorSource 정식 편입. Boyle 단일 채널.
+- **Phase 5.9** (2026-05-06~07) — Vernier Dalton 적용 + AI 튜터 D-(3) Vernier substate 컨텍스트.
+- **Phase 5.10** (2026-05-08) — 펌웨어 셋업.
 
 ---
 
-## 6. Phase 6: 교사 도구
+## 5.5 Phase 6.x: 증기압 실험 (vapor 트랙, `phase6-vapor-design` 브랜치)
+
+### 5.5-1. 완료 (Phase 6.0~6.4, 2026-05-09)
+
+- **Phase 6.0** — vapor 설계 (`docs/17-vapor-design.md` 신규, 13 섹션) + 시뮬 물리 명세 3건 묶음 (위상 통과 / 응집력 / 카운터) + 외부 시뮬 API 배제 결정 (matter.js / 클라우드 SaaS / PhET / AI 시뮬 모두 배제, 자체 구현 유지).
+- **Phase 6.1-a** — `phase5-real-sensor` → `phase6-vapor-design` 머지 (Phase 3 SW + 5.3/5.4/5.7/5.9 통합본). vapor 페이지 골격 (initVaporApp 분기 + params.vapor placeholder).
+- **Phase 6.1-b** — vapor 시뮬 본체:
+  - **5+ 회 액체 모델 시도-폐기 사이클** (sub-step 1) — dense free / option Z / LJ-like / 응집 영역 / Schroeder LJ MD 모두 폐기.
+  - **정적 격자 + 표면 동역학 회귀** (sub-step B-2 final 마커) — "운동이 빈 공간 만든다" 본질 결함 발견.
+  - **finalization fixup 1~14** — 시각 효과 + 시간 척도 (5분 평형) + ghost particle + 정공법 회귀 (calibration 폐기) + T+P 카드 통합 + 평형 ratio 단일 + rate 워밍업.
+  - **finalization fixup 15a~15t** — 화살표 매칭 4단계 진화 → 매칭 폐기 + dual-layer 5-state 학생 평형 결정 + P 영역 그래픽화 (Johnstone 3수준 통합) + 사이드바 → top-control 변환 + CSS scaling 모델 좌표 보존.
+  - **fixup 16a Dalton 부피 입력 확정** (vapor 15b 패턴 100% 재사용 — 페이지 간 패턴 재사용 첫 사례).
+- **Phase 6.4** — vapor AI 튜터 통합 + 시스템 layout 본질 발견 + INDEX 카드 + 헤더 통일 + dead code 정리:
+  - **fixup 17a** — vapor AI 튜터 통합 (`tutor.js` factory 재사용, Phase 6.4 예약 docstring 실행).
+  - **fixup 17b/17c/17d** — 사이드바 layout 4단계 진화. silent regression 수정 + flex 부모 시도 (적응형 미작동) → dalton fixed 복제 (잘못된 옵션) → **시스템 차원 본질 발견** (`@media (max-width: 1599px)` 룰) → 1599 → 1199 축소 + 캔버스 max-width 1279 → 1599 확장 + flex 부모 정공법 회귀.
+  - **fixup 17e** — INDEX vapor 카드 (boyle 다음, Phase 6 dual-layer 학습 흐름).
+  - **fixup 17f** — 4 페이지 헤더 통일 (CAST prefix + Phase/fixup 표시, 개발용 in-progress).
+  - **fixup 17g-1** — dead code 보수 정리 (신중 모드 4-등급, codebase healthy).
+
+### 5.5-2. 예약
+
+- **Phase 6.3** — vapor 4 데이터 소스 분기 활성화 (ws/real/vernier).
+- **Phase 6.5** — 액체 종류 + 액체 양 비교 활동 (β + α 통합, water 외 ethanol 추가).
+- **Phase 6.6** — 학생 수준 검증 + README 정합.
+- **Phase 6.7** — 추가 액체 옵션 (메탄올 등 확장).
+
+### 5.5-3. 권위 문서
+
+- 전체 자세: `docs/17-vapor-design.md` (Phase 6.0 작성 + 17h-2 갱신 — §13 학생 평형 결정 5-state + §14 AI 튜터 통합 + §15 시스템 layout + §16 헤더 통일 + §17 INDEX 카드 + §18 dead code 부록 + §99 핸드오프).
+- 의사결정 history: `docs/10-dev-journal.md` Phase 6.0~6.4 (17h-1a/b/c/d entries, +1232 줄 / 46 결정 블록 / 67 commits 합성).
+
+---
+
+## 6. Phase 7: 교사 도구 (구 Phase 6, vapor 트랙 시작 후 라벨 변경)
 
 ### 6-1. 교사 대시보드
 - 여러 학생 동시 모니터링

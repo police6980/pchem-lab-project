@@ -134,17 +134,18 @@ node emulator.js --mode dalton
 
 | 페이지 | URL | 비고 |
 |---|---|---|
-| 랜딩 (홈 + API 키 설정) | `http://localhost:8000/web/` | sessionStorage 공유 시작점 |
-| 보일의 법칙 | `http://localhost:8000/web/boyle.html` | 3 모드 (Mock/WS/Real) |
+| 랜딩 (홈 + API 키 설정) | `http://localhost:8000/web/` | sessionStorage 공유 시작점, 4 카드 (boyle/vapor/particles/dalton, fixup 17e 갱신) |
+| 보일의 법칙 | `http://localhost:8000/web/boyle.html` | 4 모드 (Mock/WS/Real/Vernier, Phase 5.8) |
 | 입자운동론 | `http://localhost:8000/web/particles.html` | V·T·N·기체 조작 |
-| 돌턴의 부분압력 | `http://localhost:8000/web/dalton.html` | 다채널 SensorSource (Phase 5.4) |
+| 돌턴의 부분압력 | `http://localhost:8000/web/dalton.html` | 4 모드 다채널 (Phase 5.4 + 5.9 D Vernier substate) |
+| **증기압 (vapor)** | `http://localhost:8000/web/vapor.html` | **Phase 6.0~6.4 신규**. 4 모드 (mock 활성, ws/real/vernier Phase 6.3 예약). 5-state 학생 평형 결정 + AI 튜터 (factory 재사용) |
 
 ---
 
 ## 5. 첫 실행 검증
 
-1. `python -m http.server 8000` 실행 중인 상태에서 4 페이지 모두 로드 확인
-   (랜딩 + 3 시뮬).
+1. `python -m http.server 8000` 실행 중인 상태에서 5 페이지 모두 로드 확인
+   (랜딩 + 4 시뮬: boyle/particles/dalton/vapor).
 2. F12 콘솔 — 에러 0 (404, JS error 없음).
 3. 에뮬레이터 모드 (보일 또는 돌턴 페이지 상단 토글):
    - 토글에서 [🔌 에뮬레이터] 선택 → "● 연결됨" 표시 확인.
@@ -238,6 +239,29 @@ ws/real 모드 디버깅 / 노이즈 검증 시 권위 위치 — 본 §은 cros
 - **baseline.js 노이즈 특성 정량화** — `tools/firmware-emulator/README.md` §7 / `tools/firmware-emulator/baseline.js`. WebSocket 데이터 60초 수집 → σ / maxSpike / drift JSON 저장. 회귀 테스트 baseline.
 - **시나리오 회귀 테스트** (`run-scenario.js` / `run-all.js`) — `tools/firmware-emulator/README.md` §7. emulator spawn → judge → 종료 코드 기반. CI 친화.
 
+### 6.10 시스템 layout 1199 분기 (Phase 6.4 17d 신규 권위)
+
+페이지 layout 디버깅 / 사이드바 표시 시뮬 가림 발생 시 — 본 §은 cross-ref만, 상세는 `docs/17-vapor-design.md` §15:
+
+- **`@media (max-width: 1199px)` 룰** (`web/css/style.css:2336~`) — Phase 6.4 17d 본질 발견 (직전 1599 룰이 모든 가림 문제 시스템 차원 원인).
+- **분기 자세**: ≥1200px = flex 자동 축소 (적응형 정공법) / <1200px = fixed overlay drawer.
+- **vapor / boyle / particles 일괄 적용**, **dalton 별도 grid layout** (사용자 비판 X + grid wrap risk 격리).
+- **silent regression 패턴** — `vaporTutor.init()` 1줄 누락 = visible 에러 X, UI 무반응 silent fail. dalton:3492 비교로 발견 (fixup 17b).
+- **agent 한계 명시** — vapor 단독 검토로 시스템 차원 룰 미발견. 사용자 본질 진단 의뢰 (4 페이지 균등) → 시스템 차원 원인 발견. fixup 17d body "vapor 17b 미작동 본질 = 1599 룰 무인지 (CC 진단 누락 인정)".
+
+### 6.11 tutor.js factory 패턴 (Phase 5.7 트랙 6 + Phase 6.4 17a)
+
+AI 튜터 통합 디버깅 시 — 본 §은 cross-ref만, 상세는 `docs/07-ai-tutor.md` §4.6.5 + `docs/17-vapor-design.md` §14:
+
+- **`web/js/tutor.js`** = 단일 factory `createTutor(config)`. 4 페이지 (boyle/particles/dalton/vapor) 모두 통합.
+- **page-specific config**:
+  - boyle: `ai-tutor.js` Hybrid wrapper (Phase 5.7 트랙 6-a-2).
+  - particles: `ui.js` `createAdvAiTutor` Hybrid wrapper (트랙 6-b).
+  - dalton: `main.js` `createDaltonTutor` Hybrid wrapper (트랙 6-c).
+  - vapor: `main.js` `initVaporTutor` `vaporConfig` (Phase 6.4 fixup 17a 실행).
+- **vaporConfig 명세** (`docs/07` §4.6.5 자세): 학습 목표 4 + 절대 원칙 12 + 시뮬 시각 단서 활용 권장. VAPOR_LEVEL_GUIDES (4 수준) + VAPOR_QUESTION_TEXT (4×5=20) + buildDataContext (T/P/평형 5-state/measurementPoints/mode "mock").
+- **factory init() 호출 필수** — `vaporTutor.init()` 1줄 (dalton:3492 동일 패턴). 누락 = silent regression (모든 핸들러 미바인딩).
+
 ---
 
 ## 7. AI 튜터 사용
@@ -324,7 +348,8 @@ docs(journal): <범위 요약> — Phase N <subphase>
 | `docs/12-protocol-v1.2.md` | 멀티채널 프로토콜 (Phase 5.4) |
 | `docs/13-multi-channel-interface.md` | multi-channel SensorSource (Phase 5.4) |
 | `docs/14-calibration-pipeline.md` | 실센서 캘리브레이션 (Phase 5.4) |
-| `docs/15-params-config-guide.md` | params.json + SCENE + gases 권위 (Phase 5.4) |
+| `docs/15-params-config-guide.md` | params.json + SCENE + gases 권위 (Phase 5.4 + Phase 6 vapor §5.5 신설) |
+| `docs/17-vapor-design.md` | **vapor 시뮬 설계 (Phase 6.0~6.4) — §6 시뮬 명세 / §13 학생 평형 결정 5-state / §14 AI 튜터 통합 / §15 시스템 layout / §16 헤더 통일 / §17 INDEX 카드 / §18 dead code 부록 / §99 핸드오프** |
 | `docs/19-real-sensor-integration-checklist.md` | 실물 도착 시 Step I 단일 절차서 (Phase 5.4) |
 | `tools/firmware-emulator/README.md` | 에뮬 권위 (CLI 키 / 노이즈 4 모드 / 시나리오 회귀) |
 | `firmware/README.md` | 실물 펌웨어 플래시 (Step I 진입 시) |

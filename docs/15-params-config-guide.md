@@ -118,6 +118,167 @@ web/config/params.json
 
 ---
 
+## 5.5 vapor 섹션 (Phase 6.0~6.4 누적)
+
+**위치**: `web/config/params.json` line 51-220 안 `vapor` sub-tree. Phase 6.1-a (commit `b3972b3`) placeholder 신설 → Phase 6.1-b finalization fixup 1~14 + 15a~15t 누적 변경 (값 튜닝 / 키 신규·폐기 사이클).
+
+**카테고리별 키 표** (현재 값 + 의미 + 변경 history):
+
+### 5.5.1 기본 설정
+
+| 키 | 값 | 의미 |
+|---|---|---|
+| `V_flask_presets_mL` | `[100, 250, 500]` | 플라스크 부피 프리셋 |
+| `V_flask_default_mL` | 250 | 페이지 진입 default |
+| `V_liquid_default_mL` | 50 | 액체 부피 default |
+
+### 5.5.2 캔버스 (모델 좌표 보존, fixup 15h/15k CSS scaling)
+
+| 키 | 값 | 의미 |
+|---|---|---|
+| `canvas_width_px` | 800 | 모델 좌표 (CSS scaling 1.625× 후 display 1300, fixup 15k) |
+| `canvas_height_px` | 480 | 동일 |
+| `rate_canvas_width_px` | 256 | rate 그래프 캔버스 (fixup 15l max-width 100% 표시) |
+| `rate_canvas_height_px` | 140 | 동일 |
+
+### 5.5.3 분자 시각 + 표면
+
+| 키 | 값 | 변경 history |
+|---|---|---|
+| `molecule_radius_px` | 4 | (fixup 04da132 입자 크기 통일 — liquid/surface/gas 모두 r=4) |
+| `gas_particle_radius_px` | 4 | 동일 |
+| `liquid_color` | `#1E40AF` | (fixup 8 정공법 회귀 — 반투명 단색) |
+| `liquid_opacity` | 0.92 | 동일 |
+| `surface_jitter_amp_px` | 2 | 표면 sinusoidal 진폭 |
+| `surface_opacity` | 0.55 | (fixup 4 반투명 — 액체 격자 불투명과 시각 차별) |
+
+### 5.5.4 온도 + 사건 게이트 (fixup 6/8/9/14/15a/15e EMA prime 진화)
+
+| 키 | 값 | 변경 history |
+|---|---|---|
+| `T_default_celsius` | 25 | 페이지 진입 default |
+| `T_min_celsius` | 25 | 학교 실험 정합 |
+| `T_max_celsius` | 65 | 동일 |
+| `T_presets_celsius` | `[25, 35, 45, 55, 65]` | 5 프리셋 |
+| `reference_T_celsius` | 25 | Boltzmann factor T_ref |
+| `base_evap_rate_per_particle_per_sec` | 0.010 | (fixup 11 0.025 → 0.010, 5분 평형 학교 시간 정합) |
+| `E_a_normalized` | 18.3 | Boltzmann factor 활성화 에너지 |
+| `E_capture` | 2.5 | 응축 게이트 |
+
+### 5.5.5 Ghost particle (fixup 7 보일 패턴 재사용 + fixup 15k 트레이드오프)
+
+| 키 | 값 | 변경 history |
+|---|---|---|
+| `ghost_surface_count` | 800 | (fixup 7 통계 √N 흡수, visible 80 + ghost 800 = 880) |
+| `ghost_gas_visible_ratio` | **0.7** | (fixup 7 0.1 → fixup 10 0.2 → fixup 11 0.4 → fixup 15k 0.7. ghost 통계 흡수 손실 vs 시각 사건 풍부 트레이드오프) |
+
+### 5.5.6 색 + 형광 (fixup 8 형광 노랑/핑크 + fixup 15o 가스 색 단일화)
+
+| 키 | 값 | 변경 history |
+|---|---|---|
+| `color_KE_slow` | `#1E3A8A` | 표면 KE 매핑 slow |
+| `color_KE_fast` | `#DC2626` | 표면 KE 매핑 fast |
+| `color_KE_min/max_for_HSB` | 0/5 | KE → HSB lerp 범위 |
+| **`gas_color`** | **`#60a5fa`** | (fixup 15o 신규 — 단일 색, KE 매핑 폐기) |
+| `gas_birth_color_fluorescent` | `#FCD34D` | (fixup 8 신규 — 노랑) |
+| `condense_grid_color_fluorescent` | `#F472B6` | (fixup 8 신규 — 핑크) |
+| `*_hold_sec` / `*_fade_sec` | 1.5 / 0.5 | (fixup 8 형광 1.5초 hold + 0.5초 fade) |
+| `*_stroke_px` | 4.5 | 형광 stroke 두께 |
+| `*_glow_blur_px` | 25 | 형광 glow blur |
+| `condense_pulse_radius_max_px` | 24 | (fixup 8 응결 외곽 펄스) |
+| `condense_pulse_duration_sec` | 1.0 | 동일 |
+
+### 5.5.7 화살표 (fixup 15a v4 — 매칭 폐기 + 자연 fade only)
+
+| 키 | 값 | 변경 history |
+|---|---|---|
+| `evap_flash_color` | `#2563EB` | 위 화살표 (청) |
+| `cond_flash_color` | `#DC2626` | 아래 화살표 (주황) — fixup 4 도입 |
+| `flash_duration_sec` | 1.0 | 자연 fade |
+| `flash_hold_sec` | 0.5 | hold 후 linear fade |
+| `flash_arrow_length_px` | 40 | (fixup 5 30 → 40) |
+| `flash_arrow_thickness_px` | 3.5 | 동일 |
+
+(fixup 15a v1~v3 매칭 진화 시도 → v4 자연 fade only. `flash_arrow_match_*` 키 모두 폐기.)
+
+### 5.5.8 가스 동역학
+
+| 키 | 값 | 의미 |
+|---|---|---|
+| `gas_speed_scale` | 50 | KE 자연 단위 → px/s |
+| `gas_velocity_damping` | 0.9995 | 마찰 |
+| `gas_gravity` | 0.0005 | 약 중력 (fixup 4 추가) |
+| `ceiling_KE_retention` | 0.85 | 천장 충돌 KE 보존 |
+
+### 5.5.9 Rate 그래프 + EMA (fixup 11/13/14/15a/15e 진화)
+
+| 키 | 값 | 변경 history |
+|---|---|---|
+| `rate_graph_initial_x_sec` | 180 | (fixup 11 60 → 180, 학교 시간 척도) |
+| `rate_graph_max_time_sec` | 1800 | x축 자동 스케일 cap |
+| `rate_calc_window_sec` | 3.0 | sliding window |
+| `rate_warmup_ticks` | **2** | (fixup 14 신규 — Poisson 잡음 prime 박힘 회피, 첫 N tick 폐기) |
+| `rate_ema_prime_avg_ticks` | 5 | (fixup 15a v1 신규 — fixup 15e 시작 시점 한정) |
+| `rate_ema_alpha` | **0.05** | (fixup 15d 0.1 → 0.05, τ=10s → 20s 잡음 √2배 흡수) |
+| `rate_color_evap` | `#2563EB` | 청 |
+| `rate_color_cond` | `#EA580C` | 주황 |
+| `rate_y_min` | 1.0 | 자동 스케일 최소 |
+| `rate_y_auto_scale_factor` | 1.2 | 자동 스케일 비율 |
+
+### 5.5.10 평형 5-state (fixup 13/15d/15n 진화)
+
+| 키 | 값 | 변경 history |
+|---|---|---|
+| `equilibrium_ratio_min` | 0.9 | enter zone (near → detected hold 시작) |
+| `equilibrium_ratio_max` | 1.1 | 동일 |
+| `equilibrium_exit_ratio_min` | 0.85 | (fixup 15d hysteresis exit zone) |
+| `equilibrium_exit_ratio_max` | 1.15 | 동일 |
+| `equilibrium_hold_sec` | **10.0** | (fixup 15d 5 → 10, 잡음 √2배 흡수 정합) |
+| `equilibrium_change_threshold` | 0.02 | (fixup 8 P_internal 변화율, real 모드 재사용 보존) |
+| `equilibrium_warmup_sec` | 10 | (fixup 8 워밍업) |
+| `p_internal_ema_alpha` | 0.05 | P_internal EMA |
+
+5-state machine = `none / near / detected / confirmed / exited`. `confirmed` = 학생 [확정] 클릭 (fixup 15n dual-layer 정공법). 자세 = `docs/17-vapor-design.md` §13.
+
+### 5.5.11 압력 게이지 (fixup 15s 그래픽화 + fixup 15k 비례 조정)
+
+| 키 | 값 | 변경 history |
+|---|---|---|
+| `pressure_per_visible_gas_kPa` | **0.034** | (fixup 11 0.06 → fixup 15k 0.034 — visible_ratio 0.7 비례 조정, P 값 보존) |
+| `pressure_gauge_max_kPa` | 30 | SVG 반원 압력계 max (fixup 15s) |
+
+### 5.5.12 P-T 그래프
+
+| 키 | 값 | 의미 |
+|---|---|---|
+| `pt_graph_canvas_width_px` | 380 | 측정점 영역 P-T 그래프 |
+| `pt_graph_canvas_height_px` | 240 | 동일 |
+| `pt_graph_T_min_celsius` | 20 | x축 |
+| `pt_graph_T_max_celsius` | 70 | 동일 |
+| `pt_graph_P_min_kpa` | 0 | y축 |
+| `pt_graph_P_max_kpa` | 35 | 동일 |
+| `pt_graph_min_points_for_curve` | 4 | (≥4 점 측정 후 곡선 연결) |
+
+### 5.5.13 liquids.water sub-tree
+
+| 키 | 의미 |
+|---|---|
+| `liquids.water.label` | "물 (H₂O)" |
+| `liquids.water.p_vap_table_celsius_to_kpa` | 보간 표 (실제 물 증기압, 실측 비교 단서) |
+
+(향후 Phase 6.7 ethanol/methanol 등 확장 — `liquids.ethanol`, `liquids.methanol` sub-tree 추가.)
+
+### 5.5.14 폐기 키 (이력 보존)
+
+- `pressure_to_evap_calibration` — fixup 6 도입, fixup 8 즉시 폐기 (정공법 회귀, 시뮬 P 정량 정합 시도 폐기).
+- `kT_surface / E_escape / surface_KE_resample_sec` — Boltzmann 결정적 게이트 (fixup 직전), fixup 9070994 비동기 Poisson per-frame 으로 대체 폐기.
+- `liquid_jitter_amp_px` — fixup 10 dead branch 제거.
+- `flash_arrow_match_*` 키 — fixup 15a v1~v3 매칭 진화, v4 자연 fade only 로 모두 폐기.
+
+cross-ref `docs/17-vapor-design.md` §6 (시뮬 명세 fixup 15+ 17 sub-section, 각 키 변경 결정 자세) + §11 결정 표 (fixup 1~17g-1 누적 53 행).
+
+---
+
 ## 6. SCENE 좌표 상수 (코드 고정)
 
 **돌턴 시각 좌표는 외부화 안 됨**. `web/js/main.js:1440-1493` `const SCENE = { ... }` 코드 고정.

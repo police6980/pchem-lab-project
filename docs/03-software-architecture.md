@@ -309,6 +309,39 @@ serial.js → logger.js → ai-tutor.js → ui.js → main.js
 
 **simulation.js 재사용 패턴**: dalton 은 `Particle` 클래스 (위치·속도·반지름·gasKey) 만 재사용. `ParticleSystem` 미사용 — 5 region 모델은 boyle 의 1 region 과 본질 다름. dalton 자체 `physicsStep`/`physicsSubstep` 으로 처리.
 
+### 2.X vapor.js — 증기압 시뮬 본체 (Phase 6.1-b finalization, 2026-05-09)
+
+**역할**: vapor 페이지 (`web/vapor.html`) 시뮬 본체. main.js `initVaporApp` 안 `mountVaporSketch` 호출.
+
+**시뮬 모델 (정공법 회귀 끝, 5+ 회 시도-폐기 사이클 후)**:
+- **액체 내부** = 정적 격자 (V_liquid 영역 빈틈없이, 위치 고정 ±0.5 px 미세 진동, 사라지지 X). 운동 X.
+- **표면 한 줄** = 동적 (격자 위 경계, 좌우 ±2 px sinusoidal). 매 frame `random() < evap_rate × dt` Poisson 평가 → GasParticle 생성.
+- **기체** = 자유 비행 (시작 0, hard sphere 분자-분자 충돌 + 박스 hard wall + 약 중력). KE HSB 색 → fixup 15o `#60a5fa` 단일.
+- **Ghost particle** (보일 패턴 재사용): visible 80 + ghost 800 = 880 모두 게이트, visible 만 렌더. 통계 √N 흡수 (잡음 √0.7 ≈ 0.84× ↓).
+
+**핵심 메서드**:
+- `world.pressureKPa` getter — 단일 측정값 모드별 source 분기 (mock=시뮬값, real=실측값). DOM 보존, source 만 교체.
+- `world.confirmEquilibrium()` — 5-state machine + 학생 [평형 확정] 버튼 (Phase 6.1-b fixup 15n dual-layer 정공법).
+- `world.setTemperature(T)` — Boltzmann factor `evap_rate(T) = base × exp(E_a × (1 - T_ref/T))`. fixup 15e EMA reset 폐기 (자연 수렴).
+
+**5-state 평형 머신** (Phase 6.1-b fixup 15n): `none / near / detected / confirmed / exited`. detected (시뮬 자동 hold 10s) ≠ confirmed (학생 명시 [확정] 클릭).
+
+cross-ref `docs/17-vapor-design.md` §6 (시뮬 명세 fixup 15+ 17 sub-section) + §13 (학생 평형 결정 메커니즘 5-state).
+
+### 2.X tutor.js factory — 4 페이지 통합 (Phase 5.7 트랙 6 + Phase 6.4 fixup 17a)
+
+**역할**: 보일 (ai-tutor.js 모듈 전역) / 입자운동 (ui.js createAdvAiTutor closure) / 돌턴 (main.js createDaltonTutor nested closure) 의 3 패턴 분산 통합. 단일 factory `createTutor(config)` + 공통 상수 + 헬퍼.
+
+**page-specific config**:
+- **boyle**: ai-tutor.js Hybrid wrapper (Phase 5.7 트랙 6-a-2).
+- **particles**: ui.js createAdvAiTutor Hybrid wrapper (트랙 6-b).
+- **dalton**: main.js createDaltonTutor Hybrid wrapper (트랙 6-c).
+- **vapor**: main.js initVaporTutor `vaporConfig` (Phase 6.4 fixup 17a) — `tutor.js` 자체 변경 0 (factory + 공통 logic 그대로).
+
+**vapor 통합 본질**: tutor.js 헤더 docstring "Phase 6.4 예약" (Phase 6.1-a `b3972b3` 선언) → fixup 17a 실행. **silent regression 패턴**: fixup 17a 시 `vaporTutor.init()` 1줄 누락 = 모든 핸들러 미바인딩 silent fail (visible 에러 X). fixup 17b 진단 시 dalton:3492 비교로 발견.
+
+cross-ref `docs/07-ai-tutor.md` §4.6.5 (vapor AI 튜터 통합 자세) + `docs/17-vapor-design.md` §14 (vaporConfig + buildDataContext + 4 데이터 소스 분기 Phase 6.3 예약).
+
 ---
 
 ## 3. 데이터 흐름
@@ -653,6 +686,35 @@ document.body.classList.toggle("adv-sidebar-collapsed", _narrowViewport);
 
 **남은 작업**: 동적 리사이즈 시 (1920 ↔ 1440 실시간 전환) 사이드바 클래스 재평가 없음. 한 번의 클릭으로 복구 가능하므로 실사용에 영향 경미.
 
+### 4.5 시스템 layout 1199 분기 + 4 페이지 헤더 통일 (Phase 6.4 fixup 17d/17f)
+
+**시스템 차원 본질 발견** (Phase 6.4 fixup 17b/17c/17d 4단계 진화 후): `style.css:2336` `@media (max-width: 1599px)` 룰 = boyle/particles/vapor 모든 가림 문제 시스템 차원 원인. <1600px viewport 자동 fixed overlay slide-in 전환 → flex 부모 무력화.
+
+**fixup 17d 본질 해결**:
+- `@media (max-width: 1599px)` → `@media (max-width: 1199px)` 축소.
+- 캔버스 `max-width: 100%` 룰 `@media 1279px` → `@media 1599px` 확장 (1200~1599 flex 축소 시 캔버스 정합).
+- vapor 전용 flex 부모 (`#vapor-page-wrap` + `#vapor-main-container`) 신설 (boyle `#basic-mode` 패턴 정확 복제).
+
+**분기 자세**:
+- **≥1200px**: flex 자동 축소 (적응형 정공법). main flex:1 + aside flex-basis:380.
+- **<1200px**: fixed overlay drawer (좁은 폭 canvas 시각 보존, 1599 룰 의도 절반 유지).
+
+**4 페이지 적용**:
+- vapor / boyle / particles 일괄 (동일 flex 부모 패턴, 페이지 간 일관성).
+- **dalton 제외** (별도 grid layout, 사용자 비판 X + grid wrap risk 격리).
+
+**4 페이지 헤더 통일** (fixup 17f):
+- DOM: `<nav class="page-nav">` + `<h1 class="page-title">` (semantic 강화).
+- CSS: `.page-nav` flex / `.page-title` 신설. `.dalton-nav / .dalton-page-title` 폐기.
+- `.dalton-page-utilities` 단독 기능 격리 보존 (단위 atm/kPa 토글 + CSV 다운로드).
+- 텍스트 형식: `CAST — [학습 주제] — Phase X fixup Y (요약)` (개발용 in-progress, 완료 시 제거 의도).
+
+**silent regression 패턴**: factory init() 호출 누락 = visible 에러 X, UI 무반응 silent fail. dalton:3492 비교로 발견 (fixup 17b).
+
+**agent 한계 명시**: vapor 단독 검토로 시스템 차원 룰 (@media 1599) 미발견. **사용자 본질 진단 의뢰 (4 페이지 균등) → 시스템 차원 원인 발견** = 사용자 + agent 협업 패턴 정합. fixup 17d body "vapor 17b 미작동 본질 = 1599 룰 무인지 (CC 진단 누락 인정)".
+
+cross-ref `docs/17-vapor-design.md` §15 (시스템 layout 4단계 진화 + silent regression + agent 한계) + §16 (4 페이지 헤더 통일).
+
 ---
 
 ## 5. 기술 스택
@@ -760,11 +822,25 @@ protocol.js / simulation.js / logger.js — 독립 (상호 참조 없음)
 - **Phase 5.4 진행 중** (`phase5-real-sensor`): 본 문서 §2 / §3 sensor 시스템 갱신 = Phase 5.4 결과. protocol v1.2 + multi-channel SensorSource + outlier 가드 5 단계 + A-1 노이즈 시나리오 + `params.dalton.sensor` 외부화 5 + AI 튜터 정합화
 - 폴더 재편 (`engine/` + `experiments/` 분리) **Phase 6+ 이연**
 
-### 7.5 Phase 6 — 교사 도구
+### 7.5 Phase 6.x — 증기압 실험 (vapor 트랙, `phase6-vapor-design` 브랜치)
+
+**Phase 6.0~6.4 완료** (06 status 일관, `docs/17-vapor-design.md` 권위 문서):
+- Phase 6.0 = vapor 설계 (docs/17 신규) + 시뮬 물리 명세 3건 + 외부 API 배제 결정.
+- Phase 6.1-a = main 통합 baseline + vapor 페이지 골격.
+- Phase 6.1-b = 시뮬 본체 (5+ 시도 → Schroeder 폐기 → 정적 격자 회귀) + finalization fixup 1~16 + Dalton 16a 부피 입력 확정.
+- Phase 6.4 = vapor AI 튜터 통합 (17a) + 시스템 layout 본질 발견 (17b/17c/17d) + INDEX 카드 (17e) + 헤더 통일 (17f) + dead code 정리 (17g-1).
+
+**예약**:
+- Phase 6.3 = vapor 4 데이터 소스 분기 활성화 (ws/real/vernier).
+- Phase 6.5 = 액체 종류 + 액체 양 비교 활동 (β + α 통합).
+- Phase 6.6 = 학생 수준 검증 + README 정합.
+- Phase 6.7 = 추가 액체 옵션 (메탄올 등 확장).
+
+### 7.6 Phase 7 — 교사 도구 (구 Phase 6, vapor 트랙 시작 후 라벨 변경)
 
 - 학생 활동 모니터링 대시보드
 - 다중 사용자 지원 (서버·DB 필요, 아키텍처 변화 수반)
-- 폴더 재편 (Phase 5 후반 → Phase 6+ 이연 — 신규 시뮬 추가 시점에 자연스러움)
+- 폴더 재편 (Phase 5 후반 → Phase 7+ 이연 — 신규 시뮬 추가 시점에 자연스러움)
 
 ---
 
@@ -784,5 +860,6 @@ protocol.js / simulation.js / logger.js — 독립 (상호 참조 없음)
 | 펌웨어 (배선 / Wokwi / v1.2 송신 코드) | `firmware/README.md` |
 | 시뮬 물리 결정 (왜 `volume_tau=0.5s` 등) + top-level params 표 | `docs/04-simulation-physics.md` |
 | 돌턴 시뮬 설계 (5 region / stage machine / 부분 압력) | `docs/11-dalton-design.md` |
+| **vapor 시뮬 설계 (정적 격자 + 표면 동역학 + 5-state 학생 평형 + AI 튜터 + 시스템 layout)** | **`docs/17-vapor-design.md`** |
 | 진행 상태 마스터 (Phase 별 / 병합 대기 / 다음 단계) | `docs/06-project-status.md` |
 | **의사결정 근거** (왜 mock 일원화 / 왜 outlier 가드 / 왜 A-1 4 모드) | `docs/10-dev-journal.md` |
