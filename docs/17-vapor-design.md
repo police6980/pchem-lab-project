@@ -176,6 +176,231 @@ MVP 외 후속 트랙 학습 목표:
 
 학습 목표 외 (액체 내부 분자 운동 정확 모델) 은 별 학습 자료로 분리.
 
+> **보조 통찰** (보일 시뮬 v1 자산 재사용): vapor 기체상 hard sphere 분자-분자 충돌 = 분자 부피 (excluded volume) 자연 반영 → van der Waals 편차 (PV ≠ const) 자연 재현 가능. boyle 시뮬 v1 자산 검증 (`docs/10` Phase 0 결정 1 + Step F++). vapor 기체 plateau 통계 약함 (50개), 단 정성적 가시 가능. 액체 (정적 격자) + 표면 (KE 시각용 smooth random walk) 은 분자-분자 충돌 X — 기체상만 적용.
+
+### P 영역 vertical 중앙 정렬 (fixup 15t)
+
+직전 fixup 15s P 영역 그래픽화 후 사용자 비판 "전체적으로 살짝 아래로 보내서 박스에 중간으로". P 영역 카드 안 vertical unbalance.
+
+**자세**:
+- `.vapor-card-tp` display:flex column + `.vapor-tp-pressure` flex 1 1 auto + justify-content:center.
+- T 영역 + divider 위쪽 그대로. P 영역 컨텐츠 카드 안 vertical 중앙.
+
+### P 영역 그래픽화 — Johnstone 3수준 통합 (fixup 15s)
+
+사용자 비판 "비어보임" — 직전 fixup 15j 부활 후 P 영역 단일 측정값 + 막대 + reach time 텍스트 시각 빈약. 사용자 명시 "동그란 아날로그 압력계 + 전자시계 형태".
+
+**자세**:
+- T+P 카드 P 영역 좌우 분할 (55:45).
+- 좌 = SVG 반원 압력계 (viewBox 200×120, 바늘 ±90° rotate, 0~30 kPa 눈금).
+- 우 상단 = LCD 풍 전자시계 (어두운 배경 + 진한 녹 + 글로우, MM:SS).
+- 우 하단 = 입자 수 막대 (정적 max 1000, gradient #93c5fd→#60a5fa).
+- 폐기: `.vapor-pvap-big / .vapor-pressure-bar-wrap / .vapor-pvap-meta / .vapor-pvap-particles`.
+- main.js dom dict `gaugeNeedle / particlesBar` 신규, `pressureBar` 폐기.
+- 200ms readout: 바늘 angle (P/30 × 180 - 90 clamp), 시계 MM:SS padStart, 막대 width clamp.
+- 768 미만 모바일 반응형 (stack).
+
+**Johnstone 3수준 통합 시각화**: 시뮬 미시 (캔버스 입자) + 측정 도구 거시 (압력계 + 시계) + rate 그래프 기호 (rate 카드). 3 영역 = 학생 표상 연결 명시. 정공법 정합 — 데이터 source 그대로, 시각만 풍부.
+
+### 가스 입자 수 부활 — 부분 reversal 종결 (fixup 15p)
+
+사용자 비판 "압력 아래 빈 공간에 아까 삭제했던 입자 수 정보 여기 넣으면 되겠다". 직전 fixup 15g counter 카드 신규 → fixup 15h 통째 폐기 → mock 단계 정량 인지 단서 부재.
+
+**자세**:
+- T+P 카드 P 영역 하단 가스 입자 수 inline (별도 카드 X).
+- main.js dom dict gasCount + 200ms readout (`world.gasParticles.length`).
+- CSS `.vapor-pvap-particles` small text + strong tabular-nums.
+
+**부분 reversal 패턴**: 15g 신규 → 15h 폐기 → 15p 부활 (위치 변경). 카드 자체 폐기는 보존, 정보 자체는 부활. 학습 단서 = 가스 입자 수 = 증기압 직접 source.
+
+### 평형 배지 + [확정] 버튼 rate 카드 이동 + spacing (fixup 15q/15r)
+
+직전 fixup 15n 학생 평형 결정 후 평형 배지 = 시뮬 헤더, [확정] 버튼 = 측정점 영역. 학생 인지 흐름 = rate 그래프 두 곡선 만남 → 평형 상태 → 확정 액션 — 세 영역 분산.
+
+**fixup 15q 자세**:
+- eq-badge 시뮬 헤더 → rate 카드 그래프 아래 이동.
+- [⊕ 평형 확정] 버튼 측정점 영역 → rate 카드 이동.
+- 시뮬 헤더 양측 정렬 (좌 ⏱ 경과 + 우 mmol).
+
+**fixup 15r 자세**:
+- rate 카드 순서: graph → readouts → badge+button → note.
+- 배지 + 버튼 row spacing 균형 (margin-top 16 / bottom 12, gap 12, btn padding 5×14).
+- 사용자 비판 "숫자 아래에 위치 + 균형 있게 떨어트려".
+
+**인지 통합**: 인지 (rate 그래프 두 선 만남) ↔ 상태 (배지) ↔ 액션 (확정) 한 영역. 학생 인지 흐름 단절 X.
+
+### T 잠금 확장 + 가스 색 단일화 (fixup 15o)
+
+사용자 비판 "확인 안 눌러도 온도가 변해버린다" — 직전 fixup 14 T 입력 = 입력 버튼/Enter 확정 단 프리셋 클릭 = 즉시 동기화 + 확정 = 14 의 확정 패턴 정합 X.
+
+**T 잠금 확장 자세**:
+- 프리셋 클릭 = `tInput.value` 설정 + dirty class 추가 만. `applyTemperature` 호출 X.
+- 학생 [입력] 클릭 또는 Enter 키 명시 확정 강제.
+- pre-start / post-start 단일 메커니즘 통일 (모든 T 변경 = 학생 명시 확정).
+
+**가스 색 단일화 자세**:
+- gas particle color KE 매핑 폐기 → 단일 #60a5fa (Tailwind blue-400, 액체 #1E40AF 보다 연한).
+- 표면 입자 KE 매핑 / 형광 노랑 birth flash / glow + stroke 보존.
+- params.json `gas_color` 신규 키.
+
+**근거**: 학생 인지 단순 (기체 = 같은 색, 액체와 시각 차별). 표면 KE 매핑 = 사건 영역 한정 = 학습 단서.
+
+### V_gas 자동 + mmol 시뮬 헤더 + height 정합 (fixup 15l/15m)
+
+**fixup 15l 자세**:
+- `vapor-layout-v2` max-width 1700 → 1900 (시뮬 좌우 여백 ~150 → ~20-40px).
+- `vapor-rate-canvas` max-width 256 → 100% (카드 폭 정합).
+- card min-height 미세 조정 (시뮬 box ~780 ≈ cards-region 합산).
+
+**fixup 15m 자세** (15l 검증 실패 보정, flex stretch 옵션 C):
+- cards-region `align-items: stretch + rate flex 1 1 auto` (viewport-independent).
+- V_gas display 칸 신규: input readonly + 자동 채워짐 (V_flask - V_liquid).
+- 보조 정보 (1 입자 ≈ X mmol) top-control → 시뮬 헤더 옆 이동.
+- readonly input 시각 (회색 배경).
+
+**근거**: viewport-independent 정합 (카드 min-height 무관). 학생 인지 부담 ↓ (V_gas 자동). 보조 정보 시뮬 인접 = 정량 인지 시뮬 정합.
+
+### 시뮬 시각 확대 — CSS scaling + visible ratio (fixup 15k)
+
+사용자 비판 "빈 공간이 많은데" — 시뮬 영역 sparse. 직전 fixup 15h CSS scaling 1.375× (canvas display 1100, 모델 좌표 800×480 보존) 검증 후 추가 확대 합의.
+
+**자세**:
+- `vapor-layout-v2` max-width 1500 → 1700 (canvas display 1100 → 1300, **CSS scaling 1.625×**, 모델 좌표 800×480 보존).
+- `ghost_gas_visible_ratio` 0.4 → **0.7** (visible 입자 1.75× ↑ at all T, T=25 53→93).
+- `pressure_per_visible_gas_kPa` 0.06 → 0.034 (P 값 보존, 비례 조정).
+- card min-height: tp 300→360, rate 340→400. cards-region width 320 → 340.
+
+**트레이드오프 (논문 1차 자료)**: ghost 통계 √N 잡음 흡수 효과 일부 손실 (visible_ratio ↑ → ghost 통계 결합 부담 ↓). 학습 가치 (시각 사건 풍부) > 통계 안정.
+
+**근거**: 시각 사건 부족 (sparse) 직접 해소. 모델 좌표 보존 = regression 격리 (15h 동일 패턴). P 비례 조정 = 의미 보존.
+
+### P 영역 부활 — 단일 측정값 모드별 source 분기 (fixup 15j, 3단계 reversal 종결)
+
+직전 fixup 15f P 영역 hidden → fixup 15h hidden 유지. 사용자 의도 "시뮬일 때는 시뮬값" — mock 단계 시뮬 P 표시 가치 발견. **`world.pressureKPa` getter + recordEquilibrium / drawPTGraph 모두 existing — 부활 비용 = hidden wrap 제거만**.
+
+**자세**:
+- P 영역 `.vapor-tp-pressure` `vapor-real-only hidden` 제거 + placeholder 폐기 + 단순화.
+- divider 부활 (T 영역 / P 영역 구분).
+- P display: "평형 증기압 P_vap" + big value + bar + reach time (theory meta dropped).
+- measurement-region: mock placeholder 폐기 + table + record button + P-T graph 활성.
+- measurement table: theory column dropped (5 cols 합산).
+- P-T graph: theory dashed line 보존 (시각 비교 단서, 정량 정합 의무 X).
+
+**핵심 철학** — **단일 측정값 + 모드별 source 분기**:
+- mock 모드 = 시뮬값 (`world.pressureKPa`).
+- real 모드 (Phase 6.3+) = 실측값 (`world.pressureMeasured` 또는 SensorSource 직접). 같은 DOM, source 만 교체.
+
+**의사결정 reversal**: 15f hidden → 15h 유지 → 15j 부활 (3단계, 사용자 의도 회복). measurement 인프라 무비용 부활 = 회귀 손실 X 검증 — 직전 결정의 부활 비용이 0 임을 확인 = 회귀가 손실 아님.
+
+### 시뮬 중심 단순화 — 사이드바 → top-control 변환 (fixup 15h, 15g 즉시 번복)
+
+사용자 의도 "시뮬 중심" — 학습 목표 카드 / counter 카드 = 시뮬 자체로 충분 학습 단서. 시뮬 입자 시각화 = 본 프로젝트 핵심.
+
+**자세**:
+- 사이드바 (`.vapor-control-narrow`) → top horizontal 2-row (`.vapor-top-control`).
+- canvas display 800 → **1100** (모델 좌표 800×480 보존, **CSS scaling 1.375×**).
+- max-width 1400 → 1500.
+- card min-height: tp 200→300, rate 220→340. cards-region width 280 → 320.
+- **학습 목표 카드 (fixup 15g 신규) 통째 제거**.
+- **counter 카드 통째 제거 + JS readout cleanup**.
+- net -94 줄.
+
+**의사결정 reversal**: 15g 학습 목표 카드 + counter 카드 신규 → 15h 즉시 폐기 (의사결정 즉시 reversal). 시뮬 width ↑ 가 학습 가치에 직접 효과.
+
+**핵심 자세**: **CSS scaling 으로 모델 좌표 보존 = regression 격리**. 후일 fixup 15k 1.625× 추가 확대 시 동일 패턴 재사용.
+
+### UI 균형 다층 시도 (fixup 15g, 즉시 폐기)
+
+mock 단계 학습 단서 부족 인지 (fixup 15f hidden 후 화면 단순). 학습 목표 명시 + 시뮬 placeholder 다층 = 학생 안내 강화 시도.
+
+**자세** (의사결정 reversal raw 자세 보존):
+- 학습 목표 카드 신설 (Johnstone 3수준 거시/입자/기호) — `vapor-top-row` 위 3열 그리드.
+- `vapor-layout-v2` max-width 1400 + margin auto.
+- 시뮬 placeholder 강화 (icon + 본문 + hint 다층).
+- counts 카드 footer "분자 수 = 동적 평형의 양적 지표" — 학습 단서 명시.
+
+(후일 fixup 15h 에서 즉시 폐기 — "시뮬 자체가 충분 학습 단서" 사용자 의도. 의사결정 reversal raw 자세 보존 = 논문 1차 자료.)
+
+### P 영역 mock hidden + 헤더 단순화 (fixup 15f, 후일 15j 부활)
+
+T+P 카드 P 영역 mock placeholder ("측정 모드 활성 후 표시") 학습 단서 = 사이드바 측정 모드 토글이 동일 안내 → 중복. 카드 column 합산 ~744 → 비대칭.
+
+**자세**:
+- P 영역 (divider + pressure section) `vapor-real-only hidden` wrap. DOM 보존 (real 모드 진입 시 자동 부활).
+- 카드 헤더 "온도 / 증기압 (센서 영역)" → "센서 영역" 단일.
+- min-height 280 → 200.
+- hotfix: `.vapor-real-only[hidden] { display: none }` (`display:flex` 가 HTML hidden 속성 default override 결함 차단).
+
+(후일 fixup 15j 에서 P 영역 부활 — 사용자 의도 "시뮬일 때는 시뮬값". 3단계 reversal 1단계.)
+
+### T 변경 시 EMA 보존 — prime 의도 시작 시점 한정 (fixup 15e)
+
+사용자 검증 — T 변경 시 evap 곡선 0 폭락 (mapY(null) 그래프 바닥) + 13.9 spike (prime 평균 + 잡음 결함). 직전 fixup 10 setTemperature reset 보강 + fixup 15a v1 prime 평균 = T 변경 시 부작용.
+
+**자세**:
+- `setTemperature`: `_emaPrimed / _ratePrimeBuf / evapEMA / condEMA` reset 폐기.
+- 직전 EMA (3.5/s) 보존 → α=0.05 로 새 raw (11.1/s) 향해 점진 수렴.
+- raw buf reset 추가 (`_rateRawEvapBuf / _rateRawCondBuf = []`) — 직전 T 잔재 회피.
+
+**핵심**: prime intent = 시작 시점 한정 (warmup lag block, EMA=0 → 정상값). T 변경 시 EMA 이미 정상값 → prime 불필요. α=0.05 자연 수렴 (~60초) = 학생 직관 정합.
+
+**EMA prime 4단계 진화 마무리**: fixup 9 첫 tick prime → fixup 14 첫 N tick 폐기 → fixup 15a v1 N tick 평균 prime → fixup 15e 시작 시점 한정. 의도 명확화 마무리.
+
+### 평형 hysteresis 4-state (fixup 15d, 후일 15n 5-state 진화)
+
+직전 fixup 13 ratio 단일 metric `[0.9, 1.1] / 5초 hold` → sticky 평형 (도달 후 이탈 추적 X). 학생 검증 시 이탈 후에도 ★ 표지 잔존 → 인지 혼선.
+
+**자세**:
+- `rate_ema_alpha`: 0.1 → 0.05 (τ=10s → 20s, 잡음 흡수 √2배).
+- `equilibrium_hold_sec`: 5 → 10.
+- hysteresis: enter zone [0.9, 1.1] / exit zone [0.85, 1.15].
+- 4-state: reached (★ 녹) / exited (주황) / near (노랑) / none (회색).
+- vapor.js `_equilibriumState + _everReachedEquilibrium + _equilibriumHoldStart` 신규.
+- 이탈 시 `_everReachedEquilibrium=false` → 재도달 시 hold 다시 (strict re-entry).
+- params 신규: `equilibrium_exit_ratio_min/max (0.85/1.15)`. 보존: `equilibrium_change_threshold/warmup_sec`.
+
+(후일 fixup 15n 에서 5-state 학생 결정 진화 — §13 학생 평형 결정 메커니즘 참조.)
+
+### 반응형 1280 breakpoint (fixup 15c)
+
+직전 fixup 11+12 integrated 의 1024/768 break point — 1024~1279 폭 (일반 노트북) 대응 X. canvas 800 + sidebar 200 + cards 280 합산 1280+ → overflow.
+
+**자세**:
+- 1024~1279px media query (sidebar 200→180, sim flex+max-width, cards 280→260).
+- canvas max-width 800px + aspect-ratio 800/480 (auto-shrink, p5 internal 무변경).
+- card min-height (card 220 / tp 280 / counter 140).
+
+### T 입력 잠금 + 시작 가드 (fixup 15b, 후일 Dalton 16a 재사용)
+
+직전 fixup 14 T 입력 = 입력 버튼/Enter 확정 단 확정 후 input 활성 그대로 → 학생 실수 입력 가능성. 시작 버튼 활성 시점 모호.
+
+**자세**:
+- `tConfirmed` flag (UI scope) — 페이지 로드 직후 false.
+- `applyTemperature` 마지막에 잠금 (input/preset disabled, 버튼 라벨 "입력" → "수정").
+- `unlockTemperature` 신규: 잠금 해제 + 라벨 복원.
+- T 카드 가드 영역 (`vapor-t-guard`): "온도를 입력하세요" 빨강 / 빈 녹색.
+- `validate()` `tConfirmed AND` 통합: `btnStart.disabled = !tConfirmed || !liquidOk`.
+- `btnReset.click` 안 `unlockTemperature` 호출.
+
+**페이지 간 패턴 재사용**: 후일 Dalton 16a V_A/V_B 입력 확정 = vapor 15b 패턴 100% 재사용 (vAConfirmed/vBConfirmed 독립 flag). 검증 자산 재활용 가치.
+
+### 화살표 매칭 4단계 진화 → 매칭 폐기 (fixup 15a v1~v4)
+
+직전 fixup 11 화살표 매칭 상쇄 (즉시 splice) — 학생 인지 한계. v1~v3 시도 후 사용자 의도 = 단순 시각 (학생이 직접 보이는 화살표 수 = 사건 빈도).
+
+**4단계 진화**:
+- **v1** (`5e7034f`): 매칭 즉시 splice → 0.3s fade 전환. rate ema prime 첫 5 tick 평균.
+- **v1 redo** (`e92bd95`): instant splice 회귀 (fixup 11 동일). unmatched hold 1.0 → 1.5s.
+- **v2** (`fa0a889`): splice 폐기, 모든 사건 push + frame loop 안 head-vs-head FIFO 매칭. cond 화살표 visible 보장.
+- **v3** (`f81ef27`): natural fade 폐기, match-only soft fade 0.3s + max cap 50/dir + T-change fade 0.5s.
+- **v4** (`ed43bc1`, **최종**): 매칭 logic 통째 폐기. 단순 자연 fade only (`flash_duration_sec=1.0, flash_hold_sec=0.5`).
+
+**v4 최종 결정**: `_addFlash` 단순 push (매칭 / max cap 모두 폐기). `drawFlashes` = hold 0.5s + linear fade 1.0s. 양쪽 독립 fade. T 변경 시 화살표 손대지 X.
+
+**학생 인지** = 동시 visible 화살표 수 = 사건 빈도 비례 (양쪽 동시 visible = 빈도 균형). 시작 시 위 ≈ 3.5개, 평형 시 양쪽 ≈ 3.5개씩. 매칭 logic = 학생 인지 단순화 의도였으나 cond 가시성 손실 / max cap 인공 등 부작용 누적.
+
+(4 단계 모두 검증 후 단순 회귀 = 최선. 진화 단계 자체가 의사결정 가치.)
+
 ### Rate 워밍업 + T 입력 확정 패턴 (fixup 14)
 
 사용자 검증: 시작 직후 evap rate 6.0 → 시간 따라 3.5 로 감소 (정상은 evap 일정 명세).
@@ -806,6 +1031,23 @@ rate 그래프 y_max 5 (낮은 rate 정합), 평형 임계 0.5/s + min_evap 1.5/
 | mock 평형 배지 활성 (fixup 13, fixup 9 비공개 결정 일부 폐기) | 단일 metric 모순 회피 후 표지 일관 → 비공개 이유 (모순 우려) 소멸. 학생 학습 단서 풍부화 (배지/★/zone 세 표지). P 카드 + 측정점 표는 비공개 유지 (정공법 회귀 흐름 — 정량 측정은 실측 도착 후). | 배지 비공개 유지 (학생 단서 부족), 모든 mock 비공개 결정 폐기 (P 카드/측정점도 활성 — 정공법 회귀 핵심 위배) |
 | Rate 워밍업 = 첫 N tick 폐기 (fixup 14, 옵션 a) | 시작 직후 1초 적분 raw 의 Poisson 잡음 (±2σ ≈ 6.0) 이 EMA prime 박힘 → 30초 lag (fixup 9 부작용). 첫 2 tick raw 누적만 → 3초 평균 σ √3 감소 후 prime → 잡음 ±0.69 로 정상값 근접. 첫 2초 그래프/readout `—` 표시 (실 센서 워밍업 정합). | 옵션 (b) rate_calc_window 5초 확장 (첫 1초 잡음 그대로 — 효과 부분), 옵션 (c) Adaptive α (잡음 prime 잔존 절반), 옵션 (e) Incremental α (시각 부자연 — 단조 수렴 곡선) |
 | T 직접 입력 = 입력 버튼/Enter 확정 (fixup 14, 사용자 추가) | 학생 타이핑 중 (예: 32.5 → 32 → 3 단계별 입력) 매 keystroke 시뮬 반응은 부담. 확정 패턴 = 학생 인지 명확. 프리셋 즉시 반영은 빠른 선택 보존. dirty state 시각 (border 주황) = "확정 필요" 단서. | 매 change/blur 즉시 (직전 fixup 11+12 integrated, 학생 부담 + 의도 불명), debounce 500ms (반응 지연 학생 인지 부자연) |
+| 화살표 매칭 폐기 → 자연 fade only (fixup 15a v4, 4단계 진화 종결) | v1~v3 매칭 진화 모두 부작용 누적 (cond 가시성 손실 / max cap 인공). 단순 push + hold 0.5s + linear fade 1.0s = 양쪽 독립 fade. 학생 인지 = 동시 visible 화살표 수 = 사건 빈도. | v1 매칭 즉시 splice + fade, v2 frame loop FIFO 매칭, v3 match-only soft fade + max cap (모두 부작용 누적) |
+| T 입력 잠금 [입력]/[수정] 토글 (fixup 15b) | 직전 fixup 14 확정 후 input 활성 → 학생 실수 가능성. 잠금 = 시각 단서 명확. unlockTemperature = 명시 [수정] 클릭. 후일 Dalton 16a V_A/V_B 입력 확정 = 본 패턴 100% 재사용 (페이지 간 패턴 재사용 가치). | 잠금 X (실수 가능), 자동 잠금 (학생 의도 외) |
+| 평형 hysteresis 4-state (fixup 15d, fixup 13 sticky 폐기) | sticky 평형 = 도달 후 이탈 추적 X → 학생 인지 혼선. enter [0.9, 1.1] / exit [0.85, 1.15] hysteresis = 잡음 보호 + 명확한 상태 전환. strict re-entry = 사실 정합 (재도달 = 새 평형). EMA τ=20s + hold 10s = 잡음 √2배 흡수. | sticky 평형 보존 (인지 혼선), 단일 zone (잡음 흔들림), Kalman filter (오버엔지니어링) |
+| 평형 5-state machine + 학생 결정 (fixup 15n, dual-layer 회귀 핵심) | dual-layer 회복 (시뮬 가시화 + 학생 측정 결정 활동). detected (시뮬 자동 hold 10s) ≠ confirmed (학생 명시 [확정] 클릭). `world.confirmEquilibrium()` 신규 메서드. 본 프로젝트 정공법 회귀 — 측정 = 학생 결정, 시뮬 자동 판정 폐기. 평형 진화 5단계 끝 (fixup 6 P 거시 → 8 P_internal → 13 ratio → 15d 4-state → 15n 5-state). § 13 참조. | fixup 13 단일 metric (sticky), fixup 15d 4-state (자동 reached, 학생 활동 X), 모두 시뮬 자동 한정 → 학생 측정 활동 손실 |
+| T 변경 시 EMA 보존 (fixup 15e, prime 의도 시작 시점 한정) | 직전 setTemperature reset → T 변경 시 evap 곡선 0 폭락 + 13.9 spike (prime 평균 + 잡음 결함). prime intent = 시작 시점 한정 (warmup lag block, EMA=0 → 정상값). T 변경 시 EMA 이미 정상값 → α=0.05 자연 수렴 (~60초). EMA prime 4단계 진화 마무리. | reset 보존 (0 폭락 / 13.9 spike), 새 prime 알고리즘 (복잡도 ↑) |
+| P 영역 mock hidden → 부활 (fixup 15f → 15j, 단일 측정값 모드별 source 분기) | 15f mock placeholder 중복 (사이드바 모드 토글 동일 안내) + 비대칭 (~744 → ~636) → hidden. 15h 유지 (시뮬 중심 단순화). 15j 부활 — 사용자 의도 "시뮬일 때는 시뮬값" + measurement 인프라 무비용 (existing getter + recordEquilibrium + drawPTGraph) → hidden wrap 제거만으로 활성. **단일 측정값 + 모드별 source 분기 철학** (mock=시뮬값, real=실측값). | 시뮬 / 실측 별도 카드 (학생 인지 단절), 모든 측정 비공개 (정량 학습 활동 손실) |
+| 학습 목표 카드 + counter 카드 즉시 폐기 (fixup 15g → 15h) | 15g 학습 목표 카드 (Johnstone 거시/입자/기호) + counter 카드 신규 → 15h 즉시 통째 폐기. 시뮬 입자 시각화 = 본 프로젝트 핵심, 시뮬 width ↑ 가 학습 가치 직접 효과. 학습 목표 카드 자리 = 시뮬 자리. 의사결정 즉시 reversal raw 자세 보존 (논문 1차 자료). | 학습 목표 카드 보존 (시뮬 width 손실), 모델 좌표 변경 (regression 위험) |
+| 사이드바 → top-control 가로 변환 + CSS scaling (fixup 15h, 모델 좌표 보존) | vapor 시뮬 width 가 핵심 → 사이드바 폭 = 시뮬 width 손실. canvas display 800 → 1100 (CSS scaling 1.375×, 모델 좌표 800×480 보존). top-control 2-row = 화면 위에서 한 번에 시각. **CSS scaling 으로 모델 좌표 보존 = regression 격리** (후일 15k 1.625× 재사용). | 사이드바 보존 (시뮬 width 손실), 모델 좌표 변경 (regression 위험), 사이드바 narrow (시각 부담) |
+| 시뮬 시각 확대 = CSS scaling + visible ratio 1.75× (fixup 15k) | 사용자 비판 "빈 공간 많음" → CSS scaling 1.625× + visible_ratio 0.4 → 0.7 (visible 입자 1.75× ↑). pressure_per_visible_gas_kPa 0.06 → 0.034 (P 값 보존). **트레이드오프**: ghost 통계 √N 잡음 흡수 효과 일부 손실 (학습 가치 우선). 사용자 직접 번복 패턴 (Claude 추천 → 사용자 신규 의도 = visible ratio 0.7 보존). | A 단독 (sparse 부분 해소), E 단독 (확대 효과 X), 모델 좌표 변경 (regression 위험), 입자 ↑ 일괄 (성능 부담) |
+| 가스 입자 수 부활 (fixup 15p, 부분 reversal 종결) | 직전 fixup 15g counter 카드 신규 → 15h 폐기 → mock 정량 인지 단서 부재. T+P 카드 P 영역 하단 inline (별도 카드 X). small text + tabular-nums. 가스 입자 수 = 증기압 직접 source. 부분 reversal 패턴 — 카드 자체 폐기는 보존, 정보 자체는 부활. | 별도 카드 부활 (15g 회귀, 화면 부담), footer (시각 약함) |
+| P 영역 그래픽화 = SVG 압력계 + LCD 시계 + 입자 막대 (fixup 15s, Johnstone 3수준 통합) | 사용자 비판 "비어보임" + 사용자 명시 "동그란 아날로그 압력계 + 전자시계 형태". P 영역 좌우 55:45. 좌 SVG 반원 압력계 / 우 상단 LCD 풍 전자시계 / 우 하단 입자 수 막대. **Johnstone 3수준 통합 시각화** — 시뮬 미시 (캔버스) + 측정 도구 거시 (압력계+시계) + rate 그래프 기호. P 영역 8단계 진화 끝 (fixup 6→8→10→11→12→15f→15j→15s). | 단일 측정값 보존 (시각 빈약), 디지털 표시만 (시각 단조), animation (학생 인지 부담) |
+| Dalton V_A/V_B 입력 확정 = vapor 15b 패턴 재사용 (fixup 16a, 페이지 간 패턴 재사용) | 사용자 비판 "Enter 모를 수 있으니" → 명시 [입력] 버튼. vapor 15b 검증 자산 100% 재사용 (vAConfirmed/vBConfirmed 독립 flag). default 50/50 visible 단 미확정 (학생 명시 [입력] 강제). 페이지 간 패턴 재사용 첫 사례 — 검증 자산 재활용 가치. | blur 자동 보존 (사용자 비판 X), Enter only (마우스 학생 부담), 단일 flag (V_A/V_B 동시 확정 강제) |
+| vapor AI 튜터 통합 = tutor.js factory 재사용 (fixup 17a, Phase 6.4 예약 실행) | tutor.js Phase 6.4 예약 docstring (Phase 6.1-a b3972b3 선언) → 실행 시점. tutor.js 자체 변경 0 (factory + 공통 logic 그대로). vaporConfig 신설 (학습 목표 4 + 절대 원칙 12 + 시뮬 시각 단서 활용). 페이지 간 UX 일관성 (boyle/particles/dalton/vapor 동일). § 14 참조. | 별도 vapor-tutor.js (factory 미사용, 코드 중복), AI 튜터 보류 (Phase 6.4 예약 시점) |
+| 시스템 @media 1599 → 1199 + flex 부모 정공법 (fixup 17d, 시스템 차원 본질 발견) | 17b flex 부모 시도 적응형 미작동 + 17c dalton fixed 복제 가림 재발 → 사용자 본질 진단 의뢰 → @media 1599 룰 = boyle/particles/vapor 모든 가림 본질 발견. 1199 축소 + 캔버스 max-width 1279→1599 확장 + flex 부모 재현. ≥1200 flex 자동 축소 / <1200 fixed overlay drawer. silent regression 패턴 + agent 한계 명시 (CC 진단 누락). § 15 참조. | 1599 보존 (가림 미해결), 통째 제거 (좁은 폭 canvas 손실), vapor 만 1599 예외 (시스템 일관성 X), dalton wrap (grid risk) |
+| INDEX vapor 카드 = Phase 6 dual-layer 학습 흐름 (fixup 17e) | INDEX 카드 4 → 5. boyle 다음 위치 (Phase 6 dual-layer 정공법 + 평형 학습 확장). 4 라벨 (MBL/Simulation/AI/Arduino, 사용자 명시). vapor.png 사용자 캡처 (placeholder 회피). § 17 참조. | dalton 다음 (학습 흐름 X), 라벨 보수 (Phase 6.3 예정 미반영) |
+| 4 페이지 헤더 통일 = CAST prefix + Phase/fixup (fixup 17f, 개발용 in-progress) | DOM 통일 (`<nav class="page-nav">` + `<h1 class="page-title">`). CSS .page-nav flex + .page-title 신설. .dalton-page-utilities 단독 기능 격리 보존. 학생 대상 X, 완료 시 제거 의도 (`<h1>` 한 줄 제거 단순). § 16 참조. | dalton 패턴 단독 (boyle/particles 누락), span 보존 (semantic 약함), CAST prefix 폐기 (브랜드 일관성 손실) |
+| dead code 보수 정리 = 신중 모드 4-등급 (fixup 17g-1, codebase healthy) | 사용자 명시 "잘되고 있는 코드 지워버릴 가능성 방지" → 4-등급 분류 (A 즉시 / B 의심 / C 보존 / D 합의). 균등 진단 (4 페이지 + INDEX) 결과 codebase healthy — 등급 A 단 2건 (.vapor-learning-note + .experiment-status). 등급 B/C/D 모두 보존. 분할 시퀀스 (17g-2/3 보류). § 18 참조. | 폐기 적극 (regression 위험), 모든 보존 (잔재 누적), 일괄 처리 (잘못된 폐기 발견 어려움) |
 
 ---
 
@@ -858,9 +1100,330 @@ rate 그래프 y_max 5 (낮은 rate 정합), 평형 임계 0.5/s + min_evap 1.5/
 
 ---
 
-## 13. 핸드오프 메모
+## 13. 학생 평형 결정 메커니즘 — 5-state machine + dual-layer 정공법 (Phase 6.1-b fixup 15n)
 
-- 직전 작업 commit: `5e3f4b0` (tutor-D-series, docs(ai-tutor) §4.6.5~8)
+**dual-layer 회귀 핵심**: 시뮬 자동 평형 판정 (Phase 6.1-b fixup 15d hysteresis 4-state) → 학생 명시 [확정] 버튼 (fixup 15n 5-state machine). 본 프로젝트 정공법 = 측정 = 학생 결정. 시뮬 = 단서 가시화 (자동 판정 폐기).
+
+### 5-state machine 명세
+
+| 상태 | 전이 조건 | 시각 표시 |
+|---|---|---|
+| **none** | 초기 / 시뮬 시작 / T 변경 직후 | 회색 배지 "평형 비도달" |
+| **near** | ratio ∈ [0.9, 1.1] 진입, hold 미달 | 노랑 배지 "평형 근접" |
+| **detected** | ratio ∈ [0.9, 1.1] hold 10초 통과 (시뮬 자동) | 옅은 녹 배지 "평형 도달 (확정 가능)" + #dcfce7 |
+| **confirmed** | 학생 [평형 확정] 버튼 클릭 | 진한 녹 배지 "평형 확정" + bold + #86efac |
+| **exited** | ratio 이탈 (zone [0.85, 1.15] 외) | 주황 배지 "평형 이탈" |
+
+전이 자세:
+- none → near: ratio 진입 (단순 zone 검사).
+- near → detected: ratio hold 10초 (`equilibrium_hold_sec`) 유지.
+- detected → confirmed: **학생 명시 [확정] 클릭** (자동 전이 X).
+- confirmed → none: T 변경 (새 실험 조건, 학생 명시 [확정] 무효화).
+- detected → exited: ratio zone [0.85, 1.15] 이탈 (hysteresis).
+- exited → near: ratio 재진입 (`_everReachedEquilibrium=false` strict re-entry).
+
+**핵심**: detected ≠ confirmed. 시뮬 자동 detected = "여기가 평형으로 보입니다" 시각 단서. 학생 confirmed = "평형으로 결정합니다" 측정 활동.
+
+### `world.confirmEquilibrium()` 메서드
+
+```js
+world.confirmEquilibrium() {
+    if (this._equilibriumState !== "detected") return;  // 자동 호출 차단
+    this.equilibriumIdx = this._rateGraphData.length - 1;
+    this._equilibriumReachedAtSec = this.elapsedSec;
+    this._equilibriumState = "confirmed";
+}
+```
+
+학생 [평형 확정] 버튼 클릭 → `world.confirmEquilibrium()` 호출. idx + reachedAtSec 학생 결정 시점 set. P-T 그래프 기록 (`drawPTGraph`) 동시 실행.
+
+### 파라미터
+
+| 키 | 값 | 의미 |
+|---|---|---|
+| `equilibrium_ratio_min/max` | [0.9, 1.1] | enter zone (near → detected hold 시작) |
+| `equilibrium_exit_ratio_min/max` | [0.85, 1.15] | exit zone (hysteresis, detected/confirmed 보호) |
+| `equilibrium_hold_sec` | 10.0 | near → detected 전이 조건 |
+| `rate_ema_alpha` | 0.05 | EMA 평활 계수 (τ=20s, 잡음 흡수 √2배) |
+
+### dual-layer 회귀 정공법 (논문 인용 자세)
+
+**Johnstone 3수준 통합**:
+- 거시 (실측): real 모드 (Phase 6.3+) Vernier P 센서 측정.
+- 미시 (시뮬): vapor 캔버스 입자 시각화.
+- 기호 (rate 그래프): 두 곡선 만남 = 정성적 평형.
+
+**dual-layer**: 시뮬 단서 (detected) + 학생 결정 (confirmed) = 측정 = 학생 결정 (정공법). 시뮬 자동 판정 폐기 = 학생 측정 활동 보존.
+
+**평형 진화 5단계 끝**: fixup 6 P 거시 → fixup 8 P_internal 변화율 → fixup 13 ratio 단일 → fixup 15d hysteresis 4-state → **fixup 15n 5-state 학생 결정**. 일지 17h-1c 참조.
+
+### 패턴 재사용
+
+vapor 15b T 입력 확정 ([입력]/[수정] 토글, `tConfirmed` flag) → Dalton 16a V_A/V_B 입력 확정 (vAConfirmed/vBConfirmed 독립 flag) = 페이지 간 패턴 재사용 첫 사례.
+
+vapor 15n 5-state machine + 학생 [확정] 버튼 = 후일 다른 시뮬 (Phase 6.5 액체 종류 비교, Phase 6.7 추가 액체 옵션) 학생 측정 활동 패턴 재사용 가능.
+
+---
+
+## 14. AI 튜터 통합 — vapor (Phase 6.4 fixup 17a 실행)
+
+**Phase 6.4 예약 실행**: `tutor.js` 헤더 docstring (Phase 6.1-a b3972b3 선언 — "Phase 6.4 예약: vapor 도 본 factory 사용 예정") → fixup 17a 실행. tutor.js 자체 변경 0 (factory + 공통 logic 그대로). 페이지 간 UX 일관성 (boyle/particles/dalton/vapor 동일).
+
+§8 (4 모드 분기) cross-ref + 본 § 신설 = AI 튜터 통합 자세 명시.
+
+### vaporConfig 명세
+
+```js
+const vaporConfig = {
+    simName: "vapor",
+    sidebarSelector: "#ai-sidebar",
+    tabIds: ["1", "2", "3", "4", "free"],
+    metaTabId: "4",
+    closeConfig: { /* default prompt */ },
+    reportEnabled: false,
+    getQuestionText: vaporGetQuestionText,
+    buildSystemPrompt: vaporBuildSystemPrompt,
+    buildDataContext: () => { /* T / P / 평형 5-state / measurementPoints */ },
+    onLevelDetect: (level) => { /* 학생 수준 자동 감지 */ },
+};
+window.PchemTutorModule.createTutor(vaporConfig);
+vaporTutor.init();   // ← fixup 17b 누락 수정 (silent regression 본질)
+```
+
+### VAPOR_LEVEL_GUIDES (4 수준)
+
+- **elem (초등)**: 입자 운동 직관 + 액체↔기체 변화 정성 설명.
+- **middle (중등)**: 동적 평형 개념 + 온도 의존성 정성 설명.
+- **high (고등)**: 클라우지우스-클라페롱 식 정성 + 평형 정량 (P_eq(T) 함수).
+- **univ (대학)**: ln P vs 1/T 직선 + ΔH_vap 도출.
+
+### VAPOR_QUESTION_TEXT (4 수준 × 5 탭 = 20)
+
+5 탭 = Q1 (동적 평형) / Q2 (T 효과) / Q3 (시뮬 vs 이론) / Q4 (메타 질문 자동 생성) / free (자유 질문).
+
+### vaporBuildSystemPrompt
+
+- **학습 목표 4 핵심**: 동적 평형 / T 효과 / 밀폐 평형 / 시뮬 vs 이론.
+- **절대 원칙 12** (Phase 5.7 Hybrid wrapper 패턴 정합).
+- **시뮬 시각 단서 활용 권장**:
+  - rate 그래프 두 곡선 만남 (정성적 평형, fixup 7~14 진화).
+  - 압력계 + LCD 시계 + 입자 막대 (fixup 15s Johnstone 3수준 통합).
+  - 평형 5-state 배지 (fixup 15n).
+  - 화살표 자연 fade (fixup 15a v4 사건 빈도 시각).
+  - 형광 색 (fixup 8 노랑 #FCD34D + 핑크 #F472B6 사건 강조).
+
+### buildDataContext (실시간 시뮬 상태)
+
+| 키 | 출처 |
+|---|---|
+| T_celsius | tInput.value |
+| P_kPa | world.pressureKPa (mock=시뮬값, real=실측값, 단일 측정값 모드별 source 분기) |
+| V_flask / V_liquid / V_gas | 사이드바 입력 |
+| liquidType | 사이드바 셀렉트 (현재 water 만, Phase 6.7 ethanol/methanol 예정) |
+| equilibriumState | none/near/detected/confirmed/exited (fixup 15n 5-state) |
+| equilibriumDetected / equilibriumConfirmed | boolean getter |
+| measurementPoints | recordEquilibrium 누적 |
+| mode | "mock" (Phase 6.3+ ws/real/vernier 예약) |
+
+### 4 데이터 소스 분기 (Phase 6.3 예약)
+
+`mode` 키 = 현재 "mock" 만. Phase 6.3+ 진입 시:
+- `ws` (에뮬레이터): WebSocket emulator 통합.
+- `real` (ESP32 실센서): SerialSensorSource (`web/js/serial.js`).
+- `vernier` (BLE 실센서): VernierBridgeSensorSource (`web/js/vernier.js`).
+
+각 모드 진입 시 `world.pressureMeasured` (또는 SensorSource source 직접) 교체. AI 튜터 buildDataContext 무변경 (`P_kPa` 출처만 자동 분기).
+
+---
+
+## 15. 시스템 layout — @media 1199 분기 + flex 부모 정공법 (Phase 6.4 fixup 17b/17c/17d)
+
+**시스템 차원 본질 발견**: vapor 단독 fixup (17b/17c) 모두 미작동 → 4 페이지 균등 진단 → @media 1599 룰 = 모든 가림 문제 시스템 차원 원인. 사이드바 layout 4단계 진화 (17a→17b→17c→17d).
+
+### @media 1599 룰 본질 (Phase 5.4 추정 도입)
+
+`style.css:2336-2362` 안:
+
+```css
+@media (max-width: 1599px) {
+    #ai-sidebar, #adv-ai-sidebar {
+        position: fixed;
+        top: 74px; right: 0;
+        width: 380px;
+        transform: translateX(0);
+        transition: transform 0.3s ease;
+    }
+}
+```
+
+→ <1600px viewport 자동 fixed overlay slide-in 전환 → boyle/particles 사이드바도 main 자동 축소 X (silent fail). 사용자 viewport <1600 추정 → vapor 17b flex 부모 무력화.
+
+### fixup 17d 본질 해결
+
+**(1) @media 1599 → 1199 축소** (line 2336):
+- ≥1200 flex 자동 축소 (적응형 정공법).
+- <1200 fixed overlay 보존 (좁은 폭 canvas 시각, 1599 룰 의도 절반 유지).
+
+**(2) 캔버스 max-width:100% 룰 1279 → 1599 확장**:
+- 1200~1599 flex 축소 시 캔버스 정합 (overflow 회피).
+
+**(3) vapor flex 부모 재현** (boyle #basic-mode 패턴 정확 복제):
+```html
+<div id="vapor-page-wrap" style="display:flex; gap:16px;">
+    <main id="vapor-main-container" style="flex:1; min-width:0;">
+        <div id="vapor-layout-v2">...</div>
+    </main>
+    <aside id="ai-sidebar" style="flex-basis:380px; flex-shrink:0;">...</aside>
+</div>
+```
+
+vapor-layout-v2 max-width 1900 (15l 정책) 보존.
+
+**(4) vapor 17c CSS 폐기**:
+- `body[data-page="vapor"] .ai-sidebar { position:fixed }` (dalton 패턴 복제) 폐기.
+- vapor 전용 `.vapor-page-wrap / .vapor-main-container` flex 룰 신설.
+
+### 4 페이지 적용
+
+- **vapor / boyle / particles 일괄**: 동일 flex 부모 패턴 (페이지 간 일관성).
+- **dalton 제외**: 별도 grid layout (`#dalton-mode.dalton-layout grid-template-columns: 320px 1fr 1.4fr`) 보유. AI 사이드바 별도 fixed 룰 (`body[data-page="dalton"] .ai-sidebar position:fixed`). grid wrap risk 격리 + 사용자 비판 X.
+
+### 사이드바 layout 4단계 진화 (의사결정 history)
+
+| 단계 | commit | 자세 | 결과 |
+|---|---|---|---|
+| **17a** | f0acb06 | vapor AI 튜터 통합. vaporTutor.init() 호출 누락 | silent regression — 모든 핸들러 미바인딩 |
+| **17b** | 753b723 | (1) init() 1줄 추가 (regression 수정) + (2) flex 부모 시도 | init() 정상 단 flex 부모 적응형 미작동 (CC 진단 누락 = 1599 룰 인지 X) |
+| **17c** | 27fb45d | flex 부모 rollback + dalton fixed 패턴 복제 (옵션 B) | 사용자 비판 "시뮬 가림" 재발 (vapor 시뮬 폭 vs dalton 차이 무인지) |
+| **17d** | e9459c1 | 시스템 본질 발견 (1599 룰) + 정공법 회귀 | 본질 해결 |
+
+### silent regression 패턴 (visible 에러 X, UI 무반응 silent fail)
+
+fixup 17b 진단 시 발견 — `vaporTutor.init()` 1줄 누락. factory `init()` = settings 토글 / 탭 / 입력창 / level-model select 핸들러 바인딩 진입점. 누락 → 모든 핸들러 미바인딩 silent fail. visible 에러 X (console 무로그). dalton:3492 `daltonTutor.init()` 패턴 비교로 발견.
+
+**향후 진단 자세**: factory 패턴 사용 시 init() 호출 누락 = 우선 검사 항목.
+
+### agent 한계 명시 (CC 진단 누락 인정)
+
+fixup 17b/17c 진단 시 vapor 단독 검토로 시스템 차원 룰 (@media 1599) 미발견. fixup 17d body 명시:
+
+> "vapor 17b 미작동 본질 = 1599 룰 무인지 (CC 진단 누락 인정)"
+
+agent 진단 = 단일 페이지 내 패턴 일관성 검토에 강함, system 차원 cross-page 룰 검토에 약함. **사용자 본질 진단 의뢰 (4 페이지 균등) → 시스템 차원 원인 발견** = 사용자 + agent 협업 패턴 정합. 향후 진단 자세 개선.
+
+### "표면 해결 → 본질 해결" 정공법 패턴
+
+17b → 17c → 17d 진화 = 표면 시도 (flex 부모 / dalton 복제) 모두 시스템 차원 룰에 무력화 → 본질 진단 후 정공법 회귀. 패턴:
+- 사용자 비판 발생 → 표면 해결 시도.
+- 표면 해결 실패 → 사용자 본질 진단 의뢰 (균등 점검).
+- 본질 발견 → 시스템 차원 변경 + 정공법 회귀.
+
+---
+
+## 16. 4 페이지 헤더 통일 — 개발용 in-progress 표시 (Phase 6.4 fixup 17f)
+
+**개발용 in-progress 표시**: 학생 대상 X. 완료 시 제거 의도 (`<h1 class="page-title">` 한 줄 제거 단순). 현재 = 개발자 / 검증 시 페이지 진행 상태 시각 단서.
+
+### DOM 통일 (`<nav class="page-nav">` + `<h1 class="page-title">`)
+
+- **boyle / particles**: `<h1>` 신규 추가 (직전 홈 버튼만).
+- **dalton**: `<h1 class="dalton-page-title">` → `<h1 class="page-title">` (class rename + 텍스트 갱신).
+- **vapor**: `<span class="nav-title">` → `<h1 class="page-title">` (semantic 강화 + 형식 정합).
+
+### CSS 통일
+
+- `.page-nav` flex / align-items / gap 추가 (직전 padding/border만).
+- `.page-title` 신설 (flex:1 / font-size 1.2rem / color #1e293b).
+- `.dalton-nav / .dalton-page-title` 룰 폐기 (page-nav 통합).
+- **`.dalton-page-utilities` 보존** (단독 기능 격리: 단위 atm/kPa 토글 + CSV 다운로드).
+
+### 4 페이지 헤더 텍스트 (형식: `CAST — [학습 주제] — Phase X fixup Y (요약)`)
+
+- boyle: `CAST — 보일의 법칙 — Phase 5.9 D (Vernier 통합)`.
+- particles: `CAST — 입자운동론 탐구 — Phase 5.7 트랙 6-b (Hybrid)`.
+- dalton: `CAST — 돌턴의 부분압력 — Phase 6.1-b fixup 16a (부피 입력 확정)`.
+- vapor: `CAST — 증기압력의 동적 평형 — Phase 6.4 fixup 17d (system layout)`.
+
+CAST = Chemistry AI-assisted Simulation & MBL Tools (INDEX 푸터 명시).
+
+---
+
+## 17. INDEX 진입 카드 — Phase 6 dual-layer 학습 흐름 (Phase 6.4 fixup 17e)
+
+INDEX 페이지 (`web/index.html`) 진입 카드 4 → 5 (vapor 추가).
+
+### 카드 자세
+
+- **위치**: boyle 다음 (Phase 6 dual-layer 학습 흐름 정합 — boyle dual-layer 정공법 + 평형 학습 확장).
+- **href**: `vapor.html`.
+- **class**: `experiment-card available`.
+- **thumbnail**: `assets/img/vapor.png` (사용자 캡처, 파일명 jpg → png 정합 보정).
+- **alt**: "증기압 시뮬레이션 화면".
+- **라벨 4개**: MBL / Simulation / AI / Arduino (boyle/dalton 패턴 정확 복제).
+- **title**: "증기압력의 동적 평형".
+- **subject**: "액체↔기체 동적 평형과 온도 의존성".
+- **description**: "밀폐 플라스크 안 액체↔기체 입자 사건을 시각화하고, 증발↔응축 비율로 동적 평형의 의미를 탐구합니다.".
+
+### Phase 6 dual-layer 학습 흐름 (boyle → vapor)
+
+- boyle 압력 측정 (단일 변수, dual-layer 정공법) → vapor 압력 + 상변화 (다변수, 평형 학습).
+- 4 라벨 일관 (MBL/Sim/AI/Arduino) = 학습 흐름 시각 정합.
+
+---
+
+## 18. dead code 정리 부록 — 신중 모드 4-등급 분류 (Phase 6.4 fixup 17g-1)
+
+**누적 24 fixup 후 dead code 점검**. 사용자 명시 "잘되고 있는 코드 지워버릴 가능성 방지" → 신중 모드 우선.
+
+### 4-등급 분류
+
+| 등급 | 자세 | 처리 |
+|---|---|---|
+| **A** (즉시 삭제 안전) | HTML/JS 무참조 (grep 0). 직접 폐기 commit history 명시 후 잔재 | 즉시 폐기 |
+| **B** (의심) | grep 1~2건 + 동적 생성 / template literal 가능성. 향후 사용 의도 미확인 | 보존 (사용자 합의 후 처리) |
+| **C** (보존 권장) | 동적 생성 / 콘솔 디버깅 / 의사결정 history docstring (논문 1차 자료) | 보존 |
+| **D** (사용자 합의 필요) | TODO/FIXME, params.json 키, console.log 디버깅 등 의도 의문 | 보존 (사용자 합의 후 처리) |
+
+### 균등 진단 결과 (4 페이지 + INDEX) — codebase healthy
+
+| 페이지 | 등급 A | 등급 B | 등급 C | 등급 D |
+|---|---|---|---|---|
+| boyle | 0 | 0 | 다수 (활성 인프라) | 0 |
+| particles | 0 | 0 | 다수 (활성) | 0 |
+| dalton | 0 | 0 | 다수 (활성) | 0 |
+| vapor | 0 (HTML) | 0 | 다수 (활성 + 미래 Phase 6.3 인프라) | 0 |
+| index | 0 (HTML) | 1 (.experiment-card.disabled) | 다수 | 0 |
+| 공통 (CSS) | **2** | 0 | 6 (의사결정 history 주석) | 0 |
+| 공통 (JS) | 0 | 0 | 다수 (legacy + 활성) | 2 (디버깅 console.log) |
+
+### fixup 17g-1 폐기 (등급 A 2건만)
+
+- `style.css` `.vapor-learning-note` 룰 폐기 (9 줄, 15h 학습 목표 카드 잔재).
+- `index.html` inline `<style>` `.experiment-status` 룰 폐기 (12 줄, INDEX 4 카드 무사용).
+
+### 분할 시퀀스 (보수 처리)
+
+- **17g-1 단독**: 등급 A 2건 (즉시 삭제 안전).
+- **17g-2 보류**: 등급 B (.experiment-card.disabled, 미래 disabled 카드 인프라 가능) — 사용자 합의 후 처리.
+- **17g-3 보류**: 등급 D (console.log 디버깅, 개발 단계 가치) — 사용자 의도 명확화 후 처리.
+
+**누적 24 fixup 검증 결과 codebase healthy** = Phase 6 finalization 단계 검증 자산.
+
+---
+
+## 99. 핸드오프 메모 (갱신 — Phase 6.4 fixup 17g-1 + 일지 17h-2 시점)
+
+- 직전 작업 commit: `2f4ccfe` (일지 17h-1d Phase 6.4 fixup 17a~17g-1 append)
 - 본 트랙 브랜치: `phase6-vapor-design` (main 분기)
-- 본 문서 commit 메시지 예정: `docs(design): vapor pressure design draft — Phase 6.0`
-- 본 문서 작성일: 2026-05-09
+- 본 문서 commit 메시지 예정: `docs(vapor-design): fixup 15a~17g-1 reflect + §13~§18 신설 — update (fixup 17h-2)`
+- 본 문서 작성일: 2026-05-09 (Phase 6.0 작성). 갱신일: 2026-05-09 (fixup 14 시점 / fixup 17g-1 + 17h-2 시점, 누적 갱신).
+- **Phase 6.1-b finalization 종료** + **Phase 6.4 진행** (vapor AI 튜터 통합 + 시스템 layout + 헤더 통일 + dead code 정리).
+- 다음 단계:
+  - **Phase 6.3** ws/real/vernier 활성화 (vapor 4 데이터 소스 분기 활성).
+  - **Phase 6.5** 액체 종류 비교 활동 (β + α 동일 비교 화면, water 외 ethanol 추가).
+  - **Phase 6.6** 학생 수준 검증 + README 정합.
+  - **Phase 6.7** README 정합 + 추가 액체 옵션 (메탄올 등 확장).
+- **이전 §13 핸드오프** (Phase 6.0 작성 시점, 2026-05-09):
+  - 직전 작업 commit: `5e3f4b0` (tutor-D-series, docs(ai-tutor) §4.6.5~8).
+  - 본 문서 commit 메시지: `docs(design): vapor pressure design draft — Phase 6.0`.
+  - (보존 — Phase 6.0 baseline 시점 자세 논문 1차 자료 가치.)
