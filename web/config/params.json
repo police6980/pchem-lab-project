@@ -96,12 +96,14 @@
 
         "evap_flash_color": "#2563EB",
         "cond_flash_color": "#DC2626",
-        "flash_duration_sec": 1.5,
         "flash_radius_start_px": 18,
         "flash_radius_end_px": 2,
         "flash_arrow_length_px": 40,
         "flash_arrow_thickness_px": 3.5,
         "flash_arrow_match_min_hold_sec": 0.3,
+        "flash_arrow_match_fade_sec": 0.3,
+        "flash_arrow_max_cap_per_dir": 50,
+        "flash_arrow_t_change_fade_sec": 0.5,
 
         "gas_birth_color_fluorescent": "#FCD34D",
         "gas_birth_fluor_hold_sec": 1.5,

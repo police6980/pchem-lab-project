@@ -1,6 +1,6 @@
 // =============================================================
 // vapor.js — 증기압 시뮬 본체
-// Phase 6.1-b finalization fixup 15a redo v2 (frame loop 1:1 페어 매칭 + min hold 0.3s)
+// Phase 6.1-b finalization fixup 15a redo v3 (자연 fade 폐기 + 매칭 동시 fade out + max cap)
 //
 // 핵심 철학 (정공법):
 //   학생 가시 = 실측 / 시뮬 = 미시 가시화 (정성적)
@@ -34,14 +34,15 @@
 //   ── 시각 강조 (3계층 인지) ──
 //     · 사건 자체 = 노랑 #FCD34D (가시 가스 birth) + 핑크 #F472B6 (격자 응결)
 //                   둘 다 1.5s + 0.5s fade + glow blur 25 (별도 큐, 매칭 영향 X)
-//     · 빈도 차 = evap 위 화살표 / cond 아래 화살표 (fixup 15a redo v2)
-//                  _addFlash = 모든 사건 무조건 push (응축 화살표 visible 보장)
-//                  _processFlashMatching = 매 frame head-vs-head FIFO 매칭
-//                    · up/down 양쪽 가장 오래된 화살표가 모두 min hold (0.3초) 통과 시 양쪽 splice
+//     · 빈도 차 = evap 위 화살표 / cond 아래 화살표 (fixup 15a redo v3)
+//                  _addFlash = 모든 사건 무조건 push + max cap per dir (FIFO overflow drop)
+//                  _processFlashMatching = up/down head 양쪽 min hold 통과 시 fading_flashes 로 이동
+//                    · 매칭 시 양쪽 동시 alpha fade out (match_fade_sec=0.3초)
 //                    · 매칭 풀 = visible only (ghost 사건은 _addFlash 호출 X)
-//                    · 무매칭 hold = flash_duration_sec=1.5초 (자연 fade)
-//                  학생 인지: 응축 화살표도 visible → 양쪽 등장 + 만남으로 동시 소멸
-//                  잔존 화살표 수 = 빈도 차이 시각 = 학생 학습 단서
+//                  setTemperature = 누적 화살표 t_change_fade_sec=0.5초 fade out (cross-T mismatch 회피)
+//                  자연 시간 fade 폐기 — 매칭만 소멸 트리거 (잔존 = 빈도 차 학습 단서)
+//                  max cap (50 per dir) = 시각 폭주 방지 (응축 0 transient 시 위 화살표 누적 제한)
+//                  학생 인지: 양쪽 화살표 visible → 만남으로 동시 fade out
 //     · 정량 절댓값 = rate 그래프 두 곡선 만남 (_evapWin / _condWin 카운터, 매칭 영향 X)
 //
 //   ── rate 그래프 (학습 단서, 우측 카드 별도 canvas) ──
@@ -80,9 +81,12 @@
 //   · vapor-card-pvap (fixup 12, vapor-card-tp 안 P 영역으로 통합)
 //   · T 셀렉트 (fixup 12 → 11+12 integrated, number input 으로 교체 — 학생 임의 T 직접 입력)
 //   · 시작 직후 EMA prime 잡음 박힘 (fixup 9 부작용 → fixup 14 워밍업 + fixup 15a N tick 평균으로 해소)
-//   · 화살표 매칭 0.3초 fade 캔슬 (fixup 15a v1 → 15a redo 폐기 → 15a redo v2 frame loop)
-//   · _addFlash 안 즉시 splice (fixup 11 / 15a redo, 응축 화살표 안 그려지는 결함 → 15a redo v2 폐기)
-//   · params.flash_arrow_match_cancel_fade_sec (fixup 15a v1 키, redo 폐기)
+//   · 화살표 매칭 0.3초 fade 캔슬 (fixup 15a v1 → redo 폐기 → redo v2 frame loop → redo v3 fade out)
+//   · _addFlash 안 즉시 splice (fixup 11 / 15a redo, 응축 화살표 안 그려지는 결함 → redo v2 폐기)
+//   · _processFlashMatching 즉시 splice (redo v2 → redo v3 fading_flashes 이동으로 변경)
+//   · 화살표 자연 시간 fade (fixup 11~15a redo v2, redo v3 폐기 — 매칭만 소멸 트리거)
+//   · params.flash_arrow_match_cancel_fade_sec (fixup 15a v1, redo 폐기)
+//   · params.flash_duration_sec (fixup 11~15a redo v2 무매칭 hold, redo v3 폐기)
 //
 // docs/17 §6 참조.
 // =============================================================
@@ -197,8 +201,9 @@ class VaporWorld {
         this._ghostEvapWin = 0;
         this._ghostCondWin = 0;
 
-        // ── Flash queue (사건 시각화 — 원 + 화살표 0.8s 페이드) ──
-        this.flashes = [];
+        // ── Flash queue (fixup 15a redo v3 — 자연 fade 폐기, 매칭만 소멸) ──
+        this.flashes = [];          // active 매칭 풀 (무한 hold, alpha 1.0)
+        this.fading_flashes = [];   // 매칭 완료 또는 T 변경 시 fade out 중
 
         // ── Condense location markers (표면 격자에 주황 ring 2초) ──
         this.condenseHighlights = [];
@@ -272,6 +277,17 @@ class VaporWorld {
         // fixup 10: relChange 점프 차단 (이전 T P 잔재 X)
         this._pressureSmoothedPrev = null;
         // pressure EMA 자체는 그대로 — 새 plateau 도달까지 자연 추적
+
+        // fixup 15a redo v3: T 변경 시 누적 화살표 빠른 fade out
+        // (직전 T 화살표가 새 T 사건과 cross-T 매칭되면 학습상 어색)
+        const tChangeFadeMs = (this.cfg.flash_arrow_t_change_fade_sec ?? 0.5) * 1000;
+        const now = performance.now();
+        for (const f of this.flashes) {
+            f.fade_start = now;
+            f.fade_dur = tChangeFadeMs;
+            this.fading_flashes.push(f);
+        }
+        this.flashes = [];
     }
 
     // Boltzmann factor: rate(T) = base × exp(E_a × (1 - T_ref/T))
@@ -346,20 +362,25 @@ class VaporWorld {
         this._processFlashMatching();
     }
 
-    // 화살표 매칭 (fixup 15a redo v2)
-    // up + down 양쪽 dir 가장 오래된 화살표가 모두 min hold 통과 시 양쪽 동시 splice.
-    // _addFlash 는 모든 사건 무조건 push → 응축 화살표 visible 보장.
-    // 학생 인지: "양쪽 화살표 등장 + 만남으로 동시 소멸"
+    // 화살표 매칭 (fixup 15a redo v3 — 매칭 시 양쪽 동시 fade out)
+    // up + down 양쪽 dir 가장 오래된 화살표가 모두 min hold 통과 시 양쪽 fading_flashes 로 이동.
+    // 즉시 splice 폐기 (v2) → soft fade (학생 "만남 후 사라짐" 인지 강화)
     _processFlashMatching() {
         const minHoldMs = (this.cfg.flash_arrow_match_min_hold_sec ?? 0.3) * 1000;
+        const matchFadeMs = (this.cfg.flash_arrow_match_fade_sec ?? 0.3) * 1000;
         const now = performance.now();
-        // FIFO 1:1 매칭 — 양쪽 dir 가장 오래된 head 모두 min hold 통과 시 양쪽 splice
-        // while 루프 — 한 frame 안에 매칭 가능한 모든 쌍 처리
-        // (보통 1~2 쌍, transient 누적 후 평형 진입 시점에 다수 쌍 가능)
+        // FIFO 1:1 매칭 — 양쪽 head 가 모두 min hold 통과 시 양쪽 fading 으로 이동
         while (true) {
             const upIdx = this.flashes.findIndex(f => f.dir === "up" && (now - f.t_start) >= minHoldMs);
             const downIdx = this.flashes.findIndex(f => f.dir === "down" && (now - f.t_start) >= minHoldMs);
             if (upIdx === -1 || downIdx === -1) break;
+            const upHead = this.flashes[upIdx];
+            const downHead = this.flashes[downIdx];
+            upHead.fade_start = now;
+            upHead.fade_dur = matchFadeMs;
+            downHead.fade_start = now;
+            downHead.fade_dur = matchFadeMs;
+            this.fading_flashes.push(upHead, downHead);
             // 인덱스 큰 것부터 splice (작은 것 splice 시 큰 것 인덱스 변경 회피)
             const a = Math.max(upIdx, downIdx);
             const b = Math.min(upIdx, downIdx);
@@ -541,12 +562,20 @@ class VaporWorld {
     }
 
     _addFlash(x, y, colorStr, dir) {
-        // fixup 15a redo v2 — 모든 사건 무조건 push (응축 화살표 visible 보장)
-        // 매칭은 _processFlashMatching (매 update tick) 에서 head-vs-head FIFO 처리
-        // min hold 0.3초 통과 후 매칭 → 양쪽 동시 splice → 학생 "쌍이 만남" 인지
+        // fixup 15a redo v3 — 모든 사건 무조건 push + max cap per dir (FIFO overflow drop)
+        // 매칭은 _processFlashMatching (매 update tick), 자연 fade 폐기 (매칭만 소멸 트리거)
+        const maxCap = this.cfg.flash_arrow_max_cap_per_dir ?? 50;
+        const direction = dir || "up";
+        let sameDirCount = 0;
+        for (const f of this.flashes) if (f.dir === direction) sameDirCount++;
+        if (sameDirCount >= maxCap) {
+            // 가장 오래된 same-dir head 제거 (시각 폭주 방지, push 무한 누적 회피)
+            const oldestIdx = this.flashes.findIndex(f => f.dir === direction);
+            if (oldestIdx !== -1) this.flashes.splice(oldestIdx, 1);
+        }
         this.flashes.push({
             x, y, color: colorStr,
-            dir: dir || "up",  // "up" = 증발 (y 감소 방향), "down" = 응축
+            dir: direction,  // "up" = 증발 (y 감소 방향), "down" = 응축
             t_start: performance.now(),
         });
     }
@@ -893,35 +922,20 @@ class VaporWorld {
         this.condenseHighlights = remain;
     }
 
-    // ── Flash queue 렌더 (원 + 화살표, 0.8s 페이드, 12 → 4 px) ──
+    // ── Flash queue 렌더 (fixup 15a redo v3 — 자연 fade 폐기, 매칭 시 동시 fade out) ──
     drawFlashes(p) {
         const cfg = this.cfg;
-        const duration = (cfg.flash_duration_sec ?? 0.8) * 1000;
-        const rStart = cfg.flash_radius_start_px ?? 12;
-        const rEnd = cfg.flash_radius_end_px ?? 4;
         const arrowLen = cfg.flash_arrow_length_px ?? 30;
         const arrowThick = cfg.flash_arrow_thickness_px ?? 2.5;
+        const headSize = 5;
         const now = performance.now();
-        const remain = [];
-        for (const f of this.flashes) {
-            const elapsed = now - f.t_start;
-            if (elapsed >= duration) continue;
-            const t = elapsed / duration;
-            const r = rStart + (rEnd - rStart) * t;
-            const alpha = (1 - t) * 255;
+
+        const drawArrow = (f, alpha) => {
             const col = p.color(f.color);
             col.setAlpha(alpha);
-
-            // 원 (펄스 페이드)
-            p.noFill();
-            p.stroke(col);
-            p.strokeWeight(2);
-            p.circle(f.x, f.y, r * 2);
-
             // 화살표
             //   up   (증발): tail 표면, tip 위 (기체 영역으로)
-            //   down (응축): tail 표면 위 30 px (기체 영역), tip 표면 살짝 위
-            //                → 액체에 묻히지 X (사용자 비판 (3))
+            //   down (응축): tail 표면 위 arrowLen px (기체 영역), tip 표면 살짝 위
             let tail, tip;
             if (f.dir === "down") {
                 tail = f.y - arrowLen;
@@ -930,22 +944,35 @@ class VaporWorld {
                 tail = f.y;
                 tip = f.y - arrowLen;
             }
+            p.noFill();
+            p.stroke(col);
             p.strokeWeight(arrowThick);
             p.line(f.x, tail, f.x, tip);
-
-            // 화살촉 (작은 삼각형, apex = tip)
+            // 화살촉
             p.noStroke();
             const fillCol = p.color(f.color);
             fillCol.setAlpha(alpha);
             p.fill(fillCol);
-            const headSize = 5;
-            // up: apex 위, base 아래 / down: apex 아래, base 위
             const baseY = f.dir === "down" ? tip - headSize : tip + headSize;
             p.triangle(f.x, tip, f.x - headSize * 0.7, baseY, f.x + headSize * 0.7, baseY);
+        };
 
-            remain.push(f);
+        // active flashes — 무한 hold (자연 fade 폐기, alpha 풀)
+        for (const f of this.flashes) {
+            drawArrow(f, 255);
         }
-        this.flashes = remain;
+
+        // fading flashes — 매칭 또는 T 변경 후 alpha 점진 fade + 완료 시 splice
+        const fadingRemain = [];
+        for (const f of this.fading_flashes) {
+            const elapsed = now - f.fade_start;
+            if (elapsed >= f.fade_dur) continue;
+            const fadeT = elapsed / f.fade_dur;
+            const alpha = (1 - fadeT) * 255;
+            drawArrow(f, alpha);
+            fadingRemain.push(f);
+        }
+        this.fading_flashes = fadingRemain;
     }
 
 }
