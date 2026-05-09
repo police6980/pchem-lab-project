@@ -1,6 +1,6 @@
 // =============================================================
 // vapor.js — 증기압 시뮬 본체
-// Phase 6.1-b finalization fixup 15d (rate ema 안정화 + 평형 hysteresis 4-state)
+// Phase 6.1-b finalization fixup 15e (T 변경 시 EMA 보존, 자연 수렴)
 //
 // 핵심 철학 (정공법):
 //   학생 가시 = 실측 / 시뮬 = 미시 가시화 (정성적)
@@ -48,6 +48,9 @@
 //     · 워밍업 = 첫 W tick (rate_warmup_ticks=2) 폐기 — 평균 시작 전 raw 폐기
 //     · EMA prime = 워밍업 후 첫 N tick (rate_ema_prime_avg_ticks=5) raw 평균으로 초기화 (fixup 15a)
 //                   → 잡음 σ √N 감소된 평균값 prime → 시작 직후 EMA 곡선 부자연 transient 회피
+//     · prime 의도 = 시작 시점만 (EMA=0 워밍업 lag 차단). T 변경 시점 무관 (EMA 이미 정상값).
+//     · T 변경 시 EMA 보존 (fixup 15e) — 자연 수렴 (alpha 0.05, τ=20s, ~60s)
+//       raw buf reset (직전 T 잔재 회피)
 //     · 학생 학습 = 두 곡선 만남 = 정성적 평형
 //
 //   ── rate 카드 third cell — 응축/증발 비율 (mock 학습 단서, fixup 11) ──
@@ -68,7 +71,7 @@
 //     · _emaPrimed = false, _pressureSmoothedPrev = null 추가
 //     · T 변경 시 evap 곡선 lag / relChange jump 회피
 //
-// 폐기 (fixup 누적 1~15d):
+// 폐기 (fixup 누적 1~15e):
 //   · KE 결정적 게이트 + 1초 동기 재샘플 (fixup 3)
 //   · sliding window 60초 (fixup 6, 누적으로 변경)
 //   · evap_rate_per_particle_per_sec (fixup 4, Boltzmann 으로 대체)
@@ -93,6 +96,9 @@
 //   · equilibriumStartIdx 필드 (fixup 13, fixup 15d 폐기 — _equilibriumHoldStart ms 로 의미 이전)
 //   · DOM data-state="yes"/"no" / data-zone "zero"/"low"/"mid"/"eq"/"over" (fixup 11~13)
 //     fixup 15d 폐기 → 4 분기 (reached/exit/near/none) 통일
+//   · setTemperature 안 EMA reset (fixup 10 + 15a, T 변경 시 prime 다시 의도)
+//     fixup 15e 폐기 — 그래프 0 폭락 (mapY null) + spike 결함. EMA 보존으로 자연 수렴.
+//     prime 의도 재정의: 시작 시점만 (EMA=0 워밍업 lag 차단), T 변경 무관.
 //
 // docs/17 §6 참조.
 // =============================================================
@@ -280,12 +286,13 @@ class VaporWorld {
         this._equilibriumState = "none";
         this._everReachedEquilibrium = false;
         this._equilibriumHoldStart = null;
-        // fixup 10: evap 곡선 자연 전환 보장 (10초 lag 차단)
-        this._emaPrimed = false;
-        // fixup 15a: T 변경 시 새 평형 향해 prime 평균 다시 (잡음 prime 회피)
-        this._ratePrimeBuf = null;
-        this.evapEMA = null;
-        this.condEMA = null;
+        // fixup 15e: EMA 보존 (자연 수렴) — 시작 시점 prime 의도 (워밍업 lag 차단) 와
+        // T 변경 시점 무관. 직전 EMA (3.5/s) 가 alpha 0.05 로 새 raw (11.1/s) 향해
+        // 점진 수렴 (τ=20s, ~60s). 그래프 0 폭락 / spike 동시 해소.
+        // 폐기: _emaPrimed / _ratePrimeBuf / evapEMA / condEMA reset (fixup 10 + 15a 재결정)
+        // raw buf reset — 직전 T 잡음 잔재 회피 (3초 rolling buf 새 T 만 채움)
+        this._rateRawEvapBuf = [];
+        this._rateRawCondBuf = [];
         // fixup 10: relChange 점프 차단 (이전 T P 잔재 X)
         this._pressureSmoothedPrev = null;
         // pressure EMA 자체는 그대로 — 새 plateau 도달까지 자연 추적
