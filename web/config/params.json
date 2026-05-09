@@ -101,6 +101,7 @@
         "flash_radius_end_px": 2,
         "flash_arrow_length_px": 40,
         "flash_arrow_thickness_px": 3.5,
+        "flash_arrow_match_cancel_fade_sec": 0.3,
 
         "gas_birth_color_fluorescent": "#FCD34D",
         "gas_birth_fluor_hold_sec": 1.5,
@@ -120,6 +121,7 @@
         "rate_graph_max_time_sec": 1800,
         "rate_calc_window_sec": 3.0,
         "rate_warmup_ticks": 2,
+        "rate_ema_prime_avg_ticks": 5,
         "rate_ema_alpha": 0.1,
         "rate_color_evap": "#2563EB",
         "rate_color_cond": "#EA580C",

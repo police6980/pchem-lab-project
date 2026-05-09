@@ -1,6 +1,6 @@
 // =============================================================
 // vapor.js — 증기압 시뮬 본체
-// Phase 6.1-b finalization fixup 14 (rate 워밍업 — 첫 N tick 잡음 prime 회피)
+// Phase 6.1-b finalization fixup 15a (화살표 0.3s fade 캔슬 + rate prime N tick 평균)
 //
 // 핵심 철학 (정공법):
 //   학생 가시 = 실측 / 시뮬 = 미시 가시화 (정성적)
@@ -34,16 +34,17 @@
 //   ── 시각 강조 (3계층 인지) ──
 //     · 사건 자체 = 노랑 #FCD34D (가시 가스 birth) + 핑크 #F472B6 (격자 응결)
 //                   둘 다 1.5s + 0.5s fade + glow blur 25 (별도 큐, 매칭 영향 X)
-//     · 빈도 차 = evap 위 화살표 / cond 아래 화살표 (fixup 11 매칭 상쇄)
-//                  _addFlash 안 위·아래 큐 1쌍 즉시 캔슬 (위치 무관)
-//                  transient (evap >> cond): 위 화살표 다수 / 평형 (evap ≈ cond): 화살표 거의 X
+//     · 빈도 차 = evap 위 화살표 / cond 아래 화살표 (fixup 11 매칭 상쇄 → fixup 15a 0.3s fade)
+//                  _addFlash 안 매칭 시 splice 대신 t_start 후퇴 (잔여 fade 0.3초)
+//                  transient (evap >> cond): 위 화살표 다수 / 평형 (evap ≈ cond): 짧은 fade 후 사라짐
+//                  학생 인지: "쌍이 만남 → 짧게 함께 사라짐"
 //     · 정량 절댓값 = rate 그래프 두 곡선 만남 (_evapWin / _condWin 카운터, 매칭 영향 X)
 //
 //   ── rate 그래프 (학습 단서, 우측 카드 별도 canvas) ──
 //     · 시작부터 누적, x축 자동 스케일 (initial=180s, fixup 11 — 학교 시간 척도)
-//     · 워밍업 = 첫 N tick (rate_warmup_ticks=2, fixup 14) raw 만 누적, EMA null
-//       (Poisson σ √N 감소된 raw 로 prime → 잡음값 박힘 회피)
-//     · EMA prime — 워밍업 통과 후 첫 정상 tick = raw (lag 차단, fixup 9)
+//     · 워밍업 = 첫 W tick (rate_warmup_ticks=2) 폐기 — 평균 시작 전 raw 폐기
+//     · EMA prime = 워밍업 후 첫 N tick (rate_ema_prime_avg_ticks=5) raw 평균으로 초기화 (fixup 15a)
+//                   → 잡음 σ √N 감소된 평균값 prime → 시작 직후 EMA 곡선 부자연 transient 회피
 //     · 학생 학습 = 두 곡선 만남 = 정성적 평형
 //
 //   ── rate 카드 third cell — 응축/증발 비율 (mock 학습 단서, fixup 11) ──
@@ -60,7 +61,7 @@
 //     · _emaPrimed = false, _pressureSmoothedPrev = null 추가
 //     · T 변경 시 evap 곡선 lag / relChange jump 회피
 //
-// 폐기 (fixup 누적 1~13):
+// 폐기 (fixup 누적 1~15a):
 //   · KE 결정적 게이트 + 1초 동기 재샘플 (fixup 3)
 //   · sliding window 60초 (fixup 6, 누적으로 변경)
 //   · evap_rate_per_particle_per_sec (fixup 4, Boltzmann 으로 대체)
@@ -74,7 +75,8 @@
 //   · 시뮬 캔버스 아래 T 슬라이더 + 프리셋 버튼 (fixup 12, 우측 카드 통합으로 이동)
 //   · vapor-card-pvap (fixup 12, vapor-card-tp 안 P 영역으로 통합)
 //   · T 셀렉트 (fixup 12 → 11+12 integrated, number input 으로 교체 — 학생 임의 T 직접 입력)
-//   · 시작 직후 EMA prime 잡음 박힘 (fixup 9 부작용 → fixup 14 워밍업으로 해소)
+//   · 시작 직후 EMA prime 잡음 박힘 (fixup 9 부작용 → fixup 14 워밍업 + fixup 15a N tick 평균으로 해소)
+//   · 화살표 매칭 즉시 splice (fixup 11 → 15a 0.3s fade 캔슬로 변경, 학생 "쌍 만남" 인지 보존)
 //
 // docs/17 §6 참조.
 // =============================================================
@@ -209,9 +211,10 @@ class VaporWorld {
 
         // ── Rate 추적 (학습 핵심) ──
         this.rateHistory = [];          // {evap_raw, cond_raw, evap_ema, cond_ema}
-        this.evapEMA = null;            // fixup 14: 워밍업 동안 null (rateHistory.length < warmupTicks)
+        this.evapEMA = null;            // fixup 14: 워밍업 동안 null
         this.condEMA = null;
-        this._emaPrimed = false;        // fixup 9: 첫 정상 tick 에 EMA = raw (워밍업 lag 차단)
+        this._emaPrimed = false;        // fixup 9: 첫 정상 tick 에 EMA prime (워밍업 lag 차단)
+        this._ratePrimeBuf = null;      // fixup 15a: 첫 N tick raw 누적 → 평균 prime (잡음 prime 회피)
         this.equilibriumStartIdx = null;
         this.equilibriumReached = false;
         this.equilibriumIdx = null;
@@ -256,6 +259,10 @@ class VaporWorld {
         this._equilibriumReachedAtSec = null;
         // fixup 10: evap 곡선 자연 전환 보장 (10초 lag 차단)
         this._emaPrimed = false;
+        // fixup 15a: T 변경 시 새 평형 향해 prime 평균 다시 (잡음 prime 회피)
+        this._ratePrimeBuf = null;
+        this.evapEMA = null;
+        this.condEMA = null;
         // fixup 10: relChange 점프 차단 (이전 T P 잔재 X)
         this._pressureSmoothedPrev = null;
         // pressure EMA 자체는 그대로 — 새 plateau 도달까지 자연 추적
@@ -503,13 +510,21 @@ class VaporWorld {
     }
 
     _addFlash(x, y, colorStr, dir) {
-        // 화살표 매칭 상쇄 (fixup 11 — 위·아래 1쌍 즉시 캔슬, 빈도 차 시각)
+        // 화살표 매칭 (fixup 15a — 즉시 splice X, 0.3초 fade 캔슬)
+        // 학생 인지: 위·아래 1쌍이 만나는 순간 → 짧게 함께 사라짐 (펀칭 X)
         // 색 강조 (노랑/핑크) / rate 그래프 / condenseHighlights 는 별도 큐로 영향 X
         const opposite = (dir === "up") ? "down" : "up";
         const matchIdx = this.flashes.findIndex(f => f.dir === opposite);
         if (matchIdx !== -1) {
-            this.flashes.splice(matchIdx, 1);
-            return;
+            const cancelFadeSec = this.cfg.flash_arrow_match_cancel_fade_sec ?? 0.3;
+            const fullDurMs = (this.cfg.flash_duration_sec ?? 1.0) * 1000;
+            const cancelFadeMs = cancelFadeSec * 1000;
+            const now = performance.now();
+            const f = this.flashes[matchIdx];
+            // 매칭된 화살표 t_start 후퇴 → 잔여 fade 시간 = cancelFade
+            // (이미 fade 후반인 화살표는 그대로 — Math.min 으로 보호)
+            f.t_start = Math.min(f.t_start, now - (fullDurMs - cancelFadeMs));
+            return;  // 신규 push X (정상 매칭 동작 유지)
         }
         this.flashes.push({
             x, y, color: colorStr,
@@ -593,7 +608,7 @@ class VaporWorld {
         const evapRaw = this._rateRawEvapBuf.reduce((s, v) => s + v, 0) / this._rateRawEvapBuf.length;
         const condRaw = this._rateRawCondBuf.reduce((s, v) => s + v, 0) / this._rateRawCondBuf.length;
 
-        // 워밍업 — 첫 N tick 폐기 (fixup 14 — 잡음 prime 회피, σ √N 감소된 후 prime)
+        // 워밍업 — 첫 W tick 폐기 (rate_warmup_ticks, 평균 시작 전 폐기, fixup 15a 의미 갱신)
         const warmupTicks = this.cfg.rate_warmup_ticks ?? 2;
         if (this.rateHistory.length < warmupTicks) {
             this.rateHistory.push({
@@ -606,11 +621,32 @@ class VaporWorld {
             return;
         }
 
-        // EMA — 첫 정상 tick 에 prime (워밍업 lag 차단, fixup 9)
+        // EMA prime — 첫 N tick raw 평균으로 초기화 (fixup 15a — 잡음 prime 회피)
+        // 평균 누적 동안 EMA null, N 도달 시 평균값으로 prime + 통상 push 진행
         if (!this._emaPrimed) {
-            this.evapEMA = evapRaw;
-            this.condEMA = condRaw;
+            const primeTicks = this.cfg.rate_ema_prime_avg_ticks ?? 5;
+            if (!this._ratePrimeBuf) this._ratePrimeBuf = { evap: [], cond: [] };
+            this._ratePrimeBuf.evap.push(evapRaw);
+            this._ratePrimeBuf.cond.push(condRaw);
+
+            if (this._ratePrimeBuf.evap.length < primeTicks) {
+                // 누적 중 — EMA null 유지
+                this.rateHistory.push({
+                    evap_raw: evapRaw, cond_raw: condRaw,
+                    evap_ema: null, cond_ema: null,
+                });
+                this._evapWin = 0; this._condWin = 0;
+                this._ghostEvapWin = 0; this._ghostCondWin = 0;
+                this._lastStatsT = now;
+                return;
+            }
+            // N tick 도달 — 평균으로 prime
+            const evapAvg = this._ratePrimeBuf.evap.reduce((s, v) => s + v, 0) / primeTicks;
+            const condAvg = this._ratePrimeBuf.cond.reduce((s, v) => s + v, 0) / primeTicks;
+            this.evapEMA = evapAvg;
+            this.condEMA = condAvg;
             this._emaPrimed = true;
+            this._ratePrimeBuf = null;
         } else {
             const alpha = this.cfg.rate_ema_alpha ?? 0.1;
             this.evapEMA = alpha * evapRaw + (1 - alpha) * this.evapEMA;
