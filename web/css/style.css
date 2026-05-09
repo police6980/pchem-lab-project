@@ -3970,6 +3970,10 @@ body[data-page="vapor"] .vapor-tp-section {
     flex-direction: column;
     gap: 6px;
 }
+/* fixup 15f hotfix — display: flex 가 HTML hidden 속성 default 를 override 하는 결함 차단 */
+body[data-page="vapor"] .vapor-real-only[hidden] {
+    display: none;
+}
 body[data-page="vapor"] .vapor-tp-section-label {
     font-size: 11px;
     color: #64748b;
