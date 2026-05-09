@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CAST — 증기압 (Phase 6.1-b finalization fixup 15e + 6.2 부분)</title>
+    <title>CAST — 증기압 (Phase 6.1-b finalization fixup 15f + 6.2 부분)</title>
     <link rel="stylesheet" href="css/style.css">
     <script src="https://cdn.jsdelivr.net/npm/p5@1.11.2/lib/p5.min.js"></script>
     <script src="https://unpkg.com/docx@8.5.0/build/index.umd.js"></script>
@@ -22,7 +22,7 @@
 <body data-page="vapor">
     <nav class="page-nav vapor-nav">
         <a href="index.html" class="nav-home" title="홈으로 돌아가기">🏠 홈으로</a>
-        <span class="nav-title">증기압 — Phase 6.1-b finalization fixup 15e + 6.2 (T 통합)</span>
+        <span class="nav-title">증기압 — Phase 6.1-b finalization fixup 15f + 6.2 (T 통합)</span>
     </nav>
 
     <div id="vapor-layout-v2" class="vapor-layout-v2">
@@ -106,9 +106,9 @@
             <!-- 우: 영역 2 — 3 카드 -->
             <aside id="vapor-cards-region" class="vapor-cards-region" aria-label="측정 카드">
 
-                <!-- T + P 카드 통합 (fixup 12) — mock 입력 / real 표시 자연 전환 -->
+                <!-- T + P 카드 통합 (fixup 12 + 15f) — mock 단계 P 영역 hidden, real 진입 시 부활 -->
                 <section class="vapor-card vapor-card-tp">
-                    <h4>온도 / 증기압 (센서 영역)</h4>
+                    <h4>센서 영역</h4>
 
                     <!-- T 영역 -->
                     <div class="vapor-tp-section vapor-tp-temp">
@@ -137,19 +137,20 @@
                         </div>
                     </div>
 
-                    <div class="vapor-tp-divider" aria-hidden="true"></div>
+                    <!-- P 영역 통째 mock hidden (fixup 15f) — Phase 6.3+ vapor-real-only hidden 토글로 자동 부활 -->
+                    <div class="vapor-tp-divider vapor-real-only" aria-hidden="true" hidden></div>
 
-                    <!-- P 영역 -->
-                    <div class="vapor-tp-section vapor-tp-pressure">
+                    <!-- P 영역 (mock hidden, real 모드 진입 시 활성) -->
+                    <div class="vapor-tp-section vapor-tp-pressure vapor-real-only" hidden>
                         <div class="vapor-tp-section-label">평형 증기압 P<sub>vap</sub></div>
-                        <!-- mock placeholder -->
+                        <!-- placeholder (real 모드 진입 직후 일시 표시 — 실측 도달 후 real div 자동 표시 별도 처리) -->
                         <div class="vapor-tp-pressure-mock">
                             <div class="vapor-mock-icon">📡</div>
                             <div class="vapor-mock-text">측정 모드 활성 후 표시</div>
                             <div class="vapor-mock-hint">Phase 6.3+ 실센서/Vernier 연결 시 활성화</div>
                         </div>
-                        <!-- real: 큰 숫자 + 막대 + 이론 비교 (Phase 6.3+ 활성) -->
-                        <div class="vapor-tp-pressure-real vapor-real-only" hidden>
+                        <!-- real: 큰 숫자 + 막대 + 이론 비교 -->
+                        <div class="vapor-tp-pressure-real">
                             <div class="vapor-pvap-big">
                                 <span id="vapor-pressure-val">—</span>
                                 <small>kPa</small>

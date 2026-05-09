@@ -1,12 +1,13 @@
 // =============================================================
 // vapor.js — 증기압 시뮬 본체
-// Phase 6.1-b finalization fixup 15e (T 변경 시 EMA 보존, 자연 수렴)
+// Phase 6.1-b finalization fixup 15f (UI 균형 — P 영역 mock 폐기 + 헤더/spacing 통일)
 //
 // 핵심 철학 (정공법):
 //   학생 가시 = 실측 / 시뮬 = 미시 가시화 (정성적)
-//   우측 상단 = "센서 영역" (T + P 카드 통합, fixup 12)
-//     · mock 모드: T 입력 (number input + 5 프리셋, fixup 11+12 integrated) / P placeholder
-//     · real 모드 (Phase 6.3+): T 실측 + P 실측 자동 표시 (DOM 보존, class 분기로 자연 전환)
+//   우측 상단 = "센서 영역" (T + P 카드 통합, fixup 12, 헤더 fixup 15f 단순화)
+//     · mock 모드: T 입력 (number input + 5 프리셋, fixup 11+12 integrated) — P 영역 hidden (15f)
+//     · real 모드 (Phase 6.3+): vapor-real-only hidden 토글로 P 영역 자동 부활
+//                               T 실측 + P 실측 자동 표시 (DOM 보존)
 //   화면 반응형 (fixup 11+12 integrated): 1024px / 768px 브레이크포인트
 //   평형 판정 통일 (fixup 13): ratio = condEMA / evapEMA, [0.9, 1.1] band 5초 유지 → 평형
 //     · 모든 평형 표지 동일 트리거: 시뮬 헤더 배지 + rate 그래프 ★ vertical line + 비율 zone 색
@@ -71,7 +72,7 @@
 //     · _emaPrimed = false, _pressureSmoothedPrev = null 추가
 //     · T 변경 시 evap 곡선 lag / relChange jump 회피
 //
-// 폐기 (fixup 누적 1~15e):
+// 폐기 (fixup 누적 1~15f):
 //   · KE 결정적 게이트 + 1초 동기 재샘플 (fixup 3)
 //   · sliding window 60초 (fixup 6, 누적으로 변경)
 //   · evap_rate_per_particle_per_sec (fixup 4, Boltzmann 으로 대체)
@@ -99,6 +100,10 @@
 //   · setTemperature 안 EMA reset (fixup 10 + 15a, T 변경 시 prime 다시 의도)
 //     fixup 15e 폐기 — 그래프 0 폭락 (mapY null) + spike 결함. EMA 보존으로 자연 수렴.
 //     prime 의도 재정의: 시작 시점만 (EMA=0 워밍업 lag 차단), T 변경 무관.
+//   · T+P 카드 P_vap mock placeholder 표시 (fixup 8/12, 사이드바 측정 모드 토글과 중복)
+//     fixup 15f 폐기 — P 영역 vapor-real-only wrap → mock 단계 hidden, real 단계 자동 부활.
+//     min-height 280 → 200, 카드 column gap 10 → 12 (UI 균형).
+//     카드 헤더 "온도 / 증기압 (센서 영역)" → "센서 영역" (mock/real 양쪽 정합).
 //
 // docs/17 §6 참조.
 // =============================================================

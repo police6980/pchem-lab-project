@@ -4126,7 +4126,7 @@ body[data-page="vapor"] .vapor-cards-region {
     flex: 0 0 280px;
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 12px;                     /* fixup 15f — top-row gap 12 와 통일 */
 }
 body[data-page="vapor"] .vapor-card {
     background: #fff;
@@ -4135,7 +4135,7 @@ body[data-page="vapor"] .vapor-card {
     box-shadow: 0 1px 3px rgba(0,0,0,0.05);
     min-height: 220px;             /* fixup 15c — visual weight 균형 */
 }
-body[data-page="vapor"] .vapor-card-tp { min-height: 280px; }
+body[data-page="vapor"] .vapor-card-tp { min-height: 200px; }  /* fixup 15f — P 영역 mock hidden 후 압축 */
 body[data-page="vapor"] .vapor-card-counter { min-height: 140px; }
 body[data-page="vapor"] .vapor-card h4 {
     font-size: 12px;
