@@ -3379,3 +3379,321 @@ vernier 본문은 운용 시나리오 5요소 신규.
 **배제된 대안**: 색 변화만 (학생 인지 어려움), 화살표 만 (시점 인지 약함).
 
 (후일 fixup 8 = 형광 노랑 #FCD34D + 핑크 #F472B6 + glow blur 25 + 1.5s hold + 0.5s fade 로 강화. 본 단계 = 청/주황 + 0.8s fade.)
+
+---
+
+## Phase 6.1-b — finalization fixup 6-14 (3-region Johnstone + 정공법 회귀 + 평형 진화) (2026-05-09)
+
+본 단계 = sub-step B-2 final 종료 (시뮬 모델 회귀 완료) 후 시각 / 측정 / 평형 판정 / 학생 인지 영역 finalization. **정공법 회귀** (학생 가시 = 실측, 시뮬 = 미시 가시화) 핵심 철학 도달 + 평형 판정 4단계 진화 + P 카드 5단계 진화 + T 입력 4단계 진화. 13 commits (1b55420 + 4be772b + fixup 6-14 + eecc7a4 tune).
+
+### 2026-05-09 — 3-region Johnstone 통합 + 평형 거시-미시 분리 (commits 1b55420, 4be772b, 4788a08, fixup 6)
+
+#### 한 일
+- `1b55420` 풀 화면 redesign — 3-region Johnstone layout (영역 1 = 시뮬 + T sub-micro / 영역 2 = P 게이지 + rate + 카운터 macro + 속도론 / 영역 3 = 측정점 표 + P-T 그래프 symbolic). T Boltzmann factor 통합 `evap_rate(T) = base × exp(E_a × (1 − T_ref/T))`, T_ref=25°C, base=0.025, E_a=18.3. T 슬라이더 25–65°C + 5 프리셋. 평형 자동 감지 (rate 기반).
+- `4be772b` DOM 재구조 force-move (rate 그래프 → 우측 panel).
+- `4788a08` (fixup 6) 캔버스 잠금 + rate 자동 시간축 + 평형 P 기반 + base rate calibration to P_eq(T).
+
+#### 결정: 평형 판정 = 거시 (P 기반) + 시뮬 사건 = 미시 (Boltzmann + Poisson) 분리
+
+**배경**: 직전 평형 판정 = `|evap_ema − cond_ema| / max(evap, cond) < 0.05 + 5초 + evap > 1.0/s` (rate 기반). rate 잡음 (Poisson σ) 흔들림 → 평형 도달 ★ 표지 false positive 빈발.
+
+**결정**: 평형 판정 = 거시 P 기반 (`|P_smoothed − P_eq(T)| / P_eq(T) < 0.05 + 5초 + P > 0.5·P_eq`). 시뮬 사건 = 미시 (Boltzmann 게이트 + Poisson per-frame, 변경 X). 매 1초 EMA (`pressure_ema_alpha=0.1`) 잡음 흡수.
+
+**근거**: **사용자 통찰 — 평형 판정은 거시 (잡음 X), 시뮬 사건은 미시 (학습 단서 보존). 둘 분리 = 하이브리드.** P_eq(T) = `liquids[액체].p_vap_table_celsius_to_kpa` 보간. base rate 거시 보정 (`pressure_to_evap_calibration`, Boltzmann factor 가 T 의존성 자동 처리, plateau 가 P_eq(T) 와 5%+ 어긋나면 multiplicative factor 조정).
+
+**배제된 대안**: rate 기반 보존 (잡음 흔들림), P 단순 임계 (transient 경계 모호).
+
+(후일 fixup 8 에서 거시 P 평형 판정 폐기 — P_internal 변화율 단일 metric. 후일 fixup 13 에서 ratio 단일 metric. 후일 fixup 8 에서 calibration 폐기 — 정공법 회귀.)
+
+#### 결정: 캔버스 크기 잠금 + rate 그래프 누적 시간축
+
+**배경**: V_liquid 변경 시 캔버스 외곽 크기 흔들림 (regression 위험). rate 그래프 sliding window 60초 = transient + plateau 동시 시각 X.
+
+**결정**: 캔버스 외곽 강제 고정 (`vapor-canvas-container width 800px height 480px flex 0 0 auto`). 액체 영역만 `liquidH = box.h × V_liquid/V_flask` 비율 변동. rate 누적 시간축 (시작 t=0 부터, x축 자동 스케일, max_time_sec=1800 cap).
+
+**근거**: 모델 좌표 (800×480) 보존 = regression 격리. 누적 그래프 = transient + plateau 한 화면 시각 = 학습 핵심 (evap=const, cond=ramp 비대칭).
+
+**배제된 대안**: V_liquid 비례 캔버스 (regression 위험), sliding window (시각 단절).
+
+#### 결정: 3-region Johnstone layout
+
+**배경**: Phase 6.0 baseline 결정 (Johnstone 3수준 통합) 구현 시점. 학생 인지 흐름 = T 설정 → 시뮬 관찰 → 평형 P 기록 → 데이터 누적 → 그래프 분석 → 관계 발견.
+
+**결정**: 영역 1 (시뮬 + T sub-micro) / 영역 2 (P 게이지 + rate + 카운터 macro+속도론) / 영역 3 (측정점 표 + P-T 그래프 symbolic). T 슬라이더 + 5 프리셋 (시뮬 아래).
+
+**근거**: Johnstone 3수준 (거시·미시·기호) 시각 분리 = 학생 표상 연결 명시. 측정점 표 + P-T 그래프 = "≥4점 후 ln P vs 1/T 토글" (univ 6.5 후속).
+
+**배제된 대안**: 단일 영역 (3수준 혼재), 다탭 분리 (전환 부담).
+
+(후일 fixup 12 에서 T 슬라이더 시뮬 아래 → 우측 상단 T+P 통합 카드 이동. 후일 fixup 8 에서 측정점 표/P-T 그래프 mock 비공개 — 정공법 회귀.)
+
+### 2026-05-09 — ghost particle + P_EMA 통계 안정화 (commit c47ee90, fixup 7)
+
+#### 한 일
+- 가시 표면 80 (렌더 O) + ghost 표면 800 (렌더 X) = 880 입자 모두 Boltzmann 게이트.
+- 매 evap 시 `visible_ratio=0.1` 로 visible vs ghost 분기.
+- 응축: visible/ghost 모두 `KE_gas < E_capture` 게이트, visible 만 flash + cond ring.
+- 통계 결합: `P = (visible + ghost) × 0.1 × pressure_per_visible_gas`, `rate_displayed = (visible + ghost) × 0.1 / elapsed`.
+- P_EMA 매 frame 평활 (`p_vap_ema_alpha=0.05`, 시간상수 0.4s).
+
+#### 결정: 보일 ghost 패턴 재사용 (통계 √N 흡수)
+
+**배경**: 기체 입자 plateau ~50 → Poisson 통계 잡음 √50 ≈ 14% → 평형도 % 표지 널뜀.
+
+**결정**: 보일 시뮬 ghost 패턴 (Phase 1 검증 자산) 재사용. ghost 800 + visible 80 = 880 모두 게이트, visible 만 렌더.
+
+**근거**: 잡음 √(1/0.1) ≈ 0.32× = **3.16× 감소**. 학생 시각 변화 X (visible 만 보임). 통계 안정 (평형도 95%+ 도달 후 잡음 X). 충돌 부담 회피 (visible 만 hard sphere).
+
+**배제된 대안**: 입자 ↑ 일괄 (성능 부담 + 시각 과밀), EMA τ ↑ 만 (응답 지연), Kalman filter (오버엔지니어링).
+
+(후일 fixup 11 에서 visible_ratio 0.1 → 0.4 — base 튜닝 0.025→0.010 보강 시각 사건 부족 회피. 후일 fixup 15k 에서 0.4 → 0.7 — 시뮬 시각 확대 + visible 입자 1.75× ↑.)
+
+### 2026-05-09 — 정공법 회귀 (commits e2f65d3, b1fc3f4, fixup 8 + 9)
+
+#### 한 일
+- `e2f65d3` (fixup 8): calibration 폐기, P 카드 mock 비공개, 평형 = 내부 P 변화율, 형광 색 (노랑/핑크) + glow blur 25.
+- `b1fc3f4` (fixup 9): 평형 ★ 배지 + 평형도 % cell 모두 mock 비공개. evap 곡선 EMA prime (첫 tick raw → EMA 초기값). 사이드바 width lock. dead code cleanup (vapor.js docstring rewrite, equilibriumStatus getter 제거, rename 잔재 fallback 제거).
+
+#### 결정: 시뮬 P 정량 정합 시도 폐기 = 정공법 회귀
+
+**배경**: fixup 6 도입 `pressure_to_evap_calibration` (multiplicative factor) 검증 — 시뮬 P plateau 와 P_eq(T) 5%+ 정합 시도 = "학생 가시 = 실측, 시뮬 = 미시 가시화" 핵심 철학 위배. 시뮬 P 는 정성적 단서, 정량 비교 = 실측 도착 후.
+
+**결정**: `pressure_to_evap_calibration` 키 즉시 폐기 (fixup 6 도입 직후 폐기). `evap_rate(T) = base × exp(E_a × (1 − T_ref/T))` 단순 Boltzmann factor 만. 시뮬 P plateau ≠ P_eq(T) OK.
+
+**근거**: 본 프로젝트 핵심 철학 정합. mock 단계 학습 = 시뮬 사건 관찰 (입자, flash, 화살표, 색 강조). 정량 측정 = 실측 도착 후.
+
+**배제된 대안**: calibration 보존 (정량 정합 부담 + 철학 위배), 시뮬 P 자체 폐기 (시뮬 raison d'être 손실).
+
+#### 결정: P 카드 + 측정점 표 + 평형 ★ 배지 + 평형도 % cell mock 비공개
+
+**배경**: mock 단계 학생 가시 P 카드 = 시뮬 P 표시 → 학생 인지 "이게 실측인가" 혼선. 평형 ★ 배지 + 평형도 % cell 두 모듈 비동기 → false positive + 17% 널뜀.
+
+**결정**: 모든 정량 측정 표지 mock hidden + DOM 보존 + `vapor-real-only` class wrap. 시뮬 헤더 = 시간 표시만. rate 카드 = 두 rate 숫자 + 곡선 + "두 곡선이 만나는 시점 = 정성적 평형" 안내문. 내부 계산 보존 (`equilibriumReached`, `equilibriumPercent`, `_pressureSmoothed` 등) — Phase 6.3+ P_internal → P_measured 교체로 자연 활성.
+
+**근거**: dual-layer 자연 전환 — DOM 보존, hidden 토글로 real 모드 진입 시 자동 활성. 학생 학습 = rate 두 곡선 만남 시각 (정성적). 정량 평형 판정 = 실측 도착 후.
+
+**배제된 대안**: DOM 삭제 (real 모드 진입 시 재구현 부담), 평형 표지 보존 (false positive 학생 혼선).
+
+(후일 fixup 13 에서 ratio 단일 metric 도입 시 ★ 배지 + zone 색 mock 활성. 후일 fixup 15j 에서 P 카드 부활 — 단일 측정값 모드별 source 분기 철학.)
+
+#### 결정: 평형 자동 감지 = 시뮬 내부 P 변화율 (P_internal)
+
+**배경**: fixup 6 거시 P 평형 판정 = `P_smoothed - P_eq(T) / P_eq` (P_eq 절댓값 정합 의존). fixup 8 calibration 폐기 후 P 절댓값 의미 X.
+
+**결정**: `P_internal = (visible_gas + ghost_gas) × 0.1 × pressure_per_visible_gas` (ghost 결합). P_internal_EMA `alpha=0.05` 매 frame. 매 1초 `|dP/dt| / P < equilibrium_change_threshold (=0.02 = 2%/s)` `equilibrium_hold_sec (=5초)` 지속 + warmup (=10초) → 평형.
+
+**근거**: P_eq(T) 절댓값 의존 X. 변화율 = "안정 도달" 의미 직접. real 모드 진입 시 `P_internal → P_measured` 입력 교체, 평형 감지 모듈 재사용.
+
+**배제된 대안**: P 절댓값 정합 (calibration 부활 = 철학 위배), rate 기반 (잡음 흔들림 fixup 6 검증).
+
+(후일 fixup 13 에서 ratio 단일 metric 으로 폐기. P_internal 변화율 코드 보존 — real 모드 재사용 의도.)
+
+#### 결정: 색 강조 = 형광 노랑/핑크 + glow blur 25 + 1.5s hold
+
+**배경**: 직전 fixup 5 청 stroke / 주황 ring → 사용자 비판 "사건 시점 인지 부족". 사건 자체 가시화가 시뮬 핵심.
+
+**결정**: 가시 가스 birth = 노랑 #FCD34D, 격자 응결 = 핑크 #F472B6. 둘 다 1.5초 hold + 0.5초 fade, stroke 4.5 px + glow blur 25, 응결은 외곽 펄스 (반경 r+1 → 24 px, 1초).
+
+**근거**: 사용자 명시 색 ("막 등장 가시 가스 = 노랑, 막 응결 격자 = 핑크"). glow blur 25 = 시각 강조 명확. 1.5s hold = 학생 인지 시간 확보.
+
+**배제된 대안**: stroke 두께 ↑ (시각 인공물), 화면 전체 flash (시각 부담).
+
+#### 결정: evap 곡선 EMA prime (첫 tick → EMA 초기값)
+
+**배경**: 직전 α=0.1 + 초기 0 → 시간상수 10초 → 곡선 0~30s 점진 증가 (artifact, 사용자 직관 위반 — 표면 일정 + T 일정 → 사건 빈도 일정 정합).
+
+**결정**: 첫 tick 에서 `evapEMA = evapRaw, condEMA = condRaw, _emaPrimed = true`. 후속 tick 만 EMA. 결과: 시작 직후 evap 수평선. cond 곡선은 그대로 (시작 0, 점진 증가 — 가스 밀도 ↑ 자연 결과).
+
+**근거**: 워밍업 lag 차단 = 학생 직관 정합 (표면 일정 → evap 일정).
+
+**배제된 대안**: τ ↓ (잡음 ↑), 초기값 = base (Boltzmann factor 미반영).
+
+(후일 fixup 14 에서 부작용 발견 — 첫 1초 raw Poisson 잡음 (σ √8.8 ≈ ±2.97) 이 EMA prime 박힘 → 30초 lag → 옵션 (a) 첫 N tick 폐기 채택. 후일 fixup 15a 에서 첫 N tick 평균 prime 으로 추가 강화.)
+
+### 2026-05-09 — 응축/증발 비율 + 사이드바 통일 + 잔재 정리 (commits db3128d, eecc7a4, fixup 10)
+
+#### 한 일
+- `db3128d` 응축/증발 비율 카드 (P 카드 placeholder slot 활용, `vapor-card-ratio`, 큰 숫자 + 막대 + 1.0 marker + zone 색).
+- 사이드바 UI 통일 (보일·돌턴 패턴 — 4-button mode toggle, vertical block field, guard-note 색 분기, mmol 별도 panel).
+- `setTemperature()` 안 `_emaPrimed = false` + `_pressureSmoothedPrev = null` 추가.
+- `liquid_jitter_amp_px` 키 + 관련 분기 제거 (dead).
+- `eecc7a4` visible:ghost ratio 0.1 → 0.2 (시각 사건 밀도 ↑ tune).
+
+#### 결정: rate 카드 응축/증발 비율 신규 (mock 학습 단서 부재 해소)
+
+**배경**: CC 진단 (G 옵션) — mock 단계 평형 자동 감지 비공개 (fixup 9) 후 학생 학습 단서 부족. rate 두 곡선 만남 = 정성적 평형, 단 정확 비율 정보 없음.
+
+**결정**: P 카드 placeholder slot 활용 (`vapor-card-ratio`). 큰 숫자 (`condEMA / evapEMA`, 0~1.5 범위) + 가로 막대 + 1.0 marker line + zone 색 (CSS data-zone: zero/low/mid/eq(0.9~1.1)/over).
+
+**근거**: 평형 도달 = 막대가 1.0 marker 도달 = 학생 직접 시각 단서. zone 색 = 정량 인지 강화.
+
+**배제된 대안**: 평형 % 부활 (P_internal 변화율 직접 노출 = 정공법 위배), rate 그래프 두 곡선 만남 강조만 (정량 부족).
+
+(후일 fixup 11 에서 큰 카드 폐기, rate 카드 third cell 텍스트 + zone 색만으로 이식. P 카드 placeholder 회귀.)
+
+#### 결정: 사이드바 UI 통일 (보일·돌턴 패턴)
+
+**배경**: vapor 사이드바 변종 — 페이지 간 일관성 X. 사이드바 = mode toggle + V_liquid + V_flask + 액체 종류.
+
+**결정**: vertical block field, 4-button mode toggle (`vapor-mode-btn`, is-active state, ws/real/vernier 진입 자연), guard-note 색 분기 (data-state ok/error), mmol 환산값 = 별도 `vapor-info-panel` 분리, typography 통일.
+
+**근거**: 보일·돌턴 패턴 검증 자산 재사용. 페이지 간 학생 인지 일관 (mode toggle + V 입력 동일 자세).
+
+**배제된 대안**: vapor 자체 변종 (페이지 간 학습 흐름 단절).
+
+#### 결정: setTemperature 안 EMA / dP reset 보강
+
+**배경**: 직전 T 변경 시 `_emaPrimed` / `_pressureSmoothedPrev` 미리셋 → evap 곡선 10초 lag (이전 EMA 잔존) + relChange jump (P_smoothed 누적값 초기화 누락).
+
+**결정**: `setTemperature()` 안 `_emaPrimed = false` + `_pressureSmoothedPrev = null` 추가.
+
+**근거**: T 변경 직후 evap 곡선 자연 step transition + 평형 검출 false positive 차단.
+
+**배제된 대안**: 시뮬 전체 reset (입자 손실), EMA 보존 (lag 그대로).
+
+(후일 fixup 15e 에서 EMA reset 폐기 — T 변경 시 EMA 보존, 자연 수렴. raw buf reset 만. 본 결정 = 시작 시점 prime 의도 한정.)
+
+### 2026-05-09 — base 튜닝 5분 평형 + 화살표 매칭 + ratio third cell (commit 027bd41, fixup 11)
+
+#### 한 일
+- `base_evap_rate_per_particle_per_sec`: 0.025 → **0.010**.
+- `ghost_gas_visible_ratio`: 0.2 → 0.4 (base ↓ 보강).
+- `rate_graph_initial_x_sec`: 60 → 180.
+- `pressure_per_visible_gas_kPa`: 0.03 → 0.06 (P plateau 의미 동일).
+- P 카드 큰 카드 폐기 → mock placeholder 회귀 (`vapor-real-only` div).
+- rate 카드 third cell — 응축/증발 비율 텍스트 + zone 색 (1.0 marker / 막대 / axis 폐기).
+- `_addFlash` 안 화살표 매칭 상쇄 (위·아래 1쌍 즉시 캔슬, 위치 무관).
+
+#### 결정: base rate 0.025 → 0.010 + 균형 조정 패키지 (5분 평형 정합)
+
+**배경**: 직전 평형 도달 ~70초 — 학교 실험 시간 정합 X. 사용자 명시 5분 평형 도달.
+
+**결정**: `base_evap_rate` 0.010 (95 surface × 0.010 ≈ 0.95/s). 균형 조정: visible_ratio 0.4 (시각 사건 부족 회피), 시간축 180s (자동 스케일 발동 줄임), P 단위 2배 (P plateau 의미 동일).
+
+**근거**: 학교 시간 (수업 50분) 안 평형 + 측정 + 추가 관찰 모두 가능. 패키지 조정 = 평형 시간만 변경, 시각 / 통계 안정 / P 표시 유지.
+
+**배제된 대안**: rate 만 0.010 (시각 사건 부족), 시간 가속 (학생 인지 부자연).
+
+#### 결정: rate 카드 third cell — ratio 텍스트 + zone 색 (P 카드 큰 카드 폐기)
+
+**배경**: 직전 fixup 10 ratio 큰 카드 (P 카드 placeholder slot, 큰 숫자 + 막대 + 1.0 marker) → 화면 폭 차지 vs 정보 밀도 대비 부적정. P 카드 mock placeholder 일관성 (정공법 회귀).
+
+**결정**: ratio 큰 카드 폐기. rate 카드 third cell (~85px) = 비율 텍스트 + zone 색만 (1.0 marker / 막대 / axis 폐기). 평형도 % cell 완전 폐기 (직전 fixup 9 hidden 상태 → fixup 11 third cell 자체 비율로 교체). P 카드 mock placeholder 회귀.
+
+**근거**: rate 카드 third cell = rate 옆 위치 = "두 곡선 + 비율" 동일 영역 = 학생 인지 통합. zone 색 = 정량 인지 충분. P 카드 mock placeholder = 정공법 일관.
+
+**배제된 대안**: 큰 카드 보존 (화면 부담), 비율 텍스트만 (zone 색 인지 손실).
+
+(후일 fixup 12 에서 P 카드 placeholder = T+P 카드 통합. 후일 fixup 15j P 영역 부활 — 단일 측정값 모드별 source 분기.)
+
+#### 결정: 화살표 매칭 상쇄 (위·아래 1쌍 즉시 캔슬)
+
+**배경**: 직전 화살표 (위 = evap, 아래 = cond) 양쪽 동시 표시 → 시각 인지 "동시 발생" 만, 빈도 차 시각 X.
+
+**결정**: `_addFlash` 안 신규 사건 시 반대 dir 큐 검사 → 1+개면 양쪽 캔슬 (제거 + spawn 안 함). 0개면 정상 spawn. 색 강조 (노랑/핑크) 별도 큐 (사건 자체 가시화 보존). rate 그래프 정량 절댓값 보존 (`_evapWin` / `_condWin` 매칭 영향 X).
+
+**근거**: 학습 계층 3단계 — 색 (사건) + 화살표 (빈도 차) + rate (정량). transient (evap >> cond): cond 큐 0 → 위 화살표 다수 → "증발 우세". 평형: 매칭 빈번 → 화살표 거의 X → "균형".
+
+**배제된 대안**: 화살표 두께 차등 (정량 X), 매칭 없음 (빈도 차 시각 X).
+
+(후일 fixup 15a v1~v3 매칭 진화 시도 → v4 매칭 자체 폐기, 자연 fade only — 17h-1c 범위.)
+
+### 2026-05-09 — T+P 카드 통합 + T number input + 반응형 (commits 2471cf2, d4aa4e9, fixup 12 + 11+12 integrated)
+
+#### 한 일
+- `2471cf2` (fixup 12): 우측 상단 T+P 통합 카드 (`vapor-card-tp`, T 영역 + 구분선 + P 영역). 시뮬 아래 T 슬라이더 폐기. T 입력 = 셀렉트 + 5 프리셋 grid.
+- `d4aa4e9` (fixup 11+12 integrated): T 셀렉트 → number input (소수점 허용 `step="0.1"`). 반응형 1024px / 768px 브레이크포인트.
+
+#### 결정: T+P 카드 통합 (우측 상단 = "센서 영역")
+
+**배경**: 직전 T 컨트롤 시뮬 아래 + P 카드 placeholder 분리 → 학생 인지 "T 와 P 가 다른 영역" 오해. real 모드 (Phase 6.3+) 진입 시 T 실측 + P 실측 같은 영역 자연 정합 필요.
+
+**결정**: `vapor-card-tp` (우측 상단). T 영역 (mock 입력 / real 표시) + 구분선 + P 영역 (mock placeholder / real 큰 숫자). DOM 보존 + `vapor-real-only` class 분기.
+
+**근거**: Johnstone 3수준 정합 — 우측 상단 = "센서 영역" (실측 데이터 자리, T + P 같은 카드). 학생 인지 = mock T 입력 시뮬 구동 → real 모드 자동 활성 (DOM 보존, hidden 토글). 시뮬 캔버스 height 자유도 ↑.
+
+**배제된 대안**: T 분리 (real 정합 X), P 카드 분리 (학생 인지 단절).
+
+#### 결정: T 입력 셀렉트 → number input (학생 임의 T)
+
+**배경**: 직전 T 입력 = 셀렉트 (5 프리셋 한정). 학교 실험 = 5 프리셋 외 T (예: 32.5°C) 측정 가능성.
+
+**결정**: number input (소수점 허용 `step="0.1"`) + 5 프리셋 (button click → input.value 동기화). input `change` + `blur` 이벤트: NaN/<0/>100 시 fallback (직전 유효값 `lastValidT` 또는 25). 유효 시 `world.setTemperature(T)` 호출.
+
+**근거**: 학생 임의 T 직접 입력 = 학교 실험 자세 정합. 5 프리셋 빠른 선택 보조.
+
+**배제된 대안**: 셀렉트 보존 (임의 T 입력 X), 슬라이더 회귀 (정확값 입력 어려움).
+
+(후일 fixup 14 에서 입력 버튼/Enter 확정 패턴 추가 — 매 keystroke 부담 회피, dirty state.)
+
+#### 결정: 반응형 break point 1024 / 768
+
+**배경**: 직전 데스크탑 가로 3열 layout 단독 — 태블릿/모바일 대응 X.
+
+**결정**: 데스크탑 (>1024) 가로 3열 / 태블릿 (768~1023) `vapor-top-row` flex-wrap → 카드 row wrap (50%×2) / 모바일 (<768) 모든 영역 세로 stack.
+
+**근거**: 보일/돌턴 페이지 미디어 쿼리 패턴 참조 = 페이지 간 일관성. `vapor-mode-toggle` 모바일 시 2-col 유지 = 4-button 시각 보존.
+
+**배제된 대안**: 데스크탑 단독 (학생 노트북 1366×768 일반, 태블릿 대응 필요).
+
+### 2026-05-09 — 평형 ratio 단일 metric + ★ 배지 mock 활성 (commit e2196f9, fixup 13)
+
+#### 한 일
+- `ratio = condEMA / evapEMA` 가 `[0.9, 1.1]` band 안 5초 (`equilibrium_hold_sec`) 유지 → 평형 도달.
+- ★ 배지 (시뮬 헤더) + ★ vertical line (rate 그래프) + zone 색 (rate 카드 third cell) 모두 단일 trigger.
+- mock 평형 ★ 배지 hidden 폐기 (fixup 9 비공개 결정 일부 폐기) — mock 활성. "평형 비도달 / 평형 근접 / 평형 도달 ★" 텍스트.
+- `equilibriumPercent` getter ratio 기반 갱신.
+- P_internal 변화율 코드 보존 (real 모드 재사용 의도).
+
+#### 결정: 평형 판정 = ratio 단일 metric (P_internal 변화율 폐기)
+
+**배경**: 사용자 검증 — rate 그래프 ★ 표지 + 비율 카드 색 모순 (★ 표시인데 비율 0.88 주황). 두 모듈 다른 logic. fixup 8~9 P_internal 변화율 + ratio zone 색 비동기.
+
+**결정**: `condEMA / evapEMA` 단일 metric. `[0.9, 1.1]` band 5초 유지. 모든 표지 (★ 배지 + ★ vertical line + zone 색) 동일 trigger.
+
+**근거**: 단일 metric = 학생 인지 일관 (배지 + ★ + 색 모순 X). ratio 1.0 = "두 속도가 같음" 직관 직결. P_internal 변화율 보존 = real 모드 재사용 (P_measured → P_internal 교체).
+
+**배제된 대안**: P_internal 변화율 보존 (모순 미해결), 양쪽 metric AND (false negative ↑).
+
+#### 결정: mock 평형 ★ 배지 활성 (fixup 9 비공개 일부 폐기)
+
+**배경**: fixup 9 모든 평형 표지 mock 비공개 결정 → fixup 13 단일 metric 으로 모순 X → 학생 인지 단서 보존 가치 ↑.
+
+**결정**: `vapor-equilibrium-badge` 의 `vapor-real-only hidden` 제거 → mock 활성. "평형 비도달 / 평형 근접 / 평형 도달 ★" 텍스트.
+
+**근거**: 단일 metric ratio = 모순 X. 학생 학습 = 평형 도달 인지 강화. P 카드 + 측정점 표 비공개 유지 (정공법 회귀 흐름 — 정량 측정은 실측 도착 후).
+
+**배제된 대안**: 모든 표지 mock hidden 보존 (학습 단서 손실), 평형도 % cell 부활 (P_internal 변화율 직접 노출 = 정공법 위배).
+
+(후일 fixup 15d hysteresis 4-state, fixup 15n 5-state + 학생 결정 도입 — sticky 평형 폐기, 이탈 추적 + dual-layer 회귀.)
+
+### 2026-05-09 — rate 워밍업 + T 입력 확정 패턴 (commit 5184bf2, fixup 14)
+
+#### 한 일
+- 첫 N tick 폐기 (`rate_warmup_ticks=2`). 워밍업 동안 `evapEMA / condEMA = null` → readout `"—"` 표시 + ratio cell zone "zero". rate 그래프 plot null skip. 평형 검출 자동 대기.
+- T 입력 직접 입력 → `is-dirty` state (input border 주황 + 입력 버튼 강조). 입력 버튼 click 또는 Enter 키 → 확정 (`applyTemperature`) + 시뮬 응답 + dirty 해제. 프리셋 button click → 즉시 동기화 + 확정.
+
+#### 결정: 첫 N tick 폐기 (EMA prime 잡음 박힘 부작용 해소)
+
+**배경**: 사용자 검증 — 시작 직후 evap rate 6.0 → 시간 따라 3.5 로 감소 (정상은 evap 일정). CC 진단: 첫 1초 적분 시 Poisson σ ≈ √8.8 ≈ ±2.97 → raw 6.0 = +2σ 부근 (5% 확률). fixup 9 EMA prime = 잡음값 그대로 박음 → τ_EMA = 10초 → 30~40초 후 정상값. **fixup 9 의 워밍업 lag 차단 의도가 부작용으로 잡음 prime → lag 방향만 바뀜.**
+
+**결정**: 첫 N tick (=2) 폐기 → 3번째 tick raw 만 prime + 정상 평활. 워밍업 동안 readout `"—"` 표시 + ratio zone "zero".
+
+**근거**: 첫 2 tick 폐기 = 3초 평균 σ √3 감소 후 prime → 잡음 ±0.69 로 감소. fixup 9 의 워밍업 lag 차단 의도 보존 (3초 후 시작) + 잡음 prime 부작용 해소.
+
+**배제된 대안 (decision table)**:
+- 옵션 (b) rate_calc_window 5초 확장 (첫 1초 잡음 그대로 — 효과 부분).
+- 옵션 (c) Adaptive α (잡음 prime 잔존 절반).
+- 옵션 (e) Incremental α (시각 부자연 — 단조 수렴 곡선).
+
+(후일 fixup 15a 에서 첫 N tick 평균 prime 으로 추가 강화.)
+
+#### 결정: T 입력 = 입력 버튼/Enter 확정 패턴 (매 keystroke 부담 회피)
+
+**배경**: 직전 fixup 11+12 integrated number input + change/blur 즉시 반영 = 학생 타이핑 중 (예: 32.5 → 32 → 3 단계별 입력) 매 keystroke 시뮬 반응 부담. 사용자 비판.
+
+**결정**: 직접 입력 → `is-dirty` state (border 주황 + 입력 버튼 강조). 입력 버튼 click 또는 Enter 키 → 확정 + dirty 해제. 프리셋 click → 즉시 동기화 + 확정 (빠른 선택 보존).
+
+**근거**: 학생 인지 명확 (dirty state = "확정 필요" 단서). 매 keystroke 부담 회피. 프리셋 즉시 반영 보존 = 빠른 선택 가치.
+
+**배제된 대안**: debounce 500ms (반응 지연 학생 인지 부자연), 매 change/blur 즉시 (학생 부담 + 의도 불명).
