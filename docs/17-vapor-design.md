@@ -176,6 +176,40 @@ MVP 외 후속 트랙 학습 목표:
 
 학습 목표 외 (액체 내부 분자 운동 정확 모델) 은 별 학습 자료로 분리.
 
+### 평형 판정 통일 — ratio 기반 단일 metric (fixup 13)
+
+직전 fixup 8~9 의 P_internal 변화율 기반 평형 판정 폐기.
+사용자 검증: rate 그래프 ★ 표지 + 비율 카드 색 모순 (★ 표시인데 비율 0.88 주황) → 두 모듈 다른 logic.
+
+**신규 평형 판정**:
+- ratio = condEMA / evapEMA 가 [`equilibrium_ratio_min`, `equilibrium_ratio_max`] = [0.9, 1.1] band 안 5초 (`equilibrium_hold_sec`) 유지 → 평형 도달.
+- band 외 진입 시 startIdx reset (sticky 도달 후는 보존).
+
+**모든 평형 표지 동일 조건 트리거**:
+- 비율 카드 third cell zone 색 ("eq" 녹색, fixup 11 ratio band 동일).
+- rate 그래프 ★ vertical line (`equilibriumReached` + `equilibriumIdx` 기반).
+- 시뮬 캔버스 헤더 "평형 도달 ★" 배지 (fixup 13 mock 활성).
+
+**mock 평형 배지 hidden 결정 폐기** (fixup 9 비공개 결정 일부 폐기):
+- `vapor-equilibrium-badge` 의 `vapor-real-only hidden` 제거 → mock 모드 활성.
+- "평형 비도달 / 평형 근접 / 평형 도달 ★" 텍스트 표시.
+- 단일 metric (ratio) 기반이므로 모순 X (직전 P_internal 모순 회피).
+
+**P 카드 + 측정점 표 비공개 유지** (정공법 회귀 흐름):
+- P 카드 mock placeholder 그대로.
+- `vapor-real-only` 측정점 표 그대로 hidden.
+
+**equilibriumPercent getter 갱신**:
+- ratio 기반 (1.0 일 때 100%, band 외 일수록 감소).
+- 직전 `_lastRelChange` 기반 폐기.
+
+**P_internal 변화율 코드 보존** (real 모드 재사용 가능):
+- `_pressureSmoothed`, `_pressureSmoothedPrev`, `_lastRelChange` 보존.
+- `equilibrium_change_threshold`, `equilibrium_warmup_sec` 보존 (real 모드에서 P_measured 변화율 기반 별도 판정 활용 여지).
+
+**vapor.js 헤더 docstring 갱신**:
+- fixup 13 활성 명세 + 폐기 항목 누적 (P_internal 변화율 평형 판정).
+
 ### T number input + 반응형 + fixup 11/12 통합 검증 (fixup 11+12 integrated)
 
 CC 진단 (직전 fixup 11 화살표 매칭 + fixup 12 T+P 카드 통합 모두 적용 확인) 후 사용자 추가 합의:
@@ -734,6 +768,8 @@ rate 그래프 y_max 5 (낮은 rate 정합), 평형 임계 0.5/s + min_evap 1.5/
 | 시뮬 아래 T 컨트롤 폐기 (fixup 12, 시각 정리) | 시뮬 캔버스 아래 = 시뮬 + 헤더 (시간/배지) 만으로 단순. T 컨트롤 우측 카드 안 셀렉트 + 5 프리셋 grid (보일/돌턴 패턴 재사용) 로 일관. 시뮬 height 자유도 ↑. | 슬라이더 보존 (T 연속 입력 — 학교 실험에서 5 프리셋 충분, fixup 11 base 0.010 정합), 시뮬 아래 + 카드 안 둘 다 (UI 중복) |
 | T 입력 = number input (fixup 11+12 integrated, 셀렉트 폐기) | 학생 임의 T 직접 입력 가능 (소수점 허용, 예: 32.5°C). 5 프리셋 보조로 빠른 선택. parseFloat + 범위 외 (NaN, < 0, > 100) fallback (직전 유효값 또는 25). 학교 실험에서 측정값 그대로 입력 시나리오 정합. | 셀렉트 5 옵션 (직전 fixup 12, 학생 임의 T 입력 차단), 슬라이더 (시뮬 아래 폐기 — fixup 12 결정 일관) |
 | 화면 반응형 (fixup 11+12 integrated, 1024/768 브레이크포인트) | 데스크탑 (>1024) 가로 3열, 태블릿 (768~1023) 사이드바 + 시뮬 가로 / 카드 row wrap, 모바일 (<768) 모든 영역 세로 stack. 보일/돌턴 페이지 미디어 쿼리 패턴 재사용. | 데스크탑 전용 (모바일 broken layout), 단일 브레이크포인트 (태블릿 어색) |
+| 평형 판정 = ratio 0.9~1.1 5초 유지 (fixup 13, 단일 metric) | 직전 P_internal 변화율 (★ 표지) + ratio band (zone 색) 두 모듈 모순 (★ 표시인데 비율 0.88 주황) 회피. ratio 단일 metric 으로 세 표지 (배지/★/zone) 동일 트리거 → 학생 인지 일관. P_internal 변화율 코드 보존 (real 모드 재사용 여지). | P_internal 변화율 유지 (모순 잔존), 두 metric AND 조건 (어느 하나 false 시 평형 미도달, 노이즈 잡힘) |
+| mock 평형 배지 활성 (fixup 13, fixup 9 비공개 결정 일부 폐기) | 단일 metric 모순 회피 후 표지 일관 → 비공개 이유 (모순 우려) 소멸. 학생 학습 단서 풍부화 (배지/★/zone 세 표지). P 카드 + 측정점 표는 비공개 유지 (정공법 회귀 흐름 — 정량 측정은 실측 도착 후). | 배지 비공개 유지 (학생 단서 부족), 모든 mock 비공개 결정 폐기 (P 카드/측정점도 활성 — 정공법 회귀 핵심 위배) |
 
 ---
 

@@ -1,18 +1,18 @@
 // =============================================================
 // vapor.js — 증기압 시뮬 본체
-// Phase 6.1-b finalization fixup 11+12 integrated (T number input + 반응형 + 화살표 매칭/T+P 통합 검증)
+// Phase 6.1-b finalization fixup 13 (평형 판정 통일 — ratio 기반 단일 metric)
 //
 // 핵심 철학 (정공법):
 //   학생 가시 = 실측 / 시뮬 = 미시 가시화 (정성적)
 //   우측 상단 = "센서 영역" (T + P 카드 통합, fixup 12)
-//     · mock 모드: T 입력 (number input + 5 프리셋, fixup 13) / P placeholder
-//                  학생 임의 T 직접 입력 (소수점 허용), 범위 외 fallback (직전 값 또는 25)
+//     · mock 모드: T 입력 (number input + 5 프리셋, fixup 11+12 integrated) / P placeholder
 //     · real 모드 (Phase 6.3+): T 실측 + P 실측 자동 표시 (DOM 보존, class 분기로 자연 전환)
-//   화면 반응형 (fixup 13): 1024px / 768px 브레이크포인트
-//     · 데스크탑 (>1024): 가로 3열 (제어 / 시뮬 / 카드)
-//     · 태블릿 (768~1023): 사이드바 + 시뮬 가로 / 카드 row wrap
-//     · 모바일 (<768): 모든 영역 세로 stack
-//   mock 모드: P 카드 placeholder / 측정점 표 / P-T 그래프 / 평형 ★ + 평형도 % 모두 비공개
+//   화면 반응형 (fixup 11+12 integrated): 1024px / 768px 브레이크포인트
+//   평형 판정 통일 (fixup 13): ratio = condEMA / evapEMA, [0.9, 1.1] band 5초 유지 → 평형
+//     · 모든 평형 표지 동일 트리거: 시뮬 헤더 배지 + rate 그래프 ★ vertical line + 비율 zone 색
+//     · mock 평형 배지 활성 (fixup 9 비공개 결정 일부 폐기)
+//     · P 카드 + 측정점 표 비공개 유지 (정공법 회귀 흐름)
+//   mock 모드: P 카드 placeholder / 측정점 표 / P-T 그래프 비공개 (평형 ★/배지/비율 zone 활성)
 //   mock 학생 단서 = (1) rate 카드 third cell 비율 (cond/evap EMA + zone 색)
 //                  (2) 화살표 매칭 상쇄 (위·아래 1쌍 캔슬 → 빈도 차 시각)
 //                  (3) 색 강조 (노랑/핑크) — 사건 자체 가시화
@@ -48,15 +48,17 @@
 //     · ratio = condEMA / evapEMA, 텍스트 + zone 색 분기
 //     · zone (zero/low/mid/eq/over), 1.0 도달 시 녹색 (eq) → 평형 인지
 //
-//   ── 평형 자동 감지 (mock 학생 가시 X — fixup 9) ──
-//     · 내부 P 변화율 기반 (real 진입 시 P_measured 자연 전환)
-//     · equilibriumReached / equilibriumPercent getter 보존 (real 모드 재사용)
+//   ── 평형 자동 감지 (fixup 13 — ratio 기반 단일 metric, mock 활성) ──
+//     · ratio = condEMA / evapEMA 가 [equilibrium_ratio_min, equilibrium_ratio_max] 안 holdSec 유지 → 평형
+//     · 시뮬 헤더 배지 (mock 활성) + rate 그래프 ★ + 비율 zone 색 = 동일 트리거
+//     · P_internal 변화율 평형 판정 폐기 (직전 fixup 8~9), 진단용 _lastRelChange 보존
+//     · equilibriumReached / equilibriumPercent getter 보존 (real 모드 재사용 가능)
 //
 //   ── setTemperature reset (fixup 10) ──
 //     · _emaPrimed = false, _pressureSmoothedPrev = null 추가
 //     · T 변경 시 evap 곡선 lag / relChange jump 회피
 //
-// 폐기 (fixup 누적 1~12 + 11/12 통합):
+// 폐기 (fixup 누적 1~13):
 //   · KE 결정적 게이트 + 1초 동기 재샘플 (fixup 3)
 //   · sliding window 60초 (fixup 6, 누적으로 변경)
 //   · evap_rate_per_particle_per_sec (fixup 4, Boltzmann 으로 대체)
@@ -272,12 +274,17 @@ class VaporWorld {
         return vaporInterpolatePvap(tbl, this.T_celsius);
     }
 
-    // 평형도 % — 시뮬 내부 P 변화율 기반 (real 진입 시 P_internal → P_measured 자연 전환)
-    // (1 - relChange / threshold) × 100, 0~100% 클램프
+    // 평형도 % — ratio 기반 (fixup 13, 평형 판정 통일과 동일 metric)
+    // 1.0 일 때 100%, ratio band 외 일수록 감소. 보존 (real 모드 재사용 가능).
     get equilibriumPercent() {
-        const relChange = this._lastRelChange ?? 1.0;
-        const threshold = this.cfg.equilibrium_change_threshold ?? 0.02;
-        return Math.max(0, Math.min(100, (1 - relChange / threshold) * 100));
+        if (this.evapEMA <= 0.05) return 0;
+        const ratio = this.condEMA / this.evapEMA;
+        const dist = Math.abs(ratio - 1.0);
+        const band = Math.max(
+            (this.cfg.equilibrium_ratio_max ?? 1.1) - 1.0,
+            1.0 - (this.cfg.equilibrium_ratio_min ?? 0.9)
+        );
+        return Math.max(0, Math.min(100, (1 - dist / band) * 100));
     }
 
     // 평형 도달 시간 (자동 감지 시 기록)
@@ -607,21 +614,23 @@ class VaporWorld {
             // index 무관 (eq line 은 max 도달 후에는 이미 한참 지난 시점이라 시각 영향 X)
         }
 
-        // 평형 검출 — 시뮬 내부 P 변화율 기반 (real 진입 시 자연 전환)
-        // |P_now - P_prev_1s| / P_now < threshold 가 holdSec 지속 → 평형
-        const threshold = this.cfg.equilibrium_change_threshold ?? 0.02;
+        // 평형 검출 — ratio = condEMA / evapEMA (fixup 13, 단일 metric)
+        // ratio 가 [eq_min, eq_max] 안 holdSec 지속 → 평형
+        // 직전 P_internal 변화율 기반 평형 판정 폐기 (★ 표지 + 비율 zone 색 모순 회피).
+        // P_internal 변화율 보존 (real 모드에서 P_measured 변화율 기반 별도 판정 가능).
+        const eqMin = this.cfg.equilibrium_ratio_min ?? 0.9;
+        const eqMax = this.cfg.equilibrium_ratio_max ?? 1.1;
         const holdSec = this.cfg.equilibrium_hold_sec ?? 5;
-        const warmupSec = this.cfg.equilibrium_warmup_sec ?? 10;
+        const ratio = (this.evapEMA > 0.05) ? (this.condEMA / this.evapEMA) : null;
+
+        // 진단용 P 변화율 보존 (real 모드 재사용)
         const dP = this._pressureSmoothed - (this._pressureSmoothedPrev ?? this._pressureSmoothed);
         this._lastRelChange = this._pressureSmoothed > 0.01
             ? Math.abs(dP) / this._pressureSmoothed
             : 1.0;
         this._pressureSmoothedPrev = this._pressureSmoothed;
 
-        const eqEligible =
-            this._lastRelChange < threshold &&
-            this.elapsedSec > warmupSec &&
-            this._pressureSmoothed > 0.1;
+        const eqEligible = ratio != null && ratio >= eqMin && ratio <= eqMax;
 
         if (eqEligible) {
             if (this.equilibriumStartIdx == null) {

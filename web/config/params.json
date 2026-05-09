@@ -125,9 +125,11 @@
         "rate_y_min": 1.0,
         "rate_y_auto_scale_factor": 1.2,
 
+        "equilibrium_ratio_min": 0.9,
+        "equilibrium_ratio_max": 1.1,
+        "equilibrium_hold_sec": 5.0,
         "equilibrium_change_threshold": 0.02,
         "equilibrium_warmup_sec": 10,
-        "equilibrium_hold_sec": 5.0,
         "p_internal_ema_alpha": 0.05,
 
         "pressure_per_visible_gas_kPa": 0.06,

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CAST — 증기압 (Phase 6.1-b finalization fixup 11+12 integrated + 6.2 부분)</title>
+    <title>CAST — 증기압 (Phase 6.1-b finalization fixup 13 + 6.2 부분)</title>
     <link rel="stylesheet" href="css/style.css">
     <script src="https://cdn.jsdelivr.net/npm/p5@1.11.2/lib/p5.min.js"></script>
     <script src="https://unpkg.com/docx@8.5.0/build/index.umd.js"></script>
@@ -22,7 +22,7 @@
 <body data-page="vapor">
     <nav class="page-nav vapor-nav">
         <a href="index.html" class="nav-home" title="홈으로 돌아가기">🏠 홈으로</a>
-        <span class="nav-title">증기압 — Phase 6.1-b finalization fixup 11+12 integrated + 6.2 (T 통합)</span>
+        <span class="nav-title">증기압 — Phase 6.1-b finalization fixup 13 + 6.2 (T 통합)</span>
     </nav>
 
     <div id="vapor-layout-v2" class="vapor-layout-v2">
@@ -90,8 +90,8 @@
                     <span class="vapor-sim-elapsed">
                         ⏱ <span id="vapor-elapsed-time">—</span>
                     </span>
-                    <!-- 평형 배지 — mock 학생 가시 X (real 모드 진입 시 hidden 해제) -->
-                    <span id="vapor-equilibrium-badge" class="vapor-eq-badge vapor-real-only" data-state="no" hidden>
+                    <!-- 평형 배지 — mock 모드 활성 (fixup 13, ratio 기반 평형 판정 통일) -->
+                    <span id="vapor-equilibrium-badge" class="vapor-eq-badge" data-state="no">
                         평형 비도달
                     </span>
                 </header>
