@@ -176,6 +176,37 @@ MVP 외 후속 트랙 학습 목표:
 
 학습 목표 외 (액체 내부 분자 운동 정확 모델) 은 별 학습 자료로 분리.
 
+### 정공법 회귀 (fixup 8) — 시뮬은 미시 가시화만
+
+본 프로젝트 핵심 철학 ("학생 가시 = 실측, 시뮬 = 미시 가시화") 정합. 시뮬 P 정량 정합 시도 폐기.
+
+**Calibration 폐기**:
+- `pressure_to_evap_calibration` 키 삭제.
+- `evap_rate(T) = base × exp(E_a × (1 - T_ref/T))` — 단순 Boltzmann factor 만.
+- 시뮬 P plateau 가 P_eq(T) 와 정합 안 해도 OK (정량 비교는 실측 도착 후).
+
+**학생 가시 P 카드 = mock 모드 비공개**:
+- vapor.html `vapor-card-pvap` 안 placeholder ("측정 모드 활성 후 표시").
+- 기존 P 큰 숫자 + 막대 + 이론 비교 DOM 은 `vapor-real-only` div 로 wrap + `hidden` 속성.
+- Phase 6.3+ 실센서/Vernier 모드 진입 시 hidden 해제 → 실측 P 표시.
+
+**측정점 표 / P-T 그래프 = mock 모드 비공개**:
+- vapor.html `vapor-measurement-region` 안 placeholder ("실측 모드 활성 후 사용 가능").
+- 기존 측정점 표 + P-T 캔버스 DOM 은 `vapor-real-only` div 로 wrap.
+- mock 단계 학습 활동 = 시뮬 사건 관찰 (입자, flash, 화살표, 색 강조). 정량 측정 X.
+
+**평형 감지 = 시뮬 내부 P 변화율 (P_internal)**:
+- P_internal = (visible_gas + ghost_gas) × 0.1 × pressure_per_visible_gas (ghost 결합 통계로 잡음 흡수).
+- P_internal_EMA 매 frame (alpha=`p_internal_ema_alpha`=0.05).
+- 매 1초 `|dP/dt| / P` < `equilibrium_change_threshold` (=0.02 = 2%/s) 가 `equilibrium_hold_sec` (=5초) 지속 + warmup (=10초) 후 → 평형 도달.
+- 평형도 % = `(1 - relChange / threshold) × 100`, 0~100% 클램프.
+- real 모드 진입 시: P_internal → P_measured 입력 교체, 평형 감지 모듈 재사용.
+
+**색 강조 형광 (노랑/핑크)**:
+- 막 등장 가시 가스 = 노랑 #FCD34D 전체 색, 1.5초 hold + 0.5초 fade. stroke 4.5 px + glow blur 25.
+- 막 응결 격자 = 핑크 #F472B6 전체 색, 1.5초 hold + 0.5초 fade. stroke 4.5 px + glow blur 25 + 외곽 펄스 (반경 r+1 → 24 px, 1초).
+- 직전 청 stroke / 주황 ring 폐기 — 더 확연한 시각 강조 (학생 시선 자연 유도).
+
 ### Ghost 입자 — 통계 안정성 (fixup 7, 보일 패턴 재사용)
 
 기체 입자 ~50 → 통계 잡음 (Poisson 상대 오차 ~14%) → 평형도 % 널뜀.

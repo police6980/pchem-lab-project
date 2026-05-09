@@ -49,7 +49,7 @@
     },
 
     "vapor": {
-        "_comment": "Phase 6.1-b finalization fixup 7. 사용자 통찰: 보일 시뮬 ghost 패턴 도입 → 통계 안정성. ghost 표면 800 + ghost 가스 (가시 X). 가시 + ghost 모두 Boltzmann 게이트. 매 evap 시 visible_ratio (=0.1) 로 가시 vs ghost 분기. 통계 결합 (visible + ghost) × 0.1 = visible-equivalent → 잡음 √0.1 ≈ 3.16× 감소. P_EMA 매 frame (alpha=0.05) 추가 평활. 평형도 = |P_EMA - P_eq| / P_eq 잡음 X.",
+        "_comment": "Phase 6.1-b finalization 정공법 회귀 (fixup 8). 사용자 합의: (X) 시뮬 P 정량 정합 시도 폐기 (calibration 폐기), (b) 학생 가시 P 카드 = 측정 모드 활성 후 표시 (mock 비공개), (α) 평형도 = 시뮬 내부 P 변화율 기반 (real 진입 시 P_internal → P_measured 자연 전환), 색 강조 형광 노랑/핑크. 본 프로젝트 핵심 철학 (학생 가시 = 실측, 시뮬 = 미시 가시화) 정합. ghost 패턴 (fixup 7) 유지.",
         "V_flask_presets_mL": [100, 250, 500],
         "V_flask_default_mL": 250,
         "V_liquid_default_mL": 50,
@@ -74,7 +74,6 @@
         "reference_T_celsius": 25.0,
         "base_evap_rate_per_particle_per_sec": 0.025,
         "E_a_normalized": 18.3,
-        "pressure_to_evap_calibration": 1.0,
         "E_capture": 2.5,
 
         "ghost_surface_count": 800,
@@ -104,14 +103,19 @@
         "flash_arrow_length_px": 40,
         "flash_arrow_thickness_px": 3.5,
 
-        "gas_birth_highlight_duration_sec": 2.5,
-        "gas_birth_stroke_start_px": 3.5,
-        "gas_birth_stroke_end_px": 0.5,
-        "gas_birth_highlight_color": "#2563EB",
+        "gas_birth_color_fluorescent": "#FCD34D",
+        "gas_birth_fluor_hold_sec": 1.5,
+        "gas_birth_fluor_fade_sec": 0.5,
+        "gas_birth_stroke_px": 4.5,
+        "gas_birth_glow_blur_px": 25,
 
-        "condense_highlight_duration_sec": 2.5,
-        "condense_highlight_stroke_px": 3.5,
-        "condense_highlight_color": "#EA580C",
+        "condense_grid_color_fluorescent": "#F472B6",
+        "condense_grid_fluor_hold_sec": 1.5,
+        "condense_grid_fluor_fade_sec": 0.5,
+        "condense_grid_stroke_px": 4.5,
+        "condense_grid_glow_blur_px": 25,
+        "condense_pulse_radius_max_px": 24,
+        "condense_pulse_duration_sec": 1.0,
 
         "rate_graph_initial_x_sec": 60,
         "rate_graph_max_time_sec": 1800,
@@ -122,9 +126,10 @@
         "rate_y_min": 1.0,
         "rate_y_auto_scale_factor": 1.2,
 
-        "equilibrium_threshold_pressure": 0.05,
+        "equilibrium_change_threshold": 0.02,
+        "equilibrium_warmup_sec": 10,
         "equilibrium_hold_sec": 5.0,
-        "p_vap_ema_alpha": 0.05,
+        "p_internal_ema_alpha": 0.05,
 
         "pressure_per_visible_gas_kPa": 0.06,
         "pressure_gauge_max_kPa": 30,
@@ -156,6 +161,6 @@
         },
 
         "water_mol_per_mL": 0.05551,
-        "_units_note": "Ghost 패턴 (보일 시뮬 재사용) — 통계 안정성: ghost_surface_count=800 + visible 80 = 880 표면 모두 Boltzmann 게이트. 매 evap 시 visible_ratio=0.1 로 visible vs ghost 분기. 통계 결합 (visible + ghost) × 0.1 = visible-equivalent → 잡음 √0.1 ≈ 0.32× (즉 약 3.16× 감소). 압력: P = (visible_gas + ghost_gas) × 0.1 × pressure_per_visible_gas (=0.06 kPa/입자). T=25°C plateau ~50 visible-equivalent gas → 3 kPa. T=45°C → ~9.5 kPa, T=65°C → ~25 kPa (Boltzmann factor exp(E_a × (1 - T_ref/T)) × calibration 1.0). P_EMA 매 frame (alpha=p_vap_ema_alpha=0.05) 추가 평활. 평형 검출 = |P_EMA - P_eq(T)| / P_eq < 0.05 가 5초 지속 + P_EMA > 0.5 × P_eq. rate 그래프: 시작부터 누적, x 자동 스케일 0 ~ max(60, current_sec). y 자동 스케일 max × 1.2, 최소 1.0. 시각 (finalization): canvas 800×480 강제 고정, stroke 3.5 px / duration 2.5 s / flash 18→2 px / 1.0 s / arrow 40 px × 3.5 px / liquid #1E40AF + opacity 0.92 / surface opacity 0.55. ghost 가스: 충돌 X (O(N²) 부담 회피), 중력+점성+벽+천장 KE 손실만. 격자 N 자동."
+        "_units_note": "정공법 회귀: 시뮬 P 정량 정합 시도 폐기 (calibration 폐기). evap_rate(T) = base × exp(E_a × (1 - T_ref/T)) — 단순 Boltzmann factor 만. 학생 가시 P 카드 = 'mock 모드 비공개'. 평형 감지 = 시뮬 내부 P 변화율 (real 진입 시 P_internal → P_measured 자연 전환). P_internal = (visible_gas + ghost_gas) × 0.1 × pressure_per_visible_gas (잡음 흡수 위해 ghost 결합 통계 유지). P_internal_EMA 매 frame (alpha=0.05). 매 1초 |P_now - P_prev| / P_now < equilibrium_change_threshold (=0.02 = 2%/s) 가 equilibrium_hold_sec (=5초) 지속 + warmup (=10초) 후 + P_now > 0.1 → 평형 도달. 평형도 % = (1 - relChange / threshold) × 100. 색 강조 형광: 막 등장 가시 가스 = 노랑 #FCD34D 1.5초 hold + 0.5초 fade (stroke 4.5 px + glow blur 25). 막 응결 격자 = 핑크 #F472B6 1.5초 hold + 0.5초 fade + 외곽 펄스 (반경 r+1 → 24 px, 1초). flash 18→2 px / 1.0 s / 화살표 40 px × 3.5 px (그대로). 캔버스 800×480 고정. ghost 패턴 (fixup 7) 유지 — 통계 안정성. liquids.water.p_vap_table 은 real 모드 진입 후 비교용 (mock 비공개)."
     }
 }

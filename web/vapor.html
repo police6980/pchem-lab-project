@@ -115,19 +115,26 @@
             <!-- 우: 영역 2 — 3 카드 -->
             <aside id="vapor-cards-region" class="vapor-cards-region" aria-label="측정 카드">
 
-                <!-- 평형 P_vap 카드 -->
+                <!-- 평형 P_vap 카드 — mock 모드 비공개, real 모드 활성 -->
                 <section class="vapor-card vapor-card-pvap">
                     <h4>평형 증기압 P<sub>vap</sub></h4>
-                    <div class="vapor-pvap-big">
-                        <span id="vapor-pressure-val">—</span>
-                        <small>kPa</small>
+                    <div class="vapor-mock-placeholder">
+                        <div class="vapor-mock-icon">📡</div>
+                        <div class="vapor-mock-text">측정 모드 활성 후 표시</div>
+                        <div class="vapor-mock-hint">Phase 6.3+ 실센서/Vernier 연결 시 활성화</div>
                     </div>
-                    <div class="vapor-pressure-bar-wrap" aria-hidden="true">
-                        <div id="vapor-pressure-bar" class="vapor-pressure-bar"></div>
-                    </div>
-                    <div class="vapor-pvap-meta">
-                        <span>이론 <strong><span id="vapor-pressure-theoretical">—</span> kPa</strong></span>
-                        <span>· 도달 <span id="vapor-eq-reach-time">—</span></span>
+                    <div class="vapor-real-only" hidden>
+                        <div class="vapor-pvap-big">
+                            <span id="vapor-pressure-val">—</span>
+                            <small>kPa</small>
+                        </div>
+                        <div class="vapor-pressure-bar-wrap" aria-hidden="true">
+                            <div id="vapor-pressure-bar" class="vapor-pressure-bar"></div>
+                        </div>
+                        <div class="vapor-pvap-meta">
+                            <span>이론 <strong><span id="vapor-pressure-theoretical">—</span> kPa</strong></span>
+                            <span>· 도달 <span id="vapor-eq-reach-time">—</span></span>
+                        </div>
                     </div>
                 </section>
 
@@ -170,40 +177,47 @@
             </aside>
         </div>
 
-        <!-- ====== 영역 3 — 측정점 표 + P-T 그래프 (전체 폭) ====== -->
+        <!-- ====== 영역 3 — 측정점 표 + P-T 그래프 (mock 비공개, real 활성) ====== -->
         <section id="vapor-measurement-region" class="vapor-measurement-region" aria-label="측정점 누적 + P-T 그래프">
-            <div class="vapor-measure-table-wrap">
-                <div class="vapor-measure-header">
-                    <h3>측정점</h3>
-                    <button type="button" id="vapor-btn-record" class="vapor-record-btn" disabled>
-                        ⊕ 평형 P 기록
-                    </button>
-                    <button type="button" id="vapor-btn-clear-points" class="vapor-clear-btn" disabled>
-                        측정점 초기화
-                    </button>
-                </div>
-                <table class="vapor-measure-table" id="vapor-measure-table">
-                    <thead>
-                        <tr>
-                            <th>#</th>
-                            <th>T (°C)</th>
-                            <th>P<sub>vap</sub> (kPa)</th>
-                            <th>도달 (s)</th>
-                            <th>이론 (kPa)</th>
-                            <th></th>
-                        </tr>
-                    </thead>
-                    <tbody id="vapor-measure-tbody">
-                        <tr class="vapor-measure-empty"><td colspan="6">아직 측정점이 없습니다. 평형 도달 후 [기록] 버튼을 누르세요.</td></tr>
-                    </tbody>
-                </table>
+            <div class="vapor-mock-placeholder vapor-mock-placeholder-wide">
+                <div class="vapor-mock-icon">📊</div>
+                <div class="vapor-mock-text">실측 모드 활성 후 사용 가능</div>
+                <div class="vapor-mock-hint">Phase 6.3+ 실센서/Vernier 연결 시 측정점 누적 + P-T 그래프 활성화. 현재 mock 모드는 시뮬 사건 관찰 (정량 측정 X) 학습 활동입니다.</div>
             </div>
-            <div class="vapor-pt-graph-wrap">
-                <h3>P-T 그래프</h3>
-                <canvas id="vapor-pt-graph-canvas" width="380" height="240"></canvas>
-                <p class="vapor-card-note">
-                    회색 점선 = 이론 곡선 (실측 표) · 파란 점 = 측정값 · 4점 이상 시 측정점 연결.
-                </p>
+            <div class="vapor-real-only" hidden>
+                <div class="vapor-measure-table-wrap">
+                    <div class="vapor-measure-header">
+                        <h3>측정점</h3>
+                        <button type="button" id="vapor-btn-record" class="vapor-record-btn" disabled>
+                            ⊕ 평형 P 기록
+                        </button>
+                        <button type="button" id="vapor-btn-clear-points" class="vapor-clear-btn" disabled>
+                            측정점 초기화
+                        </button>
+                    </div>
+                    <table class="vapor-measure-table" id="vapor-measure-table">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>T (°C)</th>
+                                <th>P<sub>vap</sub> (kPa)</th>
+                                <th>도달 (s)</th>
+                                <th>이론 (kPa)</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody id="vapor-measure-tbody">
+                            <tr class="vapor-measure-empty"><td colspan="6">아직 측정점이 없습니다. 평형 도달 후 [기록] 버튼을 누르세요.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="vapor-pt-graph-wrap">
+                    <h3>P-T 그래프</h3>
+                    <canvas id="vapor-pt-graph-canvas" width="380" height="240"></canvas>
+                    <p class="vapor-card-note">
+                        회색 점선 = 이론 곡선 (실측 표) · 파란 점 = 측정값 · 4점 이상 시 측정점 연결.
+                    </p>
+                </div>
             </div>
         </section>
     </div>

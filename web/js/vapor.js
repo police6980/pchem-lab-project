@@ -171,6 +171,8 @@ class VaporWorld {
         this.equilibriumIdx = null;
         this._equilibriumReachedAtSec = null;
         this._pressureSmoothed = 0;
+        this._pressureSmoothedPrev = null;
+        this._lastRelChange = 1.0;
 
         // mmol 계산
         this.N_total = this.liquidLattice.length + this.surfaceParticles.length;
@@ -211,15 +213,14 @@ class VaporWorld {
         // pressure EMA 는 그대로 — 새 plateau 도달까지 자연 추적
     }
 
-    // Boltzmann factor: rate(T) = base × exp(E_a × (1 - T_ref/T)) × calibration
-    // calibration = 거시 보정 (실제 plateau 가 P_eq(T) 어긋날 때 multiplicative 조정)
+    // Boltzmann factor: rate(T) = base × exp(E_a × (1 - T_ref/T))
+    // 정공법 회귀 — calibration 폐기. 시뮬 P 정량 정합 시도 X.
     evapRatePerParticlePerSec() {
         const base = this.cfg.base_evap_rate_per_particle_per_sec ?? 0.025;
         const E_a = this.cfg.E_a_normalized ?? 18.3;
         const T_ref_K = (this.cfg.reference_T_celsius ?? 25.0) + 273.15;
         const T_K = this.T_celsius + 273.15;
-        const calibration = this.cfg.pressure_to_evap_calibration ?? 1.0;
-        return base * Math.exp(E_a * (1 - T_ref_K / T_K)) * calibration;
+        return base * Math.exp(E_a * (1 - T_ref_K / T_K));
     }
 
     // 이론 p_vap (현재 T 와 액체 종류 기반 표 보간)
@@ -228,13 +229,12 @@ class VaporWorld {
         return vaporInterpolatePvap(tbl, this.T_celsius);
     }
 
-    // 평형도 % (P 기반 — 1 - |P_now - P_eq| / P_eq, 잡음 X)
+    // 평형도 % — 시뮬 내부 P 변화율 기반 (real 진입 시 P_internal → P_measured 자연 전환)
+    // (1 - relChange / threshold) × 100, 0~100% 클램프
     get equilibriumPercent() {
-        const P_eq = this.theoreticalPVap_kPa;
-        if (!P_eq || P_eq <= 0) return 0;
-        const P_now = this._pressureSmoothed > 0 ? this._pressureSmoothed : this.pressureKPa;
-        const relDiff = Math.abs(P_now - P_eq) / P_eq;
-        return Math.max(0, Math.min(100, (1 - relDiff) * 100));
+        const relChange = this._lastRelChange ?? 1.0;
+        const threshold = this.cfg.equilibrium_change_threshold ?? 0.02;
+        return Math.max(0, Math.min(100, (1 - relChange / threshold) * 100));
     }
 
     // 평형 도달 시간 (자동 감지 시 기록)
@@ -282,8 +282,8 @@ class VaporWorld {
         // 4) 응축 게이트
         this._evalCondensation();
 
-        // 5) 매 frame P_EMA 업데이트 (alpha=p_vap_ema_alpha, 잡음 흡수)
-        const P_alpha = this.cfg.p_vap_ema_alpha ?? 0.05;
+        // 5) 매 frame P_internal EMA (alpha=p_internal_ema_alpha, 평형 검출용 잡음 흡수)
+        const P_alpha = this.cfg.p_internal_ema_alpha ?? this.cfg.p_vap_ema_alpha ?? 0.05;
         this._pressureSmoothed = P_alpha * this.pressureKPa + (1 - P_alpha) * this._pressureSmoothed;
 
         // 6) 매 1초: rate 샘플 + stats log
@@ -563,17 +563,23 @@ class VaporWorld {
             // index 무관 (eq line 은 max 도달 후에는 이미 한참 지난 시점이라 시각 영향 X)
         }
 
-        // (P_EMA 는 update() per-frame 으로 이동 — 매 frame 잡음 흡수)
-
-        // 평형 검출 — 거시 (P 기반 |P_now - P_eq| / P_eq < threshold, 잡음 X)
-        const threshold = this.cfg.equilibrium_threshold_pressure ?? 0.05;
+        // 평형 검출 — 시뮬 내부 P 변화율 기반 (real 진입 시 자연 전환)
+        // |P_now - P_prev_1s| / P_now < threshold 가 holdSec 지속 → 평형
+        const threshold = this.cfg.equilibrium_change_threshold ?? 0.02;
         const holdSec = this.cfg.equilibrium_hold_sec ?? 5;
-        const P_eq = this.theoreticalPVap_kPa;
-        const P_min = (P_eq != null && P_eq > 0) ? P_eq * 0.5 : Infinity;
-        const relDiff = (P_eq != null && P_eq > 0)
-            ? Math.abs(this._pressureSmoothed - P_eq) / P_eq
+        const warmupSec = this.cfg.equilibrium_warmup_sec ?? 10;
+        const dP = this._pressureSmoothed - (this._pressureSmoothedPrev ?? this._pressureSmoothed);
+        this._lastRelChange = this._pressureSmoothed > 0.01
+            ? Math.abs(dP) / this._pressureSmoothed
             : 1.0;
-        if (relDiff < threshold && this._pressureSmoothed > P_min) {
+        this._pressureSmoothedPrev = this._pressureSmoothed;
+
+        const eqEligible =
+            this._lastRelChange < threshold &&
+            this.elapsedSec > warmupSec &&
+            this._pressureSmoothed > 0.1;
+
+        if (eqEligible) {
             if (this.equilibriumStartIdx == null) {
                 this.equilibriumStartIdx = this.rateHistory.length - 1;
             } else if (!this.equilibriumReached) {
@@ -584,7 +590,7 @@ class VaporWorld {
                     this._equilibriumReachedAtSec = this.elapsedSec;
                 }
             }
-        } else if (relDiff >= threshold && !this.equilibriumReached) {
+        } else if (!this.equilibriumReached) {
             this.equilibriumStartIdx = null;
         }
 
@@ -655,55 +661,112 @@ class VaporWorld {
             p.circle(sp.x, sp.y, r * 2);
         }
 
-        // Gas particles — 막 나온 입자는 청 테두리 강조 (2초 페이드)
+        // Gas particles — 막 나온 입자는 형광 노랑 전체 색 (1.5s hold + 0.5s fade) + glow
         const gasR = this.gasRadius;
         const ssq = this.gasSpeedScale * this.gasSpeedScale;
-        const birthDur = (cfg.gas_birth_highlight_duration_sec ?? 2.0) * 1000;
-        const strokeStart = cfg.gas_birth_stroke_start_px ?? 2.5;
-        const strokeEnd = cfg.gas_birth_stroke_end_px ?? 0.5;
-        const birthColorStr = cfg.gas_birth_highlight_color || "#2563EB";
+        const fluorYellowStr = cfg.gas_birth_color_fluorescent || "#FCD34D";
+        const holdMs = (cfg.gas_birth_fluor_hold_sec ?? 1.5) * 1000;
+        const fadeMs = (cfg.gas_birth_fluor_fade_sec ?? 0.5) * 1000;
+        const totalMs = holdMs + fadeMs;
+        const fluorStrokePx = cfg.gas_birth_stroke_px ?? 4.5;
+        const fluorBlur = cfg.gas_birth_glow_blur_px ?? 25;
         const now = performance.now();
         for (const g of this.gasParticles) {
             const ke = 0.5 * (g.vx * g.vx + g.vy * g.vy) / ssq;
-            p.fill(vaporColorFromKE(p, ke, slow, fast, keMin, keMax));
+            const baseCol = vaporColorFromKE(p, ke, slow, fast, keMin, keMax);
             const ageMs = now - (g.birth_time || 0);
-            if (ageMs < birthDur) {
-                const t = ageMs / birthDur;
-                const sw = strokeStart + (strokeEnd - strokeStart) * t;
-                const stCol = p.color(birthColorStr);
-                stCol.setAlpha((1 - t) * 255);
+            let fillCol;
+            let fluorAlpha = 0;
+            if (ageMs < holdMs) {
+                fillCol = p.color(fluorYellowStr);
+                fluorAlpha = 1.0;
+            } else if (ageMs < totalMs) {
+                const t = (ageMs - holdMs) / fadeMs;
+                fillCol = p.lerpColor(p.color(fluorYellowStr), baseCol, t);
+                fluorAlpha = 1 - t;
+            } else {
+                fillCol = baseCol;
+                fluorAlpha = 0;
+            }
+
+            if (fluorAlpha > 0) {
+                if (p.drawingContext) {
+                    p.drawingContext.shadowColor = fluorYellowStr;
+                    p.drawingContext.shadowBlur = fluorBlur * fluorAlpha;
+                }
+                const stCol = p.color(fluorYellowStr);
+                stCol.setAlpha(fluorAlpha * 255);
                 p.stroke(stCol);
-                p.strokeWeight(sw);
+                p.strokeWeight(fluorStrokePx);
             } else {
                 p.noStroke();
+                if (p.drawingContext) {
+                    p.drawingContext.shadowBlur = 0;
+                }
             }
+            p.fill(fillCol);
             p.circle(g.x, g.y, gasR * 2);
         }
+        // Reset state after gas loop
+        if (p.drawingContext) p.drawingContext.shadowBlur = 0;
         p.noStroke();
     }
 
-    // ── Condense location markers (표면 격자에 주황 ring 2초 페이드) ──
+    // ── Condense location markers (표면 격자에 형광 핑크 전체 색 + 외곽 펄스) ──
     drawCondenseHighlights(p) {
         const cfg = this.cfg;
-        const duration = (cfg.condense_highlight_duration_sec ?? 2.0) * 1000;
-        const sw = cfg.condense_highlight_stroke_px ?? 2.5;
-        const colorStr = cfg.condense_highlight_color || "#EA580C";
+        const holdMs = (cfg.condense_grid_fluor_hold_sec ?? 1.5) * 1000;
+        const fadeMs = (cfg.condense_grid_fluor_fade_sec ?? 0.5) * 1000;
+        const totalMs = holdMs + fadeMs;
+        const sw = cfg.condense_grid_stroke_px ?? 4.5;
+        const blur = cfg.condense_grid_glow_blur_px ?? 25;
+        const colorStr = cfg.condense_grid_color_fluorescent || "#F472B6";
+        const pulseDur = (cfg.condense_pulse_duration_sec ?? 1.0) * 1000;
+        const pulseRMax = cfg.condense_pulse_radius_max_px ?? 24;
         const ringR = this.r + 1;
         const now = performance.now();
         const remain = [];
-        p.noFill();
+
         for (const ch of this.condenseHighlights) {
             const elapsed = now - ch.t_start;
-            if (elapsed >= duration) continue;
-            const t = elapsed / duration;
-            const alpha = (1 - t) * 255;
-            const col = p.color(colorStr);
-            col.setAlpha(alpha);
-            p.stroke(col);
+            if (elapsed >= totalMs) continue;
+
+            // 외곽 펄스 (반경 r+1 → pulseRMax, 1초)
+            if (elapsed < pulseDur) {
+                const pt = elapsed / pulseDur;
+                const pulseR = ringR + pt * (pulseRMax - ringR);
+                const pulseCol = p.color(colorStr);
+                pulseCol.setAlpha((1 - pt) * 200);
+                p.noFill();
+                p.stroke(pulseCol);
+                p.strokeWeight(2);
+                if (p.drawingContext) p.drawingContext.shadowBlur = 0;
+                p.circle(ch.x, ch.y, pulseR * 2);
+            }
+
+            // 내부 형광 핑크 (1.5s hold + 0.5s fade) + glow + stroke
+            let fillAlpha = 1.0;
+            if (elapsed > holdMs) {
+                fillAlpha = 1 - (elapsed - holdMs) / fadeMs;
+            }
+            const fillCol = p.color(colorStr);
+            fillCol.setAlpha(fillAlpha * 255);
+            const strokeCol = p.color(colorStr);
+            strokeCol.setAlpha(fillAlpha * 255);
+            if (p.drawingContext) {
+                p.drawingContext.shadowColor = colorStr;
+                p.drawingContext.shadowBlur = blur * fillAlpha;
+            }
+            p.stroke(strokeCol);
             p.strokeWeight(sw);
+            p.fill(fillCol);
             p.circle(ch.x, ch.y, ringR * 2);
+
             remain.push(ch);
         }
+        // Reset state
+        if (p.drawingContext) p.drawingContext.shadowBlur = 0;
+        p.noStroke();
         this.condenseHighlights = remain;
     }
 

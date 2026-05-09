@@ -4091,3 +4091,33 @@ body[data-page="vapor"] #vapor-pt-graph-canvas {
     width: 380px;
     height: 240px;
 }
+
+/* Mock 모드 placeholder (정공법 회귀 — 실측 도착 후 활성) */
+body[data-page="vapor"] .vapor-mock-placeholder {
+    text-align: center;
+    padding: 20px 14px;
+    background: #f8fafc;
+    border: 1px dashed #cbd5e1;
+    border-radius: 6px;
+    color: #94a3b8;
+}
+body[data-page="vapor"] .vapor-mock-placeholder-wide {
+    padding: 36px 20px;
+}
+body[data-page="vapor"] .vapor-mock-icon {
+    font-size: 24px;
+    margin-bottom: 6px;
+    opacity: 0.6;
+}
+body[data-page="vapor"] .vapor-mock-text {
+    font-size: 13px;
+    font-weight: 500;
+    color: #64748b;
+    margin: 0 0 4px 0;
+}
+body[data-page="vapor"] .vapor-mock-hint {
+    font-size: 11px;
+    color: #94a3b8;
+    line-height: 1.5;
+    margin: 0;
+}
