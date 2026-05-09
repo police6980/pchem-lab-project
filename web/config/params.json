@@ -49,7 +49,7 @@
     },
 
     "vapor": {
-        "_comment": "Phase 6.1-b sub-step B-2 final fixup 3. 사용자 통찰: '평균 속력만 일정하면 됨, KE 시뮬 폐기'. 1초 동기 KE 재샘플 + 일괄 게이트 폐기 → 비동기 Poisson 사건 모델. 매 frame 각 표면 입자 독립 평가 (random() < base_rate × dt). 표면 KE 변수 = 색 매핑용만 (smooth random walk, 1초 펄스 X). 폐기: kT_surface, E_escape, surface_KE_resample_sec. 신규: evap_rate_per_particle_per_sec, surface_KE_visual_*. 유지: E_capture, 색 매핑, flash, gas 물리 (중력·점성·천장).",
+        "_comment": "Phase 6.1-b sub-step B-2 final fixup 4. 사용자 결정 통합: (1) 표면 입자 반투명, (2) 증발/응축 flash + 화살표, (3) 시뮬 시간 척도 = 학교 실험 (평형 2~3분), (4) 경과 시간 표시. 시간 척도 정합: evap_rate 0.2 → 0.025 (표면 80×0.025 = 2/s 평균 → 평형 ~120~180s), pressure 0.1 → 0.06 (plateau 50 → 3 kPa, 25°C 물 증기압 정합). 파생 재조정: rate_y_max 30 → 5 (그래프 가시), pressure_kpa_max_for_bar 30 → 8 (게이지 가시), equilibrium_threshold 1.0 → 0.5 + min_evap 1.0 → 1.5 (낮은 rate 정합). 시각: surface_opacity 0.55, flash 12→4 px 0.8s 페이드 + 화살표 30 px (evap 위 / cond 아래).",
         "V_flask_presets_mL": [100, 250, 500],
         "V_flask_default_mL": 250,
         "V_liquid_default_mL": 50,
@@ -63,8 +63,9 @@
         "liquid_color": "#1E3A8A",
         "liquid_jitter_amp_px": 0,
         "surface_jitter_amp_px": 2,
+        "surface_opacity": 0.55,
 
-        "evap_rate_per_particle_per_sec": 0.2,
+        "evap_rate_per_particle_per_sec": 0.025,
         "E_capture": 2.5,
 
         "surface_KE_visual_smooth_factor": 0.05,
@@ -85,23 +86,25 @@
 
         "evap_flash_color": "#2563EB",
         "cond_flash_color": "#EA580C",
-        "flash_duration_sec": 1.0,
+        "flash_duration_sec": 0.8,
         "flash_radius_start_px": 12,
-        "flash_radius_end_px": 6,
+        "flash_radius_end_px": 4,
+        "flash_arrow_length_px": 30,
+        "flash_arrow_thickness_px": 2.5,
 
-        "rate_window_sec": 60,
+        "rate_window_sec": 180,
         "rate_ema_alpha": 0.3,
         "rate_color_evap": "#2563EB",
         "rate_color_cond": "#EA580C",
-        "rate_y_max": 30,
-        "equilibrium_threshold_per_sec": 1.0,
+        "rate_y_max": 5,
+        "equilibrium_threshold_per_sec": 0.5,
         "equilibrium_hold_sec": 5,
-        "equilibrium_min_evap_per_sec": 1.0,
+        "equilibrium_min_evap_per_sec": 1.5,
 
-        "pressure_kpa_per_gas_particle": 0.1,
-        "pressure_kpa_max_for_bar": 30,
+        "pressure_kpa_per_gas_particle": 0.06,
+        "pressure_kpa_max_for_bar": 8,
 
         "water_mol_per_mL": 0.05551,
-        "_units_note": "evap_rate_per_particle_per_sec 0.2 = 입자당 초당 탈출 기대치. 95 surface × 0.2 = 19/s 평균. Poisson 분포 자동. surface_KE_visual_smooth_factor 0.05 = 매 frame ke = ke + (target - ke) × 0.05 + small_noise (부드러운 색 변화). surface_KE_visual_target_change_sec 2.0 = 시각 KE 목표 새로 정하는 주기 (대포 펄스 회피). gas_spawn_KE [2.0, 4.0] uniform = 탈출 시 가스 초기 KE — E_capture 2.5 보다 낮은 비율 ~25% (즉시 응축 회피). gas_speed_scale 50 = KE → px/s (KE=2 → 100 px/s, KE=4 → 141 px/s). gas_velocity_damping 0.9995 매우 약함, gas_gravity 0.0005 px/s²/frame 매우 약함, ceiling_KE_retention 0.85 천장 KE 15% 손실. E_capture 2.5 = 가스 KE < 2.5 면 응축. flash 1.0s 페이드 12→6 px. pressure 0.1 kPa/입자: plateau 50~80 → 5~8 kPa."
+        "_units_note": "시간 척도 학교 실험 정합. evap_rate_per_particle_per_sec 0.025 = 입자당 초당 탈출 기대치. 95 surface × 0.025 ≈ 2.4/s 평균. Poisson 분포 자동. plateau gas ~50 (gas lifetime ~25s) → 평형 도달 ~120~180s. pressure 0.06 kPa/입자: plateau 50 → 3 kPa = 25°C 물 증기압 정합 (실측 ≈ 3.17 kPa). pressure_kpa_max_for_bar 8 = 게이지 가시 (3 kPa = 38% 막대). rate_y_max 5 = 그래프 가시 (2/s = 40% 높이). equilibrium_threshold 0.5/s + min_evap 1.5/s = 낮은 rate 정합 (조기 trigger 회피). rate_window_sec 180 = 3분 슬라이딩 (전체 timeline 가시). surface_opacity 0.55 = 표면 반투명 (액체 격자와 시각 차별). flash 0.8s 페이드 12→4 px + 화살표 30 px (evap 위 / cond 아래). gas_spawn_KE [2.0, 4.0] uniform: E_capture 2.5 대비 ~25% 즉시 응축 회피. gas_speed_scale 50, gas_velocity_damping 0.9995, gas_gravity 0.0005 px/s²/frame, ceiling_KE_retention 0.85. T 변경(Phase 6.2~)은 evap_rate_per_particle_per_sec 자체를 T 함수로."
     }
 }

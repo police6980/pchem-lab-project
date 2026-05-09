@@ -3779,6 +3779,7 @@ function initVaporApp(params) {
         surfaceCount:  document.getElementById("vapor-surface-count"),
         gasCount:      document.getElementById("vapor-gas-count"),
         eqStatus:      document.getElementById("vapor-equilibrium-status"),
+        elapsedTime:   document.getElementById("vapor-elapsed-time"),
     };
     for (const [k, v] of Object.entries(dom)) {
         if (!v) {
@@ -3858,6 +3859,7 @@ function initVaporApp(params) {
             dom.gasCount.textContent = String(world.gasCount);
             dom.eqStatus.textContent = world.equilibriumStatus;
             dom.eqStatus.dataset.state = world.equilibriumReached ? "yes" : "no";
+            dom.elapsedTime.textContent = world.elapsedFormatted;
         }, 200);
     });
 
@@ -3885,6 +3887,7 @@ function initVaporApp(params) {
         dom.gasCount.textContent = "—";
         dom.eqStatus.textContent = "—";
         dom.eqStatus.dataset.state = "no";
+        dom.elapsedTime.textContent = "—";
         validate();
         console.log("[Vapor] 시뮬 리셋. 입력 재오픈.");
     });

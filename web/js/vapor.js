@@ -118,8 +118,11 @@ class VaporWorld {
         this.gasGravity = cfg.gas_gravity ?? 0.0005;
         this.ceilingKERetention = cfg.ceiling_KE_retention ?? 0.85;
 
-        // ── Flash queue (사용자 비판 (7): 사건 시각화 강화) ──
+        // ── Flash queue (사건 시각화 — 원 + 화살표 0.8s 페이드) ──
         this.flashes = [];
+
+        // 시뮬 경과 시간 (학교 실험 정합 표시용)
+        this.startT = performance.now();
 
         // 사건 누적
         this._evapWin = 0;
@@ -149,6 +152,13 @@ class VaporWorld {
     }
     get surfaceCount() { return this.surfaceParticles.length; }
     get gasCount() { return this.gasParticles.length; }
+    get elapsedSec() { return (performance.now() - this.startT) / 1000; }
+    get elapsedFormatted() {
+        const sec = Math.max(0, Math.floor(this.elapsedSec));
+        const m = Math.floor(sec / 60);
+        const s = sec % 60;
+        return `${m}분 ${String(s).padStart(2, "0")}초`;
+    }
     get equilibriumStatus() {
         if (this.equilibriumReached) return "평형";
         if (this.equilibriumStartIdx != null) return "근접";
@@ -306,12 +316,13 @@ class VaporWorld {
             ke_at_birth: ke,
         });
         this._evapWin++;
-        this._addFlash(sp.x, sp.y, this.cfg.evap_flash_color || "#2563EB");
+        this._addFlash(sp.x, sp.y, this.cfg.evap_flash_color || "#2563EB", "up");
     }
 
-    _addFlash(x, y, colorStr) {
+    _addFlash(x, y, colorStr, dir) {
         this.flashes.push({
             x, y, color: colorStr,
+            dir: dir || "up",  // "up" = 증발 (y 감소 방향), "down" = 응축
             t_start: performance.now(),
         });
     }
@@ -328,7 +339,7 @@ class VaporWorld {
                 const ke = 0.5 * (g.vx * g.vx + g.vy * g.vy) / ssq;
                 if (ke < E_capture) {
                     this._condWin++;
-                    this._addFlash(g.x, liquidTop, condColor);
+                    this._addFlash(g.x, liquidTop, condColor, "down");
                     continue;
                 } else {
                     g.vy = -g.vy;
@@ -437,8 +448,12 @@ class VaporWorld {
             p.circle(m.x, m.y, r * 2);
         }
 
+        const surfaceOpacity = cfg.surface_opacity ?? 0.55;
+        const surfaceAlpha = Math.max(0, Math.min(255, Math.round(surfaceOpacity * 255)));
         for (const sp of this.surfaceParticles) {
-            p.fill(vaporColorFromKE(p, sp.ke, slow, fast, keMin, keMax));
+            const col = vaporColorFromKE(p, sp.ke, slow, fast, keMin, keMax);
+            col.setAlpha(surfaceAlpha);
+            p.fill(col);
             p.circle(sp.x, sp.y, r * 2);
         }
 
@@ -451,26 +466,47 @@ class VaporWorld {
         }
     }
 
-    // ── Flash queue 렌더 (1초 페이드, 12 → 6 px) ──
+    // ── Flash queue 렌더 (원 + 화살표, 0.8s 페이드, 12 → 4 px) ──
     drawFlashes(p) {
         const cfg = this.cfg;
-        const duration = (cfg.flash_duration_sec ?? 1.0) * 1000;
+        const duration = (cfg.flash_duration_sec ?? 0.8) * 1000;
         const rStart = cfg.flash_radius_start_px ?? 12;
-        const rEnd = cfg.flash_radius_end_px ?? 6;
+        const rEnd = cfg.flash_radius_end_px ?? 4;
+        const arrowLen = cfg.flash_arrow_length_px ?? 30;
+        const arrowThick = cfg.flash_arrow_thickness_px ?? 2.5;
         const now = performance.now();
         const remain = [];
-        p.noFill();
-        p.strokeWeight(2);
         for (const f of this.flashes) {
             const elapsed = now - f.t_start;
             if (elapsed >= duration) continue;
             const t = elapsed / duration;
             const r = rStart + (rEnd - rStart) * t;
-            const alpha = (1 - t) * 220;
+            const alpha = (1 - t) * 255;
             const col = p.color(f.color);
             col.setAlpha(alpha);
+
+            // 원 (펄스 페이드)
+            p.noFill();
             p.stroke(col);
+            p.strokeWeight(2);
             p.circle(f.x, f.y, r * 2);
+
+            // 화살표 — 방향: up = 증발 (y 감소), down = 응축 (y 증가)
+            const sign = f.dir === "down" ? 1 : -1;
+            const tail = f.y + sign * (rStart * 0.5);
+            const tip = tail + sign * arrowLen;
+            p.strokeWeight(arrowThick);
+            p.line(f.x, tail, f.x, tip);
+
+            // 화살촉 (작은 삼각형)
+            p.noStroke();
+            const fillCol = p.color(f.color);
+            fillCol.setAlpha(alpha);
+            p.fill(fillCol);
+            const headSize = 5;
+            const baseY = tip - sign * headSize;
+            p.triangle(f.x, tip, f.x - headSize * 0.7, baseY, f.x + headSize * 0.7, baseY);
+
             remain.push(f);
         }
         this.flashes = remain;
