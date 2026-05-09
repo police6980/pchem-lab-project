@@ -49,7 +49,7 @@
     },
 
     "vapor": {
-        "_comment": "Phase 6.1-b final — 교과서 정합 모델: 정적 격자 + 표면 동적 + 기체 자유 비행. Schroeder LJ + Verlet 시도 폐기 (사용자 검증에서 응집 풀림·떠오름 발견). 분자 동역학 시뮬 X — 학습 목표 달성에 필요한 최소 추상화.",
+        "_comment": "Phase 6.1-b fixup — KE 변수 + Boltzmann 게이트. 사용자 4 비판 (단색 빨강·정지·자리 보충 X·균등 확률) 1:1 매핑. 정적 격자 + 표면 KE 동적 + 기체 KE HSB 색.",
         "V_flask_presets_mL": [100, 250, 500],
         "V_flask_default_mL": 250,
         "V_liquid_default_mL": 50,
@@ -59,16 +59,23 @@
 
         "molecule_radius_px": 9,
         "liquid_color": "#1E3A8A",
-        "surface_color": "#1E3A8A",
         "liquid_jitter_amp_px": 0,
         "surface_jitter_amp_px": 2,
 
-        "p_evap_per_sec_per_particle": 0.02,
-        "p_condense_per_hit": 0.5,
-        "gas_init_KE": 4.0,
+        "kT_surface": 1.0,
+        "E_escape": 3.0,
+        "E_capture": 0.5,
+        "surface_KE_resample_sec": 1.0,
+
+        "color_KE_slow": "#1E3A8A",
+        "color_KE_fast": "#DC2626",
+        "color_KE_min_for_HSB": 0.0,
+        "color_KE_max_for_HSB": 5.0,
+
+        "gas_speed_scale": 50,
         "gas_particle_radius_px": 3.5,
 
         "water_mol_per_mL": 0.05551,
-        "_units_note": "격자 입자 수 N_total 자동 계산 (V_liquid 영역 × molecule_radius_px 기반). 1 입자 ≈ V_liquid · water_mol_per_mL · 1000 / N_total mmol. molecule_radius_px=9 → 격자 간격 18px → V_liquid 50/V_flask 250 비율에서 N≈215 (200~300 명세 범위). 사용자 명세 radius=5 는 격자 빈틈없이 + N 200~300 과 모순이라 9 로 조정 — 시각 보고 후 튜닝."
+        "_units_note": "kT_surface 1.0 = MB 분포 평균 KE (자연 단위). E_escape 3.0 = 3kT 꼬리 (~5% tail, 1초당 ~수 개 탈출). gas_speed_scale 50 = KE → px/s 변환 (KE=1 → speed≈70 px/s, KE=3 → 122 px/s). 사용자 비판 (2) 정지 원인: 직전 코드 KE=4 → speed=2.83 자연 단위 (px scale 미적용) → 7 px/s. 비판 (1) 단색: 모든 gas 동일 KE 라 색도 동일. 둘 다 fixup 으로 해소. 격자 N 자동 계산 (직전과 동일)."
     }
 }
