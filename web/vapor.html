@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CAST — 증기압 (Phase 6.1-b finalization fixup 15q + 6.2 부분)</title>
+    <title>CAST — 증기압 (Phase 6.1-b finalization fixup 15r + 6.2 부분)</title>
     <link rel="stylesheet" href="css/style.css">
     <script src="https://cdn.jsdelivr.net/npm/p5@1.11.2/lib/p5.min.js"></script>
     <script src="https://unpkg.com/docx@8.5.0/build/index.umd.js"></script>
@@ -22,7 +22,7 @@
 <body data-page="vapor">
     <nav class="page-nav vapor-nav">
         <a href="index.html" class="nav-home" title="홈으로 돌아가기">🏠 홈으로</a>
-        <span class="nav-title">증기압 — Phase 6.1-b finalization fixup 15q + 6.2 (T 통합)</span>
+        <span class="nav-title">증기압 — Phase 6.1-b finalization fixup 15r + 6.2 (T 통합)</span>
     </nav>
 
     <div id="vapor-layout-v2" class="vapor-layout-v2">
@@ -165,15 +165,6 @@
                 <section class="vapor-card vapor-card-rate">
                     <h4>증발 / 응축 속도</h4>
                     <canvas id="vapor-rate-canvas" width="256" height="140"></canvas>
-                    <!-- fixup 15q — 평형 배지 + [확정] 버튼 rate 카드 이동 (rate 그래프 평형 시각 단서 ↔ 배지 ↔ 액션 통합) -->
-                    <div class="vapor-rate-eq-row">
-                        <span id="vapor-equilibrium-badge" class="vapor-eq-badge" data-state="none">
-                            평형 비도달
-                        </span>
-                        <button type="button" id="vapor-btn-record" class="vapor-record-btn" disabled>
-                            ⊕ 평형 확정
-                        </button>
-                    </div>
                     <div class="vapor-rate-readouts">
                         <div class="vapor-rate-cell">
                             <span class="vapor-rate-label" style="color:#2563EB;">증발</span>
@@ -188,6 +179,16 @@
                             <span class="vapor-rate-label">비율</span>
                             <span class="vapor-rate-value vapor-ratio-text" id="vapor-ratio-val" data-zone="none">—</span>
                         </div>
+                    </div>
+                    <!-- fixup 15r — 배지 + [확정] 버튼 readouts 아래 (균형 spacing).
+                         15q: graph → badge+btn → readouts → note → 15r: graph → readouts → badge+btn → note -->
+                    <div class="vapor-rate-eq-row">
+                        <span id="vapor-equilibrium-badge" class="vapor-eq-badge" data-state="none">
+                            평형 비도달
+                        </span>
+                        <button type="button" id="vapor-btn-record" class="vapor-record-btn" disabled>
+                            ⊕ 평형 확정
+                        </button>
                     </div>
                     <p class="vapor-card-note">
                         두 곡선이 만나는 시점 = 정성적 평형. 비율 1.0 (녹색) 도달 시 평형.

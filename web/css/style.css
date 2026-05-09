@@ -3697,7 +3697,7 @@ body[data-page="vapor"] .vapor-learning-note {
     color: #475569;
 }
 
-/* =============== Vapor 3-region layout (Phase 6.1-b finalization fixup 15q) ===============
+/* =============== Vapor 3-region layout (Phase 6.1-b finalization fixup 15r) ===============
    fixup 15j — P 영역 부활 (.vapor-tp-pressure vapor-real-only hidden 제거 + placeholder 폐기 +
    단순화) + measurement-region mock placeholder 폐기 + 측정 표 이론 컬럼 폐기.
    .vapor-tp-pressure-mock + 자식 styles 폐기.
@@ -3736,7 +3736,11 @@ body[data-page="vapor"] .vapor-learning-note {
    fixup 15q — 평형 배지 + [확정] 버튼 rate 카드 이동 (학습 흐름 정합).
    .vapor-rate-eq-row 신규 (rate 그래프 직속 아래, 배지 + [⊕ 평형 확정] 버튼 row).
    .vapor-sim-mmol-info margin-left: auto (배지 폐기 후 시뮬 헤더 우측 단독 정렬).
-   인지 (rate 그래프 두 선 만남) ↔ 상태 (배지) ↔ 액션 (확정) 한 영역 통합. */
+   인지 (rate 그래프 두 선 만남) ↔ 상태 (배지) ↔ 액션 (확정) 한 영역 통합.
+
+   fixup 15r — rate 카드 배지+버튼 readouts 아래 이동 + spacing 균형.
+   DOM 순서: graph → readouts → eq-row (배지+버튼) → note (15q 의 graph→eq→readouts→note 변경).
+   .vapor-rate-eq-row margin-top 16 + margin-bottom 12, gap 12, 버튼 padding 5×14 (시각 자연 분리). */
 body[data-page="vapor"] .vapor-layout-v2 {
     display: flex;
     flex-direction: column;
@@ -4306,18 +4310,20 @@ body[data-page="vapor"] #vapor-rate-canvas {
     margin-bottom: 8px;
 }
 /* fixup 15q — rate 카드 안 평형 배지 + [확정] 버튼 row (그래프 직속 아래, readouts 위)
-   학습 흐름: rate 그래프 두 선 만남 인지 → 배지 색 변화 → [확정] 클릭 → 측정점 자동 추가 */
+   fixup 15r — readouts 아래로 이동 + spacing 균형 (위 16 / 아래 12, gap 12, 시각 자연 분리).
+   학습 흐름: rate 그래프 두 선 만남 인지 → readouts 정량 확인 → 배지 색 변화 → [확정] 클릭 → 측정점 자동 추가 */
 body[data-page="vapor"] .vapor-rate-eq-row {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 8px;
-    margin-bottom: 8px;
+    gap: 12px;
+    margin-top: 16px;
+    margin-bottom: 12px;
 }
 body[data-page="vapor"] .vapor-rate-eq-row .vapor-record-btn {
     flex: 0 0 auto;
-    padding: 4px 10px;
-    font-size: 11px;
+    padding: 5px 14px;
+    font-size: 12px;
 }
 body[data-page="vapor"] .vapor-rate-readouts {
     display: flex;

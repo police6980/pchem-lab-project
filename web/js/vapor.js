@@ -1,6 +1,6 @@
 // =============================================================
 // vapor.js — 증기압 시뮬 본체
-// Phase 6.1-b finalization fixup 15q (평형 배지 + [확정] 버튼 rate 카드 이동, 학습 흐름 정합)
+// Phase 6.1-b finalization fixup 15r (rate 카드 배지+버튼 readouts 아래 + spacing 균형)
 //
 // 핵심 철학 (정공법):
 //   학생 가시 = 실측 / 시뮬 = 미시 가시화 (정성적)
@@ -266,6 +266,15 @@
 //   · style.css: .vapor-rate-eq-row { flex space-between, 배지 + 버튼 } 추가.
 //                .vapor-sim-mmol-info margin-left auto (배지 폐기 후 우측 정렬).
 //   · 시뮬 헤더: 좌 ⏱ 경과 + 우 mmol 양측 정렬 (justify-content: space-between).
+//
+// 추가 (fixup 15r — rate 카드 배지+버튼 readouts 아래 이동 + spacing 균형, HTML+CSS only):
+//   · 사용자 비판: "버튼과 알림 버튼(배지)을 숫자(readouts) 아래에 위치해주고 균형 있게 좀 떨어트려 놓고"
+//   · vapor.html DOM 순서 (옵션 A — 자연):
+//     15q: h4 → canvas → eq-row (배지+버튼) → readouts → note
+//     15r: h4 → canvas → readouts → eq-row (배지+버튼) → note
+//   · 학습 흐름 재정합: rate 그래프 시각 단서 → readouts 정량 확인 → 배지 색 변화 → [확정] 클릭.
+//   · style.css spacing 균형: .vapor-rate-eq-row margin 8px → margin-top 16 + margin-bottom 12,
+//                              gap 8 → 12, 버튼 padding 4×10 → 5×14, font 11 → 12 (CC 자율 균형값).
 //
 // docs/17 §6 참조.
 // =============================================================
