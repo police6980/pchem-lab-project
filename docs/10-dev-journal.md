@@ -4125,3 +4125,226 @@ vernier 본문은 운용 시나리오 5요소 신규.
 **배제된 대안**: blur 자동 보존 (사용자 비판 정합 X), Enter only (마우스 학생 부담), 단일 flag (V_A/V_B 동시 확정 강제).
 
 (vapor 15b → Dalton 16a = 페이지 간 패턴 재사용 첫 사례. 후일 페이지 간 패턴 재사용 가치 검증 자산.)
+
+---
+
+## Phase 6.4 — fixup 17a~17g-1 vapor AI 튜터 통합 + 사이드바 layout 시스템 본질 + 헤더 통일 + dead code 정리 (2026-05-09)
+
+본 단계 = vapor 페이지 AI 튜터 통합 (Phase 6.4 예약 실행) + **사이드바 layout 4단계 진화** (17a→17b→17c→17d, 시스템 차원 본질 발견) + INDEX 카드 추가 + 4 페이지 헤더 통일 + dead code 보수 정리. 7 commits (f0acb06 ~ 9ba77b5). 본 chat 자체 진행 영역 — 의사결정 history 풍부.
+
+### 2026-05-09 — fixup 17a vapor AI 튜터 통합 (commit f0acb06) — tutor.js factory 재사용
+
+#### 한 일
+- `vapor.html`: `<aside id="ai-sidebar">` + `#ai-reopen-btn` + sidebar-collapsed init script (boyle/dalton 동일 패턴).
+- `main.js`: `initVaporTutor` 신설 (`createTutor(vaporConfig)` 호출), `VAPOR_LEVEL_GUIDES` (4 수준), `VAPOR_QUESTION_TEXT` (4×5=20), `vaporBuildSystemPrompt` (학습 목표 4 + 절대 원칙 12 + 시뮬 시각 단서 활용 권장), `buildDataContext` (T/P/평형 5-state/measurementPoints).
+- `tutor.js`: 변경 0 — factory 그대로 재사용. docstring L12-15 만 갱신 (Phase 6.4 예약 → 실행 완료).
+- `vapor.js / style.css`: 헤더 docstring fixup 17a entry 추가 (CSS 변경 0).
+
+#### 결정: tutor.js factory 재사용 = 페이지 간 UX 일관성 (Phase 6.4 예약 실행)
+
+**배경**: 직전 vapor 페이지 AI 튜터 부재. tutor.js 헤더 docstring 안 "Phase 6.4 예약" 명시 (Phase 6.1-a b3972b3 에서 선언) — vaporConfig 신설 + `createTutor(vaporConfig)` 호출 시점.
+
+**결정**: tutor.js 자체 변경 0 (factory + 공통 logic 그대로). `main.js` 안 vaporConfig + `initVaporTutor` 신설 (boyle/dalton/particles 패턴 정합). vaporConfig 명세:
+- `simName: "vapor"`, `sidebarSelector: "#ai-sidebar"`, `tabIds: ["1","2","3","4","free"]`, `metaTabId: "4"`.
+- `closeConfig` (default prompt). `reportEnabled: false`.
+- `getQuestionText: vaporGetQuestionText`. `buildSystemPrompt: vaporBuildSystemPrompt`.
+- `buildDataContext`: T_celsius / P_kPa / V_flask / V_liquid / V_gas / liquidType / equilibriumState (5-state) / equilibriumDetected / equilibriumConfirmed / measurementPoints / mode "mock".
+- `onLevelDetect` (학생 수준 자동 감지).
+
+**근거**: **페이지 간 UX 일관성** (boyle/particles/dalton/vapor 동일 사이드바 + 학습 흐름). factory 재사용 = 코드 중복 회피 (Phase 5.7 트랙 6 통합 자산). vaporConfig 안 학습 목표 4 + 절대 원칙 12 + 시뮬 시각 단서 활용 권장 = vapor 시뮬 단서 (rate 그래프 + 압력계 + 입자 색) AI 튜터 응답 정합.
+
+**배제된 대안**: 별도 vapor-tutor.js (factory 미사용, 코드 중복), tutor.js 안 vaporConfig 직접 (factory 단일 책임 위배), AI 튜터 보류 (Phase 6.4 예약 실행 시점).
+
+(후일 fixup 17b 에서 silent regression 발견 — vaporTutor.init() 호출 누락. 본 fixup 17a = 통합 자체 의도 + UI DOM + config 명세 검증 끝.)
+
+### 2026-05-09 — fixup 17b silent regression 수정 + flex 부모 시도 (commit 753b723)
+
+#### 한 일
+- **(1) regression 수정**: `vaporTutor.init()` 1줄 추가 (dalton:3492 동일 패턴, 17a 누락). settings 토글 / 탭 / Enter / 보내기 / select 모두 부활.
+- **(2) flex 부모 시도**: `<div id="vapor-page-wrap" style="display:flex; gap:16px;">` + `<main id="vapor-main-container" style="flex:1; min-width:0;">` (boyle #basic-mode 패턴 복제). vapor-layout-v2 max-width 1900 (15l 정책) 보존.
+- `<aside id="ai-sidebar">` flex-basis 380 / flex-shrink 0.
+- `style.css` `.vapor-page-wrap` flex row + ≤1279px drawer 화 (dalton 패턴 복제).
+
+#### 결정: silent regression = `vaporTutor.init()` 1줄 누락 (factory 패턴 검증)
+
+**배경**: fixup 17a 직후 사용자 캡처 — settings 토글 / 탭 클릭 / Enter 전송 / 보내기 버튼 / select 변경 모두 무반응 (silent fail). visible 에러 X. 17b 진단 시 dalton:3492 `daltonTutor.init()` 패턴 비교로 발견.
+
+**결정**: `vaporTutor.init()` 1줄 추가 (initVaporTutor 안, closeBtn 핸들러 다음, console.log 직전 — dalton:3492 동일 위치).
+
+**근거**: factory 안 settings 토글 / 탭 / 입력창 / level-model select 핸들러 바인딩 진입점 = `init()` 호출. 17a 시 dalton 패턴 정확 복제하나 init() 호출 1줄 누락 → 모든 핸들러 미바인딩 silent regression.
+
+**배제된 대안**: factory 자동 init (단일 책임 위배 + 다른 시뮬 영향), main.js 안 직접 핸들러 추가 (factory 중복).
+
+(silent regression 패턴 = visible 에러 X, UI 무반응 silent fail. 17b 진단 시 dalton 비교로 발견. **사용자 캡처 + CC 진단 + dalton 패턴 비교 = 발견 흐름**.)
+
+#### 결정: flex 부모 시도 = 사이드바 적응형 layout 정공법 시도 (단 미작동)
+
+**배경**: 17a 시 `<aside id="ai-sidebar">` = vapor-layout-v2 외부 sibling, flex 부모 없음. 사용자 캡처 — 사이드바 표시 시 시뮬 가림 발생. 정공법 = boyle #basic-mode 패턴 (flex row 부모 + main flex:1 + aside flex-basis:380).
+
+**결정**: vapor.html 안 `<div id="vapor-page-wrap">` flex row 부모 신설 + `<main id="vapor-main-container">` 안 vapor-layout-v2 보존 (max-width 1900 = 15l 정책 무변경) + `<aside id="ai-sidebar">` sibling. `style.css` `.vapor-page-wrap` flex row + ≤1279px drawer 화 (dalton 패턴 복제).
+
+**근거**: boyle/particles 패턴 정확 복제 = 페이지 간 layout 일관성. flex 부모 = main 자동 축소 (사이드바 표시 시) + 사이드바 collapse 시 main 자동 확장.
+
+**배제된 대안 (검토)**:
+- 옵션 B (dalton fixed): 좁은 viewport 시 시뮬 가림 재발 가능. 정공법 X.
+- 옵션 C (max-width 1900→1500): 시뮬 시각 축소 = 15k regression.
+
+**검증 결과**: flex 부모 자세 자체 정상 단 **사용자 캡처에서 적응형 미작동** (사이드바 표시 시 시뮬 가림 그대로). CC 진단 본질 미발견 — 사용자 비판 발생 후 fixup 17c 진입.
+
+(후일 fixup 17d 본질 진단으로 원인 = `@media (max-width: 1599px)` 룰 무인지 확정. 본 fixup 17b flex 부모 자세 자체 정공법 — 1599 룰 무력화 후 정상 동작.)
+
+### 2026-05-09 — fixup 17c dalton fixed 패턴 복제 (commit 27fb45d) — 잘못된 옵션
+
+#### 한 일
+- 17b flex 부모 (vapor-page-wrap / vapor-main-container) 통째 제거 → 17a 구조 회귀 (vapor-layout-v2 + aside sibling).
+- `style.css` vapor 전용 `.ai-sidebar position:fixed` (dalton:3045 패턴 복제, `body[data-page="vapor"]` selector 격리).
+- 1279px 이하 drawer 미디어 쿼리 (dalton:3055-3107 정확 복제 — sidebar-open 대신 sidebar-collapsed 토글 정합).
+- `main.js vaporTutor.init()` 17b 효과 보존 (변경 0).
+
+#### 결정: dalton fixed overlay 패턴 복제 (옵션 B) — 후일 잘못된 옵션 판명
+
+**배경**: fixup 17b flex 부모 시도 적응형 미작동. 사용자 합의 = 옵션 A (dalton fixed) 채택. dalton 동작 일관성 우선.
+
+**결정**: 17b flex 부모 rollback (17a 구조 회귀). `body[data-page="vapor"] .ai-sidebar { position:fixed; top:16px; right:16px; width:380px }` (dalton 패턴 복제, vapor 전용 selector 격리). 1279px 이하 drawer 화.
+
+**근거**: dalton 동작 검증 자산. vapor 전용 selector 격리 = dalton CSS 무영향. 사용자 비판 적응형 layout 시도 폐기.
+
+**배제된 대안 (사용자 합의)**: 17b flex 부모 본질 디버깅 (CC 진단 누락 인정 직전 — 1599 룰 미발견), 옵션 C (max-width 변경, 15k regression).
+
+**검증 결과**: 사용자 캡처 — **시뮬 가림 재발**. dalton fixed overlay = vapor 시뮬 폭 (CSS scaling 1.625× → ~1300 px) vs dalton 시뮬 폭 차이 무인지로 정합 X. dalton 은 grid layout 안 시뮬 폭 작아 fixed overlay 가림 적정 단 vapor 시뮬 폭 ↑ → fixed overlay 가림 큼.
+
+(잘못된 옵션 채택 패턴 = "표면 해결 → 본질 미해결". 17d 진입 시 본질 진단 의뢰 — 모든 페이지 (boyle/particles/dalton/vapor) 균등 진단 → @media 1599 룰 발견.)
+
+### 2026-05-09 — fixup 17d 시스템 본질 발견 + 정공법 회귀 (commit e9459c1) — @media 1599→1199
+
+#### 한 일
+- **(1) `style.css` @media (max-width: 1599) → 1199 축소** (line 2336). ≥1200 flex 자동 축소 / <1200 fixed overlay 분기.
+- **(2) 캔버스 max-width:100% 룰 1279 → 1599 확장** (1200~1599 flex 축소 시 캔버스 정합).
+- **(3) `vapor.html` flex 부모 재현** (17b 정공법 복귀, boyle #basic-mode 패턴 정확 복제). `<div id="vapor-page-wrap" style="display:flex; gap:16px;">` + `<main id="vapor-main-container" style="flex:1; min-width:0;">`.
+- **(4) `style.css` vapor 17c body[data-page="vapor"] .ai-sidebar position:fixed + drawer 폐기**. vapor 전용 `.vapor-page-wrap / .vapor-main-container` flex 룰 신설.
+- main.js / vapor.js 변경 0 (17b init() 효과 보존).
+
+#### 결정: @media 1599 룰 = 시스템 차원 가림 본질 발견 → 1199 축소 (시스템 변경)
+
+**배경**: fixup 17c 잘못된 옵션 판명 후 사용자 본질 진단 의뢰 — 4 페이지 (boyle/particles/dalton/vapor) + INDEX 균등 진단. CC 진단 발견:
+- `@media (max-width: 1599px)` 안 `#ai-sidebar / #adv-ai-sidebar { position:fixed; transform:translateX(0); transition }` 룰 (style.css:2336-2362, Phase 5.4 추정).
+- <1600px viewport 자동 fixed overlay slide-in 전환 → boyle/particles 사이드바도 main 자동 축소 X (silent fail).
+- 사용자 viewport <1600 추정 → 1599 룰 활성 → vapor 17b flex 부모 무력화 + dalton fixed 17c 가림 큼.
+
+**결정**: @media 1599 → 1199 축소 (system 차원 변경, vapor 단독 fixup 으로 해결 불가). ≥1200 flex 자동 축소 (적응형 정공법) / <1200 fixed overlay 보존 (좁은 폭 canvas 시각 보존, 1599 룰 의도 절반 유지). 캔버스 max-width:100% 룰 ≤1599 확장 (1200~1599 flex 축소 시 캔버스 정합).
+
+**근거**: **시스템 차원 본질 발견** — vapor 단독 시도 (17b flex / 17c dalton 복제) 모두 1599 룰에 무력화. 1599 룰 자체 = boyle/particles/vapor 모든 가림 문제 시스템 차원 원인. 1199 축소 = ≥1200 보편 viewport (학생 노트북 1366×768 / 1280×800 / 1920×1080 모두) 적응형 정합 + <1200 fixed overlay = 좁은 폭 canvas 시각 보존 (1599 룰 의도 절반).
+
+**배제된 대안**:
+- 1599 룰 보존 (가림 문제 미해결).
+- @media 1599 통째 제거 (좁은 폭 canvas 시각 손실).
+- vapor 만 1599 예외 (시스템 일관성 X, boyle/particles 가림 잔존).
+- dalton wrap (별도 grid layout, 사용자 비판 X + grid wrap risk 격리).
+
+#### 결정: vapor flex 부모 재현 (17b 정공법 복귀)
+
+**배경**: 17d (1) 1599 → 1199 축소 후 vapor flex 부모 동작 환경 마련. 17b 시도 본질 정공법 — 1599 룰 무력화 후 정상 동작.
+
+**결정**: vapor.html `#vapor-page-wrap` flex row 부모 + `#vapor-main-container` flex:1 min-width:0 재현 (17b 동일). 17c body[data-page="vapor"] .ai-sidebar position:fixed + drawer 폐기. vapor 전용 `.vapor-page-wrap / .vapor-main-container` flex 룰 신설.
+
+**근거**: 17b 정공법 자세 자체 검증 — 1599 룰 무력화 후 ≥1200 viewport 정상 적응형 동작. boyle/particles 동일 패턴 = 페이지 간 일관성. dalton 제외 (별도 grid layout, 사용자 비판 X).
+
+**배제된 대안**: 17c dalton fixed 보존 (가림 문제), main.js / vapor.js 변경 (불필요, 17b init() 효과 보존).
+
+#### 결정: CC 진단 누락 인정 (1599 룰 무인지 — agent 한계 명시)
+
+**배경**: 17b 진단 시 boyle 등 페이지 비교로 sidebar layout 패턴만 검토. @media 1599 룰 (system 차원) 인지 X — vapor 만 보면 풀 수 없는 영역.
+
+**결정**: commit body 안 명시 — "vapor 17b 미작동 본질 = 1599 룰 무인지 (CC 진단 누락 인정)". sub-agent / agent 한계 자세 명시 = 향후 진단 자세 개선.
+
+**근거**: agent 의 진단 = 단일 페이지 내 패턴 일관성 검토에 강함, system 차원 cross-page 룰 검토에 약함. 사용자 본질 진단 의뢰 (4 페이지 균등) → 시스템 차원 원인 발견 = 사용자 + agent 협업 패턴 정합.
+
+(번복 7 사이드바 layout 4단계 진화 = 17a 통합 → 17b silent regression 수정 + flex 시도 → 17c 잘못된 옵션 → 17d 본질 발견 + 정공법 회귀. **"표면 해결 → 본질 해결" 정공법 패턴**.)
+
+### 2026-05-09 — fixup 17e INDEX vapor 카드 추가 (commit a582869) — Phase 6 dual-layer 학습 흐름
+
+#### 한 일
+- INDEX 페이지 boyle 다음 위치에 vapor 카드 추가 (~20 줄).
+- boyle/dalton 4 라벨 패턴 정확 복제 (MBL / Simulation / AI / Arduino).
+- thumbnail `vapor.png` (사용자 캡처, 파일명 jpg → png 정합 보정).
+- title: "증기압력의 동적 평형". subject: "액체↔기체 동적 평형과 온도 의존성".
+- description: "밀폐 플라스크 안 액체↔기체 입자 사건을 시각화하고, 증발↔응축 비율로 동적 평형의 의미를 탐구합니다.".
+- href `vapor.html` 단순 navigation.
+
+#### 결정: vapor 카드 boyle 다음 위치 + 4 라벨 모두 표시
+
+**배경**: INDEX 페이지 진입 카드 4개 (boyle / particles / dalton, 3 페이지). vapor 진입 경로 부재. 사용자 의도 = 학생 진입 시 vapor 도 직접 클릭 가능.
+
+**결정**: boyle 다음 위치 (Phase 6 dual-layer 학습 흐름 정합 — boyle 의 dual-layer 정공법 + 평형 학습 확장 계열). 4 라벨 모두 표시 (MBL/Simulation/AI/Arduino, 사용자 명시). INDEX 카드 5 → 5 (3 → 4 카드).
+
+**근거**: **Phase 6 dual-layer 학습 흐름** = boyle 압력 측정 → vapor 압력 + 상변화 학습 흐름. 4 라벨 = boyle/dalton 패턴 정확 정합 (학습 흐름 일관). vapor.png 사용자 캡처 = 실제 시뮬 화면 (placeholder 회피).
+
+**배제된 대안**: dalton 다음 (시간순 추가 정합, 학습 흐름 X), particles 다음 (분자 운동 단위 → 상변화 단위 인지 흐름, 단 boyle dual-layer 정합 약함), 라벨 보수 (Sim/AI 만, Phase 6.3 예정 미반영).
+
+### 2026-05-09 — fixup 17f 4 페이지 헤더 통일 (commit 4e59931) — CAST prefix + Phase/fixup 표시
+
+#### 한 일
+- 4 페이지 (boyle/particles/dalton/vapor) 헤더 텍스트 + DOM 통일.
+- DOM: `<nav class="page-nav">` + `<h1 class="page-title">` (semantic 강화).
+  - boyle / particles: `<h1>` 신규 추가.
+  - dalton: `<h1 class="dalton-page-title">` → `<h1 class="page-title">` (class rename + 텍스트 갱신).
+  - vapor: `<span class="nav-title">` → `<h1 class="page-title">` (semantic 강화 + 형식 A 정합).
+- CSS 통일: `.page-nav` flex / align-items / gap 추가. `.page-title` 신설 (flex:1 / font-size 1.2rem / color #1e293b). `.dalton-nav / .dalton-page-title` 룰 폐기 (page-nav 통합). `.dalton-page-utilities` 보존 (단독 기능 격리).
+- 4 페이지 헤더 텍스트:
+  - boyle: `CAST — 보일의 법칙 — Phase 5.9 D (Vernier 통합)`.
+  - particles: `CAST — 입자운동론 탐구 — Phase 5.7 트랙 6-b (Hybrid)`.
+  - dalton: `CAST — 돌턴의 부분압력 — Phase 6.1-b fixup 16a (부피 입력 확정)`.
+  - vapor: `CAST — 증기압력의 동적 평형 — Phase 6.4 fixup 17d (system layout)`.
+
+#### 결정: 4 페이지 헤더 통일 = CAST prefix + Phase/fixup 표시 (개발용 in-progress)
+
+**배경**: 직전 4 페이지 헤더 자세 불일치 — boyle/particles 제목 부재 (홈 버튼만), dalton `<h1>` 보유 (CAST prefix), vapor `<span>` 보유 (Phase/fixup 표시 단 형식 미정합). 개발자 / 검증 시 페이지 진행 상태 시각 단서 필요.
+
+**결정**: DOM 통일 (`<nav class="page-nav">` + `<h1 class="page-title">`). 텍스트 형식 통일 (`CAST — [학습 주제] — Phase X fixup Y (요약)`). CSS 통일 (.page-nav flex + .page-title 신설). dalton-page-utilities (단위 토글 + CSV) 단독 기능 격리 보존.
+
+**근거**: **개발용 in-progress 표시** (학생 대상 X, 완료 시 제거 — 한 줄 변경 가능 자세). semantic 강화 (`<span>` → `<h1>` = 페이지 제목 SEO/접근성 정합). dalton-page-utilities 보존 = 단독 기능 (단위 atm/kPa 토글 + CSV 다운로드) 격리.
+
+**배제된 대안**: dalton 패턴 단독 (boyle/particles 제목 누락), vapor 패턴 단독 (`<span>` semantic 약함), 페이지명 prefix 폐기 (CAST 브랜드 일관성 손실).
+
+(완료 시 `<h1 class="page-title">` 한 줄 제거 = 헤더 정리 단순. 의도 = Phase 6 finalization 종료 시점 / 학생 배포 시점에 제거.)
+
+### 2026-05-09 — fixup 17g-1 dead code 보수 정리 (commit 9ba77b5) — 신중 모드 4-등급 분류
+
+#### 한 일
+- `style.css` `.vapor-learning-note` 룰 폐기 (9 줄, 15h 학습 목표 카드 잔재).
+- `index.html` inline `<style>` `.experiment-status` 룰 폐기 (12 줄, INDEX 4 카드 무사용).
+
+#### 결정: 신중 모드 4-등급 분류 + 등급 A 2건만 폐기 (codebase healthy)
+
+**배경**: 누적 24 fixup 후 dead code 점검 시점. 사용자 명시 "잘되고 있는 코드 지워버릴 가능성 방지" — 신중 모드 우선. 4 페이지 (boyle/particles/dalton/vapor) + INDEX 균등 진단 의뢰.
+
+**결정**: 4-등급 분류:
+- **등급 A (즉시 삭제 안전)**: HTML/JS 무참조 (grep 0). 직접 폐기 commit history 명시 후 잔재.
+- **등급 B (의심)**: grep 1~2건 + 동적 생성 / template literal 가능성. 향후 사용 의도 미확인.
+- **등급 C (보존 권장)**: 동적 생성 / 콘솔 디버깅 / 의사결정 history docstring (논문 1차 자료).
+- **등급 D (사용자 합의 필요)**: TODO/FIXME, params.json 키 등 의도 의문.
+
+진단 결과 등급 A **2건만 폐기**:
+- `.vapor-learning-note` (style.css, 15h 학습 목표 카드 잔재).
+- `.experiment-status` (index.html, INDEX 4 카드 무사용).
+
+등급 B/C/D **모두 보존**:
+- `.experiment-card.disabled` (등급 B → 미래 disabled 카드 인프라).
+- `console.log` 디버깅 (등급 D → 개발 단계 가치).
+- 의사결정 history 주석 6건 (등급 C → 논문 1차 자료).
+
+**근거**: **신중 모드 의문 시 보존 우선**. 사용자 명시 "잘되고 있는 코드 지워버릴 가능성 방지" = 잘못 폐기 위험 ↑↑ 보존 우선. 균등 진단 결과 codebase healthy (등급 A 단 2건) = 누적 fixup 후 codebase 깨끗 검증.
+
+**배제된 대안**: 폐기 적극 (regression 위험), 모든 후보 보존 (잔재 누적), 사용자 합의 후 일괄 처리 (작은 단위 분할 우선).
+
+#### 결정: 분할 시퀀스 (17g-1 단독 + 17g-2/3 보류)
+
+**배경**: 등급 B/C/D 보존 결정 단 미래 폐기 가능성 보존. 17g-1 = 등급 A 만, 17g-2/3 보류 = 향후 명확 의도 시 추가 처리.
+
+**결정**: 17g-1 단독 commit (등급 A 2건). 17g-2/3 = 등급 B (사용자 합의 필요) + 등급 D (사용자 명확화 필요) 별도 fixup 보류.
+
+**근거**: 보수 처리 의도 보존 = 단계별 검증 + 사용자 합의 단계 분리. 누적 처리 시 잘못된 폐기 발견 어려움.
+
+**배제된 대안**: 일괄 17g 처리 (regression 위험), 등급 D 즉시 처리 (사용자 의도 명확화 우선).
+
+(누적 24 fixup 검증 결과 codebase healthy = Phase 6 finalization 단계 검증 자산.)
