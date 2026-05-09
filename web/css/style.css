@@ -3705,6 +3705,62 @@ body[data-page="vapor"] .vapor-layout-v2 {
     padding: 12px;
     background: #f1f5f9;
     min-height: calc(100vh - 56px);
+    /* fixup 15g — 1920+ desktop 우측 회색 여백 차단 (중앙 정렬) */
+    max-width: 1400px;
+    margin: 0 auto;
+    box-sizing: border-box;
+    width: 100%;
+}
+
+/* ========== 학습 목표 카드 (Johnstone 3수준, fixup 15g) ========== */
+body[data-page="vapor"] .vapor-learning-goals {
+    background: #fff;
+    border-radius: 6px;
+    padding: 14px 16px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+body[data-page="vapor"] .vapor-learning-goals h3 {
+    margin: 0 0 10px 0;
+    font-size: 13px;
+    font-weight: 600;
+    color: #475569;
+    letter-spacing: 0.02em;
+}
+body[data-page="vapor"] .vapor-goals-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+}
+body[data-page="vapor"] .vapor-goal-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px 12px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-left: 3px solid #2563eb;
+    border-radius: 4px;
+}
+body[data-page="vapor"] .vapor-goal-icon {
+    font-size: 20px;
+    line-height: 1.1;
+    flex: 0 0 auto;
+}
+body[data-page="vapor"] .vapor-goal-body {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+body[data-page="vapor"] .vapor-goal-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: #1e293b;
+    margin-bottom: 3px;
+}
+body[data-page="vapor"] .vapor-goal-text {
+    margin: 0;
+    font-size: 11px;
+    line-height: 1.5;
+    color: #475569;
 }
 body[data-page="vapor"] .vapor-top-row {
     display: flex;
@@ -3956,6 +4012,35 @@ body[data-page="vapor"] .vapor-canvas-placeholder {
     color: #94a3b8;
     font-size: 13px;
     padding: 60px 20px;
+    text-align: center;
+}
+/* fixup 15g — sim placeholder 강화 (icon + hint 다층) */
+body[data-page="vapor"] .vapor-sim-placeholder-icon {
+    font-size: 36px;
+    margin-bottom: 12px;
+    opacity: 0.55;
+}
+body[data-page="vapor"] .vapor-sim-placeholder-text {
+    margin: 0 0 6px 0;
+    font-size: 14px;
+    color: #64748b;
+    font-weight: 500;
+}
+body[data-page="vapor"] .vapor-sim-placeholder-hint {
+    margin: 0;
+    font-size: 12px;
+    color: #94a3b8;
+    line-height: 1.5;
+}
+/* fixup 15g — counts 카드 학습 단서 (분자 수 = 양적 지표) */
+body[data-page="vapor"] .vapor-counts-note {
+    display: block;
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px dashed #e2e8f0;
+    font-size: 10px;
+    color: #94a3b8;
+    line-height: 1.5;
     text-align: center;
 }
 /* T + P 카드 통합 (fixup 12 — mock 입력 / real 표시 자연 전환) */
@@ -4353,7 +4438,12 @@ body[data-page="vapor"] .vapor-mock-placeholder {
     color: #94a3b8;
 }
 body[data-page="vapor"] .vapor-mock-placeholder-wide {
-    padding: 36px 20px;
+    /* fixup 15g — 압축 (~140 → ~80px) — 페이지 균형, mock 단계 영역 비중 축소 */
+    padding: 14px 20px;
+}
+body[data-page="vapor"] .vapor-mock-placeholder-wide .vapor-mock-icon {
+    font-size: 18px;
+    margin-bottom: 4px;
 }
 body[data-page="vapor"] .vapor-mock-icon {
     font-size: 24px;
@@ -4425,6 +4515,13 @@ body[data-page="vapor"] .vapor-mock-hint {
     body[data-page="vapor"] .vapor-measurement-region {
         flex-direction: column;
     }
+    /* fixup 15g — 학습 목표 카드: 3열 유지하되 padding/font 축소 */
+    body[data-page="vapor"] .vapor-goal-card {
+        padding: 8px 10px;
+    }
+    body[data-page="vapor"] .vapor-goal-text {
+        font-size: 10px;
+    }
 }
 
 /* 768px 이하 (모바일): 모든 영역 세로 stack */
@@ -4471,5 +4568,9 @@ body[data-page="vapor"] .vapor-mock-hint {
     }
     body[data-page="vapor"] .vapor-rate-readouts {
         flex-wrap: wrap;
+    }
+    /* fixup 15g — 학습 목표 카드 모바일: 1열 stack */
+    body[data-page="vapor"] .vapor-goals-grid {
+        grid-template-columns: 1fr;
     }
 }

@@ -1,6 +1,6 @@
 // =============================================================
 // vapor.js — 증기압 시뮬 본체
-// Phase 6.1-b finalization fixup 15f (UI 균형 — P 영역 mock 폐기 + 헤더/spacing 통일)
+// Phase 6.1-b finalization fixup 15g (UI 균형 다층 — 학습 목표 카드 + max-width + placeholder 강화)
 //
 // 핵심 철학 (정공법):
 //   학생 가시 = 실측 / 시뮬 = 미시 가시화 (정성적)
@@ -104,6 +104,16 @@
 //     fixup 15f 폐기 — P 영역 vapor-real-only wrap → mock 단계 hidden, real 단계 자동 부활.
 //     min-height 280 → 200, 카드 column gap 10 → 12 (UI 균형).
 //     카드 헤더 "온도 / 증기압 (센서 영역)" → "센서 영역" (mock/real 양쪽 정합).
+//
+// 추가 (fixup 15g — UI 균형 다층, JS 로직 변동 X / HTML+CSS 만):
+//   · 학습 목표 카드 신설 (Johnstone 3수준: 거시/입자/기호) — 상단 가로 행 위 3열 그리드.
+//     의도: 학생이 페이지 진입 즉시 "무엇을 관찰해야 하는가" 인지 → 3 영역 (시뮬/카드/측정점)
+//          관찰 행위에 의미 부여. mock 단계 빈 공간 (P 영역 hidden / 측정점 영역 hidden) 시각 보강.
+//   · vapor-layout-v2 max-width 1400px + margin 0 auto — 1920+ 데스크톱 우측 회색 여백 차단.
+//     배제: 100% width (회색 잉여) / 1600px+ (laptop 균형 손상).
+//   · 시뮬 placeholder 강화 (icon + 본문 + hint 다층) — 시작 전 단계도 페이지 의도 전달.
+//   · 분자 수 카드 footer "분자 수 = 동적 평형의 양적 지표" — 학습 단서 명시.
+//   · 측정점 영역 placeholder padding 36 → 14 px (~140 → ~80px) — mock 단계 영역 비중 축소.
 //
 // docs/17 §6 참조.
 // =============================================================
