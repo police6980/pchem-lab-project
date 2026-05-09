@@ -1,23 +1,22 @@
 // =============================================================
-// vapor.js — 증기압 시뮬 본체 (Phase 6.1-b sub-step B-2 final)
+// vapor.js — 증기압 시뮬 본체 (Phase 6.1-b sub-step B-2 final fixup 2)
 //
-// 5 사용자 비판 + 학습 핵심(rate 비대칭) 통합:
+// 5 사용자 비판 + 학습 핵심 + plateau 보정:
 //   (1) 기체 단색 빨강 → KE 자연단위 lerp 색
 //   (2) 기체 정지 → gas_speed_scale 분리 (KE → px/s)
 //   (3) 표면 자리 보충 X → 탈출 시 즉시 새 SurfaceParticle
 //   (4) Boltzmann 분율 누락 → KE 변수 + 매 1초 MB 재샘플 + 결정적 게이트
 //   (5) 입자 크기 미통일 → liquid/gas 모두 r=4
+//   (6) plateau ~5~10 너무 낮음 → E_escape 1.2 + E_capture 2.5 + 약한 중력
+//                               + 천장 KE 손실 → plateau ~50~80 목표
+//   (7) 응축 사건 시각화 부족 → flash queue (evap 청 / cond 주황 1초 페이드)
 //
 // 학습 핵심 (raison d'être):
 //   · evap = 일정 (MB 분포 × 표면 입자 수, 두 항 다 시간 불변)
 //   · cond = 점진 증가 (기체 밀도 ↑ → 표면 충돌 ↑)
 //   · 평형 = "evap 줄어든 게 아니라 cond 가 evap 까지 따라온 것"
 //   → 캔버스 하단 80px RateMiniGraph 로 두 곡선 동시 가시화
-//
-// 모델 구조:
-//   · Liquid lattice = 정적 격자 (가득 보장, 단색)
-//   · SurfaceParticle = KE 변수, 매 1초 MB 재샘플, 결정적 게이트
-//   · GasParticle = KE 보존, 자유 비행 + hard sphere + KE lerp 색
+//   → flash queue 로 사건 빈도 직관 인지
 //
 // docs/17 §6 참조.
 // =============================================================
@@ -107,6 +106,12 @@ class VaporWorld {
         this.gasParticles = [];
         this.gasRadius = cfg.gas_particle_radius_px ?? 4;
         this.gasSpeedScale = cfg.gas_speed_scale ?? 50;
+        this.gasDamping = cfg.gas_velocity_damping ?? 0.9995;
+        this.gasGravity = cfg.gas_gravity ?? 0.0005;
+        this.ceilingKERetention = cfg.ceiling_KE_retention ?? 0.85;
+
+        // ── Flash queue (사용자 비판 (7): 사건 시각화 강화) ──
+        this.flashes = [];
 
         // 사건 누적
         this._evapWin = 0;
@@ -193,13 +198,29 @@ class VaporWorld {
         const z = this.box;
         const left = z.x + r, right = z.x + z.w - r;
         const top = z.y + r, bottom = z.y + z.h - r;
+        const dampingFactor = Math.pow(this.gasDamping, dt);  // dt-scaled
+        const ceilingVScale = Math.sqrt(this.ceilingKERetention); // KE retention → v scale
+        const gravity = this.gasGravity;
         for (const g of this.gasParticles) {
+            // 약한 중력 (per frame)
+            g.vy += gravity;
+            // 약한 점성 (dt-scaled)
+            g.vx *= dampingFactor;
+            g.vy *= dampingFactor;
+            // 위치 갱신
             g.x += g.vx * dt;
             g.y += g.vy * dt;
+            // 좌우 벽 (탄성)
             if (g.x < left  && g.vx < 0) g.vx = -g.vx;
             if (g.x > right && g.vx > 0) g.vx = -g.vx;
-            if (g.y < top   && g.vy < 0) g.vy = -g.vy;
+            // 천장 (KE 손실 — 응축 후보 ↑)
+            if (g.y < top   && g.vy < 0) {
+                g.vy = -g.vy * ceilingVScale;
+                g.vx *= ceilingVScale;
+            }
+            // 바닥 (탄성, 정상 조건에선 응축 게이트가 먼저 처리)
             if (g.y > bottom && g.vy > 0) g.vy = -g.vy;
+            // clamp
             if (g.x < left)        g.x = left;
             else if (g.x > right)  g.x = right;
             if (g.y < top)         g.y = top;
@@ -265,19 +286,29 @@ class VaporWorld {
             ke_at_birth: sp.ke,
         });
         this._evapWin++;
+        this._addFlash(sp.x, sp.y, this.cfg.evap_flash_color || "#2563EB");
+    }
+
+    _addFlash(x, y, colorStr) {
+        this.flashes.push({
+            x, y, color: colorStr,
+            t_start: performance.now(),
+        });
     }
 
     _evalCondensation() {
-        const E_capture = this.cfg.E_capture ?? 0.5;
+        const E_capture = this.cfg.E_capture ?? 2.5;
         const speedScale = this.gasSpeedScale;
         const ssq = speedScale * speedScale;
         const liquidTop = this.liquidTopY;
+        const condColor = this.cfg.cond_flash_color || "#EA580C";
         const remain = [];
         for (const g of this.gasParticles) {
             if (g.vy > 0 && g.y >= liquidTop - 5) {
                 const ke = 0.5 * (g.vx * g.vx + g.vy * g.vy) / ssq;
                 if (ke < E_capture) {
                     this._condWin++;
+                    this._addFlash(g.x, liquidTop, condColor);
                     continue;
                 } else {
                     g.vy = -g.vy;
@@ -398,6 +429,31 @@ class VaporWorld {
             p.fill(vaporColorFromKE(p, ke, slow, fast, keMin, keMax));
             p.circle(g.x, g.y, gasR * 2);
         }
+    }
+
+    // ── Flash queue 렌더 (1초 페이드, 12 → 6 px) ──
+    drawFlashes(p) {
+        const cfg = this.cfg;
+        const duration = (cfg.flash_duration_sec ?? 1.0) * 1000;
+        const rStart = cfg.flash_radius_start_px ?? 12;
+        const rEnd = cfg.flash_radius_end_px ?? 6;
+        const now = performance.now();
+        const remain = [];
+        p.noFill();
+        p.strokeWeight(2);
+        for (const f of this.flashes) {
+            const elapsed = now - f.t_start;
+            if (elapsed >= duration) continue;
+            const t = elapsed / duration;
+            const r = rStart + (rEnd - rStart) * t;
+            const alpha = (1 - t) * 220;
+            const col = p.color(f.color);
+            col.setAlpha(alpha);
+            p.stroke(col);
+            p.circle(f.x, f.y, r * 2);
+            remain.push(f);
+        }
+        this.flashes = remain;
     }
 
     // ── RateMiniGraph (학습 핵심: evap=일정, cond=점진 증가, 평형=만남) ──
@@ -529,6 +585,7 @@ function mountVaporSketch(world, container) {
             p.background(248, 250, 252);
             world.drawWalls(p);
             world.drawMolecules(p);
+            world.drawFlashes(p);
             world.drawRateGraph(p);
         };
     };

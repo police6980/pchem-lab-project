@@ -49,7 +49,7 @@
     },
 
     "vapor": {
-        "_comment": "Phase 6.1-b sub-step B-2 final. 5 사용자 비판 + 학습 핵심(rate 비대칭) 통합. (1) 단색 빨강 → KE HSB. (2) 정지 → gas_speed_scale. (3) 자리 보충 X → 즉시 새 SurfaceParticle. (4) Boltzmann 분율 누락 → KE 변수 + MB 재샘플 + 결정적 게이트. (5) 입자 크기 미통일 → liquid/gas 모두 r=4. 학습 핵심 → 캔버스 하단 80px rate graph (evap=일정, cond=점진 증가, 평형 = 두 속도 만남).",
+        "_comment": "Phase 6.1-b sub-step B-2 final fixup 2. 사용자 검증: 응축 가시화 부족 + plateau ~5~10 X. 일괄 재튜닝: E_escape 3.0→1.2 (탈출 빈도 ↑), E_capture 0.5→2.5 (응축 후보 ↑), gas_velocity_damping 0.9995 (매우 약한 점성), gas_gravity 0.0005 (매우 약한 중력으로 자연스러운 표면 도달), ceiling_KE_retention 0.85 (천장 반사 시 KE 15% 손실), 신규 flash queue (evap 청 + cond 주황 1초 페이드). 목표: plateau ~50~80, 평형 30~60s, 응축 사건 1초당 5~10회 가시.",
         "V_flask_presets_mL": [100, 250, 500],
         "V_flask_default_mL": 250,
         "V_liquid_default_mL": 50,
@@ -65,8 +65,8 @@
         "surface_jitter_amp_px": 2,
 
         "kT_surface": 1.0,
-        "E_escape": 3.0,
-        "E_capture": 0.5,
+        "E_escape": 1.2,
+        "E_capture": 2.5,
         "surface_KE_resample_sec": 1.0,
 
         "color_KE_slow": "#1E3A8A",
@@ -75,6 +75,15 @@
         "color_KE_max_for_HSB": 5.0,
 
         "gas_speed_scale": 50,
+        "gas_velocity_damping": 0.9995,
+        "gas_gravity": 0.0005,
+        "ceiling_KE_retention": 0.85,
+
+        "evap_flash_color": "#2563EB",
+        "cond_flash_color": "#EA580C",
+        "flash_duration_sec": 1.0,
+        "flash_radius_start_px": 12,
+        "flash_radius_end_px": 6,
 
         "rate_window_sec": 60,
         "rate_ema_alpha": 0.3,
@@ -89,6 +98,6 @@
         "pressure_kpa_max_for_bar": 30,
 
         "water_mol_per_mL": 0.05551,
-        "_units_note": "kT_surface 1.0 = MB 평균 KE (자연 단위). E_escape 3.0 = 3kT 꼬리 (~5% tail). gas_speed_scale 50 = KE → px/s (KE=1 → speed≈70 px/s, KE=3 → 122 px/s). 입자 r=4 통일: 액체 격자 ≈ 800 입자, 표면 ≈ 95 입자. 5 ~ 6 /s 증발 출발 → 평형 ~30 ~ 60s. rate_y_max 30 = 그래프 y축 자동 cap. pressure_kpa_per_gas_particle 0.1 = 약식 프록시 (P = N_gas × 0.1 kPa). 평형 검출: |evap_ema - cond_ema| < 1.0/s 가 5초 지속 + evap_ema > 1.0/s. 격자 N 자동 계산."
+        "_units_note": "kT_surface 1.0 = MB 평균 KE. E_escape 1.2 ≈ 0.3σ 꼬리 (정규근사 P>1.2 ≈ 39%) → 95 surface × 0.39 ≈ 37/s 출발 후 표면 KE 재샘플로 안정. gas_speed_scale 50 = KE → px/s (KE=1.2 → 78 px/s, KE=2.5 → 112 px/s). gas_velocity_damping 0.9995 = 매 dt 마다 v *= damping^dt (1초 0.05% 손실). gas_gravity 0.0005 px/s²/frame = 매 frame vy += 0.0005 (자유 비행 거의 유지하되 시간 지나면 표면 도달 경향). ceiling_KE_retention 0.85 = 천장 반사 시 v *= sqrt(0.85) → KE 15% 손실 (응축 후보 보장). E_capture 2.5 = 표면 도달 가스 KE < 2.5 면 응축. flash_duration 1.0s 페이드 (12→6 px). pressure 0.1 kPa/입자: plateau 50~80 → 5~8 kPa. 격자 N 자동: V_liquid/V_flask=0.2 시 ~800 lattice + 95 surface."
     }
 }
