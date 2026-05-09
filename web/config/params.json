@@ -101,6 +101,7 @@
         "flash_radius_end_px": 2,
         "flash_arrow_length_px": 40,
         "flash_arrow_thickness_px": 3.5,
+        "flash_arrow_match_min_hold_sec": 0.3,
 
         "gas_birth_color_fluorescent": "#FCD34D",
         "gas_birth_fluor_hold_sec": 1.5,

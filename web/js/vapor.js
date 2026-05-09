@@ -1,6 +1,6 @@
 // =============================================================
 // vapor.js — 증기압 시뮬 본체
-// Phase 6.1-b finalization fixup 15a 재작업 (1:1 페어 즉시 캔슬 + hold 1.5s + rate prime N tick 평균)
+// Phase 6.1-b finalization fixup 15a redo v2 (frame loop 1:1 페어 매칭 + min hold 0.3s)
 //
 // 핵심 철학 (정공법):
 //   학생 가시 = 실측 / 시뮬 = 미시 가시화 (정성적)
@@ -34,12 +34,13 @@
 //   ── 시각 강조 (3계층 인지) ──
 //     · 사건 자체 = 노랑 #FCD34D (가시 가스 birth) + 핑크 #F472B6 (격자 응결)
 //                   둘 다 1.5s + 0.5s fade + glow blur 25 (별도 큐, 매칭 영향 X)
-//     · 빈도 차 = evap 위 화살표 / cond 아래 화살표 (fixup 15a 재작업, 정공법 회귀)
-//                  _addFlash 안 매칭 시 즉시 splice + return → 양쪽 동시 소멸 (fade X)
-//                  매칭 풀 = visible only (ghost 사건은 _addFlash 호출 X — 진단 확정)
-//                  FIFO 공간 무관 (findIndex = 가장 오래된 반대 dir head)
-//                  무매칭 hold = flash_duration_sec=1.5초 (fixup 15a 재작업, 시작 직후 동시 ≈5개)
-//                  transient (evap >> cond): 위 화살표 다수 / 평형 (evap ≈ cond): 잔존 ≈0 (멎음)
+//     · 빈도 차 = evap 위 화살표 / cond 아래 화살표 (fixup 15a redo v2)
+//                  _addFlash = 모든 사건 무조건 push (응축 화살표 visible 보장)
+//                  _processFlashMatching = 매 frame head-vs-head FIFO 매칭
+//                    · up/down 양쪽 가장 오래된 화살표가 모두 min hold (0.3초) 통과 시 양쪽 splice
+//                    · 매칭 풀 = visible only (ghost 사건은 _addFlash 호출 X)
+//                    · 무매칭 hold = flash_duration_sec=1.5초 (자연 fade)
+//                  학생 인지: 응축 화살표도 visible → 양쪽 등장 + 만남으로 동시 소멸
 //                  잔존 화살표 수 = 빈도 차이 시각 = 학생 학습 단서
 //     · 정량 절댓값 = rate 그래프 두 곡선 만남 (_evapWin / _condWin 카운터, 매칭 영향 X)
 //
@@ -79,8 +80,9 @@
 //   · vapor-card-pvap (fixup 12, vapor-card-tp 안 P 영역으로 통합)
 //   · T 셀렉트 (fixup 12 → 11+12 integrated, number input 으로 교체 — 학생 임의 T 직접 입력)
 //   · 시작 직후 EMA prime 잡음 박힘 (fixup 9 부작용 → fixup 14 워밍업 + fixup 15a N tick 평균으로 해소)
-//   · 화살표 매칭 0.3초 fade 캔슬 (fixup 15a → 15a 재작업, 즉시 splice 회귀 — 잔존 = 빈도 차 학습 단서)
-//   · params.flash_arrow_match_cancel_fade_sec (fixup 15a 키, 15a 재작업 폐기)
+//   · 화살표 매칭 0.3초 fade 캔슬 (fixup 15a v1 → 15a redo 폐기 → 15a redo v2 frame loop)
+//   · _addFlash 안 즉시 splice (fixup 11 / 15a redo, 응축 화살표 안 그려지는 결함 → 15a redo v2 폐기)
+//   · params.flash_arrow_match_cancel_fade_sec (fixup 15a v1 키, redo 폐기)
 //
 // docs/17 §6 참조.
 // =============================================================
@@ -339,6 +341,31 @@ class VaporWorld {
 
         // 5) 매 1초: rate 샘플 + stats log
         this._maybeTickRateAndLog();
+
+        // 6) 화살표 매칭 (fixup 15a redo v2 — 매 frame head-vs-head FIFO + min hold)
+        this._processFlashMatching();
+    }
+
+    // 화살표 매칭 (fixup 15a redo v2)
+    // up + down 양쪽 dir 가장 오래된 화살표가 모두 min hold 통과 시 양쪽 동시 splice.
+    // _addFlash 는 모든 사건 무조건 push → 응축 화살표 visible 보장.
+    // 학생 인지: "양쪽 화살표 등장 + 만남으로 동시 소멸"
+    _processFlashMatching() {
+        const minHoldMs = (this.cfg.flash_arrow_match_min_hold_sec ?? 0.3) * 1000;
+        const now = performance.now();
+        // FIFO 1:1 매칭 — 양쪽 dir 가장 오래된 head 모두 min hold 통과 시 양쪽 splice
+        // while 루프 — 한 frame 안에 매칭 가능한 모든 쌍 처리
+        // (보통 1~2 쌍, transient 누적 후 평형 진입 시점에 다수 쌍 가능)
+        while (true) {
+            const upIdx = this.flashes.findIndex(f => f.dir === "up" && (now - f.t_start) >= minHoldMs);
+            const downIdx = this.flashes.findIndex(f => f.dir === "down" && (now - f.t_start) >= minHoldMs);
+            if (upIdx === -1 || downIdx === -1) break;
+            // 인덱스 큰 것부터 splice (작은 것 splice 시 큰 것 인덱스 변경 회피)
+            const a = Math.max(upIdx, downIdx);
+            const b = Math.min(upIdx, downIdx);
+            this.flashes.splice(a, 1);
+            this.flashes.splice(b, 1);
+        }
     }
 
     _updateSurfaceAndPoissonEvap(dt, tSec) {
@@ -514,16 +541,9 @@ class VaporWorld {
     }
 
     _addFlash(x, y, colorStr, dir) {
-        // 화살표 매칭 (fixup 15a 재작업 — 1:1 페어 즉시 splice, 정공법 회귀)
-        // 매칭 풀 = visible only (ghost 사건은 _addFlash 호출 X — 진단 확정)
-        // FIFO 공간 무관 (findIndex = 가장 오래된 반대 dir head 매칭)
-        // 잔존 화살표 수 = 빈도 차이 시각화 = 학생 학습 단서
-        const opposite = (dir === "up") ? "down" : "up";
-        const matchIdx = this.flashes.findIndex(f => f.dir === opposite);
-        if (matchIdx !== -1) {
-            this.flashes.splice(matchIdx, 1);  // 반대 dir head 즉시 제거
-            return;                             // 신규 push X → 양쪽 즉시 동시 소멸
-        }
+        // fixup 15a redo v2 — 모든 사건 무조건 push (응축 화살표 visible 보장)
+        // 매칭은 _processFlashMatching (매 update tick) 에서 head-vs-head FIFO 처리
+        // min hold 0.3초 통과 후 매칭 → 양쪽 동시 splice → 학생 "쌍이 만남" 인지
         this.flashes.push({
             x, y, color: colorStr,
             dir: dir || "up",  // "up" = 증발 (y 감소 방향), "down" = 응축
