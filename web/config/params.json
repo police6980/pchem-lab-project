@@ -119,6 +119,7 @@
         "rate_graph_initial_x_sec": 180,
         "rate_graph_max_time_sec": 1800,
         "rate_calc_window_sec": 3.0,
+        "rate_warmup_ticks": 2,
         "rate_ema_alpha": 0.1,
         "rate_color_evap": "#2563EB",
         "rate_color_cond": "#EA580C",

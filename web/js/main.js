@@ -3787,6 +3787,8 @@ function initVaporApp(params) {
         eqBadge:          document.getElementById("vapor-equilibrium-badge"),
         elapsedTime:      document.getElementById("vapor-elapsed-time"),
         tInput:           document.getElementById("vapor-t-input"),
+        tApply:           document.getElementById("vapor-t-apply"),
+        tInputRow:        document.querySelector(".vapor-tp-input-row"),
         tPresets:         document.getElementById("vapor-t-presets"),
         btnRecord:        document.getElementById("vapor-btn-record"),
         btnClearPoints:   document.getElementById("vapor-btn-clear-points"),
@@ -3870,7 +3872,7 @@ function initVaporApp(params) {
         });
     });
 
-    // ── T 컨트롤 (fixup 13 — number input + 5 프리셋, 학생 임의 T 입력 + 범위 외 fallback) ──
+    // ── T 컨트롤 (fixup 14 — number input + 입력 버튼 확정 + 프리셋 즉시) ──
     function applyTemperature(rawT) {
         const parsed = parseFloat(rawT);
         let T;
@@ -3880,19 +3882,29 @@ function initVaporApp(params) {
         } else {
             T = parsed;
             lastValidT = T;
-            // input.value 는 사용자 입력 그대로 보존 (소수점 포맷 변형 회피)
         }
         const buttons = dom.tPresets.querySelectorAll(".vapor-t-preset-btn");
         buttons.forEach(b => {
             b.classList.toggle("is-active", Number(b.dataset.temp) === T);
         });
+        if (dom.tInputRow) dom.tInputRow.classList.remove("is-dirty");
         if (world) {
             world.setTemperature(T);
             console.log(`[Vapor] T 변경 = ${T}°C · evap_rate = ${world.evapRatePerParticlePerSec().toFixed(4)}/입자/s`);
         }
     }
-    dom.tInput.addEventListener("change", (e) => applyTemperature(e.target.value));
-    dom.tInput.addEventListener("blur", (e) => applyTemperature(e.target.value));
+    // 직접 입력 = dirty 표시만, 확정 X (입력 버튼 또는 Enter 시 확정)
+    dom.tInput.addEventListener("input", () => {
+        if (dom.tInputRow) dom.tInputRow.classList.add("is-dirty");
+    });
+    dom.tInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+            e.preventDefault();
+            applyTemperature(dom.tInput.value);
+        }
+    });
+    dom.tApply.addEventListener("click", () => applyTemperature(dom.tInput.value));
+    // 프리셋 = 즉시 반영 (빠른 선택)
     dom.tPresets.addEventListener("click", (e) => {
         const btn = e.target.closest(".vapor-t-preset-btn");
         if (!btn) return;
@@ -4101,11 +4113,12 @@ function initVaporApp(params) {
             dom.pressureTheor.textContent = (typeof Pth === "number") ? Pth.toFixed(2) : "—";
             const tEq = world.equilibriumReachedAtSec;
             dom.eqReachTime.textContent = (tEq != null) ? `${tEq.toFixed(0)}s` : "—";
-            dom.evapRateEl.textContent = world.evapEMA.toFixed(2);
-            dom.condRateEl.textContent = world.condEMA.toFixed(2);
+            // fixup 14 — 워밍업 동안 EMA null, "—" 표시
+            dom.evapRateEl.textContent = (world.evapEMA == null) ? "—" : world.evapEMA.toFixed(2);
+            dom.condRateEl.textContent = (world.condEMA == null) ? "—" : world.condEMA.toFixed(2);
             // 응축/증발 비율 (fixup 11 — rate 카드 third cell, zone 색 분기)
             const evapEma = world.evapEMA;
-            if (evapEma > 0.05) {
+            if (evapEma != null && evapEma > 0.05) {
                 const ratio = world.condEMA / evapEma;
                 dom.ratioVal.textContent = ratio.toFixed(2);
                 let zone = "zero";

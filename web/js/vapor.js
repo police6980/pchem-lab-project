@@ -1,6 +1,6 @@
 // =============================================================
 // vapor.js — 증기압 시뮬 본체
-// Phase 6.1-b finalization fixup 13 (평형 판정 통일 — ratio 기반 단일 metric)
+// Phase 6.1-b finalization fixup 14 (rate 워밍업 — 첫 N tick 잡음 prime 회피)
 //
 // 핵심 철학 (정공법):
 //   학생 가시 = 실측 / 시뮬 = 미시 가시화 (정성적)
@@ -41,7 +41,9 @@
 //
 //   ── rate 그래프 (학습 단서, 우측 카드 별도 canvas) ──
 //     · 시작부터 누적, x축 자동 스케일 (initial=180s, fixup 11 — 학교 시간 척도)
-//     · EMA prime (첫 tick = raw, 워밍업 lag 차단 — fixup 9)
+//     · 워밍업 = 첫 N tick (rate_warmup_ticks=2, fixup 14) raw 만 누적, EMA null
+//       (Poisson σ √N 감소된 raw 로 prime → 잡음값 박힘 회피)
+//     · EMA prime — 워밍업 통과 후 첫 정상 tick = raw (lag 차단, fixup 9)
 //     · 학생 학습 = 두 곡선 만남 = 정성적 평형
 //
 //   ── rate 카드 third cell — 응축/증발 비율 (mock 학습 단서, fixup 11) ──
@@ -72,6 +74,7 @@
 //   · 시뮬 캔버스 아래 T 슬라이더 + 프리셋 버튼 (fixup 12, 우측 카드 통합으로 이동)
 //   · vapor-card-pvap (fixup 12, vapor-card-tp 안 P 영역으로 통합)
 //   · T 셀렉트 (fixup 12 → 11+12 integrated, number input 으로 교체 — 학생 임의 T 직접 입력)
+//   · 시작 직후 EMA prime 잡음 박힘 (fixup 9 부작용 → fixup 14 워밍업으로 해소)
 //
 // docs/17 §6 참조.
 // =============================================================
@@ -206,9 +209,9 @@ class VaporWorld {
 
         // ── Rate 추적 (학습 핵심) ──
         this.rateHistory = [];          // {evap_raw, cond_raw, evap_ema, cond_ema}
-        this.evapEMA = 0;
-        this.condEMA = 0;
-        this._emaPrimed = false;        // fixup 9: 첫 tick 에 EMA = raw (워밍업 lag 차단)
+        this.evapEMA = null;            // fixup 14: 워밍업 동안 null (rateHistory.length < warmupTicks)
+        this.condEMA = null;
+        this._emaPrimed = false;        // fixup 9: 첫 정상 tick 에 EMA = raw (워밍업 lag 차단)
         this.equilibriumStartIdx = null;
         this.equilibriumReached = false;
         this.equilibriumIdx = null;
@@ -277,7 +280,7 @@ class VaporWorld {
     // 평형도 % — ratio 기반 (fixup 13, 평형 판정 통일과 동일 metric)
     // 1.0 일 때 100%, ratio band 외 일수록 감소. 보존 (real 모드 재사용 가능).
     get equilibriumPercent() {
-        if (this.evapEMA <= 0.05) return 0;
+        if (this.evapEMA == null || this.evapEMA <= 0.05) return 0;
         const ratio = this.condEMA / this.evapEMA;
         const dist = Math.abs(ratio - 1.0);
         const band = Math.max(
@@ -590,7 +593,20 @@ class VaporWorld {
         const evapRaw = this._rateRawEvapBuf.reduce((s, v) => s + v, 0) / this._rateRawEvapBuf.length;
         const condRaw = this._rateRawCondBuf.reduce((s, v) => s + v, 0) / this._rateRawCondBuf.length;
 
-        // EMA — 첫 tick 에 prime (워밍업 lag 차단, fixup 9)
+        // 워밍업 — 첫 N tick 폐기 (fixup 14 — 잡음 prime 회피, σ √N 감소된 후 prime)
+        const warmupTicks = this.cfg.rate_warmup_ticks ?? 2;
+        if (this.rateHistory.length < warmupTicks) {
+            this.rateHistory.push({
+                evap_raw: evapRaw, cond_raw: condRaw,
+                evap_ema: null, cond_ema: null,
+            });
+            this._evapWin = 0; this._condWin = 0;
+            this._ghostEvapWin = 0; this._ghostCondWin = 0;
+            this._lastStatsT = now;
+            return;
+        }
+
+        // EMA — 첫 정상 tick 에 prime (워밍업 lag 차단, fixup 9)
         if (!this._emaPrimed) {
             this.evapEMA = evapRaw;
             this.condEMA = condRaw;
@@ -621,7 +637,7 @@ class VaporWorld {
         const eqMin = this.cfg.equilibrium_ratio_min ?? 0.9;
         const eqMax = this.cfg.equilibrium_ratio_max ?? 1.1;
         const holdSec = this.cfg.equilibrium_hold_sec ?? 5;
-        const ratio = (this.evapEMA > 0.05) ? (this.condEMA / this.evapEMA) : null;
+        const ratio = (this.evapEMA != null && this.evapEMA > 0.05) ? (this.condEMA / this.evapEMA) : null;
 
         // 진단용 P 변화율 보존 (real 모드 재사용)
         const dP = this._pressureSmoothed - (this._pressureSmoothedPrev ?? this._pressureSmoothed);
@@ -897,10 +913,13 @@ function drawVaporRateGraph2D(ctx, world, cfg, W, H) {
     const scaleFactor = cfg.rate_y_auto_scale_factor ?? 1.2;
     const initialX = cfg.rate_graph_initial_x_sec ?? 60;
 
-    // y 자동 스케일
-    let peak = Math.max(world.evapEMA || 0, world.condEMA || 0);
+    // y 자동 스케일 (fixup 14 — 워밍업 동안 EMA null skip)
+    let peak = 0;
+    if (world.evapEMA != null) peak = Math.max(peak, world.evapEMA);
+    if (world.condEMA != null) peak = Math.max(peak, world.condEMA);
     for (const r of world.rateHistory) {
-        peak = Math.max(peak, r.evap_ema, r.cond_ema);
+        if (r.evap_ema != null) peak = Math.max(peak, r.evap_ema);
+        if (r.cond_ema != null) peak = Math.max(peak, r.cond_ema);
     }
     const yMax = Math.max(yMin, peak * scaleFactor);
 
@@ -960,14 +979,26 @@ function drawVaporRateGraph2D(ctx, world, cfg, W, H) {
     const mapX = (i) => innerX + (innerW * i) / denom;
     const mapY = (rate) => innerY + innerH - (innerH * Math.min(rate, yMax)) / yMax;
 
+    // fixup 14 — 워밍업 tick (evap_ema/cond_ema null) 건너뜀
+    let firstIdx = 0;
+    while (firstIdx < n && world.rateHistory[firstIdx].evap_ema == null) firstIdx++;
+    if (firstIdx >= n) {
+        // 전부 워밍업 — 그래프 데이터 X
+        ctx.fillStyle = "#94a3b8";
+        ctx.font = "10px sans-serif";
+        ctx.textAlign = "right";
+        ctx.fillText("데이터 수집 중...", W - 8, 5);
+        return;
+    }
+
     // 두 곡선 사이 fill
     ctx.fillStyle = vaporHexToRgba(condColor, 0.16);
     ctx.beginPath();
-    ctx.moveTo(mapX(0), mapY(world.rateHistory[0].evap_ema));
-    for (let i = 1; i < n; i++) {
+    ctx.moveTo(mapX(firstIdx), mapY(world.rateHistory[firstIdx].evap_ema));
+    for (let i = firstIdx + 1; i < n; i++) {
         ctx.lineTo(mapX(i), mapY(world.rateHistory[i].evap_ema));
     }
-    for (let i = n - 1; i >= 0; i--) {
+    for (let i = n - 1; i >= firstIdx; i--) {
         ctx.lineTo(mapX(i), mapY(world.rateHistory[i].cond_ema));
     }
     ctx.closePath();
@@ -977,8 +1008,8 @@ function drawVaporRateGraph2D(ctx, world, cfg, W, H) {
     ctx.strokeStyle = evapColor;
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.moveTo(mapX(0), mapY(world.rateHistory[0].evap_ema));
-    for (let i = 1; i < n; i++) {
+    ctx.moveTo(mapX(firstIdx), mapY(world.rateHistory[firstIdx].evap_ema));
+    for (let i = firstIdx + 1; i < n; i++) {
         ctx.lineTo(mapX(i), mapY(world.rateHistory[i].evap_ema));
     }
     ctx.stroke();
@@ -986,8 +1017,8 @@ function drawVaporRateGraph2D(ctx, world, cfg, W, H) {
     // Cond 곡선
     ctx.strokeStyle = condColor;
     ctx.beginPath();
-    ctx.moveTo(mapX(0), mapY(world.rateHistory[0].cond_ema));
-    for (let i = 1; i < n; i++) {
+    ctx.moveTo(mapX(firstIdx), mapY(world.rateHistory[firstIdx].cond_ema));
+    for (let i = firstIdx + 1; i < n; i++) {
         ctx.lineTo(mapX(i), mapY(world.rateHistory[i].cond_ema));
     }
     ctx.stroke();

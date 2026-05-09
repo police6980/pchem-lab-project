@@ -3994,6 +3994,34 @@ body[data-page="vapor"] .vapor-tp-unit {
     color: #64748b;
     flex: 0 0 auto;
 }
+body[data-page="vapor"] .vapor-t-apply-btn {
+    flex: 0 0 auto;
+    padding: 4px 10px;
+    border: 1px solid #2563eb;
+    background: #2563eb;
+    color: #fff;
+    border-radius: 3px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease;
+}
+body[data-page="vapor"] .vapor-t-apply-btn:hover {
+    background: #1d4ed8;
+    border-color: #1d4ed8;
+}
+/* dirty state — input 변경 후 미확정 시 강조 */
+body[data-page="vapor"] .vapor-tp-input-row.is-dirty .vapor-tp-temp-input {
+    border-color: #f59e0b;
+    background: #fffbeb;
+}
+body[data-page="vapor"] .vapor-tp-input-row.is-dirty .vapor-t-apply-btn {
+    background: #f59e0b;
+    border-color: #f59e0b;
+}
+body[data-page="vapor"] .vapor-tp-input-row.is-dirty .vapor-t-apply-btn:hover {
+    background: #d97706;
+    border-color: #d97706;
+}
 body[data-page="vapor"] .vapor-t-presets {
     display: grid;
     grid-template-columns: repeat(5, 1fr);

@@ -176,6 +176,40 @@ MVP 외 후속 트랙 학습 목표:
 
 학습 목표 외 (액체 내부 분자 운동 정확 모델) 은 별 학습 자료로 분리.
 
+### Rate 워밍업 + T 입력 확정 패턴 (fixup 14)
+
+사용자 검증: 시작 직후 evap rate 6.0 → 시간 따라 3.5 로 감소 (정상은 evap 일정 명세).
+
+**원인 진단** (CC):
+- 첫 1초 적분 시 Poisson σ ≈ √8.8 ≈ ±2.97 사건 → visible-equiv ±1.19 → raw 6.0 은 +2σ 부근 (5% 확률).
+- fixup 9 EMA prime 이 잡음값 그대로 박음 → τ_EMA = 10초 → 30~40초 후 정상값 도달.
+- fixup 9 의 워밍업 lag (시작 0 → 평균값) 차단 의도가 부작용으로 잡음 prime → lag 방향만 바뀜.
+
+**Fix — 옵션 (a) 첫 N tick 폐기** (CC 권장 채택):
+- `_maybeTickRateAndLog` 안 EMA prime 직전:
+  ```js
+  const warmupTicks = this.cfg.rate_warmup_ticks ?? 2;
+  if (this.rateHistory.length < warmupTicks) {
+      this.rateHistory.push({ evap_raw, cond_raw, evap_ema: null, cond_ema: null });
+      // 카운터 reset + lastStatsT 갱신 후 early return
+  }
+  ```
+- 첫 2 tick raw 만 누적 (3초 평균 σ √3 감소 후 prime → 잡음 ±0.69 로 감소).
+- 3번째 tick 부터 EMA prime + 정상 평활.
+- params.json: `rate_warmup_ticks: 2` 신규.
+- 워밍업 동안 `evapEMA / condEMA = null` → main.js readout `"—"` 표시 + ratio cell zone "zero".
+- rate 그래프 plot: `evap_ema/cond_ema null` skip (firstIdx 부터 moveTo).
+- 평형 검출 (ratio 기반) 워밍업 동안 자동 대기 (evapEMA null 시 ratio null).
+
+**T 입력 확정 패턴** (사용자 추가):
+- 직접 입력 (number input) → `is-dirty` state 만 표시 (input border 주황 + 입력 버튼 강조).
+- 입력 버튼 click 또는 Enter 키 → 확정 (`applyTemperature`) + 시뮬 응답 + dirty 해제.
+- 프리셋 button click → 즉시 input.value 동기화 + 확정 (빠른 선택).
+- 학생 인지: 타이핑 중에는 시뮬 반응 X → 매 keystroke 부담 회피.
+
+**vapor.js 헤더 docstring 갱신**:
+- fixup 14 활성 명세 (워밍업, 잡음 prime 회피) + 폐기 항목 누적 (시작 직후 EMA prime 잡음 박힘 — fixup 9 부작용).
+
 ### 평형 판정 통일 — ratio 기반 단일 metric (fixup 13)
 
 직전 fixup 8~9 의 P_internal 변화율 기반 평형 판정 폐기.
@@ -770,6 +804,8 @@ rate 그래프 y_max 5 (낮은 rate 정합), 평형 임계 0.5/s + min_evap 1.5/
 | 화면 반응형 (fixup 11+12 integrated, 1024/768 브레이크포인트) | 데스크탑 (>1024) 가로 3열, 태블릿 (768~1023) 사이드바 + 시뮬 가로 / 카드 row wrap, 모바일 (<768) 모든 영역 세로 stack. 보일/돌턴 페이지 미디어 쿼리 패턴 재사용. | 데스크탑 전용 (모바일 broken layout), 단일 브레이크포인트 (태블릿 어색) |
 | 평형 판정 = ratio 0.9~1.1 5초 유지 (fixup 13, 단일 metric) | 직전 P_internal 변화율 (★ 표지) + ratio band (zone 색) 두 모듈 모순 (★ 표시인데 비율 0.88 주황) 회피. ratio 단일 metric 으로 세 표지 (배지/★/zone) 동일 트리거 → 학생 인지 일관. P_internal 변화율 코드 보존 (real 모드 재사용 여지). | P_internal 변화율 유지 (모순 잔존), 두 metric AND 조건 (어느 하나 false 시 평형 미도달, 노이즈 잡힘) |
 | mock 평형 배지 활성 (fixup 13, fixup 9 비공개 결정 일부 폐기) | 단일 metric 모순 회피 후 표지 일관 → 비공개 이유 (모순 우려) 소멸. 학생 학습 단서 풍부화 (배지/★/zone 세 표지). P 카드 + 측정점 표는 비공개 유지 (정공법 회귀 흐름 — 정량 측정은 실측 도착 후). | 배지 비공개 유지 (학생 단서 부족), 모든 mock 비공개 결정 폐기 (P 카드/측정점도 활성 — 정공법 회귀 핵심 위배) |
+| Rate 워밍업 = 첫 N tick 폐기 (fixup 14, 옵션 a) | 시작 직후 1초 적분 raw 의 Poisson 잡음 (±2σ ≈ 6.0) 이 EMA prime 박힘 → 30초 lag (fixup 9 부작용). 첫 2 tick raw 누적만 → 3초 평균 σ √3 감소 후 prime → 잡음 ±0.69 로 정상값 근접. 첫 2초 그래프/readout `—` 표시 (실 센서 워밍업 정합). | 옵션 (b) rate_calc_window 5초 확장 (첫 1초 잡음 그대로 — 효과 부분), 옵션 (c) Adaptive α (잡음 prime 잔존 절반), 옵션 (e) Incremental α (시각 부자연 — 단조 수렴 곡선) |
+| T 직접 입력 = 입력 버튼/Enter 확정 (fixup 14, 사용자 추가) | 학생 타이핑 중 (예: 32.5 → 32 → 3 단계별 입력) 매 keystroke 시뮬 반응은 부담. 확정 패턴 = 학생 인지 명확. 프리셋 즉시 반영은 빠른 선택 보존. dirty state 시각 (border 주황) = "확정 필요" 단서. | 매 change/blur 즉시 (직전 fixup 11+12 integrated, 학생 부담 + 의도 불명), debounce 500ms (반응 지연 학생 인지 부자연) |
 
 ---
 

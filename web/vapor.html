@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CAST — 증기압 (Phase 6.1-b finalization fixup 13 + 6.2 부분)</title>
+    <title>CAST — 증기압 (Phase 6.1-b finalization fixup 14 + 6.2 부분)</title>
     <link rel="stylesheet" href="css/style.css">
     <script src="https://cdn.jsdelivr.net/npm/p5@1.11.2/lib/p5.min.js"></script>
     <script src="https://unpkg.com/docx@8.5.0/build/index.umd.js"></script>
@@ -22,7 +22,7 @@
 <body data-page="vapor">
     <nav class="page-nav vapor-nav">
         <a href="index.html" class="nav-home" title="홈으로 돌아가기">🏠 홈으로</a>
-        <span class="nav-title">증기압 — Phase 6.1-b finalization fixup 13 + 6.2 (T 통합)</span>
+        <span class="nav-title">증기압 — Phase 6.1-b finalization fixup 14 + 6.2 (T 통합)</span>
     </nav>
 
     <div id="vapor-layout-v2" class="vapor-layout-v2">
@@ -116,10 +116,10 @@
                         <!-- mock: number input (소수점 허용, fixup 13) + 5 프리셋 보조 -->
                         <div class="vapor-tp-temp-mock">
                             <div class="vapor-tp-input-row">
-                                <label class="vapor-tp-temp-input-label" for="vapor-t-input">현재</label>
                                 <input type="number" id="vapor-t-input" class="vapor-tp-temp-input"
-                                       min="0" max="100" step="0.1" value="25" inputmode="decimal">
+                                       min="0" max="100" step="0.1" value="25" inputmode="decimal" aria-label="온도 직접 입력 (°C)">
                                 <span class="vapor-tp-unit">°C</span>
+                                <button type="button" id="vapor-t-apply" class="vapor-t-apply-btn">입력</button>
                             </div>
                             <div class="vapor-t-presets" id="vapor-t-presets" role="group" aria-label="온도 프리셋">
                                 <button type="button" class="vapor-t-preset-btn is-active" data-temp="25">25</button>
