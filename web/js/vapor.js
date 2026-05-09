@@ -1,6 +1,6 @@
 // =============================================================
 // vapor.js — 증기압 시뮬 본체
-// Phase 6.1-b finalization fixup 15r (rate 카드 배지+버튼 readouts 아래 + spacing 균형)
+// Phase 6.1-b finalization fixup 15p (가스 입자 수 부활 — T+P 카드 P 영역 하단 inline)
 //
 // 핵심 철학 (정공법):
 //   학생 가시 = 실측 / 시뮬 = 미시 가시화 (정성적)
@@ -275,6 +275,20 @@
 //   · 학습 흐름 재정합: rate 그래프 시각 단서 → readouts 정량 확인 → 배지 색 변화 → [확정] 클릭.
 //   · style.css spacing 균형: .vapor-rate-eq-row margin 8px → margin-top 16 + margin-bottom 12,
 //                              gap 8 → 12, 버튼 padding 4×10 → 5×14, font 11 → 12 (CC 자율 균형값).
+//
+// 추가 (fixup 15p — 가스 입자 수 부활, T+P 카드 P 영역 하단 inline meta, 별도 카드 X):
+//   · 사용자 비판: "압력 아래 빈 공간에 아까 삭제했던 입자 수 정보 여기 넣으면 되겠다"
+//   · 의사결정 3단계 reversal:
+//     - fixup 15g: 분자 수 카드 (.vapor-card-counter) 신규 (3 row: surface / gas / lattice + counts-note)
+//     - fixup 15h: 분자 수 카드 통째 폐기 (시뮬 중심 단순화 흐름) + dom dict 3 항목 + readout 폐기
+//     - fixup 15p: 가스 입자 수만 부활 (T+P 카드 P 영역 하단 inline, 별도 카드 X, surface/lattice 부활 X)
+//   · 부활 위치: fixup 15m flex stretch + 15p P 영역 하단 inline → 빈 공간 자연 활용 (T+P 카드 height 자동).
+//   · 학습 단서: 가스 입자 수 = 증기압 직접 source (정량 인지 보강). pressureKPa = total × ratio × k 식에서
+//                 visible 입자 수가 학생에게 가시 정량값.
+//   · vapor.html .vapor-pvap-particles 신규 (.vapor-pvap-meta 아래) + #vapor-gas-count strong.
+//   · main.js dom dict gasCount 부활 + 200ms readout (world.gasParticles.length) + reset "—".
+//   · style.css .vapor-pvap-particles small text + strong tabular-nums.
+//   · world.gasCount getter (vapor.js, 15h 폐기 시 보존됨) 사용 가능 단 main.js 직접 world.gasParticles.length 호출.
 //
 // docs/17 §6 참조.
 // =============================================================

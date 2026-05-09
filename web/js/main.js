@@ -3783,6 +3783,8 @@ function initVaporApp(params) {
         condRateEl:       document.getElementById("vapor-cond-rate"),
         ratioVal:         document.getElementById("vapor-ratio-val"),
         // fixup 15h — surfaceCount / gasCount / latticeCount DOM 폐기 (분자 수 카드 제거)
+        // fixup 15p — gasCount 부활 (T+P 카드 P 영역 하단 inline, 학생 정량 단서)
+        gasCount:         document.getElementById("vapor-gas-count"),
         eqBadge:          document.getElementById("vapor-equilibrium-badge"),
         elapsedTime:      document.getElementById("vapor-elapsed-time"),
         tInput:           document.getElementById("vapor-t-input"),
@@ -4199,7 +4201,8 @@ function initVaporApp(params) {
                 dom.ratioVal.textContent = "—";
                 dom.ratioVal.dataset.zone = "none";
             }
-            // fixup 15h — surfaceCount / gasCount readout 폐기 (분자 수 카드 제거)
+            // fixup 15h — surfaceCount / gasCount / latticeCount readout 폐기 → fixup 15p — gasCount 부활
+            dom.gasCount.textContent = String(world.gasParticles.length);
             // fixup 15n — 5 상태 배지 (none / near / detected / confirmed / exited)
             switch (eqState) {
                 case "confirmed":
@@ -4258,7 +4261,8 @@ function initVaporApp(params) {
         dom.condRateEl.textContent = "—";
         dom.ratioVal.textContent = "—";
         dom.ratioVal.dataset.zone = "none";
-        // fixup 15h — surfaceCount / gasCount / latticeCount reset 폐기 (분자 수 카드 제거)
+        // fixup 15h reset 폐기 → fixup 15p — gasCount 부활 (P 영역 하단 inline)
+        dom.gasCount.textContent = "—";
         dom.eqBadge.textContent = "평형 비도달";
         dom.eqBadge.dataset.state = "none";
         dom.elapsedTime.textContent = "—";

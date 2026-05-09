@@ -3697,7 +3697,7 @@ body[data-page="vapor"] .vapor-learning-note {
     color: #475569;
 }
 
-/* =============== Vapor 3-region layout (Phase 6.1-b finalization fixup 15r) ===============
+/* =============== Vapor 3-region layout (Phase 6.1-b finalization fixup 15p) ===============
    fixup 15j — P 영역 부활 (.vapor-tp-pressure vapor-real-only hidden 제거 + placeholder 폐기 +
    단순화) + measurement-region mock placeholder 폐기 + 측정 표 이론 컬럼 폐기.
    .vapor-tp-pressure-mock + 자식 styles 폐기.
@@ -3740,7 +3740,11 @@ body[data-page="vapor"] .vapor-learning-note {
 
    fixup 15r — rate 카드 배지+버튼 readouts 아래 이동 + spacing 균형.
    DOM 순서: graph → readouts → eq-row (배지+버튼) → note (15q 의 graph→eq→readouts→note 변경).
-   .vapor-rate-eq-row margin-top 16 + margin-bottom 12, gap 12, 버튼 padding 5×14 (시각 자연 분리). */
+   .vapor-rate-eq-row margin-top 16 + margin-bottom 12, gap 12, 버튼 padding 5×14 (시각 자연 분리).
+
+   fixup 15p — 가스 입자 수 부활 (T+P 카드 P 영역 하단 inline, 별도 카드 X).
+   .vapor-pvap-particles 신규 (small text + strong tabular-nums).
+   3단계 reversal: 15g 분자 수 카드 신규 → 15h 폐기 → 15p 위치 변경 부활. */
 body[data-page="vapor"] .vapor-layout-v2 {
     display: flex;
     flex-direction: column;
@@ -4297,6 +4301,18 @@ body[data-page="vapor"] .vapor-pvap-meta {
 body[data-page="vapor"] .vapor-pvap-meta strong {
     color: #1e293b;
     font-weight: 500;
+}
+/* fixup 15p — 가스 입자 수 부활 (P 영역 하단 inline, 학습 단서: 입자 수 = 증기압 source) */
+body[data-page="vapor"] .vapor-pvap-particles {
+    margin-top: 8px;
+    font-size: 12px;
+    color: #64748b;
+    text-align: left;
+}
+body[data-page="vapor"] .vapor-pvap-particles strong {
+    color: #1e293b;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
 }
 body[data-page="vapor"] #vapor-rate-canvas {
     display: block;
