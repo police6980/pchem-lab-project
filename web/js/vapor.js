@@ -1,5 +1,6 @@
 // =============================================================
 // vapor.js — 증기압 시뮬 본체
+// Phase 6.1-b finalization fixup 17c (사이드바 dalton 패턴 복제 — vapor.js 변경 0)
 // Phase 6.1-b finalization fixup 17b (사이드바 layout 정공법 + init 누락 수정 — vapor.js 변경 0)
 // Phase 6.1-b finalization fixup 17a (vapor AI 튜터 통합 — tutor.js factory 재사용)
 // Phase 6.1-b finalization fixup 15s (P 영역 그래픽화 — SVG 압력계 + LCD 시계 + 입자 막대)

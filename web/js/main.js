@@ -3817,6 +3817,7 @@ ${sensorGuide}
 // boyle/dalton/particles 와 동일 패턴, vaporConfig main.js 안 신설).
 // fixup 17b — vaporTutor.init() 호출 누락 수정 (17a regression).
 // dalton:3492 동일 위치 패턴 — settings 토글 / 탭 / 입력 / select 모두 부활.
+// fixup 17c — main.js 변경 0. 17b init() 효과 보존. layout 은 style.css 만 수정.
 // ─────────────────────────────────────────────────────────────────────
 function initVaporApp(params) {
     const cfg = params?.vapor;
