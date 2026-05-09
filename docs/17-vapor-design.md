@@ -176,6 +176,41 @@ MVP 외 후속 트랙 학습 목표:
 
 학습 목표 외 (액체 내부 분자 운동 정확 모델) 은 별 학습 자료로 분리.
 
+### 거시 보정 + 미시 사건 하이브리드 (fixup 6)
+
+사용자 통찰: 평형 판정은 거시 (P 기반, 잡음 X). 시뮬 사건은 미시 (Boltzmann 게이트, 학습 단서 보존). 둘을 분리한 하이브리드.
+
+**평형도 판정 = 거시 (P 기반)**:
+- 직전: |evap_ema − cond_ema| / max(evap, cond) — rate 잡음에 흔들림.
+- 신규: |P_smoothed − P_eq(T)| / P_eq(T) < 0.05 가 5초 지속 + P_smoothed > 0.5·P_eq.
+- P_smoothed = 매 1초 EMA (`pressure_ema_alpha`=0.1) 로 잡음 흡수.
+- P_eq(T) = `liquids[액체].p_vap_table_celsius_to_kpa` 보간.
+- 학생 시각: 한번 95% 도달하면 입자 수 변동에도 평형도 거의 일정.
+
+**시뮬 사건 = 미시 (Boltzmann 게이트, 변경 X)**:
+- evap = 매 frame Poisson per particle (`base × exp(E_a × (1 − T_ref/T)) × calibration`).
+- cond = KE_gas < E_capture 결정적 게이트.
+- 학습 단서: 막 등장 청 테두리 / 막 응축 주황 ring / flash + 화살표 그대로.
+
+**base rate 거시 보정** (`pressure_to_evap_calibration`, default 1.0):
+- Boltzmann factor 가 T 의존성 자동 처리 (`exp(-E_a/kT) ∝ P_eq(T)`).
+- 실제 plateau 가 P_eq(T) 와 5%+ 어긋나면 calibration multiplicative factor 로 조정.
+- 후속 fixup 에서 검증 시 plateau 측정 후 정밀 칼리브.
+
+### Rate 그래프 누적 시간축 (fixup 6)
+
+직전: sliding window 60초 → 평형 도달 시 transient 부분 스크롤 아웃.
+신규: 시작 t=0 부터 누적, x축 자동 스케일.
+- 처음 60초 이내: x축 0 ~ 60s 표시 (빈 영역 포함).
+- 60초 이후: x축 0 ~ current_sec, 전체 timeline 압축.
+- max_time_sec = 1800 (30분 cap).
+- 한 화면에 transient + plateau 동시 시각.
+
+### 캔버스 크기 강제 고정 (fixup 6)
+
+V_liquid 변경 시에도 캔버스 외곽 크기 일정 (CSS `vapor-canvas-container { width: 800px; height: 480px; flex: 0 0 auto; }` + `vapor-sim-region { flex: 0 0 auto; width: 824px; }`).
+액체 영역 (격자 입자) 만 `liquidH = box.h × V_liquid/V_flask` 로 비율 변동.
+
 ### Phase 6.1-b finalization + 6.2 부분 통합 (3 영역 + T)
 
 **3 영역 화면 (Johnstone 3수준 매핑)**:

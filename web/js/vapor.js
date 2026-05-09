@@ -155,6 +155,7 @@ class VaporWorld {
         this.equilibriumReached = false;
         this.equilibriumIdx = null;
         this._equilibriumReachedAtSec = null;
+        this._pressureSmoothed = 0;
 
         // mmol 계산
         this.N_total = this.liquidLattice.length + this.surfaceParticles.length;
@@ -186,17 +187,19 @@ class VaporWorld {
         this.equilibriumStartIdx = null;
         this.equilibriumReached = false;
         this.equilibriumIdx = null;
-        // 평형 도달 시간 기록 무효화
         this._equilibriumReachedAtSec = null;
+        // pressure EMA 는 그대로 — 새 plateau 도달까지 자연 추적
     }
 
-    // Boltzmann factor: rate(T) = base × exp(E_a × (1 - T_ref/T))
+    // Boltzmann factor: rate(T) = base × exp(E_a × (1 - T_ref/T)) × calibration
+    // calibration = 거시 보정 (실제 plateau 가 P_eq(T) 어긋날 때 multiplicative 조정)
     evapRatePerParticlePerSec() {
         const base = this.cfg.base_evap_rate_per_particle_per_sec ?? 0.025;
         const E_a = this.cfg.E_a_normalized ?? 18.3;
         const T_ref_K = (this.cfg.reference_T_celsius ?? 25.0) + 273.15;
         const T_K = this.T_celsius + 273.15;
-        return base * Math.exp(E_a * (1 - T_ref_K / T_K));
+        const calibration = this.cfg.pressure_to_evap_calibration ?? 1.0;
+        return base * Math.exp(E_a * (1 - T_ref_K / T_K)) * calibration;
     }
 
     // 이론 p_vap (현재 T 와 액체 종류 기반 표 보간)
@@ -205,12 +208,13 @@ class VaporWorld {
         return vaporInterpolatePvap(tbl, this.T_celsius);
     }
 
-    // 평형도 % (rate 기반 1 - |Δ|/max)
+    // 평형도 % (P 기반 — 1 - |P_now - P_eq| / P_eq, 잡음 X)
     get equilibriumPercent() {
-        const m = Math.max(this.evapEMA, this.condEMA);
-        if (m <= 0) return 0;
-        const diff = Math.abs(this.evapEMA - this.condEMA);
-        return Math.max(0, Math.min(100, (1 - diff / m) * 100));
+        const P_eq = this.theoreticalPVap_kPa;
+        if (!P_eq || P_eq <= 0) return 0;
+        const P_now = this._pressureSmoothed > 0 ? this._pressureSmoothed : this.pressureKPa;
+        const relDiff = Math.abs(P_now - P_eq) / P_eq;
+        return Math.max(0, Math.min(100, (1 - relDiff) * 100));
     }
 
     // 평형 도달 시간 (자동 감지 시 기록)
@@ -444,27 +448,32 @@ class VaporWorld {
         this.evapEMA = alpha * evapRaw + (1 - alpha) * this.evapEMA;
         this.condEMA = alpha * condRaw + (1 - alpha) * this.condEMA;
 
-        // 슬라이딩 윈도우
+        // 누적 (sliding window 폐기) — 시작부터 max_time_sec 까지 보관
         this.rateHistory.push({
             evap_raw: evapRaw,
             cond_raw: condRaw,
             evap_ema: this.evapEMA,
             cond_ema: this.condEMA,
         });
-        const windowSec = this.cfg.rate_window_sec ?? 60;
-        while (this.rateHistory.length > windowSec) {
+        const maxTime = this.cfg.rate_graph_max_time_sec ?? 1800;
+        while (this.rateHistory.length > maxTime) {
             this.rateHistory.shift();
-            if (this.equilibriumStartIdx != null) this.equilibriumStartIdx -= 1;
-            if (this.equilibriumIdx != null) this.equilibriumIdx -= 1;
+            // index 무관 (eq line 은 max 도달 후에는 이미 한참 지난 시점이라 시각 영향 X)
         }
 
-        // 평형 검출 — 상대 임계 (|Δ|/max < 0.05)
-        const threshold = this.cfg.equilibrium_threshold ?? 0.05;
+        // 압력 EMA (잡음 흡수)
+        const P_alpha = this.cfg.pressure_ema_alpha ?? 0.1;
+        this._pressureSmoothed = P_alpha * this.pressureKPa + (1 - P_alpha) * this._pressureSmoothed;
+
+        // 평형 검출 — 거시 (P 기반 |P_now - P_eq| / P_eq < threshold, 잡음 X)
+        const threshold = this.cfg.equilibrium_threshold_pressure ?? 0.05;
         const holdSec = this.cfg.equilibrium_hold_sec ?? 5;
-        const minEvap = this.cfg.equilibrium_min_evap_per_sec ?? 1.0;
-        const m = Math.max(this.evapEMA, this.condEMA);
-        const relDiff = m > 0 ? Math.abs(this.evapEMA - this.condEMA) / m : 1.0;
-        if (relDiff < threshold && this.evapEMA > minEvap) {
+        const P_eq = this.theoreticalPVap_kPa;
+        const P_min = (P_eq != null && P_eq > 0) ? P_eq * 0.5 : Infinity;
+        const relDiff = (P_eq != null && P_eq > 0)
+            ? Math.abs(this._pressureSmoothed - P_eq) / P_eq
+            : 1.0;
+        if (relDiff < threshold && this._pressureSmoothed > P_min) {
             if (this.equilibriumStartIdx == null) {
                 this.equilibriumStartIdx = this.rateHistory.length - 1;
             } else if (!this.equilibriumReached) {
@@ -668,7 +677,7 @@ function drawVaporRateGraph2D(ctx, world, cfg, W, H) {
     const condColor = cfg.rate_color_cond || "#EA580C";
     const yMin = cfg.rate_y_min ?? 1.0;
     const scaleFactor = cfg.rate_y_auto_scale_factor ?? 1.2;
-    const windowSec = cfg.rate_window_sec ?? 60;
+    const initialX = cfg.rate_graph_initial_x_sec ?? 60;
 
     // y 자동 스케일
     let peak = Math.max(world.evapEMA || 0, world.condEMA || 0);
@@ -676,6 +685,12 @@ function drawVaporRateGraph2D(ctx, world, cfg, W, H) {
         peak = Math.max(peak, r.evap_ema, r.cond_ema);
     }
     const yMax = Math.max(yMin, peak * scaleFactor);
+
+    // x 자동 스케일 — sliding window 폐기, 시작부터 누적
+    // n 이 initialX 보다 작으면 0 ~ initialX 표시 (빈 영역 포함)
+    // n >= initialX 면 0 ~ n (전체 timeline 압축)
+    const n = world.rateHistory.length;
+    const xMaxSec = Math.max(initialX, n);
 
     // 배경
     ctx.fillStyle = "#f8fafc";
@@ -722,8 +737,8 @@ function drawVaporRateGraph2D(ctx, world, cfg, W, H) {
         return;
     }
 
-    const n = world.rateHistory.length;
-    const denom = Math.max(1, windowSec - 1);
+    // 누적 x: index i (= 절대 시간 초) 를 0 ~ xMaxSec 로 매핑
+    const denom = Math.max(1, xMaxSec - 1);
     const mapX = (i) => innerX + (innerW * i) / denom;
     const mapY = (rate) => innerY + innerH - (innerH * Math.min(rate, yMax)) / yMax;
 
@@ -785,6 +800,13 @@ function drawVaporRateGraph2D(ctx, world, cfg, W, H) {
     ctx.fillText(`${yMax.toFixed(1)}`, W - 4, innerY - 1);
     ctx.textBaseline = "alphabetic";
     ctx.fillText("0", W - 4, innerY + innerH + 9);
+
+    // x 라벨 (시간축, 누적 스케일)
+    ctx.textBaseline = "alphabetic";
+    ctx.textAlign = "left";
+    ctx.fillText("0s", innerX, innerY + innerH + 11);
+    ctx.textAlign = "right";
+    ctx.fillText(`${Math.round(xMaxSec)}s`, innerX + innerW, innerY + innerH + 11);
 }
 
 function mountVaporSketch(world, container) {

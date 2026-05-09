@@ -3787,7 +3787,8 @@ body[data-page="vapor"] .vapor-guard-note {
 }
 
 body[data-page="vapor"] .vapor-sim-region {
-    flex: 1 1 auto;
+    flex: 0 0 auto;
+    width: 824px;
     background: #fff;
     border-radius: 6px;
     padding: 12px;
@@ -3823,10 +3824,17 @@ body[data-page="vapor"] .vapor-canvas-container {
     background: #f8fafc;
     border: 1px solid #e2e8f0;
     border-radius: 4px;
-    min-height: 300px;
+    width: 800px;
+    height: 480px;
+    flex: 0 0 auto;
+    box-sizing: content-box;
     display: flex;
     align-items: center;
     justify-content: center;
+    overflow: hidden;
+}
+body[data-page="vapor"] .vapor-canvas-container canvas {
+    display: block;
 }
 body[data-page="vapor"] .vapor-canvas-placeholder {
     color: #94a3b8;
