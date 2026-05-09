@@ -3684,7 +3684,7 @@ body[data-page="vapor"] .vapor-learning-note {
     color: #475569;
 }
 
-/* =============== Vapor 3-region layout (Phase 6.1-b finalization fixup 15s) ===============
+/* =============== Vapor 3-region layout (Phase 6.1-b finalization fixup 15t) ===============
    fixup 15j — P 영역 부활 (.vapor-tp-pressure vapor-real-only hidden 제거 + placeholder 폐기 +
    단순화) + measurement-region mock placeholder 폐기 + 측정 표 이론 컬럼 폐기.
    .vapor-tp-pressure-mock + 자식 styles 폐기.
@@ -3739,7 +3739,11 @@ body[data-page="vapor"] .vapor-learning-note {
    .vapor-tp-pressure-body / .vapor-tp-pressure-left / .vapor-tp-pressure-right (flex 55:45 + 모바일 stack).
    .vapor-pressure-gauge (SVG max-width 200) + #vapor-gauge-needle (transform 0.2s ease-out).
    .vapor-tp-clock (LCD 어두운 배경 + LED 진한 녹 + 글로우, MM:SS).
-   .vapor-tp-particles + .vapor-tp-particles-bar (정적 max 1000, gradient #93c5fd → #60a5fa). */
+   .vapor-tp-particles + .vapor-tp-particles-bar (정적 max 1000, gradient #93c5fd → #60a5fa).
+
+   fixup 15t — P 영역 vertical 중앙 정렬 (사용자 비판 "살짝 아래로 박스 중간").
+   .vapor-card-tp { display: flex; flex-direction: column } + .vapor-tp-pressure { flex: 1 1 auto;
+   justify-content: center } → P 영역 컨텐츠 카드 안 vertical 중앙. T section + divider 위쪽 그대로. */
 body[data-page="vapor"] .vapor-layout-v2 {
     display: flex;
     flex-direction: column;
@@ -4240,6 +4244,13 @@ body[data-page="vapor"] .vapor-card {
 body[data-page="vapor"] .vapor-card-tp {
     min-height: 360px;
     flex: 0 0 auto;  /* fixup 15m — T+P 카드 = 고정 (5 프리셋 + 입력 + P 영역 정합) */
+    /* fixup 15t — 카드 flex column + P 영역 grow + 중앙 정렬 (사용자 비판 "살짝 아래로 박스 중간") */
+    display: flex;
+    flex-direction: column;
+}
+body[data-page="vapor"] .vapor-card-tp .vapor-tp-pressure {
+    flex: 1 1 auto;
+    justify-content: center;  /* fixup 15t — P 영역 컨텐츠 vertical 중앙 정렬 */
 }
 /* fixup 15m — rate 카드 flex grow (cards-region 내 남은 height 자동 흡수, 시뮬 box 정합) */
 body[data-page="vapor"] .vapor-card-rate {
