@@ -3786,9 +3786,8 @@ function initVaporApp(params) {
         latticeCount:     document.getElementById("vapor-lattice-count"),
         eqBadge:          document.getElementById("vapor-equilibrium-badge"),
         elapsedTime:      document.getElementById("vapor-elapsed-time"),
-        tempSlider:       document.getElementById("vapor-temp-slider"),
-        tempCurrent:      document.getElementById("vapor-temp-current"),
-        tempPresets:      document.getElementById("vapor-temp-presets"),
+        tSelect:          document.getElementById("vapor-t-select"),
+        tPresets:         document.getElementById("vapor-t-presets"),
         btnRecord:        document.getElementById("vapor-btn-record"),
         btnClearPoints:   document.getElementById("vapor-btn-clear-points"),
         measureTbody:     document.getElementById("vapor-measure-tbody"),
@@ -3810,12 +3809,13 @@ function initVaporApp(params) {
     if (cfg.V_flask_default_mL)  dom.vFlaskSel.value = String(cfg.V_flask_default_mL);
     if (cfg.V_liquid_default_mL) dom.vLiquidIn.value = String(cfg.V_liquid_default_mL);
 
-    // T 초기값
+    // T 초기값 (fixup 12 — 카드 안 셀렉트 + 5 프리셋, 시뮬 아래 슬라이더 폐기)
     const T_default = cfg.T_default_celsius ?? 25;
-    dom.tempSlider.min = String(cfg.T_min_celsius ?? 25);
-    dom.tempSlider.max = String(cfg.T_max_celsius ?? 65);
-    dom.tempSlider.value = String(T_default);
-    dom.tempCurrent.textContent = String(T_default);
+    dom.tSelect.value = String(T_default);
+    {
+        const buttons = dom.tPresets.querySelectorAll(".vapor-t-preset-btn");
+        buttons.forEach(b => b.classList.toggle("is-active", Number(b.dataset.temp) === T_default));
+    }
 
     let p5Handle = null;
     let world = null;
@@ -3865,16 +3865,14 @@ function initVaporApp(params) {
         });
     });
 
-    // ── T 컨트롤 ──
+    // ── T 컨트롤 (fixup 12 — 카드 안 셀렉트 + 5 프리셋, 양방향 동기화) ──
     function applyTemperature(T) {
         const T_clamped = Math.max(
             Number(cfg.T_min_celsius ?? 25),
             Math.min(Number(cfg.T_max_celsius ?? 65), Number(T))
         );
-        dom.tempSlider.value = String(T_clamped);
-        dom.tempCurrent.textContent = String(T_clamped);
-        // preset 버튼 활성화 표시
-        const buttons = dom.tempPresets.querySelectorAll(".vapor-temp-preset-btn");
+        dom.tSelect.value = String(T_clamped);
+        const buttons = dom.tPresets.querySelectorAll(".vapor-t-preset-btn");
         buttons.forEach(b => {
             b.classList.toggle("is-active", Number(b.dataset.temp) === T_clamped);
         });
@@ -3883,9 +3881,9 @@ function initVaporApp(params) {
             console.log(`[Vapor] T 변경 = ${T_clamped}°C · evap_rate = ${world.evapRatePerParticlePerSec().toFixed(4)}/입자/s`);
         }
     }
-    dom.tempSlider.addEventListener("input", (e) => applyTemperature(e.target.value));
-    dom.tempPresets.addEventListener("click", (e) => {
-        const btn = e.target.closest(".vapor-temp-preset-btn");
+    dom.tSelect.addEventListener("change", (e) => applyTemperature(e.target.value));
+    dom.tPresets.addEventListener("click", (e) => {
+        const btn = e.target.closest(".vapor-t-preset-btn");
         if (!btn) return;
         applyTemperature(btn.dataset.temp);
     });
@@ -4068,7 +4066,7 @@ function initVaporApp(params) {
         if (placeholderEl) placeholderEl.style.display = "none";
 
         world = new VaporWorld(cfg, vFlask, vLiquid, liquid);
-        world.setTemperature(Number(dom.tempSlider.value));
+        world.setTemperature(Number(dom.tSelect.value));
         p5Handle = mountVaporSketch(world, dom.canvasCt);
 
         const molPerMl = (liquid === "water") ? cfg.water_mol_per_mL : 0;
@@ -4078,7 +4076,7 @@ function initVaporApp(params) {
         dom.mmolSpan.textContent = mmolPerParticle.toFixed(3);
         dom.latticeCount.textContent = String(world.liquidLattice.length);
 
-        applyTemperature(Number(dom.tempSlider.value));
+        applyTemperature(Number(dom.tSelect.value));
 
         console.log(`[Vapor] 시뮬 시작 — V_flask=${vFlask}mL · V_liquid=${vLiquid}mL · liquid=${liquid} · N_lattice=${Nlattice} · T=${world.T_celsius}°C · evap_rate=${world.evapRatePerParticlePerSec().toFixed(4)}/입자/s`);
 

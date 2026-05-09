@@ -176,6 +176,34 @@ MVP 외 후속 트랙 학습 목표:
 
 학습 목표 외 (액체 내부 분자 운동 정확 모델) 은 별 학습 자료로 분리.
 
+### T + P 카드 통합 (mock 입력 / real 표시 자연 전환, fixup 12)
+
+CC 진단 (T 컨트롤 위치 시뮬 아래 분리 + P 카드 placeholder 분리 → 우측 상단 통합) 후 사용자 합의:
+
+**카드 구조** (`vapor-card-tp`):
+- T 영역: mock 입력 (셀렉트 + 5 프리셋 버튼 grid) / real 표시 (큰 숫자 + °C).
+- 구분선 (`.vapor-tp-divider`).
+- P 영역: mock placeholder ("측정 모드 활성 후 표시") / real 큰 숫자 + 막대 + 이론 비교.
+- DOM 보존 + `vapor-real-only` class 분기 → Phase 6.3+ 진입 시 hidden 토글로 자연 전환.
+
+**시뮬 아래 T 컨트롤 폐기**:
+- 직전 T 슬라이더 + 5 프리셋 버튼 영역 통째 제거.
+- 시뮬 캔버스 아래 = 시뮬만 + 헤더 (시간 + 평형 배지) 보존.
+- 시뮬 캔버스 height 자유도 ↑ (CSS 자동 fit).
+
+**핸들러 위치 이동** (main.js):
+- `dom.tempSlider / tempCurrent / tempPresets` 폐기 → `dom.tSelect / tPresets` 신규.
+- 셀렉트 `change` + 버튼 `click` 양방향 동기화 (`applyTemperature` 1군데 호출).
+- 버튼 active 토글 + setTemperature 호출 로직 보존.
+
+**학생 인지** (Johnstone 3수준 정합):
+- 우측 상단 = "센서 영역" — 실측 데이터 자리 (T + P 같은 카드).
+- mock 모드: T 입력으로 시뮬 구동, P 비공개 (정공법 회귀 흐름 일관).
+- real 모드 (Phase 6.3+): T 실측 + P 실측 자동 표시.
+
+**vapor.js 헤더 docstring 갱신**:
+- fixup 12 활성 명세 + 폐기 항목 누적 (시뮬 아래 T 컨트롤, vapor-card-pvap).
+
 ### P 카드 원복 + ratio 위치 이동 + base 튜닝 + 화살표 매칭 (fixup 11)
 
 CC 진단 (A 평형 도달 시간 ~70초로 학교 실험 정합 X / B P 카드 placeholder 복귀 + ratio third cell 이식 / D base 튜닝 시 균형 조정 / F 화살표 매칭 상쇄) 후 사용자 합의:
@@ -670,6 +698,8 @@ rate 그래프 y_max 5 (낮은 rate 정합), 평형 임계 0.5/s + min_evap 1.5/
 | 비율 표시 = rate 카드 third cell + zone 색 (fixup 11, 옵션 1) | 폭 ~85px → 텍스트 + 색 분기 단순도 ◎. 평형 인지 = 녹색 도달 (직관). 1.0 marker / 막대 / axis 시각 자원 third cell 에 비좁음. | 인라인 50px 막대 (옵션 2, 폭 빡빡), underline 표지 (옵션 3, 옵션 1 보다 시각 부담 ↑) |
 | base_evap_rate 0.010 (fixup 11, 학교 실험 시간 정합) + 균형 조정 패키지 | 사용자 명시 5분 평형 정합. 시간상수 τ ≈ 50초 → 평형 도달 ~4~5분. 균형 조정 (ratio 0.4, rate 시간축 180s, P 단위 2배) 으로 시각 사건 부족 / 자동 스케일 빈발 / P plateau 의미 변동 동시 회피. | 0.025 유지 (학교 시간 정합 X), 0.012 (사이드 효과 적당하나 사용자 명시 5분 정합 살짝 모자람) |
 | 화살표 매칭 상쇄 (fixup 11, 즉시 매칭 / 위치 무관 / 즉시 사라짐) | 학습 계층 3단계 (색=사건, 화살표=빈도 차, rate=정량) 구분 명확화. 코드 +6줄, 시각 임팩트 큼. transient 위 화살표 다수 → 평형 거의 X = 학생 직관 정합. | 대기 후 매칭 (옵션 2, 비동기 타이머 복잡, 학생 인지 부자연), 위치 가까운 쌍 우선 (O(N×M) 효과 미미), 0.3초 fade 캔슬 (옵션 b, mock 정성 인지 단계 정합성 ↓) |
+| T + P 카드 통합 (fixup 12, mock 입력 / real 표시 자연 전환) | 우측 상단 = "센서 영역" Johnstone 3수준 정합. DOM 보존 + class 분기로 Phase 6.3+ 자연 전환. mock T 입력 + P placeholder 동거, real 진입 시 둘 다 활성 — 학생 인지 일관. | 카드 분리 유지 (T 시뮬 아래 + P 우측 상단, 시각 자원 분산), real 모드만 통합 (mock layout 동선 ↑) |
+| 시뮬 아래 T 컨트롤 폐기 (fixup 12, 시각 정리) | 시뮬 캔버스 아래 = 시뮬 + 헤더 (시간/배지) 만으로 단순. T 컨트롤 우측 카드 안 셀렉트 + 5 프리셋 grid (보일/돌턴 패턴 재사용) 로 일관. 시뮬 height 자유도 ↑. | 슬라이더 보존 (T 연속 입력 — 학교 실험에서 5 프리셋 충분, fixup 11 base 0.010 정합), 시뮬 아래 + 카드 안 둘 다 (UI 중복) |
 
 ---
 

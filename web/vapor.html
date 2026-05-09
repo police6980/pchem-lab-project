@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CAST — 증기압 (Phase 6.1-b finalization fixup 11 + 6.2 부분)</title>
+    <title>CAST — 증기압 (Phase 6.1-b finalization fixup 12 + 6.2 부분)</title>
     <link rel="stylesheet" href="css/style.css">
     <script src="https://cdn.jsdelivr.net/npm/p5@1.11.2/lib/p5.min.js"></script>
     <script src="https://unpkg.com/docx@8.5.0/build/index.umd.js"></script>
@@ -22,7 +22,7 @@
 <body data-page="vapor">
     <nav class="page-nav vapor-nav">
         <a href="index.html" class="nav-home" title="홈으로 돌아가기">🏠 홈으로</a>
-        <span class="nav-title">증기압 — Phase 6.1-b finalization fixup 11 + 6.2 (T 통합)</span>
+        <span class="nav-title">증기압 — Phase 6.1-b finalization fixup 12 + 6.2 (T 통합)</span>
     </nav>
 
     <div id="vapor-layout-v2" class="vapor-layout-v2">
@@ -101,47 +101,69 @@
                         실험 시작 버튼을 눌러 시뮬레이션을 활성화하세요.
                     </div>
                 </div>
-
-                <div class="vapor-temperature-control" id="vapor-temperature-control">
-                    <div class="vapor-temp-row">
-                        <label class="vapor-temp-label">
-                            온도 T:
-                            <strong><span id="vapor-temp-current">25</span> °C</strong>
-                        </label>
-                        <input type="range" id="vapor-temp-slider" min="25" max="65" step="1" value="25" class="vapor-temp-slider">
-                    </div>
-                    <div class="vapor-temp-presets" id="vapor-temp-presets" role="group" aria-label="온도 프리셋">
-                        <button type="button" class="vapor-temp-preset-btn" data-temp="25">25</button>
-                        <button type="button" class="vapor-temp-preset-btn" data-temp="35">35</button>
-                        <button type="button" class="vapor-temp-preset-btn" data-temp="45">45</button>
-                        <button type="button" class="vapor-temp-preset-btn" data-temp="55">55</button>
-                        <button type="button" class="vapor-temp-preset-btn" data-temp="65">65</button>
-                    </div>
-                </div>
             </main>
 
             <!-- 우: 영역 2 — 3 카드 -->
             <aside id="vapor-cards-region" class="vapor-cards-region" aria-label="측정 카드">
 
-                <!-- 평형 P_vap 카드 — mock 모드 비공개, real 모드 활성 (fixup 11 원복) -->
-                <section class="vapor-card vapor-card-pvap">
-                    <h4>평형 증기압 P<sub>vap</sub></h4>
-                    <div class="vapor-mock-placeholder">
-                        <div class="vapor-mock-icon">📡</div>
-                        <div class="vapor-mock-text">측정 모드 활성 후 표시</div>
-                        <div class="vapor-mock-hint">Phase 6.3+ 실센서/Vernier 연결 시 활성화</div>
+                <!-- T + P 카드 통합 (fixup 12) — mock 입력 / real 표시 자연 전환 -->
+                <section class="vapor-card vapor-card-tp">
+                    <h4>온도 / 증기압 (센서 영역)</h4>
+
+                    <!-- T 영역 -->
+                    <div class="vapor-tp-section vapor-tp-temp">
+                        <div class="vapor-tp-section-label">온도 T</div>
+                        <!-- mock: 셀렉트 + 5 프리셋 버튼 -->
+                        <div class="vapor-tp-temp-mock">
+                            <div class="vapor-tp-temp-row">
+                                <label class="vapor-tp-temp-select-label" for="vapor-t-select">현재</label>
+                                <select id="vapor-t-select" class="vapor-tp-temp-select">
+                                    <option value="25" selected>25 °C</option>
+                                    <option value="35">35 °C</option>
+                                    <option value="45">45 °C</option>
+                                    <option value="55">55 °C</option>
+                                    <option value="65">65 °C</option>
+                                </select>
+                            </div>
+                            <div class="vapor-t-presets" id="vapor-t-presets" role="group" aria-label="온도 프리셋">
+                                <button type="button" class="vapor-t-preset-btn is-active" data-temp="25">25</button>
+                                <button type="button" class="vapor-t-preset-btn" data-temp="35">35</button>
+                                <button type="button" class="vapor-t-preset-btn" data-temp="45">45</button>
+                                <button type="button" class="vapor-t-preset-btn" data-temp="55">55</button>
+                                <button type="button" class="vapor-t-preset-btn" data-temp="65">65</button>
+                            </div>
+                        </div>
+                        <!-- real: 큰 숫자 (Phase 6.3+ 활성) -->
+                        <div class="vapor-tp-temp-real vapor-real-only" hidden>
+                            <span id="vapor-temp-real-val">—</span>
+                            <small>°C</small>
+                        </div>
                     </div>
-                    <div class="vapor-real-only" hidden>
-                        <div class="vapor-pvap-big">
-                            <span id="vapor-pressure-val">—</span>
-                            <small>kPa</small>
+
+                    <div class="vapor-tp-divider" aria-hidden="true"></div>
+
+                    <!-- P 영역 -->
+                    <div class="vapor-tp-section vapor-tp-pressure">
+                        <div class="vapor-tp-section-label">평형 증기압 P<sub>vap</sub></div>
+                        <!-- mock placeholder -->
+                        <div class="vapor-tp-pressure-mock">
+                            <div class="vapor-mock-icon">📡</div>
+                            <div class="vapor-mock-text">측정 모드 활성 후 표시</div>
+                            <div class="vapor-mock-hint">Phase 6.3+ 실센서/Vernier 연결 시 활성화</div>
                         </div>
-                        <div class="vapor-pressure-bar-wrap" aria-hidden="true">
-                            <div id="vapor-pressure-bar" class="vapor-pressure-bar"></div>
-                        </div>
-                        <div class="vapor-pvap-meta">
-                            <span>이론 <strong><span id="vapor-pressure-theoretical">—</span> kPa</strong></span>
-                            <span>· 도달 <span id="vapor-eq-reach-time">—</span></span>
+                        <!-- real: 큰 숫자 + 막대 + 이론 비교 (Phase 6.3+ 활성) -->
+                        <div class="vapor-tp-pressure-real vapor-real-only" hidden>
+                            <div class="vapor-pvap-big">
+                                <span id="vapor-pressure-val">—</span>
+                                <small>kPa</small>
+                            </div>
+                            <div class="vapor-pressure-bar-wrap" aria-hidden="true">
+                                <div id="vapor-pressure-bar" class="vapor-pressure-bar"></div>
+                            </div>
+                            <div class="vapor-pvap-meta">
+                                <span>이론 <strong><span id="vapor-pressure-theoretical">—</span> kPa</strong></span>
+                                <span>· 도달 <span id="vapor-eq-reach-time">—</span></span>
+                            </div>
                         </div>
                     </div>
                 </section>
