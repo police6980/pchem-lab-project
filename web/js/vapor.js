@@ -73,21 +73,12 @@ class VaporWorld {
         // ── T 상태 (Boltzmann factor 기반 evap rate) ──
         this.T_celsius = cfg.T_default_celsius ?? 25.0;
 
-        // ── 캔버스 분할: 위쪽 sim 영역 + 아래쪽 rate graph 영역 ──
-        this.rateGraphH = cfg.rate_graph_height_px ?? 80;
-        const simH = this.canvasH - this.rateGraphH;
-
+        // ── 캔버스 = 시뮬 영역 전체 (rate 그래프는 별도 우측 카드 canvas 로 이동) ──
         this.box = {
             x: VAPOR_MARGIN_PX,
             y: VAPOR_MARGIN_PX,
             w: this.canvasW - 2 * VAPOR_MARGIN_PX,
-            h: simH - 2 * VAPOR_MARGIN_PX,
-        };
-        this.graphRect = {
-            x: 0,
-            y: simH,
-            w: this.canvasW,
-            h: this.rateGraphH,
+            h: this.canvasH - 2 * VAPOR_MARGIN_PX,
         };
 
         const ratio = vLiquidMl / vFlaskMl;
@@ -660,125 +651,140 @@ class VaporWorld {
         this.flashes = remain;
     }
 
-    // ── RateMiniGraph (학습 핵심: evap=일정, cond=점진 증가, 평형=만남) ──
-    drawRateGraph(p) {
-        const cfg = this.cfg;
-        const gr = this.graphRect;
-        const evapColor = cfg.rate_color_evap || "#2563EB";
-        const condColor = cfg.rate_color_cond || "#EA580C";
-        const yMin = cfg.rate_y_min ?? 1.0;
-        const scaleFactor = cfg.rate_y_auto_scale_factor ?? 1.2;
-        const windowSec = cfg.rate_window_sec ?? 60;
-        // y 자동 스케일 — 최근 rate 최대값 기반
-        let peak = Math.max(this.evapEMA, this.condEMA);
-        for (const r of this.rateHistory) {
-            peak = Math.max(peak, r.evap_ema, r.cond_ema);
-        }
-        const yMax = Math.max(yMin, peak * scaleFactor);
+}
 
-        // 배경 + 보더
-        p.noStroke();
-        p.fill(248, 250, 252);
-        p.rect(gr.x, gr.y, gr.w, gr.h);
-        p.noFill();
-        p.stroke(220);
-        p.strokeWeight(1);
-        p.line(gr.x, gr.y, gr.x + gr.w, gr.y);
+// ── RateMiniGraph (학습 핵심: evap=일정, cond=점진 증가, 평형=만남) ──
+// 우측 카드 안 별도 <canvas> 에 Canvas 2D API 로 직접 렌더 (sim 캔버스와 분리).
+function vaporHexToRgba(hex, alpha) {
+    const m = (hex || "#000000").replace("#", "");
+    const r = parseInt(m.substring(0, 2), 16);
+    const g = parseInt(m.substring(2, 4), 16);
+    const b = parseInt(m.substring(4, 6), 16);
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
 
-        const padL = 8, padR = 8, padT = 18, padB = 6;
-        const innerX = gr.x + padL;
-        const innerY = gr.y + padT;
-        const innerW = gr.w - padL - padR;
-        const innerH = gr.h - padT - padB;
+function drawVaporRateGraph2D(ctx, world, cfg, W, H) {
+    const evapColor = cfg.rate_color_evap || "#2563EB";
+    const condColor = cfg.rate_color_cond || "#EA580C";
+    const yMin = cfg.rate_y_min ?? 1.0;
+    const scaleFactor = cfg.rate_y_auto_scale_factor ?? 1.2;
+    const windowSec = cfg.rate_window_sec ?? 60;
 
-        // y축 보조선 (yMax/2)
-        p.stroke(230);
-        p.strokeWeight(1);
-        p.line(innerX, innerY + innerH / 2, innerX + innerW, innerY + innerH / 2);
-
-        // 범례
-        p.noStroke();
-        p.fill(evapColor);
-        p.rect(gr.x + 8, gr.y + 5, 10, 4);
-        p.fill(50);
-        p.textSize(11);
-        p.textAlign(p.LEFT, p.TOP);
-        p.text("증발", gr.x + 22, gr.y + 3);
-
-        p.fill(condColor);
-        p.rect(gr.x + 56, gr.y + 5, 10, 4);
-        p.fill(50);
-        p.text("응축", gr.x + 70, gr.y + 3);
-
-        p.fill(120);
-        p.textSize(10);
-        p.text("rate (입자/s, EMA)", gr.x + 110, gr.y + 4);
-
-        // 데이터 부족 시 안내
-        if (this.rateHistory.length < 1) {
-            p.fill(150);
-            p.textAlign(p.RIGHT, p.TOP);
-            p.text("데이터 수집 중...", gr.x + gr.w - 8, gr.y + 4);
-            return;
-        }
-
-        const n = this.rateHistory.length;
-        const denom = Math.max(1, windowSec - 1);
-        const mapX = (i) => innerX + (innerW * i) / denom;
-        const mapY = (rate) => innerY + innerH - (innerH * Math.min(rate, yMax)) / yMax;
-
-        // 두 곡선 사이 fill (cond < evap 인 비평형 영역 강조)
-        p.noStroke();
-        const fillC = p.color(condColor);
-        fillC.setAlpha(40);
-        p.fill(fillC);
-        p.beginShape();
-        for (let i = 0; i < n; i++) p.vertex(mapX(i), mapY(this.rateHistory[i].evap_ema));
-        for (let i = n - 1; i >= 0; i--) p.vertex(mapX(i), mapY(this.rateHistory[i].cond_ema));
-        p.endShape(p.CLOSE);
-
-        // Evap 곡선
-        p.noFill();
-        p.stroke(evapColor);
-        p.strokeWeight(2);
-        p.beginShape();
-        for (let i = 0; i < n; i++) p.vertex(mapX(i), mapY(this.rateHistory[i].evap_ema));
-        p.endShape();
-
-        // Cond 곡선
-        p.stroke(condColor);
-        p.beginShape();
-        for (let i = 0; i < n; i++) p.vertex(mapX(i), mapY(this.rateHistory[i].cond_ema));
-        p.endShape();
-
-        // 평형 선
-        if (this.equilibriumReached && this.equilibriumIdx != null && this.equilibriumIdx >= 0) {
-            const ex = mapX(this.equilibriumIdx);
-            p.stroke(40, 160, 80);
-            p.strokeWeight(1);
-            if (p.drawingContext && p.drawingContext.setLineDash) {
-                p.drawingContext.setLineDash([4, 4]);
-            }
-            p.line(ex, innerY, ex, innerY + innerH);
-            if (p.drawingContext && p.drawingContext.setLineDash) {
-                p.drawingContext.setLineDash([]);
-            }
-            p.noStroke();
-            p.fill(40, 160, 80);
-            p.textSize(10);
-            p.textAlign(p.LEFT, p.TOP);
-            p.text("평형 도달", ex + 4, innerY + 2);
-        }
-
-        // y 라벨 (자동 스케일된 max)
-        p.noStroke();
-        p.fill(160);
-        p.textSize(9);
-        p.textAlign(p.RIGHT, p.TOP);
-        p.text(`${yMax.toFixed(1)}`, gr.x + gr.w - 4, innerY - 2);
-        p.textAlign(p.RIGHT, p.BOTTOM);
-        p.text("0", gr.x + gr.w - 4, innerY + innerH + 2);
+    // y 자동 스케일
+    let peak = Math.max(world.evapEMA || 0, world.condEMA || 0);
+    for (const r of world.rateHistory) {
+        peak = Math.max(peak, r.evap_ema, r.cond_ema);
     }
+    const yMax = Math.max(yMin, peak * scaleFactor);
+
+    // 배경
+    ctx.fillStyle = "#f8fafc";
+    ctx.fillRect(0, 0, W, H);
+
+    const padL = 8, padR = 8, padT = 22, padB = 14;
+    const innerX = padL;
+    const innerY = padT;
+    const innerW = W - padL - padR;
+    const innerH = H - padT - padB;
+
+    // 중간 보조선
+    ctx.strokeStyle = "#e2e8f0";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(innerX, innerY + innerH / 2);
+    ctx.lineTo(innerX + innerW, innerY + innerH / 2);
+    ctx.stroke();
+
+    // 범례
+    ctx.fillStyle = evapColor;
+    ctx.fillRect(8, 7, 10, 4);
+    ctx.fillStyle = "#1e293b";
+    ctx.font = "11px sans-serif";
+    ctx.textAlign = "left";
+    ctx.textBaseline = "top";
+    ctx.fillText("증발", 22, 4);
+
+    ctx.fillStyle = condColor;
+    ctx.fillRect(56, 7, 10, 4);
+    ctx.fillStyle = "#1e293b";
+    ctx.fillText("응축", 70, 4);
+
+    ctx.fillStyle = "#94a3b8";
+    ctx.font = "10px sans-serif";
+    ctx.fillText("rate /s (EMA)", 110, 5);
+
+    // 데이터 부족
+    if (!world.rateHistory || world.rateHistory.length < 1) {
+        ctx.fillStyle = "#94a3b8";
+        ctx.font = "10px sans-serif";
+        ctx.textAlign = "right";
+        ctx.fillText("데이터 수집 중...", W - 8, 5);
+        return;
+    }
+
+    const n = world.rateHistory.length;
+    const denom = Math.max(1, windowSec - 1);
+    const mapX = (i) => innerX + (innerW * i) / denom;
+    const mapY = (rate) => innerY + innerH - (innerH * Math.min(rate, yMax)) / yMax;
+
+    // 두 곡선 사이 fill
+    ctx.fillStyle = vaporHexToRgba(condColor, 0.16);
+    ctx.beginPath();
+    ctx.moveTo(mapX(0), mapY(world.rateHistory[0].evap_ema));
+    for (let i = 1; i < n; i++) {
+        ctx.lineTo(mapX(i), mapY(world.rateHistory[i].evap_ema));
+    }
+    for (let i = n - 1; i >= 0; i--) {
+        ctx.lineTo(mapX(i), mapY(world.rateHistory[i].cond_ema));
+    }
+    ctx.closePath();
+    ctx.fill();
+
+    // Evap 곡선
+    ctx.strokeStyle = evapColor;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(mapX(0), mapY(world.rateHistory[0].evap_ema));
+    for (let i = 1; i < n; i++) {
+        ctx.lineTo(mapX(i), mapY(world.rateHistory[i].evap_ema));
+    }
+    ctx.stroke();
+
+    // Cond 곡선
+    ctx.strokeStyle = condColor;
+    ctx.beginPath();
+    ctx.moveTo(mapX(0), mapY(world.rateHistory[0].cond_ema));
+    for (let i = 1; i < n; i++) {
+        ctx.lineTo(mapX(i), mapY(world.rateHistory[i].cond_ema));
+    }
+    ctx.stroke();
+
+    // 평형 vertical line
+    if (world.equilibriumReached && world.equilibriumIdx != null && world.equilibriumIdx >= 0) {
+        const ex = mapX(world.equilibriumIdx);
+        ctx.strokeStyle = "#16a34a";
+        ctx.lineWidth = 1;
+        ctx.setLineDash([4, 4]);
+        ctx.beginPath();
+        ctx.moveTo(ex, innerY);
+        ctx.lineTo(ex, innerY + innerH);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle = "#16a34a";
+        ctx.font = "10px sans-serif";
+        ctx.textAlign = "left";
+        ctx.textBaseline = "top";
+        ctx.fillText("평형 도달", ex + 4, innerY + 2);
+    }
+
+    // y 라벨
+    ctx.fillStyle = "#94a3b8";
+    ctx.font = "9px sans-serif";
+    ctx.textAlign = "right";
+    ctx.textBaseline = "top";
+    ctx.fillText(`${yMax.toFixed(1)}`, W - 4, innerY - 1);
+    ctx.textBaseline = "alphabetic";
+    ctx.fillText("0", W - 4, innerY + innerH + 9);
 }
 
 function mountVaporSketch(world, container) {
@@ -798,7 +804,7 @@ function mountVaporSketch(world, container) {
             world.drawMolecules(p);
             world.drawCondenseHighlights(p);
             world.drawFlashes(p);
-            world.drawRateGraph(p);
+            // rate 그래프는 우측 카드 별도 canvas (drawVaporRateGraph2D) 로 이동.
         };
     };
     return new p5(sketch, container);

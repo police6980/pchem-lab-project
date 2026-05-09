@@ -3793,6 +3793,7 @@ function initVaporApp(params) {
         btnClearPoints:   document.getElementById("vapor-btn-clear-points"),
         measureTbody:     document.getElementById("vapor-measure-tbody"),
         ptCanvas:         document.getElementById("vapor-pt-graph-canvas"),
+        rateCanvas:       document.getElementById("vapor-rate-canvas"),
     };
     for (const [k, v] of Object.entries(dom)) {
         if (!v) {
@@ -3802,6 +3803,9 @@ function initVaporApp(params) {
     }
     const placeholderEl = dom.canvasCt.querySelector(".vapor-canvas-placeholder");
     const ptCtx = dom.ptCanvas.getContext("2d");
+    const rateCtx = dom.rateCanvas.getContext("2d");
+    const rateW = dom.rateCanvas.width;
+    const rateH = dom.rateCanvas.height;
 
     if (cfg.V_flask_default_mL)  dom.vFlaskSel.value = String(cfg.V_flask_default_mL);
     if (cfg.V_liquid_default_mL) dom.vLiquidIn.value = String(cfg.V_liquid_default_mL);
@@ -4082,6 +4086,10 @@ function initVaporApp(params) {
             dom.eqBadge.dataset.state = world.equilibriumReached ? "yes" : "no";
             dom.elapsedTime.textContent = world.elapsedFormatted;
             dom.btnRecord.disabled = !world.equilibriumReached;
+            // rate 그래프 (우측 카드 canvas) 재렌더 — 데이터는 1초마다 갱신, 5fps 충분
+            if (typeof drawVaporRateGraph2D === "function") {
+                drawVaporRateGraph2D(rateCtx, world, cfg, rateW, rateH);
+            }
         }, 200);
     });
 
@@ -4117,6 +4125,10 @@ function initVaporApp(params) {
         dom.eqBadge.dataset.state = "no";
         dom.elapsedTime.textContent = "—";
         dom.btnRecord.disabled = true;
+        // rate 그래프 캔버스 클리어
+        rateCtx.clearRect(0, 0, rateW, rateH);
+        rateCtx.fillStyle = "#f8fafc";
+        rateCtx.fillRect(0, 0, rateW, rateH);
         validate();
         console.log("[Vapor] 시뮬 리셋. 입력 재오픈 (측정점 표는 유지).");
     });

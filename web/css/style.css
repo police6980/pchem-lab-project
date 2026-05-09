@@ -3931,6 +3931,16 @@ body[data-page="vapor"] .vapor-pvap-meta strong {
     color: #1e293b;
     font-weight: 500;
 }
+body[data-page="vapor"] #vapor-rate-canvas {
+    display: block;
+    width: 100%;
+    max-width: 256px;
+    height: 140px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 3px;
+    margin-bottom: 8px;
+}
 body[data-page="vapor"] .vapor-rate-readouts {
     display: flex;
     gap: 12px;

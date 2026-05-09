@@ -55,8 +55,9 @@
         "V_liquid_default_mL": 50,
 
         "canvas_width_px": 800,
-        "canvas_height_px": 560,
-        "rate_graph_height_px": 80,
+        "canvas_height_px": 480,
+        "rate_canvas_width_px": 256,
+        "rate_canvas_height_px": 140,
 
         "molecule_radius_px": 4,
         "gas_particle_radius_px": 4,
