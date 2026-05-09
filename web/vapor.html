@@ -83,7 +83,8 @@
                     <span class="vapor-sim-elapsed">
                         ⏱ <span id="vapor-elapsed-time">—</span>
                     </span>
-                    <span id="vapor-equilibrium-badge" class="vapor-eq-badge" data-state="no">
+                    <!-- 평형 배지 — mock 학생 가시 X (real 모드 진입 시 hidden 해제) -->
+                    <span id="vapor-equilibrium-badge" class="vapor-eq-badge vapor-real-only" data-state="no" hidden>
                         평형 비도달
                     </span>
                 </header>
@@ -151,11 +152,15 @@
                             <span class="vapor-rate-label" style="color:#EA580C;">응축</span>
                             <span class="vapor-rate-value"><span id="vapor-cond-rate">—</span> /s</span>
                         </div>
-                        <div class="vapor-rate-cell">
+                        <!-- 평형도 % cell — mock 학생 가시 X (real 모드 진입 시 hidden 해제) -->
+                        <div class="vapor-rate-cell vapor-real-only" hidden>
                             <span class="vapor-rate-label">평형도</span>
                             <span class="vapor-rate-value"><span id="vapor-eq-percent">—</span> %</span>
                         </div>
                     </div>
+                    <p class="vapor-card-note">
+                        두 곡선이 만나는 시점 = 정성적 평형. 학습 단서로 관찰하세요.
+                    </p>
                 </section>
 
                 <!-- 상태 카운터 카드 -->

@@ -176,6 +176,33 @@ MVP 외 후속 트랙 학습 목표:
 
 학습 목표 외 (액체 내부 분자 운동 정확 모델) 은 별 학습 자료로 분리.
 
+### 정공법 회귀 완성 (fixup 9)
+
+CC 진단 (★ 배지 false positive + 평형도 % 17% 널뜀, 두 모듈 비동기 사용) 후 사용자 합의:
+
+**평형 자동 감지 mock 학생 가시 비공개** (γ 채택):
+- ★ 배지 (시뮬 캔버스 헤더) 와 평형도 % cell (rate 카드) 모두 `<* class="vapor-real-only" hidden>` 으로 wrap.
+- 시뮬 캔버스 헤더 = 시간 표시만.
+- rate 카드 = 두 rate 숫자 (증발/응축) + 곡선 + "두 곡선이 만나는 시점 = 정성적 평형" 안내문.
+- **내부 계산 보존** (`equilibriumReached`, `equilibriumPercent`, `_pressureSmoothed` 등) — Phase 6.3+ 실센서 진입 시 P_internal → P_measured 입력 교체로 자연 활성.
+- 학생 학습 = rate 두 곡선 만남 시각 (정성적). 정량 평형 판정은 실측 도착 후.
+
+**evap 곡선 EMA prime** (H-α 채택):
+- 직전: α=0.1 + 초기 0 → 시간상수 10초 → 곡선 0~30s 동안 점진 증가 (artifact, 사용자 직관 위반).
+- 신규: 첫 tick 에서 `evapEMA = evapRaw, condEMA = condRaw, _emaPrimed = true`. 후속 tick 만 EMA 적용.
+- 결과: 시작 직후 evap 수평선 (사용자 직관 정합 — 표면 일정 + T 일정 → 사건 빈도 일정).
+- cond 곡선은 그대로 (시작 0, 점진 증가 — 가스 밀도 ↑ 자연 결과).
+
+**사이드바 너비 고정** (G-α + G-β):
+- `.vapor-control-narrow` 에 `width/min-width/max-width: 200px` + `box-sizing: content-box` + `overflow-x: hidden` 명시 — flex item 의 `min-width: auto` 기본 동작 회피, content overflow 시 expand X.
+- `.vapor-guard-note` 에 `min-height: 24px` + `word-break: keep-all` + `overflow-wrap: break-word` — 텍스트 등장/사라짐 시 height 점프 X, 긴 텍스트 wrap.
+- V_liquid 변경 시 사이드바 width / 시뮬 캔버스 폭 흔들림 차단.
+
+**잔재 정리** (CC 진단 A1, A2):
+- `vapor.js` 헤더 docstring 전면 rewrite — fixup 9 활성 명세 + 폐기 항목 누적 history.
+- `equilibriumStatus` getter 제거 (main.js 사용 X dead code).
+- `pressure_kpa_per_gas_particle` / `pressure_kpa_max_for_bar` / `p_vap_ema_alpha` fallback 제거 (각각 `pressure_per_visible_gas_kPa` / `pressure_gauge_max_kPa` / `p_internal_ema_alpha` 로 rename 후 호환 fallback 으로 남김 → 정리).
+
 ### 정공법 회귀 (fixup 8) — 시뮬은 미시 가시화만
 
 본 프로젝트 핵심 철학 ("학생 가시 = 실측, 시뮬 = 미시 가시화") 정합. 시뮬 P 정량 정합 시도 폐기.

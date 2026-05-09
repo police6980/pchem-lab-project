@@ -1,31 +1,48 @@
 // =============================================================
-// vapor.js — 증기압 시뮬 본체 (Phase 6.1-b sub-step B-2 final fixup 3)
+// vapor.js — 증기압 시뮬 본체
+// Phase 6.1-b finalization fixup 9 (정공법 회귀 완성)
 //
-// 직전 fixup 2 검증: (1) 1초 동시 평가 → 대포 펄스, (2) 균질 표면 색.
-// 사용자 통찰 — "평균 속력만 일정하면 됨". KE 시뮬 자체 폐기, 사건 확률만 관리.
+// 핵심 철학 (정공법):
+//   학생 가시 = 실측 / 시뮬 = 미시 가시화 (정성적)
+//   mock 모드: P 카드 / 측정점 표 / P-T 그래프 / 평형 ★ + 평형도 % 모두 비공개
+//   real 모드 (Phase 6.3+): 실측 P 기반 활성, 정량 학습 활동
 //
-// 모델 변경:
-//   · 폐기: KE 변수 기반 결정적 게이트 + 1초 동기 재샘플
-//   · 신규: 비동기 Poisson 사건 모델 (매 frame 독립 평가)
-//     - random() < evap_rate_per_particle_per_sec × dt → 탈출
-//     - 통계: Poisson 분포 자동 (대포 X)
-//   · KE 변수 = 시각용 색 매핑만. smooth random walk + 노이즈
-//     (1초 펄스 X, 부드러운 색 변화)
-//   · gas spawn KE = 사건 발생 시 [gas_spawn_KE_min, max] uniform 샘플
-//     (표면 시각 KE 와 무관 — KE 시뮬 자체 폐기 철학 준수)
+// 활성 명세:
+//   ── 시뮬 모델 ──
+//     · Liquid lattice = 정적 격자, 반투명 단색 (#1E40AF / opacity 0.92)
+//     · SurfaceParticle = KE 시각용만 (smooth random walk, 색 매핑)
+//     · 비동기 Poisson 사건 모델 (매 frame 독립 평가)
+//     · Boltzmann factor T 통합: rate(T) = base × exp(E_a × (1 - T_ref/T))
 //
-// 유지:
-//   · gas 물리 (중력 + 약한 점성 + 천장 KE 손실)
-//   · 응축 게이트 (KE_gas < E_capture, 매 frame)
-//   · flash queue (evap 청 / cond 주황 1초 페이드)
-//   · RateMiniGraph (학습 핵심)
+//   ── Ghost 통계 안정성 (보일 패턴 재사용) ──
+//     · ghost 표면 800 + visible 80 = 880, 모두 게이트 평가
+//     · 매 evap 시 visible_ratio (=0.1) 로 visible vs ghost 분기
+//     · 압력 / rate 통계 결합: total × 0.1 = visible-equivalent (잡음 √0.1 감소)
 //
-// 학습 핵심 (raison d'être):
-//   · evap = 일정 (Poisson 평균 = base_rate × 표면 입자 수, 시간 불변)
-//   · cond = 점진 증가 (기체 밀도 ↑ → 표면 충돌 ↑)
-//   · 평형 = 두 속도 만남 (evap 줄어든 게 아님)
+//   ── 시각 강조 형광 ──
+//     · 막 등장 가시 가스: 노랑 #FCD34D 1.5s + 0.5s fade + glow blur 25
+//     · 막 응결 격자: 핑크 #F472B6 1.5s + 0.5s fade + glow + 외곽 펄스
+//     · evap flash + 위 화살표 / cond flash + 아래 화살표 (액체 묻힘 회피)
 //
-// docs/17 §6 "비동기 Poisson 사건 모델" 참조.
+//   ── rate 그래프 (학습 단서, 우측 카드 별도 canvas) ──
+//     · 시작부터 누적, x축 자동 스케일
+//     · EMA prime (첫 tick = raw, 워밍업 lag 차단 — fixup 9)
+//     · 학생 학습 = 두 곡선 만남 = 정성적 평형
+//
+//   ── 평형 자동 감지 (mock 학생 가시 X — fixup 9) ──
+//     · 내부 P 변화율 기반 (real 진입 시 P_measured 자연 전환)
+//     · equilibriumReached / equilibriumPercent getter 보존 (real 모드 재사용)
+//     · DOM 학생 가시 layer 만 비공개 (★ 배지 + 평형도 % cell hidden)
+//
+// 폐기 (fixup 누적 1~9):
+//   · KE 결정적 게이트 + 1초 동기 재샘플 (fixup 3)
+//   · sliding window 60초 (fixup 6, 누적으로 변경)
+//   · evap_rate_per_particle_per_sec (fixup 4, Boltzmann 으로 대체)
+//   · pressure_to_evap_calibration (fixup 8, 시뮬 P 정량 정합 시도 폐기)
+//   · 평형 P 카드 / 측정점 표 / P-T 그래프 학생 가시 (fixup 8)
+//   · 평형 ★ + 평형도 % 학생 가시 (fixup 9, 정공법 완성)
+//
+// docs/17 §6 참조.
 // =============================================================
 
 const VAPOR_DT_CAP = 0.05;
@@ -166,6 +183,7 @@ class VaporWorld {
         this.rateHistory = [];          // {evap_raw, cond_raw, evap_ema, cond_ema}
         this.evapEMA = 0;
         this.condEMA = 0;
+        this._emaPrimed = false;        // fixup 9: 첫 tick 에 EMA = raw (워밍업 lag 차단)
         this.equilibriumStartIdx = null;
         this.equilibriumReached = false;
         this.equilibriumIdx = null;
@@ -178,18 +196,16 @@ class VaporWorld {
         this.N_total = this.liquidLattice.length + this.surfaceParticles.length;
     }
 
-    // ── 외부 노출용 게터 (main.js DOM 갱신) ──
+    // ── 외부 노출용 게터 (main.js DOM 갱신, real 모드 진입 시 사용) ──
     get pressureKPa() {
         // P = (visible + ghost) × visibleRatio × pressure_per_visible
-        // = visible-equivalent gas count × pressure_per_visible
         // 통계 결합으로 잡음 √visibleRatio (≈0.32) 만큼 감소
-        const k = this.cfg.pressure_per_visible_gas_kPa
-            ?? this.cfg.pressure_kpa_per_gas_particle ?? 0.06;
+        const k = this.cfg.pressure_per_visible_gas_kPa ?? 0.06;
         const total = this.gasParticles.length + this.ghostGasParticles.length;
         return total * this.ghostVisibleRatio * k;
     }
     get pressureBarPct() {
-        const max = this.cfg.pressure_gauge_max_kPa ?? this.cfg.pressure_kpa_max_for_bar ?? 30;
+        const max = this.cfg.pressure_gauge_max_kPa ?? 30;
         return Math.min(100, (this.pressureKPa / max) * 100);
     }
     get surfaceCount() { return this.surfaceParticles.length; }
@@ -241,11 +257,6 @@ class VaporWorld {
     get equilibriumReachedAtSec() {
         return this._equilibriumReachedAtSec ?? null;
     }
-    get equilibriumStatus() {
-        if (this.equilibriumReached) return "평형";
-        if (this.equilibriumStartIdx != null) return "근접";
-        return "비평형";
-    }
 
     _makeSurfaceParticle(x0, y0, jitterAmp) {
         const ke = vaporSampleMBKE(this._visualKT);
@@ -282,8 +293,8 @@ class VaporWorld {
         // 4) 응축 게이트
         this._evalCondensation();
 
-        // 5) 매 frame P_internal EMA (alpha=p_internal_ema_alpha, 평형 검출용 잡음 흡수)
-        const P_alpha = this.cfg.p_internal_ema_alpha ?? this.cfg.p_vap_ema_alpha ?? 0.05;
+        // 5) 매 frame P_internal EMA (평형 검출용 잡음 흡수)
+        const P_alpha = this.cfg.p_internal_ema_alpha ?? 0.05;
         this._pressureSmoothed = P_alpha * this.pressureKPa + (1 - P_alpha) * this._pressureSmoothed;
 
         // 6) 매 1초: rate 샘플 + stats log
@@ -545,10 +556,16 @@ class VaporWorld {
         const evapRaw = this._rateRawEvapBuf.reduce((s, v) => s + v, 0) / this._rateRawEvapBuf.length;
         const condRaw = this._rateRawCondBuf.reduce((s, v) => s + v, 0) / this._rateRawCondBuf.length;
 
-        // EMA (α 0.1, 추가 평활)
-        const alpha = this.cfg.rate_ema_alpha ?? 0.1;
-        this.evapEMA = alpha * evapRaw + (1 - alpha) * this.evapEMA;
-        this.condEMA = alpha * condRaw + (1 - alpha) * this.condEMA;
+        // EMA — 첫 tick 에 prime (워밍업 lag 차단, fixup 9)
+        if (!this._emaPrimed) {
+            this.evapEMA = evapRaw;
+            this.condEMA = condRaw;
+            this._emaPrimed = true;
+        } else {
+            const alpha = this.cfg.rate_ema_alpha ?? 0.1;
+            this.evapEMA = alpha * evapRaw + (1 - alpha) * this.evapEMA;
+            this.condEMA = alpha * condRaw + (1 - alpha) * this.condEMA;
+        }
 
         // 누적 (sliding window 폐기) — 시작부터 max_time_sec 까지 보관
         this.rateHistory.push({

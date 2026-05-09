@@ -3714,6 +3714,11 @@ body[data-page="vapor"] .vapor-top-row {
 }
 body[data-page="vapor"] .vapor-control-narrow {
     flex: 0 0 200px;
+    width: 200px;
+    min-width: 200px;
+    max-width: 200px;
+    box-sizing: content-box;
+    overflow-x: hidden;
     background: #fff;
     border-radius: 6px;
     padding: 12px;
@@ -3781,6 +3786,9 @@ body[data-page="vapor"] .vapor-mole-readout {
 }
 body[data-page="vapor"] .vapor-guard-note {
     display: block;
+    min-height: 24px;
+    word-break: keep-all;
+    overflow-wrap: break-word;
     font-size: 10px;
     color: #ef4444;
     margin: -2px 0 4px 56px;
