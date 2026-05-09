@@ -1,15 +1,17 @@
 // =============================================================
 // vapor.js — 증기압 시뮬 본체
-// Phase 6.1-b finalization fixup 9 (정공법 회귀 완성)
+// Phase 6.1-b finalization fixup 10 (응축/증발 비율 + UI 통일 + 잔재 정리)
 //
 // 핵심 철학 (정공법):
 //   학생 가시 = 실측 / 시뮬 = 미시 가시화 (정성적)
 //   mock 모드: P 카드 / 측정점 표 / P-T 그래프 / 평형 ★ + 평형도 % 모두 비공개
+//   mock 학생 단서 = 응축/증발 비율 (cond/evap EMA, 1.0 도달 시 평형)
 //   real 모드 (Phase 6.3+): 실측 P 기반 활성, 정량 학습 활동
 //
 // 활성 명세:
 //   ── 시뮬 모델 ──
 //     · Liquid lattice = 정적 격자, 반투명 단색 (#1E40AF / opacity 0.92)
+//       (liquid_jitter dead branch 제거 — fixup 10)
 //     · SurfaceParticle = KE 시각용만 (smooth random walk, 색 매핑)
 //     · 비동기 Poisson 사건 모델 (매 frame 독립 평가)
 //     · Boltzmann factor T 통합: rate(T) = base × exp(E_a × (1 - T_ref/T))
@@ -29,18 +31,27 @@
 //     · EMA prime (첫 tick = raw, 워밍업 lag 차단 — fixup 9)
 //     · 학생 학습 = 두 곡선 만남 = 정성적 평형
 //
+//   ── 응축/증발 비율 카드 (mock 학습 단서 — fixup 10) ──
+//     · ratio = condEMA / evapEMA, 0~1.5 막대 + 1.0 marker
+//     · zone 색 (zero/low/mid/eq/over), 1.0 도달 시 평형
+//
 //   ── 평형 자동 감지 (mock 학생 가시 X — fixup 9) ──
 //     · 내부 P 변화율 기반 (real 진입 시 P_measured 자연 전환)
 //     · equilibriumReached / equilibriumPercent getter 보존 (real 모드 재사용)
 //     · DOM 학생 가시 layer 만 비공개 (★ 배지 + 평형도 % cell hidden)
 //
-// 폐기 (fixup 누적 1~9):
+//   ── setTemperature reset (fixup 10) ──
+//     · _emaPrimed = false, _pressureSmoothedPrev = null 추가
+//     · T 변경 시 evap 곡선 lag / relChange jump 회피
+//
+// 폐기 (fixup 누적 1~10):
 //   · KE 결정적 게이트 + 1초 동기 재샘플 (fixup 3)
 //   · sliding window 60초 (fixup 6, 누적으로 변경)
 //   · evap_rate_per_particle_per_sec (fixup 4, Boltzmann 으로 대체)
 //   · pressure_to_evap_calibration (fixup 8, 시뮬 P 정량 정합 시도 폐기)
 //   · 평형 P 카드 / 측정점 표 / P-T 그래프 학생 가시 (fixup 8)
 //   · 평형 ★ + 평형도 % 학생 가시 (fixup 9, 정공법 완성)
+//   · liquid_jitter_amp_px config + lattice amp/phase 필드 + update() 분기 (fixup 10)
 //
 // docs/17 §6 참조.
 // =============================================================
@@ -111,19 +122,13 @@ class VaporWorld {
         const liquidRows = Math.max(0, totalRows - 1);
         const surfaceRowIdx = liquidRows;
 
-        // ── Liquid lattice (정적 또는 미세 진동) ──
+        // ── Liquid lattice (정적 격자) ──
         this.liquidLattice = [];
-        const liquidJitter = cfg.liquid_jitter_amp_px ?? 0;
         for (let cy = 0; cy < liquidRows; cy++) {
             for (let cx = 0; cx < cols; cx++) {
                 const x0 = this.box.x + (cx + 0.5) * cellSize;
                 const y0 = this.box.y + this.box.h - (cy + 0.5) * cellSize;
-                this.liquidLattice.push({
-                    x0, y0,
-                    x: x0, y: y0,
-                    phase: Math.random() * Math.PI * 2,
-                    amp: liquidJitter,
-                });
+                this.liquidLattice.push({ x0, y0, x: x0, y: y0 });
             }
         }
 
@@ -226,7 +231,11 @@ class VaporWorld {
         this.equilibriumReached = false;
         this.equilibriumIdx = null;
         this._equilibriumReachedAtSec = null;
-        // pressure EMA 는 그대로 — 새 plateau 도달까지 자연 추적
+        // fixup 10: evap 곡선 자연 전환 보장 (10초 lag 차단)
+        this._emaPrimed = false;
+        // fixup 10: relChange 점프 차단 (이전 T P 잔재 X)
+        this._pressureSmoothedPrev = null;
+        // pressure EMA 자체는 그대로 — 새 plateau 도달까지 자연 추적
     }
 
     // Boltzmann factor: rate(T) = base × exp(E_a × (1 - T_ref/T))
@@ -276,28 +285,20 @@ class VaporWorld {
         const cap = Math.min(dt, VAPOR_DT_CAP);
         const tSec = performance.now() / 1000;
 
-        // 1) Liquid lattice 미세 진동 (amp=0 시 정적)
-        for (const m of this.liquidLattice) {
-            if (m.amp > 0) {
-                m.x = m.x0 + m.amp * Math.cos(2 * Math.PI * tSec + m.phase);
-                m.y = m.y0 + m.amp * Math.sin(2 * Math.PI * tSec + m.phase);
-            }
-        }
-
-        // 2) Surface 매 frame: 위치 진동 + 시각 KE smooth update + Poisson 탈출 게이트
+        // 1) Surface 매 frame: 위치 진동 + 시각 KE smooth update + Poisson 탈출 게이트
         this._updateSurfaceAndPoissonEvap(cap, tSec);
 
-        // 3) Gas 자유 비행 + 충돌 + 벽 반사
+        // 2) Gas 자유 비행 + 충돌 + 벽 반사
         this._updateGas(cap);
 
-        // 4) 응축 게이트
+        // 3) 응축 게이트
         this._evalCondensation();
 
-        // 5) 매 frame P_internal EMA (평형 검출용 잡음 흡수)
+        // 4) 매 frame P_internal EMA (평형 검출용 잡음 흡수)
         const P_alpha = this.cfg.p_internal_ema_alpha ?? 0.05;
         this._pressureSmoothed = P_alpha * this.pressureKPa + (1 - P_alpha) * this._pressureSmoothed;
 
-        // 6) 매 1초: rate 샘플 + stats log
+        // 5) 매 1초: rate 샘플 + stats log
         this._maybeTickRateAndLog();
     }
 

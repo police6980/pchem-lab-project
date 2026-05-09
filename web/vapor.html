@@ -30,50 +30,57 @@
         <!-- ====== 상단 가로 행: 제어 / 시뮬 / 카드 ====== -->
         <div class="vapor-top-row">
 
-            <!-- 좌: 실험 제어 (간소화) -->
+            <!-- 좌: 실험 제어 (보일·돌턴 패턴) -->
             <aside id="vapor-control-panel" class="vapor-panel vapor-control-narrow" aria-label="실험 제어 패널">
                 <section id="vapor-experiment-setup" class="vapor-section">
                     <h3>실험 설정</h3>
-                    <div class="vapor-input-row">
-                        <label for="vapor-v-flask">플라스크</label>
+                    <div class="vapor-field">
+                        <label for="vapor-v-flask">플라스크 부피</label>
                         <select id="vapor-v-flask">
                             <option value="100">100 mL</option>
                             <option value="250" selected>250 mL</option>
                             <option value="500">500 mL</option>
                         </select>
                     </div>
-                    <div class="vapor-input-row">
-                        <label for="vapor-v-liquid">액체</label>
-                        <input type="number" id="vapor-v-liquid" min="1" step="1" value="50">
-                        <span class="vapor-input-suffix">mL</span>
+                    <div class="vapor-field vapor-field-number-input">
+                        <label for="vapor-v-liquid">액체 부피</label>
+                        <div class="vapor-field-number-row">
+                            <input type="number" id="vapor-v-liquid" min="1" step="1" value="50">
+                            <span class="vapor-field-unit">mL</span>
+                        </div>
                     </div>
-                    <small id="vapor-v-liquid-guard" class="vapor-guard-note"></small>
-                    <div class="vapor-input-row">
-                        <label for="vapor-liquid-type">종류</label>
+                    <small id="vapor-v-liquid-guard" class="vapor-guard-note" data-state="ok"></small>
+                    <div class="vapor-field">
+                        <label for="vapor-liquid-type">액체 종류</label>
                         <select id="vapor-liquid-type">
                             <option value="water" selected>물 (H₂O)</option>
                         </select>
                     </div>
-                    <div class="vapor-input-row vapor-button-row">
-                        <button id="vapor-btn-start" type="button">시작</button>
-                        <button id="vapor-btn-reset" type="button" disabled>리셋</button>
-                    </div>
-                    <div id="vapor-mole-readout" class="vapor-mole-readout">
-                        <small>1 입자 ≈ <span id="vapor-mmol-per-particle">—</span> mmol</small>
+                    <div class="vapor-button-row">
+                        <button id="vapor-btn-start" type="button" class="vapor-btn-primary">실험 시작</button>
+                        <button id="vapor-btn-reset" type="button" class="vapor-btn-secondary" disabled>리셋</button>
                     </div>
                 </section>
 
                 <section id="vapor-sensor-panel" class="vapor-section">
                     <h3>측정 모드</h3>
-                    <div class="vapor-mode-toggle vapor-mode-compact" role="radiogroup" aria-label="측정 모드 선택">
-                        <label><input type="radio" name="vapor-mode" value="mock" checked> Mock</label>
-                        <label><input type="radio" name="vapor-mode" value="ws" disabled> WS</label>
-                        <label><input type="radio" name="vapor-mode" value="real" disabled> 실센서</label>
-                        <label><input type="radio" name="vapor-mode" value="vernier" disabled> Vernier</label>
+                    <div class="vapor-mode-toggle" role="group" aria-label="측정 모드 선택">
+                        <button type="button" class="vapor-mode-btn is-active" data-mode="mock">🖥 시뮬</button>
+                        <button type="button" class="vapor-mode-btn" data-mode="ws" disabled>🔌 WS</button>
+                        <button type="button" class="vapor-mode-btn" data-mode="real" disabled>⚡ 실센서</button>
+                        <button type="button" class="vapor-mode-btn" data-mode="vernier" disabled>📡 Vernier</button>
                     </div>
-                    <p class="vapor-placeholder-note vapor-note-tiny">
-                        ws / real / vernier 는 Phase 6.3~6.4 에서 활성화.
+                    <p class="vapor-help-text">
+                        ws / real / vernier 는 Phase 6.3~6.4 에서 활성화됩니다.
                     </p>
+                </section>
+
+                <section id="vapor-info-panel" class="vapor-section">
+                    <h3>보조 정보</h3>
+                    <div class="vapor-info-row">
+                        <span class="vapor-info-label">1 입자 ≈</span>
+                        <span class="vapor-info-value"><span id="vapor-mmol-per-particle">—</span> mmol</span>
+                    </div>
                 </section>
             </aside>
 
@@ -116,14 +123,25 @@
             <!-- 우: 영역 2 — 3 카드 -->
             <aside id="vapor-cards-region" class="vapor-cards-region" aria-label="측정 카드">
 
-                <!-- 평형 P_vap 카드 — mock 모드 비공개, real 모드 활성 -->
-                <section class="vapor-card vapor-card-pvap">
-                    <h4>평형 증기압 P<sub>vap</sub></h4>
-                    <div class="vapor-mock-placeholder">
-                        <div class="vapor-mock-icon">📡</div>
-                        <div class="vapor-mock-text">측정 모드 활성 후 표시</div>
-                        <div class="vapor-mock-hint">Phase 6.3+ 실센서/Vernier 연결 시 활성화</div>
+                <!-- 응축/증발 비율 카드 (mock 학습 단서) — Phase 6.3+ P 카드로 복귀 가능 -->
+                <section class="vapor-card vapor-card-ratio">
+                    <h4>응축 / 증발 비율</h4>
+                    <div class="vapor-ratio-big">
+                        <span id="vapor-ratio-val">—</span>
                     </div>
+                    <div class="vapor-ratio-bar-wrap" aria-hidden="true">
+                        <div id="vapor-ratio-bar" class="vapor-ratio-bar" data-zone="zero"></div>
+                        <div class="vapor-ratio-marker" title="평형 = 1.0"></div>
+                        <div class="vapor-ratio-axis-labels">
+                            <span>0</span>
+                            <span class="vapor-ratio-axis-eq">1.0</span>
+                            <span>1.5</span>
+                        </div>
+                    </div>
+                    <p class="vapor-card-note">
+                        1.0 도달 시 평형 (응축 = 증발).
+                    </p>
+                    <!-- Phase 6.3+ 진입 시 hidden 해제 → 실측 P 카드로 복귀 -->
                     <div class="vapor-real-only" hidden>
                         <div class="vapor-pvap-big">
                             <span id="vapor-pressure-val">—</span>

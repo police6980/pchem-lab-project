@@ -3724,65 +3724,149 @@ body[data-page="vapor"] .vapor-control-narrow {
     padding: 12px;
     box-shadow: 0 1px 3px rgba(0,0,0,0.05);
 }
-body[data-page="vapor"] .vapor-control-narrow .vapor-section h3 {
-    font-size: 13px;
-    margin: 0 0 8px 0;
-    color: #334155;
+body[data-page="vapor"] .vapor-control-narrow .vapor-section {
+    margin-bottom: 14px;
 }
-body[data-page="vapor"] .vapor-control-narrow .vapor-input-row {
+body[data-page="vapor"] .vapor-control-narrow .vapor-section:last-child {
+    margin-bottom: 0;
+}
+body[data-page="vapor"] .vapor-control-narrow .vapor-section h3 {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin: 0 0 8px 0;
+    color: #64748b;
+    font-weight: 600;
+}
+/* Field — 보일·돌턴 패턴 (label 위, input 아래) */
+body[data-page="vapor"] .vapor-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-bottom: 8px;
+}
+body[data-page="vapor"] .vapor-field label {
+    font-size: 11px;
+    color: #475569;
+    font-weight: 500;
+}
+body[data-page="vapor"] .vapor-field select,
+body[data-page="vapor"] .vapor-field input[type="number"] {
+    width: 100%;
+    padding: 5px 8px;
+    border: 1px solid #cbd5e1;
+    border-radius: 4px;
+    font-size: 13px;
+    background: #fff;
+    box-sizing: border-box;
+    font-variant-numeric: tabular-nums;
+}
+body[data-page="vapor"] .vapor-field select:focus,
+body[data-page="vapor"] .vapor-field input[type="number"]:focus {
+    outline: none;
+    border-color: #2563eb;
+}
+body[data-page="vapor"] .vapor-field-number-row {
     display: flex;
     align-items: center;
     gap: 6px;
-    margin-bottom: 6px;
-    font-size: 12px;
 }
-body[data-page="vapor"] .vapor-control-narrow .vapor-input-row label {
-    flex: 0 0 50px;
-    color: #475569;
-}
-body[data-page="vapor"] .vapor-control-narrow .vapor-input-row select,
-body[data-page="vapor"] .vapor-control-narrow .vapor-input-row input[type="number"] {
+body[data-page="vapor"] .vapor-field-number-row input[type="number"] {
     flex: 1;
     min-width: 0;
-    padding: 3px 6px;
-    border: 1px solid #cbd5e1;
-    border-radius: 3px;
+}
+body[data-page="vapor"] .vapor-field-unit {
     font-size: 12px;
+    color: #64748b;
+    font-weight: 500;
 }
 body[data-page="vapor"] .vapor-control-narrow .vapor-button-row {
     display: flex;
     gap: 6px;
-    margin-top: 8px;
+    margin-top: 10px;
 }
-body[data-page="vapor"] .vapor-control-narrow .vapor-button-row button {
+body[data-page="vapor"] .vapor-btn-primary,
+body[data-page="vapor"] .vapor-btn-secondary {
     flex: 1;
-    padding: 6px;
-    border-radius: 3px;
+    padding: 8px 6px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 500;
+    transition: background 0.15s;
+}
+body[data-page="vapor"] .vapor-btn-primary {
     border: 1px solid #2563eb;
     background: #2563eb;
     color: #fff;
-    cursor: pointer;
-    font-size: 12px;
 }
-body[data-page="vapor"] .vapor-control-narrow .vapor-button-row button:disabled {
-    opacity: 0.5;
+body[data-page="vapor"] .vapor-btn-primary:hover:not(:disabled) {
+    background: #1d4ed8;
+}
+body[data-page="vapor"] .vapor-btn-secondary {
+    border: 1px solid #cbd5e1;
+    background: #f8fafc;
+    color: #475569;
+}
+body[data-page="vapor"] .vapor-btn-secondary:hover:not(:disabled) {
+    background: #e2e8f0;
+}
+body[data-page="vapor"] .vapor-btn-primary:disabled,
+body[data-page="vapor"] .vapor-btn-secondary:disabled {
+    opacity: 0.45;
     cursor: not-allowed;
 }
-body[data-page="vapor"] .vapor-mode-compact {
-    display: flex;
-    flex-direction: column;
+/* 측정 모드 — 보일 패턴 (button toggle, 가로 wrap) */
+body[data-page="vapor"] .vapor-mode-toggle {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
     gap: 4px;
-    font-size: 11px;
 }
-body[data-page="vapor"] .vapor-note-tiny {
+body[data-page="vapor"] .vapor-mode-btn {
+    padding: 6px 4px;
+    border: 1px solid #cbd5e1;
+    background: #f8fafc;
+    color: #64748b;
+    border-radius: 4px;
+    font-size: 11px;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+body[data-page="vapor"] .vapor-mode-btn:hover:not(:disabled) {
+    background: #e2e8f0;
+}
+body[data-page="vapor"] .vapor-mode-btn.is-active {
+    background: #dbeafe;
+    border-color: #2563eb;
+    color: #1e40af;
+    font-weight: 600;
+}
+body[data-page="vapor"] .vapor-mode-btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+body[data-page="vapor"] .vapor-help-text {
     font-size: 10px;
     color: #94a3b8;
-    margin: 4px 0 0 0;
+    margin: 6px 0 0 0;
+    line-height: 1.4;
+    font-style: italic;
 }
-body[data-page="vapor"] .vapor-mole-readout {
-    font-size: 10px;
+/* 보조 정보 (mmol readout) */
+body[data-page="vapor"] .vapor-info-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font-size: 11px;
+    padding: 3px 0;
+}
+body[data-page="vapor"] .vapor-info-label {
     color: #64748b;
-    margin-top: 6px;
+}
+body[data-page="vapor"] .vapor-info-value {
+    color: #0f172a;
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
 }
 body[data-page="vapor"] .vapor-guard-note {
     display: block;
@@ -3790,8 +3874,14 @@ body[data-page="vapor"] .vapor-guard-note {
     word-break: keep-all;
     overflow-wrap: break-word;
     font-size: 10px;
-    color: #ef4444;
-    margin: -2px 0 4px 56px;
+    margin: 0 0 6px 0;
+    line-height: 1.4;
+}
+body[data-page="vapor"] .vapor-guard-note[data-state="ok"] {
+    color: #16a34a;
+}
+body[data-page="vapor"] .vapor-guard-note[data-state="error"] {
+    color: #dc2626;
 }
 
 body[data-page="vapor"] .vapor-sim-region {
@@ -3928,6 +4018,65 @@ body[data-page="vapor"] .vapor-pvap-big {
     font-weight: 500;
     color: #0f172a;
     font-variant-numeric: tabular-nums;
+}
+
+/* 응축/증발 비율 카드 (fixup 10) */
+body[data-page="vapor"] .vapor-ratio-big {
+    font-size: 32px;
+    font-weight: 500;
+    color: #0f172a;
+    font-variant-numeric: tabular-nums;
+    text-align: center;
+    margin: 4px 0 8px 0;
+}
+body[data-page="vapor"] .vapor-ratio-bar-wrap {
+    position: relative;
+    width: 100%;
+    height: 12px;
+    background: #e2e8f0;
+    border-radius: 6px;
+    overflow: visible;
+    margin-bottom: 22px;
+}
+body[data-page="vapor"] .vapor-ratio-bar {
+    height: 100%;
+    width: 0%;
+    border-radius: 6px;
+    transition: width 0.2s ease-out, background 0.3s ease;
+    background: #cbd5e1;
+}
+body[data-page="vapor"] .vapor-ratio-bar[data-zone="zero"]   { background: #cbd5e1; }
+body[data-page="vapor"] .vapor-ratio-bar[data-zone="low"]    { background: #94a3b8; }
+body[data-page="vapor"] .vapor-ratio-bar[data-zone="mid"]    { background: #f59e0b; }
+body[data-page="vapor"] .vapor-ratio-bar[data-zone="eq"]     { background: #16a34a; }
+body[data-page="vapor"] .vapor-ratio-bar[data-zone="over"]   { background: #2563eb; }
+body[data-page="vapor"] .vapor-ratio-marker {
+    position: absolute;
+    top: -3px;
+    bottom: -3px;
+    /* 1.0 위치 = 100% × 1.0 / 1.5 = 66.67% */
+    left: 66.67%;
+    width: 2px;
+    background: #16a34a;
+    border-radius: 1px;
+}
+body[data-page="vapor"] .vapor-ratio-axis-labels {
+    position: absolute;
+    top: 14px;
+    left: 0;
+    right: 0;
+    display: flex;
+    justify-content: space-between;
+    font-size: 9px;
+    color: #94a3b8;
+    font-variant-numeric: tabular-nums;
+}
+body[data-page="vapor"] .vapor-ratio-axis-eq {
+    position: absolute;
+    left: 66.67%;
+    transform: translateX(-50%);
+    color: #16a34a;
+    font-weight: 600;
 }
 body[data-page="vapor"] .vapor-pvap-big small {
     font-size: 12px;

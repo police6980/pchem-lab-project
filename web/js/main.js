@@ -3781,6 +3781,8 @@ function initVaporApp(params) {
         evapRateEl:       document.getElementById("vapor-evap-rate"),
         condRateEl:       document.getElementById("vapor-cond-rate"),
         eqPercentEl:      document.getElementById("vapor-eq-percent"),
+        ratioVal:         document.getElementById("vapor-ratio-val"),
+        ratioBar:         document.getElementById("vapor-ratio-bar"),
         surfaceCount:     document.getElementById("vapor-surface-count"),
         gasCount:         document.getElementById("vapor-gas-count"),
         latticeCount:     document.getElementById("vapor-lattice-count"),
@@ -3835,21 +3837,35 @@ function initVaporApp(params) {
         dom.vLiquidIn.max = String(maxLiquid);
         if (!Number.isFinite(vLiquid) || vLiquid <= 0) {
             dom.guardNote.textContent = "액체 부피는 0 보다 커야 합니다.";
+            dom.guardNote.dataset.state = "error";
             dom.btnStart.disabled = true;
             return false;
         }
         if (vLiquid > maxLiquid) {
             dom.guardNote.textContent = `액체 부피 상한 ${maxLiquid} mL 초과 (V_liquid ≤ 0.5·V_flask).`;
+            dom.guardNote.dataset.state = "error";
             dom.btnStart.disabled = true;
             return false;
         }
         dom.guardNote.textContent = `OK — V_gas = ${vFlask - vLiquid} mL`;
+        dom.guardNote.dataset.state = "ok";
         dom.btnStart.disabled = false;
         return true;
     }
 
     dom.vFlaskSel.addEventListener("change", validate);
     dom.vLiquidIn.addEventListener("input",  validate);
+
+    // ── 측정 모드 button toggle (보일 패턴) ──
+    // mock 만 활성, 나머지 disabled. Phase 6.3+ 진입 시 활성화 + 모드 전환 로직 추가.
+    document.querySelectorAll(".vapor-mode-btn").forEach((btn) => {
+        btn.addEventListener("click", () => {
+            if (btn.disabled) return;
+            document.querySelectorAll(".vapor-mode-btn").forEach((b) => b.classList.remove("is-active"));
+            btn.classList.add("is-active");
+            // 현재는 mock 만 — Phase 6.3+ 에서 실제 모드 전환 로직 추가
+        });
+    });
 
     // ── T 컨트롤 ──
     function applyTemperature(T) {
@@ -4080,6 +4096,25 @@ function initVaporApp(params) {
             dom.evapRateEl.textContent = world.evapEMA.toFixed(2);
             dom.condRateEl.textContent = world.condEMA.toFixed(2);
             dom.eqPercentEl.textContent = world.equilibriumPercent.toFixed(0);
+            // 응축/증발 비율 (fixup 10 학습 단서) — 0.0 ~ 1.5 막대, 1.0 표지선
+            const evapEma = world.evapEMA;
+            if (evapEma > 0.05) {
+                const ratio = world.condEMA / evapEma;
+                dom.ratioVal.textContent = ratio.toFixed(2);
+                const barW = Math.max(0, Math.min(100, (ratio / 1.5) * 100));
+                dom.ratioBar.style.width = `${barW.toFixed(1)}%`;
+                let zone = "zero";
+                if (ratio < 0.1)        zone = "zero";
+                else if (ratio < 0.5)   zone = "low";
+                else if (ratio < 0.9)   zone = "mid";
+                else if (ratio <= 1.1)  zone = "eq";
+                else                    zone = "over";
+                dom.ratioBar.dataset.zone = zone;
+            } else {
+                dom.ratioVal.textContent = "—";
+                dom.ratioBar.style.width = "0%";
+                dom.ratioBar.dataset.zone = "zero";
+            }
             dom.surfaceCount.textContent = String(world.surfaceCount);
             dom.gasCount.textContent = String(world.gasCount);
             dom.eqBadge.textContent = world.equilibriumReached ? "평형 도달 ★" : (world.equilibriumStartIdx != null ? "평형 근접" : "평형 비도달");
@@ -4118,6 +4153,9 @@ function initVaporApp(params) {
         dom.evapRateEl.textContent = "—";
         dom.condRateEl.textContent = "—";
         dom.eqPercentEl.textContent = "—";
+        dom.ratioVal.textContent = "—";
+        dom.ratioBar.style.width = "0%";
+        dom.ratioBar.dataset.zone = "zero";
         dom.surfaceCount.textContent = "—";
         dom.gasCount.textContent = "—";
         dom.latticeCount.textContent = "—";

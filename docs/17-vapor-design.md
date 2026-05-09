@@ -176,6 +176,40 @@ MVP 외 후속 트랙 학습 목표:
 
 학습 목표 외 (액체 내부 분자 운동 정확 모델) 은 별 학습 자료로 분리.
 
+### 응축/증발 비율 + UI 통일 + 잔재 정리 (fixup 10)
+
+CC 진단 (D3 setTemperature reset 누락 / F1-a liquid_jitter dead branch / G mock 학습 단서 부재 / H 사이드바 UI 변종) 후 사용자 합의:
+
+**응축/증발 비율 카드** (G 채택):
+- mock 학생 가시 단서 부재 (★ + 평형도 % 비공개) → 직관적 학습 단서 신설.
+- 기존 P 카드 placeholder slot 활용 (`vapor-card-ratio`): 큰 숫자 (`condEMA / evapEMA`, 0~1.5 범위) + 가로 막대 + 1.0 marker line.
+- zone 색 (CSS data-zone): zero (회색) / low (slate) / mid (주황) / eq (초록, 0.9~1.1) / over (파랑).
+- 평형 도달 시각 = 막대가 1.0 marker 에 정확히 도달 (응축 = 증발).
+- Phase 6.3+ real 모드 진입 시 ratio 카드 → P_vap 카드로 복귀 (real-only div 보존).
+
+**사이드바 UI 통일 (보일·돌턴 패턴)** (H 채택):
+- vertical block field (`.vapor-field`): label 위, input 아래 — 보일·돌턴 페이지와 통일.
+- 측정 모드 = 4-button toggle grid (`.vapor-mode-btn`, `is-active` state) — 미래 ws/real/vernier 진입 자연.
+- guard-note 색 분기: `data-state="ok"` (초록) / `data-state="error"` (빨강).
+- mmol 환산값 = 별도 `vapor-info-panel` section (실험 설정과 시각 분리).
+- typography 통일 (보일·돌턴 패턴 재사용).
+
+**setTemperature reset 보강** (D3 채택):
+- 직전: T 변경 시 `_emaPrimed` / `_pressureSmoothedPrev` 미리셋 → evap 곡선 10초 lag (이전 EMA 잔존) + relChange jump (P_smoothed 누적값 초기화 누락).
+- 신규: `setTemperature()` 안 `_emaPrimed = false` + `_pressureSmoothedPrev = null` 추가.
+- 결과: T 변경 직후 evap 곡선 자연 step transition + 평형 검출 false positive 차단.
+
+**liquid_jitter dead branch 제거** (F1-a 채택):
+- `params.json` 에서 `liquid_jitter_amp_px` 키 (=0, 사용 X) 제거.
+- `vapor.js` 에서 `const liquidJitter = cfg.liquid_jitter_amp_px ?? 0;` 제거.
+- liquidLattice 입자 객체에서 `amp` / `phase` 필드 제거 (정적 격자 = `{x0, y0, x, y}` 만).
+- `update()` 안 `for (const m of this.liquidLattice) { if (m.amp > 0) {...} }` 분기 제거 (dead code, amp 필드 부재로 항상 false).
+- 비고: 정적 격자 = 교과서 정합 (액체상 응집 가시화), jitter 는 직관 위반 (액체 = 진동 흔들림 인상).
+
+**vapor.js 헤더 docstring 갱신**:
+- fixup 10 활성 명세 추가 (응축/증발 비율 카드, setTemperature reset).
+- 폐기 항목 누적 (liquid_jitter_amp_px config + lattice amp/phase 필드 + update() 분기).
+
 ### 정공법 회귀 완성 (fixup 9)
 
 CC 진단 (★ 배지 false positive + 평형도 % 17% 널뜀, 두 모듈 비동기 사용) 후 사용자 합의:
@@ -593,6 +627,10 @@ rate 그래프 y_max 5 (낮은 rate 정합), 평형 임계 0.5/s + min_evap 1.5/
 | 액체 종류 (α) + 액체 양 (β) 비교 활동을 6.5 로 통합 | 두 항목 모두 "탐구·발견 활동" 성격. UI 패턴 (설정 변경 → 비교) 유사. 분리 처리는 코드·학습 흐름 중복 단절. | 분리 유지 (β=6.5, α=6.7) |
 | 자동 보정 (옵션 A), 학생 가시 = P_vap 만 (§4.5) | 본 시뮬 핵심은 동적 평형 가시화. 압력 분해 학습은 별 활동으로 분리. 단순화로 학생 인지 부담↓. | 옵션 B 학생 직접 분해 (시뮬 학습 흐름 분리), 옵션 C 셋 다 표시 (화면 복잡도↑) |
 | Schroeder 2015 LJ MD base 채택 (vapor 시뮬) | 정통 LJ 12-6 + Velocity Verlet + cell list O(N) 검증 (AJP 83 210-218, arXiv 1502.06169). N=수백 50fps. MIT 라이선스. 직전 자체 시도들 (piecewise LJ-like / 응집영역 / 표면추상화 / 자유낙하 / 격자) 모두 실패한 안정 응집 문제 해소. | 자체 LJ 재구현 (검증 비용↑·튜닝 사이클 다수), 외부 가속도장 (분자간 인력 자연 정합성 손실), 사건 추상화 (학생 인지 어색), 격자 (고체 인상) |
+| 응축/증발 비율 카드 (mock 학습 단서, fixup 10) | ★ 배지 + 평형도 % 비공개 후 학생 단서 부재 해소. 직관적 비율 표시 (1.0 = 평형) + zone 색 + 1.0 marker. P 카드 placeholder slot 재활용으로 layout shift X. | 평형도 % 단독 노출 (false positive 위험 + 의미 모호), 사건 카운터만 (rate 곡선과 중복) |
+| 사이드바 UI = 보일·돌턴 패턴 통일 (fixup 10) | 페이지 간 일관성 확보, 학생 인지 부담↓. vertical block field + button mode toggle + guard-note 색 분기. | 보일·돌턴과 별개 디자인 유지 (UI 변종, 학습 흐름 단절) |
+| setTemperature 시 EMA / dP 누적값 리셋 (fixup 10) | T 변경은 시뮬 동적 상태 reset 의미. EMA 잔존 → 곡선 lag, dP 누적 잔존 → 평형 검출 false positive. | 부분 reset (애매한 잔존 상태 — 디버그 어려움) |
+| liquid_jitter dead branch 제거 (fixup 10) | params.json `liquid_jitter_amp_px = 0` (사용 X) + lattice amp/phase 필드 + update() 분기 = 모두 dead code. 정적 격자 = 교과서 정합 (액체상 응집), jitter 는 직관 위반. | 키 보존 (옵션 미래 활성 여지 — YAGNI) |
 
 ---
 
