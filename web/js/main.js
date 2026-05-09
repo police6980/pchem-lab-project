@@ -904,6 +904,7 @@ function initDaltonApp(params) {
         // 주사기 A
         gasASelect:    $("dalton-gas-a"),
         volumeANumber: $("dalton-volume-a-number"),
+        volumeAApply:  $("dalton-volume-a-apply"),  // fixup 16a — [입력]/[수정] 버튼
         pressureA:     $("dalton-pressure-a"),
         pressureAUnit: $("dalton-pressure-a-unit"),
         gaugeA:        $("dalton-gauge-a"),
@@ -912,6 +913,7 @@ function initDaltonApp(params) {
         // 주사기 B
         gasBSelect:    $("dalton-gas-b"),
         volumeBNumber: $("dalton-volume-b-number"),
+        volumeBApply:  $("dalton-volume-b-apply"),  // fixup 16a — [입력]/[수정] 버튼
         pressureB:     $("dalton-pressure-b"),
         pressureBUnit: $("dalton-pressure-b-unit"),
         gaugeB:        $("dalton-gauge-b"),
@@ -2816,6 +2818,9 @@ function initDaltonApp(params) {
         if (dom.gasBSelect)     dom.gasBSelect.disabled     = lockInputs;
         if (dom.volumeANumber)  dom.volumeANumber.disabled  = lockInputs;
         if (dom.volumeBNumber)  dom.volumeBNumber.disabled  = lockInputs;
+        // fixup 16a — [입력]/[수정] 버튼도 잠금 (실험 진행 중 학생 클릭 차단)
+        if (dom.volumeAApply)   dom.volumeAApply.disabled   = lockInputs;
+        if (dom.volumeBApply)   dom.volumeBApply.disabled   = lockInputs;
 
         // 압력 readout 재갱신 (stage 분기 반영)
         updatePressureReadouts();
@@ -2856,6 +2861,9 @@ function initDaltonApp(params) {
         if (dom.gasBSelect)     dom.gasBSelect.disabled    = lockInputs;
         if (dom.volumeANumber)  dom.volumeANumber.disabled = lockInputs;
         if (dom.volumeBNumber)  dom.volumeBNumber.disabled = lockInputs;
+        // fixup 16a — [입력]/[수정] 버튼도 잠금
+        if (dom.volumeAApply)   dom.volumeAApply.disabled  = lockInputs;
+        if (dom.volumeBApply)   dom.volumeBApply.disabled  = lockInputs;
     }
 
     // Phase 5.9: 디버그 helper — INJECTING → STABILIZING → READY_TO_CAPTURE 수동 진행.
@@ -3047,6 +3055,15 @@ function initDaltonApp(params) {
         }
 
         setStage("IDLE");
+
+        // fixup 16a — 부피 확정 flag + 버튼 텍스트 reset (학생 재확정 강제)
+        vAConfirmed = false;
+        vBConfirmed = false;
+        if (dom.volumeAApply) dom.volumeAApply.textContent = "입력";
+        if (dom.volumeBApply) dom.volumeBApply.textContent = "입력";
+        if (dom.volumeANumber) dom.volumeANumber.classList.remove("is-dirty");
+        if (dom.volumeBNumber) dom.volumeBNumber.classList.remove("is-dirty");
+        updateInjectButtonState();
     }
 
     // ─────────────────────────────────────────────────────────
@@ -3604,8 +3621,9 @@ ${sensorGuide}
     });
 
     // 주사기 A·B — 숫자 입력 전용 공통 helper
-    // 설계서 2696628 반영: 슬라이더 제거, A·B 둘 다 숫자 박스 Enter/blur 시
-    // clamp 후 state 반영. 타이핑 중 즉시 반영하지 않음(중간값 혼란 방지).
+    // fixup 16a — vapor 15b 패턴 재사용: blur 자동 commit 폐기, 학생 [입력] 클릭 / Enter 명시 확정 강제.
+    //              vAConfirmed / vBConfirmed 별도 flag (V_A / V_B 독립 확정).
+    //              시작 (Inject) 버튼 gate (!vA || !vB → disabled).
     function applyVolume(syringeKey, rawValue) {
         const limits = cfg[`syringe_${syringeKey}`]; // syringe_a / syringe_b
         const clamped = Math.max(limits.v_min, Math.min(limits.v_max, rawValue));
@@ -3616,30 +3634,71 @@ ${sensorGuide}
         onStateChange();
     }
 
+    // fixup 16a — 학생 명시 확정 flag
+    let vAConfirmed = false;
+    let vBConfirmed = false;
+
+    function updateInjectButtonState() {
+        if (dom.btnInject) dom.btnInject.disabled = !vAConfirmed || !vBConfirmed;
+    }
+
+    function applyVolumeFromBtn(syringeKey) {
+        const input = (syringeKey === "a") ? dom.volumeANumber : dom.volumeBNumber;
+        const btn = (syringeKey === "a") ? dom.volumeAApply : dom.volumeBApply;
+        if (!input || !btn) return;
+        const raw = parseFloat(input.value);
+        if (!Number.isFinite(raw)) {
+            const stateKey = (syringeKey === "a") ? "syringeA" : "syringeB";
+            input.value = String(daltonState[stateKey].volume);
+            return;
+        }
+        applyVolume(syringeKey, raw);
+        input.disabled = true;
+        input.classList.remove("is-dirty");
+        btn.textContent = "수정";
+        if (syringeKey === "a") vAConfirmed = true;
+        else vBConfirmed = true;
+        updateInjectButtonState();
+    }
+
+    function unlockVolume(syringeKey) {
+        const input = (syringeKey === "a") ? dom.volumeANumber : dom.volumeBNumber;
+        const btn = (syringeKey === "a") ? dom.volumeAApply : dom.volumeBApply;
+        if (!input || !btn) return;
+        input.disabled = false;
+        btn.textContent = "입력";
+        if (syringeKey === "a") vAConfirmed = false;
+        else vBConfirmed = false;
+        updateInjectButtonState();
+    }
+
     function bindVolumeNumberInput(syringeKey) {
         const input = (syringeKey === "a") ? dom.volumeANumber : dom.volumeBNumber;
         if (!input) return;
-        const commit = () => {
-            const raw = parseFloat(input.value);
-            if (Number.isFinite(raw)) {
-                applyVolume(syringeKey, raw);
-            } else {
-                // NaN 등 비정상 값 → 직전 상태값으로 복구
-                const stateKey = (syringeKey === "a") ? "syringeA" : "syringeB";
-                input.value = daltonState[stateKey].volume;
-            }
-        };
-        input.addEventListener("blur", commit);
+        // fixup 16a — typing 시 dirty class (학생 시각 단서, 점선 border 주황)
+        input.addEventListener("input", () => input.classList.add("is-dirty"));
+        // fixup 16a — Enter 키 = applyVolumeFromBtn (blur 자동 commit 폐기)
         input.addEventListener("keydown", (e) => {
             if (e.key === "Enter") {
                 e.preventDefault();
-                commit();
-                input.blur();
+                applyVolumeFromBtn(syringeKey);
             }
         });
     }
     bindVolumeNumberInput("a");
     bindVolumeNumberInput("b");
+
+    // fixup 16a — [입력]/[수정] 버튼 click 핸들러 (vapor 15b tApply 패턴)
+    dom.volumeAApply?.addEventListener("click", () => {
+        if (!vAConfirmed) applyVolumeFromBtn("a");
+        else unlockVolume("a");
+    });
+    dom.volumeBApply?.addEventListener("click", () => {
+        if (!vBConfirmed) applyVolumeFromBtn("b");
+        else unlockVolume("b");
+    });
+    // 페이지 로드 직후 시작 버튼 disabled (학생 [입력] 강제)
+    updateInjectButtonState();
 
     // 단위 토글 버튼
     dom.unitToggle?.addEventListener("click", () => {

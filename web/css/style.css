@@ -3506,6 +3506,33 @@ body[data-page="dalton"] .dalton-field-unit {
     color: #4b5563;
 }
 
+/* fixup 16a — Dalton 부피 입력 [입력]/[수정] 버튼 (vapor 15b .vapor-t-apply-btn 패턴 재사용) */
+body[data-page="dalton"] .dalton-volume-apply-btn {
+    flex: 0 0 auto;
+    padding: 5px 14px;
+    font-size: 12px;
+    background: #2563eb;
+    color: #fff;
+    border: 1px solid #2563eb;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease;
+}
+body[data-page="dalton"] .dalton-volume-apply-btn:hover:not(:disabled) {
+    background: #1d4ed8;
+    border-color: #1d4ed8;
+}
+body[data-page="dalton"] .dalton-volume-apply-btn:disabled {
+    background: #94a3b8;
+    border-color: #94a3b8;
+    cursor: not-allowed;
+}
+/* fixup 16a — typing 시 dirty 시각 단서 (점선 border 주황) */
+body[data-page="dalton"] .dalton-field-number-input input.is-dirty {
+    border-style: dashed;
+    border-color: #f59e0b;
+}
+
 /* ============================================================
    폼 요소 — 기체 select
    (사전 조사에서 돌턴 스코프 select 규칙 0건 발견 → Step B-1 후속 보정)
