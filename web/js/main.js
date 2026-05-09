@@ -3774,6 +3774,11 @@ function initVaporApp(params) {
         guardNote:     document.getElementById("vapor-v-liquid-guard"),
         mmolSpan:      document.getElementById("vapor-mmol-per-particle"),
         canvasCt:      document.getElementById("vapor-canvas-container"),
+        pressureVal:   document.getElementById("vapor-pressure-val"),
+        pressureBar:   document.getElementById("vapor-pressure-bar"),
+        surfaceCount:  document.getElementById("vapor-surface-count"),
+        gasCount:      document.getElementById("vapor-gas-count"),
+        eqStatus:      document.getElementById("vapor-equilibrium-status"),
     };
     for (const [k, v] of Object.entries(dom)) {
         if (!v) {
@@ -3788,6 +3793,7 @@ function initVaporApp(params) {
 
     let p5Handle = null;
     let world = null;
+    let readoutTimer = null;
 
     const getInputs = () => ({
         vFlask:  Number(dom.vFlaskSel.value),
@@ -3841,12 +3847,28 @@ function initVaporApp(params) {
         dom.mmolSpan.textContent = mmolPerParticle.toFixed(3);
 
         console.log(`[Vapor] 시뮬 시작 — V_flask=${vFlask}mL · V_liquid=${vLiquid}mL · V_gas=${vFlask - vLiquid}mL · liquid=${liquid} · N_lattice=${Nlattice} · mmol/lattice-particle=${mmolPerParticle.toFixed(3)}`);
+
+        // 측정값 DOM 갱신 (200ms 주기) — pressure 게이지 + 입자 수 + 평형 상태
+        if (readoutTimer) clearInterval(readoutTimer);
+        readoutTimer = setInterval(() => {
+            if (!world) return;
+            dom.pressureVal.textContent = world.pressureKPa.toFixed(1);
+            dom.pressureBar.style.width = `${world.pressureBarPct.toFixed(1)}%`;
+            dom.surfaceCount.textContent = String(world.surfaceCount);
+            dom.gasCount.textContent = String(world.gasCount);
+            dom.eqStatus.textContent = world.equilibriumStatus;
+            dom.eqStatus.dataset.state = world.equilibriumReached ? "yes" : "no";
+        }, 200);
     });
 
     dom.btnReset.addEventListener("click", () => {
         if (p5Handle) {
             try { p5Handle.remove(); } catch (_) {}
             p5Handle = null;
+        }
+        if (readoutTimer) {
+            clearInterval(readoutTimer);
+            readoutTimer = null;
         }
         world = null;
 
@@ -3857,6 +3879,12 @@ function initVaporApp(params) {
 
         if (placeholderEl) placeholderEl.style.display = "";
         dom.mmolSpan.textContent = "—";
+        dom.pressureVal.textContent = "—";
+        dom.pressureBar.style.width = "0%";
+        dom.surfaceCount.textContent = "—";
+        dom.gasCount.textContent = "—";
+        dom.eqStatus.textContent = "—";
+        dom.eqStatus.dataset.state = "no";
         validate();
         console.log("[Vapor] 시뮬 리셋. 입력 재오픈.");
     });

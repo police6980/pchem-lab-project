@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CAST — 증기압 (Phase 6)</title>
+    <title>CAST — 증기압 (Phase 6.1-b B-2 final)</title>
     <link rel="stylesheet" href="css/style.css">
     <script src="https://cdn.jsdelivr.net/npm/p5@1.11.2/lib/p5.min.js"></script>
     <script src="https://unpkg.com/docx@8.5.0/build/index.umd.js"></script>
@@ -22,7 +22,7 @@
 <body data-page="vapor">
     <nav class="page-nav vapor-nav">
         <a href="index.html" class="nav-home" title="홈으로 돌아가기">🏠 홈으로</a>
-        <span class="nav-title">증기압 — Phase 6.1-a 스켈레톤</span>
+        <span class="nav-title">증기압 — Phase 6.1-b B-2 (rate 비대칭 시각화)</span>
     </nav>
 
     <div id="vapor-layout" class="vapor-layout">
@@ -72,10 +72,37 @@
             </section>
 
             <section id="vapor-readouts" class="vapor-section">
-                <h3>측정값 <small>(6.1-b 이후 활성화)</small></h3>
-                <div class="vapor-placeholder-note">
-                    압력 게이지 / 온도 / rate · 평형도 표시는 후속 step 에서 활성화됩니다.
+                <h3>측정값</h3>
+                <div class="vapor-readout-row">
+                    <span class="vapor-readout-label">압력 P</span>
+                    <span class="vapor-readout-value"><span id="vapor-pressure-val">—</span> kPa</span>
                 </div>
+                <div class="vapor-pressure-bar-wrap" aria-hidden="true">
+                    <div id="vapor-pressure-bar" class="vapor-pressure-bar"></div>
+                </div>
+                <div class="vapor-readout-row">
+                    <span class="vapor-readout-label">표면 입자 수</span>
+                    <span class="vapor-readout-value">
+                        <span id="vapor-surface-count">—</span>
+                        <small class="vapor-readout-hint">(일정)</small>
+                    </span>
+                </div>
+                <div class="vapor-readout-row">
+                    <span class="vapor-readout-label">기체 입자 수</span>
+                    <span class="vapor-readout-value">
+                        <span id="vapor-gas-count">—</span>
+                        <small class="vapor-readout-hint">(변동)</small>
+                    </span>
+                </div>
+                <div class="vapor-readout-row">
+                    <span class="vapor-readout-label">평형 상태</span>
+                    <span class="vapor-readout-value" id="vapor-equilibrium-status">—</span>
+                </div>
+                <p class="vapor-learning-note">
+                    캔버스 하단 그래프 — <span style="color:#2563EB;font-weight:600;">증발 rate</span> 는 거의 일정,
+                    <span style="color:#EA580C;font-weight:600;">응축 rate</span> 는 점차 증가.
+                    두 속도가 만나는 순간이 평형입니다.
+                </p>
             </section>
         </aside>
 

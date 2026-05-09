@@ -49,15 +49,17 @@
     },
 
     "vapor": {
-        "_comment": "Phase 6.1-b fixup — KE 변수 + Boltzmann 게이트. 사용자 4 비판 (단색 빨강·정지·자리 보충 X·균등 확률) 1:1 매핑. 정적 격자 + 표면 KE 동적 + 기체 KE HSB 색.",
+        "_comment": "Phase 6.1-b sub-step B-2 final. 5 사용자 비판 + 학습 핵심(rate 비대칭) 통합. (1) 단색 빨강 → KE HSB. (2) 정지 → gas_speed_scale. (3) 자리 보충 X → 즉시 새 SurfaceParticle. (4) Boltzmann 분율 누락 → KE 변수 + MB 재샘플 + 결정적 게이트. (5) 입자 크기 미통일 → liquid/gas 모두 r=4. 학습 핵심 → 캔버스 하단 80px rate graph (evap=일정, cond=점진 증가, 평형 = 두 속도 만남).",
         "V_flask_presets_mL": [100, 250, 500],
         "V_flask_default_mL": 250,
         "V_liquid_default_mL": 50,
 
         "canvas_width_px": 800,
-        "canvas_height_px": 480,
+        "canvas_height_px": 560,
+        "rate_graph_height_px": 80,
 
-        "molecule_radius_px": 9,
+        "molecule_radius_px": 4,
+        "gas_particle_radius_px": 4,
         "liquid_color": "#1E3A8A",
         "liquid_jitter_amp_px": 0,
         "surface_jitter_amp_px": 2,
@@ -73,9 +75,20 @@
         "color_KE_max_for_HSB": 5.0,
 
         "gas_speed_scale": 50,
-        "gas_particle_radius_px": 3.5,
+
+        "rate_window_sec": 60,
+        "rate_ema_alpha": 0.3,
+        "rate_color_evap": "#2563EB",
+        "rate_color_cond": "#EA580C",
+        "rate_y_max": 30,
+        "equilibrium_threshold_per_sec": 1.0,
+        "equilibrium_hold_sec": 5,
+        "equilibrium_min_evap_per_sec": 1.0,
+
+        "pressure_kpa_per_gas_particle": 0.1,
+        "pressure_kpa_max_for_bar": 30,
 
         "water_mol_per_mL": 0.05551,
-        "_units_note": "kT_surface 1.0 = MB 분포 평균 KE (자연 단위). E_escape 3.0 = 3kT 꼬리 (~5% tail, 1초당 ~수 개 탈출). gas_speed_scale 50 = KE → px/s 변환 (KE=1 → speed≈70 px/s, KE=3 → 122 px/s). 사용자 비판 (2) 정지 원인: 직전 코드 KE=4 → speed=2.83 자연 단위 (px scale 미적용) → 7 px/s. 비판 (1) 단색: 모든 gas 동일 KE 라 색도 동일. 둘 다 fixup 으로 해소. 격자 N 자동 계산 (직전과 동일)."
+        "_units_note": "kT_surface 1.0 = MB 평균 KE (자연 단위). E_escape 3.0 = 3kT 꼬리 (~5% tail). gas_speed_scale 50 = KE → px/s (KE=1 → speed≈70 px/s, KE=3 → 122 px/s). 입자 r=4 통일: 액체 격자 ≈ 800 입자, 표면 ≈ 95 입자. 5 ~ 6 /s 증발 출발 → 평형 ~30 ~ 60s. rate_y_max 30 = 그래프 y축 자동 cap. pressure_kpa_per_gas_particle 0.1 = 약식 프록시 (P = N_gas × 0.1 kPa). 평형 검출: |evap_ema - cond_ema| < 1.0/s 가 5초 지속 + evap_ema > 1.0/s. 격자 N 자동 계산."
     }
 }
