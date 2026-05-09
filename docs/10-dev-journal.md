@@ -3116,3 +3116,266 @@ vernier 본문은 운용 시나리오 5요소 신규.
 **근거**: 두 항목 모두 "탐구·발견 활동" 성격, 비교 화면 UI 코드 공유 가능. 분리 처리 시 (a) 코드 중복 (비교 화면 두 번 구현), (b) 학생 입장에서 "양만 다르게 / 물질만 다르게" 가 단절된 두 활동으로 보여 학습 흐름 끊김. 통합 시 비교 패턴 1회 구현 + 학생은 같은 화면에서 두 변수 모두 실험.
 
 **배제된 대안**: 분리 유지 (β=6.5, α=6.7) — 통합으로 얻는 코드·UX 일관성보다 작업 단위 분리의 이득이 작음.
+
+---
+
+## Phase 6.1-a — main 통합 baseline + vapor 페이지 골격 (2026-05-09)
+
+### 2026-05-09 — phase5-real-sensor 통합 + vapor 페이지 골격 (commits a4d05b9, b3972b3)
+
+#### 한 일
+- phase5-real-sensor → phase6-vapor-design 머지 (Phase 3 SW + 5.3/5.4/5.7/5.9 통합본 = 실센서 SensorSource + tutor.js factory + multi-channel + Vernier 통합). conflicts: `docs/10-dev-journal.md` (Phase 6 일지 base 자세, 직전 결정 정합).
+- `web/vapor.html` 신규 (mock-only 모드 토글, ws/real/vernier disabled — Phase 6.3+ 활성화 예정 주석).
+- `web/js/main.js` initVaporApp 분기 신설 (시뮬 본체 X, console.log 만 — 라우팅 검증용).
+- `web/config/params.json` vapor 섹션 placeholder (+18 줄).
+- `web/js/tutor.js` 헤더 docstring "Phase 6.4 예약" 명시 (vaporConfig 미연결 단계).
+
+#### 결정: vapor 페이지 = 골격 + 시뮬 본체 분리 commit
+
+**배경**: 페이지 라우팅·params 인프라 vs 시뮬 본체 (분자 모델) 동시 시작 시 결함 진단 어려움. Phase 6.0 baseline 결정 (외부 API 배제 + 시뮬 물리 명세 3건) 직후 진입.
+
+**결정**: 골격 단독 commit (b3972b3). 시뮬 본체 = sub-step 1 진입 후 별 commit.
+
+**근거**: 라우팅 / DOM / params 로드 흐름 격리. 시뮬 본체 5+ 회 재작성 사이클 시 골격 무영향. tutor.js "Phase 6.4 예약" 명시 = AI 튜터 통합 시점 자세 확정 (17a 진입 시 활용).
+
+**배제된 대안**: 시뮬 본체 + 골격 동시 (재작성 시 매번 골격 재검토), tutor 통합 즉시 (vaporConfig 미확정 시점, 17a 진입 후로 보류).
+
+---
+
+## Phase 6.1-b — sub-step 1 액체 모델 5+ 회 시도-폐기 사이클 (2026-05-09)
+
+본 sub-step = 시뮬 본체 (분자 모델) 결정 사이클. 자체 구현 4 시도 모두 결함 발견 → Schroeder 2015 LJ MD base 채택 (sub-step B-1) 으로 종료. 후일 sub-step B-2 final 에서 Schroeder 도 폐기, 정적 격자 + 표면 동역학 (정공법) 으로 회귀.
+
+### 2026-05-09 — 사이클 1: 보일 입자 엔진 포팅 + dense free + 표면 강조 (commits fd5de43, 6b19fb9, d92a9b0, 277aaad)
+
+#### 한 일
+- `web/js/vapor.js` 신규 (보일 입자 엔진 포팅, 액체/기체 zone 분할, 약 216 → 305 줄).
+- `docs/17` §6 hybrid 모델 본문 신설 (격자 폐기 명시).
+- `docs/17` §4.5 자동 보정 (P_total → P_vap) 명세 신설 (실측 모드 정합 인프라).
+
+#### 결정: 액체 = dense free + 표면 강조 + 균일 중력 sedimentation
+
+**배경**: 보일 시뮬 입자 엔진 (탄성 충돌 + Brownian) 액체 영역 직접 적용 시 입자 통통 튐 (학생 인지 충돌 — "액체 = 가만히"). Phase 0 검토한 격자 진동 모델은 고체 인상.
+
+**결정**: dense free + 표면 강조 (hybrid). 액체 영역 균일 중력 sedimentation, 표면 입자 별도 색·동역학.
+
+**근거**: "액체 = 아래에 모임 + 표면 = 사건 발생 영역" 학생 직관 정합. 격자 진동 (고체 인상) 회피.
+
+**배제된 대안**: 격자 진동 (고체 인상), 사건 추상화 (시각 메커니즘 은폐, Phase 6.0 명시 정합).
+
+(후일 sub-step B-2 final 에서 정적 격자 + 표면 동역학 으로 회귀 — "운동이 빈 공간 만든다" 발견 후.)
+
+### 2026-05-09 — 사이클 2: dense free 폐기, option Z (정적 채움 + 표면 입자) (commits cb9e9f3, eb02385)
+
+#### 한 일
+- `web/js/vapor.js` 재작성 (정적 채움 + 표면 입자 만, 중력 폐기).
+- `docs/17` §6 option Z 본문 갱신 (자유낙하 결함 사유 명시).
+
+#### 결정: dense free 폐기 → 정적 채움 + 표면 입자 (option Z)
+
+**배경**: 사이클 1 검증 — 응집력 부재 (균일 중력만으로는 불충분). 액체 입자 자유낙하 → 바닥 깔림 → "액체 가득 차있음" 보장 X.
+
+**결정**: 액체 = 정적 채움 (영역 fill, 입자 X). 표면만 동적 입자.
+
+**근거**: 자유낙하 결함 차단 = 정적 채움 = 빈 공간 보장. 표면만 동적 = 사건 (증발/응축) 발생 영역 명확.
+
+**배제된 대안**: 응집력 추가 (LJ 가능성 제기, 사이클 3 으로 이연), 격자 회귀 (고체 인상 한계).
+
+(후일 사이클 7 = 정적 채움 회귀, 단 정적 격자 형식. option Z 의 "표면 띠 fake animation" 결함 — 응축 시 격자 자리 모호 — 본 사이클 미발견.)
+
+### 2026-05-09 — 사이클 3: option Z 폐기, LJ-like piecewise 분자 모델 (commits c2c916b, 7d4a75e)
+
+#### 한 일
+- `web/js/vapor.js` 처음부터 재작성 (LJ-like 분자 모델, phase 플래그 X, 19 키 LJ params).
+- `docs/17` §6 LJ 모델 본문 전면 재작성 + 5 sub-section 신설.
+
+#### 결정: option Z 폐기 → LJ-like piecewise 분자 모델 (phase 플래그 X)
+
+**배경**: option Z 검증 — 표면 띠 fake animation 결함. 응축 시 격자 자리 모호 (어디에 끼울지 불명). 액체 = 분자 단위 응집 모델 필요성 자각.
+
+**결정**: 자체 LJ-like piecewise 함수 (12-6 정통 LJ 미사용, 응집 영역 / repulsion / attraction zone 분할). phase 플래그 X = 액↔기 통계적 결과로만 구분.
+
+**근거**: 분자간 인력 = 액체 응집 자연 모델. piecewise = 정통 LJ N² 부담 회피 시도. phase 플래그 X = 학생 직관 ("액↔기 = 통계적 결과") 정합.
+
+**배제된 대안**: 정통 LJ 12-6 (N² 부담, transient 길어짐 — Phase 6.0 명시 배제), 사건 추상화 (재차).
+
+### 2026-05-09 — 사이클 4: LJ-like 폐기, 응집 영역 + 외부 가속도장 (commits 8441723, 0c91966)
+
+#### 한 일
+- `web/js/vapor.js` 재작성 (응집 영역 정의 + 외부 끌어당김 가속도장).
+- `docs/17` §6 응집 영역 모델 + "정직한 한계" (외부 가속도장) 명시.
+
+#### 결정: LJ-like piecewise 폐기 → 응집 영역 + 외부 가속도장
+
+**배경**: LJ-like piecewise 검증 — N=200 학교 시뮬 규모 안정 응집 실패. 함수 모양 본질 차이 (정통 LJ 와 다른 응집 동역학 발생).
+
+**결정**: 응집 영역 정의 + 외부 끌어당김 가속도장 (분자간 인력 X, 영역 가둠).
+
+**근거**: 분자간 N² 계산 회피 + 응집 영역 명시 가둠 = 안정 응집 보장. "정직한 한계" 인정 (분자 인력 자연 시뮬 X, 외부 영역 정의 인공).
+
+**배제된 대안**: 정통 LJ 12-6 (N² 부담, 사이클 5 진입 후 검증), 사건 추상화 (재차).
+
+(후일 사이클 5 결과 — 외부 가속도장 = 균등 분포 결함, 자연 게이트 X.)
+
+### 2026-05-09 — 사이클 5: 자체 5+ 회 시도 폐기, Schroeder 2015 LJ MD base 채택 (commit 367e1bf, sub-step B-1)
+
+#### 한 일
+- `docs/17` §6 액체상·기체상 모델 본문 전면 재작성 (자체 5+ 회 시도 폐기 명시).
+- `docs/17` §11 결정 표 + §12 Schroeder MD base 출처/라이선스 신설 (도입 검증, 코드 X — sub-step B-1 한정).
+- 우리 변형 영역 체크리스트 (B-2~B-5 신설).
+
+#### 결정: 자체 5+ 회 시도 모두 폐기 → Schroeder 2015 LJ MD base 채택
+
+**배경**: 사이클 1~4 모두 결함 — dense free (자유낙하), option Z (격자 자리 모호), LJ-like (응집 실패), 응집 영역 (균등 분포). 자체 구현 한계 인정. 정통 LJ MD 검증 자료 필요.
+
+**결정**: Schroeder, "Interactive molecular dynamics," AJP 83(3) 210–218 (2015), arXiv:1502.06169. MIT 라이선스 + name endorsement. base 코드 채택. 변형 영역 = B-2~B-5 단계 체크리스트 신설.
+
+**근거**: (a) 정통 LJ 12-6 + Velocity Verlet + cell list O(N) 검증 (학술지 게재). (b) N=수백 50fps 검증. (c) MIT 교육·학술 사용 적합. (d) 직전 자체 시도들 (piecewise LJ-like / 응집영역 / 표면추상화 / 자유낙하 / 격자) 모두 실패한 안정 응집 문제 해소. (e) 변형 명시 = MIT 라이선스 정합 + 학생 인지 명확.
+
+**배제된 대안**: 자체 LJ 재구현 (검증 비용↑·튜닝 사이클 다수, 사이클 3 검증), 외부 가속도장 (분자간 인력 자연 정합성 손실, 사이클 4 검증), 사건 추상화 (학생 인지 어색, Phase 6.0 명시 배제), 격자 진동 (고체 인상).
+
+(후일 sub-step B-2 final 에서 Schroeder LJ MD 도 폐기. "운동이 빈 공간 만듦" 본질 결함 발견 후 정적 격자 + 표면 동역학 정공법 회귀.)
+
+---
+
+## Phase 6.1-b — sub-step B-2 series Schroeder 포팅 → 정적 격자 정공법 회귀 (2026-05-09)
+
+본 sub-step = Schroeder 채택 (sub-step B-1) 후 코드 포팅 + 변형 + 결국 폐기 + 정공법 회귀 + 시뮬 시각·시간 척도·사건 게이트 fixup. 시뮬 모델 결정 종료 단계.
+
+### 2026-05-09 — Schroeder LJ + Verlet base 포팅 + 변형 (commits edfcb29, 2dc4dca)
+
+#### 한 일
+- `web/js/vapor.js` Schroeder LJ + Verlet base 포팅 + p5 instance mode wrapping + 액체 박스 spatial confinement (사방 강한 반발, 위 경계 통과).
+- `web/js/vapor.js` 중력 + 부드러운 바닥 spring + T 시작값 낮추기 추가 (클러스터 떠오름 + 내부 탈출 fixup).
+
+#### 결정: Schroeder base 변형 — 중력 + spring 바닥 + T 낮추기
+
+**배경**: Schroeder base 단독 적용 시 두 결함 — (1) 클러스터 (응집된 분자 덩어리) 가 떠오름 (중력 부재), (2) 분자 일부가 액체 박스 내부에서 위 경계 통과 X (반발이 너무 강함, 정상 탈출 차단).
+
+**결정**: (1) 균일 중력 g, (2) 박스 바닥 부드러운 spring (강한 반발 → 점진 감속), (3) T 시작값 낮추기 (탈출 빈도 줄여 시뮬 안정).
+
+**근거**: 클러스터 떠오름 = "액체 = 아래" 직관 위배. spring 바닥 = 강한 반발 물리적 인공물 회피. T 낮추기 = 시뮬 워밍업 시점 안정.
+
+**배제된 대안**: hard 바닥 (분자 stuck 가능성), T 그대로 (탈출 빈도 과다, 평형 도달 시간 비현실).
+
+### 2026-05-09 — Schroeder LJ MD 폐기, 정적 격자 + 표면 동역학 회귀 (commit a8aa875, Phase 6.1-b final 마커)
+
+#### 한 일
+- `web/js/vapor.js` 처음부터 재작성 (정적 격자 + 표면 동역학, textbook 1:1 mapping).
+- 액체 내부 = 정적 격자 (V_liquid 영역 빈틈없이 채움, 위치 고정 ±0.5 px 미세 진동, 사라지지 X).
+- 표면 한 줄 = 동적 (격자 위 경계, 좌우 ±2 px sinusoidal, 매 1초 확률 게이트 → GasParticle 생성).
+- 기체 = 자유 비행 (시작 0, hard sphere 충돌, KE HSB 색).
+
+#### 결정: Schroeder LJ MD 폐기 → 정적 격자 + 표면 동역학 (5+ 회 시도 끝 정공법 회귀)
+
+**배경**: Schroeder base 변형 (중력 + spring + T 낮추기) 검증 — 응집 풀려 듬성듬성. 액체 분자 덩어리째 떠오름 (중력·spring 추가해도 미해결). **운동이 빈 공간 만듦이 본질 결함.**
+
+**결정**: 정통 분자 동역학 시뮬 폐기. 정적 격자 (액체 내부 빈틈없이 + 위치 고정) + 표면 동역학 (표면 한 줄 만 동적) = textbook 1:1 mapping.
+
+**근거**: **사용자가 처음부터 명시한 "분자 운동 중요 X, 표면만 명확하게" 요구가 정답.** 학습 목표 = 동적 평형 가시화 = 표면 사건 (증발/응축) 가시화 = 액체 내부 운동 불요. 정적 격자 = "액체 가득 차있음" 보장 + 표면 동역학 = 사건 영역 명확.
+
+**배제된 대안 (5+ 회 시도 누적)**:
+- dense free + 표면 강조 (사이클 1, 자유낙하 결함).
+- 정적 채움 + 표면 입자 옵션 Z (사이클 2, 격자 자리 모호).
+- 자체 LJ-like piecewise (사이클 3, 응집 실패).
+- 응집 영역 + 외부 가속도장 (사이클 4, 균등 분포 결함).
+- Schroeder LJ MD (sub-step B-2 base 변형, 응집 풀려 떠오름).
+- 모두 = "운동이 빈 공간 만듦" 본질 결함 공유.
+
+(본 결정 = Phase 6.1-b final 마커 — 시뮬 모델 회귀 종료. 이후 sub-step B-2 = 시뮬 시각·시간 척도·사건 게이트 fixup 만.)
+
+### 2026-05-09 — KE 변수 + Boltzmann 게이트 + 4 user critiques fixup (commit 04da132)
+
+#### 한 일
+- `web/js/vapor.js` 표면 입자 KE 변수 + Boltzmann 게이트 (`KE > E_escape` ~3 kT 결정적 탈출).
+- 표면 입자 색 = KE HSB lerp.
+- 자리 보충 (탈출 시 새 SurfaceParticle KE 재샘플링 — MB 분포).
+- 기체 색·속도 fixup (KE 자연 단위 → px/s 변환 분리, gas_speed_scale).
+- 입자 크기 통일 (liquid lattice·surface·gas 모두 r=4).
+
+#### 결정: 균등 확률 게이트 폐기 → KE 변수 + Boltzmann 게이트
+
+**배경**: 직전 균등 확률 (`p_evap_per_sec_per_particle`) 게이트 = KE 정보 X. "왜 이 입자가 탈출했나" 답이 "운". 학습 목표 ③ (분자 운동 분포·MB 꼬리) 미반영.
+
+**결정**: 표면 입자 KE 변수 신규. Boltzmann 게이트 (`KE > E_escape` ~3 kT 결정적 탈출). KE = MB 샘플링 (자리 보충 시 재샘플). 색 = KE HSB lerp.
+
+**근거**: 학습 목표 ③ MB 꼬리 가시화 직결. KE-색 매핑 = "빠른 분자가 탈출" 학생 직접 인지.
+
+**배제된 대안**: 균등 확률 (KE 정보 X, 학습 목표 ③ 미반영), 표면 KE 일괄 (분자 분포 X).
+
+#### 결정: 입자 크기 통일 (사용자 비판 (5))
+
+**배경**: 직전 liquid r=9, gas r=3.5 — "기체 분자가 더 작은가?" 오개념 회피.
+
+**결정**: liquid lattice·surface·gas 모두 r=4 통일.
+
+**근거**: 분자 = 같은 종류 → 같은 크기. 색·동역학 차이로만 phase 구분.
+
+**배제된 대안**: phase 별 크기 차등 (오개념 유발).
+
+(후일 fixup 3 비동기 Poisson 사건 모델로 KE 변수 물리 게이트 역할 폐기. KE = 시각용 색 매핑만.)
+
+### 2026-05-09 — 압력 게이지 + rate 그래프 (evap=const, cond=ramp) + 카운트 라벨 (commit d9c99b8, sub-step B-2 final)
+
+#### 한 일
+- `web/css/style.css` rate 그래프 영역 +49 줄 신규.
+- `web/js/vapor.js` 압력 게이지 + rate 그래프 (evap=const, cond=ramp 가시화) + 가스 카운트 라벨.
+
+#### 결정: 카운터 = rate + EMA 가시화, "evap=const, cond=ramp" 학습 핵심
+
+**배경**: Phase 6.0 baseline 결정 (카운터 = rate + EMA, 누적 sub-panel) 구현 시점. 평형 = 두 속도가 같음 = rate 그래프 두 곡선 만남.
+
+**결정**: rate 그래프 = evap (시간 불변) + cond (0 에서 점진 증가) 두 곡선 표시. 카운트 = sub-panel.
+
+**근거**: **"evap 줄어든 게 아니라 cond 가 evap 까지 따라온 것" — 학생이 직접 볼 수 있게 함이 본 시뮬의 raison d'être.** 흔한 오개념 ("평형 = 증발 멈춤") 은 이 비대칭 가시화 안 하면 거의 자동 발생.
+
+**배제된 대안**: 누적 only (해석 부담 큼, Phase 6.0 명시 배제), 즉시 카운트 (노이즈 과다).
+
+### 2026-05-09 — 1초 동기 게이트 → 비동기 Poisson per-frame 사건 모델 (commit 9070994, sub-step B-2 final fixup 3)
+
+#### 한 일
+- `web/js/vapor.js` KE 변수 물리 게이트 역할 폐기 (시각용 색 매핑만).
+- 매 frame 각 표면 입자 독립 평가 `random() < evap_rate_per_particle_per_sec × dt` → 탈출.
+- KE 변수 = smooth random walk (KE_target 매 ~2초 MB 샘플, 비동기).
+- params 폐기: `kT_surface`, `E_escape`, `surface_KE_resample_sec`. 신규: `evap_rate_per_particle_per_sec`(=0.2), `surface_KE_visual_smooth_factor`(=0.05).
+
+#### 결정: KE 결정적 게이트 + 1초 동기 재샘플 → 비동기 Poisson per-frame
+
+**배경**: 직전 KE 변수 + Boltzmann 게이트 + 1초 단위 KE 재샘플 검증 — 두 결함:
+- (1) 1초 단위 동시 발생 → "대포 펄스" 시각 인위 (시점 동기).
+- (2) 1초 동안 표면 입자 KE 동시 갱신 → 색 일제 변경, 균질 깜빡임.
+
+**결정**: 비동기 Poisson 사건 모델. 매 frame 각 표면 입자 독립 평가. KE = 시각용 색 매핑만 (smooth random walk, 비동기).
+
+**근거**: **사용자 통찰 "평균 속력만 일정하면 됨".** KE-as-physics-gate 폐기. 사건 확률만 관리. Poisson 분포 (시점·입자 무작위 분산) = 자연스러운 사건 발생, 대포 X. T 변동 (Phase 6.2+) 은 evap_rate 직접 변조 (Boltzmann factor 재사용 X 결정).
+
+**배제된 대안**: KE 게이트 보존 + 재샘플 빈도 ↑ (계산 부담 + 본질 결함 미해결), Boltzmann factor T 변조 (학생 인지 오버엔지니어링).
+
+### 2026-05-09 — 시각 강조 + 학교 실험 시간 척도 + visual balance (commits b1d7d02, dd38dc6, 4a3a984)
+
+#### 한 일
+- 기체 plateau ↑ + evap/cond flash + 약 중력 (b1d7d02, sub-step B-2 final fixup 2 — 학습 효과 0 fixup).
+- 반투명 표면 (opacity 0.55) + 화살표 (증발=청 위, 응축=주황 아래, 30 px) + 학교 시간 척도 (2-3 분 평형) + 경과 시간 (M분 SS초) (dd38dc6, fixup 4).
+- birth highlight stroke + 응축 위치 marker + rate 그래프 smoothing + 액체 격자 toned down (4a3a984, visual balance fixup 5).
+
+#### 결정: 학교 실험 시간 척도 (2-3 분 평형 도달)
+
+**배경**: 직전 evap_rate 0.2 = 평형 도달 < 30초 (수업 시간 비현실). 학생 측정 활동 시간 부족.
+
+**결정**: `evap_rate_per_particle_per_sec` = 0.025 (95 surface × 0.025 ≈ 2.4/s). plateau gas 50 → P_total ≈ 3.0 kPa (25°C 물 P_vap 3.17 kPa 정합). 평형 도달 ~ 2-3 분.
+
+**근거**: 학교 시간 (수업 50 분) 안 평형 도달 + 측정 활동 + 평형 후 추가 관찰 모두 가능. 25°C 물 P_vap 정량 정합 = 학습 표 (보조 정보) 신뢰성.
+
+**배제된 대안**: rate ↑ (수업 시간 부족), 비물리 시간 가속 (학생 인지 부자연).
+
+#### 결정: 시각 강조 = 화살표 + 반투명 표면 + flash
+
+**배경**: 직전 birth/응축 시점 = 미세 색 변화 만 → 학생 인지 어려움. 사건 발생 자체가 시뮬의 핵심 가시화 대상.
+
+**결정**: 화살표 (증발=청 위, 응축=주황 아래, 30 px) + birth flash (0.8s 페이드, 12→4 px) + 반투명 표면 (opacity 0.55, 액체 격자 불투명과 시각 차별).
+
+**근거**: 화살표 = 사건 빈도 직접 인지 단서. flash = 사건 시점 강조. 반투명 표면 = 동적 영역 (사건 발생) 시각 분리.
+
+**배제된 대안**: 색 변화만 (학생 인지 어려움), 화살표 만 (시점 인지 약함).
+
+(후일 fixup 8 = 형광 노랑 #FCD34D + 핑크 #F472B6 + glow blur 25 + 1.5s hold + 0.5s fade 로 강화. 본 단계 = 청/주황 + 0.8s fade.)
