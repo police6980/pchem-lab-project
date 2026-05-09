@@ -3953,7 +3953,8 @@ function initVaporApp(params) {
         const btn = e.target.closest(".vapor-t-preset-btn");
         if (!btn || btn.disabled || tConfirmed) return;
         dom.tInput.value = String(btn.dataset.temp);
-        applyTemperature(btn.dataset.temp);
+        if (dom.tInputRow) dom.tInputRow.classList.add("is-dirty");
+        // fixup 15o — applyTemperature 자동 호출 폐기. 학생 [입력] 클릭 / Enter 명시 확정 강제.
     });
 
     // ── 측정점 표 + P-T 그래프 ──

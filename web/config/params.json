@@ -88,6 +88,7 @@
         "color_KE_fast": "#DC2626",
         "color_KE_min_for_HSB": 0.0,
         "color_KE_max_for_HSB": 5.0,
+        "gas_color": "#60a5fa",
 
         "gas_speed_scale": 50,
         "gas_velocity_damping": 0.9995,

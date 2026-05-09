@@ -1,6 +1,6 @@
 // =============================================================
 // vapor.js — 증기압 시뮬 본체
-// Phase 6.1-b finalization fixup 15m (height 정합 옵션 C flex stretch + V_gas 칸 + mmol 이동)
+// Phase 6.1-b finalization fixup 15o (T 잠금 확장 + 가스 입자 색 단일화 #60a5fa)
 //
 // 핵심 철학 (정공법):
 //   학생 가시 = 실측 / 시뮬 = 미시 가시화 (정성적)
@@ -211,6 +211,21 @@
 //     시뮬 헤더 (.vapor-sim-header) 안 elapsed time 옆 inline (.vapor-sim-mmol-info 신규).
 //     #vapor-mmol-per-particle ID 보존 → main.js 갱신 호출 site 0 변동.
 //     학습 단서 정합 (시뮬 시작 직후 자연 인지) + top-control 너비 부담 ↓.
+//
+// 추가 (fixup 15o — T 잠금 확장 + 가스 입자 색 단일화, 사용자 비판 2건 단순 fix ~17줄):
+//   · main.js dom.tPresets click handler — applyTemperature 자동 호출 폐기.
+//     사용자 비판 "실험 중 온도 변경할 때 확인 안 눌러도 온도가 변해버린다" 직접 해소.
+//     기존 흐름: 프리셋 클릭 → tInput.value 설정 + applyTemperature 자동 호출 (즉시 적용).
+//     신규: 프리셋 클릭 = tInput.value 설정 + is-dirty class 추가 만. 학생 [입력] 클릭 또는
+//          Enter 명시 확정 시 applyTemperature 호출 (pre-start / post-start 단일 메커니즘 통일).
+//     tConfirmed flag 그대로 (분리 / 신규 flag 신설 X).
+//   · drawMolecules 가스 입자 루프 KE 매핑 폐기 → 단일 색 cfg.gas_color (= #60a5fa, blue-400).
+//     사용자 비판 "기체 입자 색깔 1가지 색으로, 물보다 약간 연한 색" 직접 해소.
+//     액체 #1E40AF (blue-800) 보다 연한 파랑, 회색 배경 위 가시성 OK, 형광 노랑 lerp 자연.
+//     params.json: gas_color 신규 키. color_KE_slow / fast / min / max 표면 입자 KE 매핑용으로 보존.
+//     형광 노랑 birth flash (1.5s hold + 0.5s fade) / glow blur + stroke 보존.
+//     vaporColorFromKE 함수 보존 (표면 입자에서만 사용).
+//     가스 루프 안 KE 계산 (0.5×v²/ssq) + vaporColorFromKE 호출 폐기 → 단순화.
 //
 // docs/17 §6 참조.
 // =============================================================
@@ -922,19 +937,18 @@ class VaporWorld {
             p.circle(sp.x, sp.y, r * 2);
         }
 
-        // Gas particles — 막 나온 입자는 형광 노랑 전체 색 (1.5s hold + 0.5s fade) + glow
+        // Gas particles — fixup 15o: KE 매핑 폐기 → 단일 색 (cfg.gas_color, 액체보다 연한 파랑).
+        //                  막 나온 입자는 형광 노랑 전체 색 (1.5s hold + 0.5s fade) + glow 보존.
         const gasR = this.gasRadius;
-        const ssq = this.gasSpeedScale * this.gasSpeedScale;
         const fluorYellowStr = cfg.gas_birth_color_fluorescent || "#FCD34D";
         const holdMs = (cfg.gas_birth_fluor_hold_sec ?? 1.5) * 1000;
         const fadeMs = (cfg.gas_birth_fluor_fade_sec ?? 0.5) * 1000;
         const totalMs = holdMs + fadeMs;
         const fluorStrokePx = cfg.gas_birth_stroke_px ?? 4.5;
         const fluorBlur = cfg.gas_birth_glow_blur_px ?? 25;
+        const gasColor = p.color(cfg.gas_color || "#60a5fa");  // fixup 15o 단일 가스 색
         const now = performance.now();
         for (const g of this.gasParticles) {
-            const ke = 0.5 * (g.vx * g.vx + g.vy * g.vy) / ssq;
-            const baseCol = vaporColorFromKE(p, ke, slow, fast, keMin, keMax);
             const ageMs = now - (g.birth_time || 0);
             let fillCol;
             let fluorAlpha = 0;
@@ -943,10 +957,10 @@ class VaporWorld {
                 fluorAlpha = 1.0;
             } else if (ageMs < totalMs) {
                 const t = (ageMs - holdMs) / fadeMs;
-                fillCol = p.lerpColor(p.color(fluorYellowStr), baseCol, t);
+                fillCol = p.lerpColor(p.color(fluorYellowStr), gasColor, t);
                 fluorAlpha = 1 - t;
             } else {
-                fillCol = baseCol;
+                fillCol = gasColor;
                 fluorAlpha = 0;
             }
 
