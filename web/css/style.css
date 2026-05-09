@@ -3968,18 +3968,19 @@ body[data-page="vapor"] .vapor-tp-temp-mock {
     flex-direction: column;
     gap: 8px;
 }
-body[data-page="vapor"] .vapor-tp-temp-row {
+body[data-page="vapor"] .vapor-tp-input-row {
     display: flex;
     align-items: center;
     gap: 8px;
 }
-body[data-page="vapor"] .vapor-tp-temp-select-label {
+body[data-page="vapor"] .vapor-tp-temp-input-label {
     font-size: 12px;
     color: #475569;
     flex: 0 0 auto;
 }
-body[data-page="vapor"] .vapor-tp-temp-select {
+body[data-page="vapor"] .vapor-tp-temp-input {
     flex: 1;
+    min-width: 0;
     padding: 4px 6px;
     border: 1px solid #cbd5e1;
     border-radius: 3px;
@@ -3987,7 +3988,11 @@ body[data-page="vapor"] .vapor-tp-temp-select {
     background: #fff;
     color: #1e293b;
     font-variant-numeric: tabular-nums;
-    cursor: pointer;
+}
+body[data-page="vapor"] .vapor-tp-unit {
+    font-size: 12px;
+    color: #64748b;
+    flex: 0 0 auto;
 }
 body[data-page="vapor"] .vapor-t-presets {
     display: grid;
@@ -4287,4 +4292,78 @@ body[data-page="vapor"] .vapor-mock-hint {
     color: #94a3b8;
     line-height: 1.5;
     margin: 0;
+}
+
+/* ========== Vapor 페이지 반응형 (fixup 13) ========== */
+/* 1024px 이하 (태블릿): 사이드바 그대로, 시뮬+카드 wrap (시뮬 100% width, 카드 그 아래) */
+@media (max-width: 1023px) {
+    body[data-page="vapor"] .vapor-top-row {
+        flex-wrap: wrap;
+    }
+    body[data-page="vapor"] .vapor-control-narrow {
+        flex: 0 0 200px;
+    }
+    body[data-page="vapor"] .vapor-sim-region {
+        flex: 1 1 calc(100% - 224px);
+        min-width: 360px;
+    }
+    body[data-page="vapor"] .vapor-cards-region {
+        flex: 1 1 100%;
+        flex-direction: row;
+        flex-wrap: wrap;
+    }
+    body[data-page="vapor"] .vapor-card {
+        flex: 1 1 calc(50% - 6px);
+        min-width: 240px;
+    }
+    body[data-page="vapor"] .vapor-measurement-region {
+        flex-direction: column;
+    }
+}
+
+/* 768px 이하 (모바일): 모든 영역 세로 stack */
+@media (max-width: 767px) {
+    body[data-page="vapor"] .vapor-layout-v2 {
+        padding: 8px;
+        gap: 8px;
+    }
+    body[data-page="vapor"] .vapor-top-row {
+        flex-direction: column;
+        flex-wrap: nowrap;
+    }
+    body[data-page="vapor"] .vapor-control-narrow {
+        flex: 1 1 100%;
+        width: 100%;
+        min-width: 0;
+        max-width: none;
+        box-sizing: border-box;
+    }
+    body[data-page="vapor"] .vapor-sim-region {
+        flex: 1 1 100%;
+        min-width: 0;
+    }
+    body[data-page="vapor"] .vapor-cards-region {
+        flex: 1 1 100%;
+        flex-direction: column;
+    }
+    body[data-page="vapor"] .vapor-card {
+        flex: 1 1 100%;
+        min-width: 0;
+    }
+    body[data-page="vapor"] .vapor-canvas-container {
+        max-width: 100%;
+    }
+    body[data-page="vapor"] .vapor-t-presets {
+        grid-template-columns: repeat(5, 1fr);
+        gap: 3px;
+    }
+    body[data-page="vapor"] .vapor-mode-toggle {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    body[data-page="vapor"] #vapor-rate-canvas {
+        max-width: 100%;
+    }
+    body[data-page="vapor"] .vapor-rate-readouts {
+        flex-wrap: wrap;
+    }
 }

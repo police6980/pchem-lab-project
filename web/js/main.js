@@ -3786,7 +3786,7 @@ function initVaporApp(params) {
         latticeCount:     document.getElementById("vapor-lattice-count"),
         eqBadge:          document.getElementById("vapor-equilibrium-badge"),
         elapsedTime:      document.getElementById("vapor-elapsed-time"),
-        tSelect:          document.getElementById("vapor-t-select"),
+        tInput:           document.getElementById("vapor-t-input"),
         tPresets:         document.getElementById("vapor-t-presets"),
         btnRecord:        document.getElementById("vapor-btn-record"),
         btnClearPoints:   document.getElementById("vapor-btn-clear-points"),
@@ -3809,9 +3809,14 @@ function initVaporApp(params) {
     if (cfg.V_flask_default_mL)  dom.vFlaskSel.value = String(cfg.V_flask_default_mL);
     if (cfg.V_liquid_default_mL) dom.vLiquidIn.value = String(cfg.V_liquid_default_mL);
 
-    // T 초기값 (fixup 12 — 카드 안 셀렉트 + 5 프리셋, 시뮬 아래 슬라이더 폐기)
+    // T 초기값 (fixup 13 — number input + 5 프리셋, 학생 임의 T 직접 입력 가능)
     const T_default = cfg.T_default_celsius ?? 25;
-    dom.tSelect.value = String(T_default);
+    const T_MIN_INPUT = 0;
+    const T_MAX_INPUT = 100;
+    dom.tInput.min = String(T_MIN_INPUT);
+    dom.tInput.max = String(T_MAX_INPUT);
+    dom.tInput.value = String(T_default);
+    let lastValidT = T_default;
     {
         const buttons = dom.tPresets.querySelectorAll(".vapor-t-preset-btn");
         buttons.forEach(b => b.classList.toggle("is-active", Number(b.dataset.temp) === T_default));
@@ -3865,26 +3870,33 @@ function initVaporApp(params) {
         });
     });
 
-    // ── T 컨트롤 (fixup 12 — 카드 안 셀렉트 + 5 프리셋, 양방향 동기화) ──
-    function applyTemperature(T) {
-        const T_clamped = Math.max(
-            Number(cfg.T_min_celsius ?? 25),
-            Math.min(Number(cfg.T_max_celsius ?? 65), Number(T))
-        );
-        dom.tSelect.value = String(T_clamped);
+    // ── T 컨트롤 (fixup 13 — number input + 5 프리셋, 학생 임의 T 입력 + 범위 외 fallback) ──
+    function applyTemperature(rawT) {
+        const parsed = parseFloat(rawT);
+        let T;
+        if (!Number.isFinite(parsed) || parsed < T_MIN_INPUT || parsed > T_MAX_INPUT) {
+            T = lastValidT;
+            dom.tInput.value = String(T);
+        } else {
+            T = parsed;
+            lastValidT = T;
+            // input.value 는 사용자 입력 그대로 보존 (소수점 포맷 변형 회피)
+        }
         const buttons = dom.tPresets.querySelectorAll(".vapor-t-preset-btn");
         buttons.forEach(b => {
-            b.classList.toggle("is-active", Number(b.dataset.temp) === T_clamped);
+            b.classList.toggle("is-active", Number(b.dataset.temp) === T);
         });
         if (world) {
-            world.setTemperature(T_clamped);
-            console.log(`[Vapor] T 변경 = ${T_clamped}°C · evap_rate = ${world.evapRatePerParticlePerSec().toFixed(4)}/입자/s`);
+            world.setTemperature(T);
+            console.log(`[Vapor] T 변경 = ${T}°C · evap_rate = ${world.evapRatePerParticlePerSec().toFixed(4)}/입자/s`);
         }
     }
-    dom.tSelect.addEventListener("change", (e) => applyTemperature(e.target.value));
+    dom.tInput.addEventListener("change", (e) => applyTemperature(e.target.value));
+    dom.tInput.addEventListener("blur", (e) => applyTemperature(e.target.value));
     dom.tPresets.addEventListener("click", (e) => {
         const btn = e.target.closest(".vapor-t-preset-btn");
         if (!btn) return;
+        dom.tInput.value = String(btn.dataset.temp);
         applyTemperature(btn.dataset.temp);
     });
 
@@ -4066,7 +4078,7 @@ function initVaporApp(params) {
         if (placeholderEl) placeholderEl.style.display = "none";
 
         world = new VaporWorld(cfg, vFlask, vLiquid, liquid);
-        world.setTemperature(Number(dom.tSelect.value));
+        world.setTemperature(Number(dom.tInput.value));
         p5Handle = mountVaporSketch(world, dom.canvasCt);
 
         const molPerMl = (liquid === "water") ? cfg.water_mol_per_mL : 0;
@@ -4076,7 +4088,7 @@ function initVaporApp(params) {
         dom.mmolSpan.textContent = mmolPerParticle.toFixed(3);
         dom.latticeCount.textContent = String(world.liquidLattice.length);
 
-        applyTemperature(Number(dom.tSelect.value));
+        applyTemperature(Number(dom.tInput.value));
 
         console.log(`[Vapor] 시뮬 시작 — V_flask=${vFlask}mL · V_liquid=${vLiquid}mL · liquid=${liquid} · N_lattice=${Nlattice} · T=${world.T_celsius}°C · evap_rate=${world.evapRatePerParticlePerSec().toFixed(4)}/입자/s`);
 

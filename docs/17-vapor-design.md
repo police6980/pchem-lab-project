@@ -176,6 +176,38 @@ MVP 외 후속 트랙 학습 목표:
 
 학습 목표 외 (액체 내부 분자 운동 정확 모델) 은 별 학습 자료로 분리.
 
+### T number input + 반응형 + fixup 11/12 통합 검증 (fixup 11+12 integrated)
+
+CC 진단 (직전 fixup 11 화살표 매칭 + fixup 12 T+P 카드 통합 모두 적용 확인) 후 사용자 추가 합의:
+
+**T 입력 = number input + 5 프리셋** (셀렉트 폐기):
+- 학생 임의 T 직접 입력 가능 (소수점 허용, `step="0.1"`).
+- 5 프리셋 (25/35/45/55/65) 빠른 선택 보조 (button click → input.value 동기화).
+- input `change` + `blur` 이벤트:
+  - `parseFloat(value)` → NaN / `< 0` / `> 100` 시 fallback (직전 유효값 `lastValidT` 또는 25).
+  - 유효 시 `lastValidT` 갱신 + `world.setTemperature(T)` 호출.
+  - 프리셋 정확 일치 시만 active 표시, 그 외 모두 inactive (소수점 입력 시 active 0개).
+- 학습 동기: 학교 실험에서 5 프리셋 외 T (예: 32.5°C) 측정 가능성 확보.
+
+**화면 반응형** (1024px / 768px 브레이크포인트):
+- 데스크탑 (>1024px): 가로 3열 (제어 / 시뮬 / 카드) — 기본 layout 그대로.
+- 태블릿 (768~1023px): `vapor-top-row` flex-wrap → 사이드바 + 시뮬 가로 / 카드 row wrap (50% × 2).
+- 모바일 (<768px): 모든 영역 세로 stack, 사이드바 width 100%, 시뮬 100%, 카드 column.
+- `vapor-mode-toggle` (4 버튼) 모바일 시 2-col 유지.
+- `vapor-rate-canvas` max-width 100% (모바일 폭 적응).
+- 보일/돌턴 페이지 미디어 쿼리 패턴 참조.
+
+**fixup 11 화살표 매칭 적용 검증** (직전 commit `027bd41` 점검):
+- `vapor.js:_addFlash` 안 매칭 로직 (`findIndex(f => f.dir === opposite)`) 확인.
+- 추가 코드 변경 X.
+
+**fixup 12 T+P 카드 통합 적용 검증** (직전 commit `2471cf2` 점검):
+- `vapor-card-tp` / `vapor-tp-temp-mock` / `vapor-tp-pressure-mock` DOM 구조 확인.
+- 본 fixup 13 에서 select → number input 교체만 적용.
+
+**vapor.js 헤더 docstring 갱신**:
+- fixup 13 활성 명세 (T number input, 반응형) + 폐기 항목 누적 (T 셀렉트).
+
 ### T + P 카드 통합 (mock 입력 / real 표시 자연 전환, fixup 12)
 
 CC 진단 (T 컨트롤 위치 시뮬 아래 분리 + P 카드 placeholder 분리 → 우측 상단 통합) 후 사용자 합의:
@@ -700,6 +732,8 @@ rate 그래프 y_max 5 (낮은 rate 정합), 평형 임계 0.5/s + min_evap 1.5/
 | 화살표 매칭 상쇄 (fixup 11, 즉시 매칭 / 위치 무관 / 즉시 사라짐) | 학습 계층 3단계 (색=사건, 화살표=빈도 차, rate=정량) 구분 명확화. 코드 +6줄, 시각 임팩트 큼. transient 위 화살표 다수 → 평형 거의 X = 학생 직관 정합. | 대기 후 매칭 (옵션 2, 비동기 타이머 복잡, 학생 인지 부자연), 위치 가까운 쌍 우선 (O(N×M) 효과 미미), 0.3초 fade 캔슬 (옵션 b, mock 정성 인지 단계 정합성 ↓) |
 | T + P 카드 통합 (fixup 12, mock 입력 / real 표시 자연 전환) | 우측 상단 = "센서 영역" Johnstone 3수준 정합. DOM 보존 + class 분기로 Phase 6.3+ 자연 전환. mock T 입력 + P placeholder 동거, real 진입 시 둘 다 활성 — 학생 인지 일관. | 카드 분리 유지 (T 시뮬 아래 + P 우측 상단, 시각 자원 분산), real 모드만 통합 (mock layout 동선 ↑) |
 | 시뮬 아래 T 컨트롤 폐기 (fixup 12, 시각 정리) | 시뮬 캔버스 아래 = 시뮬 + 헤더 (시간/배지) 만으로 단순. T 컨트롤 우측 카드 안 셀렉트 + 5 프리셋 grid (보일/돌턴 패턴 재사용) 로 일관. 시뮬 height 자유도 ↑. | 슬라이더 보존 (T 연속 입력 — 학교 실험에서 5 프리셋 충분, fixup 11 base 0.010 정합), 시뮬 아래 + 카드 안 둘 다 (UI 중복) |
+| T 입력 = number input (fixup 11+12 integrated, 셀렉트 폐기) | 학생 임의 T 직접 입력 가능 (소수점 허용, 예: 32.5°C). 5 프리셋 보조로 빠른 선택. parseFloat + 범위 외 (NaN, < 0, > 100) fallback (직전 유효값 또는 25). 학교 실험에서 측정값 그대로 입력 시나리오 정합. | 셀렉트 5 옵션 (직전 fixup 12, 학생 임의 T 입력 차단), 슬라이더 (시뮬 아래 폐기 — fixup 12 결정 일관) |
+| 화면 반응형 (fixup 11+12 integrated, 1024/768 브레이크포인트) | 데스크탑 (>1024) 가로 3열, 태블릿 (768~1023) 사이드바 + 시뮬 가로 / 카드 row wrap, 모바일 (<768) 모든 영역 세로 stack. 보일/돌턴 페이지 미디어 쿼리 패턴 재사용. | 데스크탑 전용 (모바일 broken layout), 단일 브레이크포인트 (태블릿 어색) |
 
 ---
 

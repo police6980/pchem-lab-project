@@ -1,12 +1,17 @@
 // =============================================================
 // vapor.js — 증기압 시뮬 본체
-// Phase 6.1-b finalization fixup 12 (T+P 카드 통합 + 시뮬 아래 T 컨트롤 폐기)
+// Phase 6.1-b finalization fixup 11+12 integrated (T number input + 반응형 + 화살표 매칭/T+P 통합 검증)
 //
 // 핵심 철학 (정공법):
 //   학생 가시 = 실측 / 시뮬 = 미시 가시화 (정성적)
 //   우측 상단 = "센서 영역" (T + P 카드 통합, fixup 12)
-//     · mock 모드: T 입력 (셀렉트 + 5 프리셋) / P placeholder
+//     · mock 모드: T 입력 (number input + 5 프리셋, fixup 13) / P placeholder
+//                  학생 임의 T 직접 입력 (소수점 허용), 범위 외 fallback (직전 값 또는 25)
 //     · real 모드 (Phase 6.3+): T 실측 + P 실측 자동 표시 (DOM 보존, class 분기로 자연 전환)
+//   화면 반응형 (fixup 13): 1024px / 768px 브레이크포인트
+//     · 데스크탑 (>1024): 가로 3열 (제어 / 시뮬 / 카드)
+//     · 태블릿 (768~1023): 사이드바 + 시뮬 가로 / 카드 row wrap
+//     · 모바일 (<768): 모든 영역 세로 stack
 //   mock 모드: P 카드 placeholder / 측정점 표 / P-T 그래프 / 평형 ★ + 평형도 % 모두 비공개
 //   mock 학생 단서 = (1) rate 카드 third cell 비율 (cond/evap EMA + zone 색)
 //                  (2) 화살표 매칭 상쇄 (위·아래 1쌍 캔슬 → 빈도 차 시각)
@@ -51,7 +56,7 @@
 //     · _emaPrimed = false, _pressureSmoothedPrev = null 추가
 //     · T 변경 시 evap 곡선 lag / relChange jump 회피
 //
-// 폐기 (fixup 누적 1~12):
+// 폐기 (fixup 누적 1~12 + 11/12 통합):
 //   · KE 결정적 게이트 + 1초 동기 재샘플 (fixup 3)
 //   · sliding window 60초 (fixup 6, 누적으로 변경)
 //   · evap_rate_per_particle_per_sec (fixup 4, Boltzmann 으로 대체)
@@ -64,6 +69,7 @@
 //   · vapor-eq-percent DOM (fixup 9 hidden 상태였음, fixup 11 third cell 자체 비율로 교체 → 완전 폐기)
 //   · 시뮬 캔버스 아래 T 슬라이더 + 프리셋 버튼 (fixup 12, 우측 카드 통합으로 이동)
 //   · vapor-card-pvap (fixup 12, vapor-card-tp 안 P 영역으로 통합)
+//   · T 셀렉트 (fixup 12 → 11+12 integrated, number input 으로 교체 — 학생 임의 T 직접 입력)
 //
 // docs/17 §6 참조.
 // =============================================================
