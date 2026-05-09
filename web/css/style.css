@@ -4058,6 +4058,32 @@ body[data-page="vapor"] .vapor-tp-temp-real small {
     font-weight: 400;
     margin-left: 4px;
 }
+body[data-page="vapor"] .vapor-tp-guard-note {
+    display: block;
+    margin-top: 6px;
+    font-size: 11px;
+    line-height: 1.4;
+    min-height: 14px;
+    word-break: keep-all;
+    overflow-wrap: break-word;
+}
+body[data-page="vapor"] .vapor-tp-guard-note[data-state="ok"]    { color: #16a34a; }
+body[data-page="vapor"] .vapor-tp-guard-note[data-state="error"] { color: #dc2626; }
+body[data-page="vapor"] .vapor-t-apply-btn:disabled {
+    background: #e2e8f0;
+    color: #94a3b8;
+    border-color: #cbd5e1;
+    cursor: not-allowed;
+}
+body[data-page="vapor"] .vapor-t-preset-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+body[data-page="vapor"] .vapor-tp-temp-input:disabled {
+    background: #f1f5f9;
+    color: #64748b;
+    cursor: not-allowed;
+}
 body[data-page="vapor"] .vapor-tp-pressure-mock {
     padding: 12px 4px;
     text-align: center;

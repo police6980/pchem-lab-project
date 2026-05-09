@@ -3790,6 +3790,7 @@ function initVaporApp(params) {
         tApply:           document.getElementById("vapor-t-apply"),
         tInputRow:        document.querySelector(".vapor-tp-input-row"),
         tPresets:         document.getElementById("vapor-t-presets"),
+        tGuard:           document.getElementById("vapor-t-guard"),
         btnRecord:        document.getElementById("vapor-btn-record"),
         btnClearPoints:   document.getElementById("vapor-btn-clear-points"),
         measureTbody:     document.getElementById("vapor-measure-tbody"),
@@ -3811,7 +3812,7 @@ function initVaporApp(params) {
     if (cfg.V_flask_default_mL)  dom.vFlaskSel.value = String(cfg.V_flask_default_mL);
     if (cfg.V_liquid_default_mL) dom.vLiquidIn.value = String(cfg.V_liquid_default_mL);
 
-    // T 초기값 (fixup 13 — number input + 5 프리셋, 학생 임의 T 직접 입력 가능)
+    // T 초기값 (fixup 15b — number input + 5 프리셋 + 입력 버튼 확정 잠금 패턴)
     const T_default = cfg.T_default_celsius ?? 25;
     const T_MIN_INPUT = 0;
     const T_MAX_INPUT = 100;
@@ -3819,6 +3820,7 @@ function initVaporApp(params) {
     dom.tInput.max = String(T_MAX_INPUT);
     dom.tInput.value = String(T_default);
     let lastValidT = T_default;
+    let tConfirmed = false;  // fixup 15b — 학생 명시 확정 강제 (페이지 로드 직후 시작 disabled)
     {
         const buttons = dom.tPresets.querySelectorAll(".vapor-t-preset-btn");
         buttons.forEach(b => b.classList.toggle("is-active", Number(b.dataset.temp) === T_default));
@@ -3837,25 +3839,49 @@ function initVaporApp(params) {
     });
 
     function validate() {
+        // fixup 15b — V_liquid + tConfirmed 둘 다 OK 시만 시작 enable
         const { vFlask, vLiquid } = getInputs();
         const maxLiquid = 0.5 * vFlask;
         dom.vLiquidIn.max = String(maxLiquid);
+        let liquidOk;
         if (!Number.isFinite(vLiquid) || vLiquid <= 0) {
             dom.guardNote.textContent = "액체 부피는 0 보다 커야 합니다.";
             dom.guardNote.dataset.state = "error";
-            dom.btnStart.disabled = true;
-            return false;
-        }
-        if (vLiquid > maxLiquid) {
+            liquidOk = false;
+        } else if (vLiquid > maxLiquid) {
             dom.guardNote.textContent = `액체 부피 상한 ${maxLiquid} mL 초과 (V_liquid ≤ 0.5·V_flask).`;
             dom.guardNote.dataset.state = "error";
-            dom.btnStart.disabled = true;
-            return false;
+            liquidOk = false;
+        } else {
+            dom.guardNote.textContent = `OK — V_gas = ${vFlask - vLiquid} mL`;
+            dom.guardNote.dataset.state = "ok";
+            liquidOk = true;
         }
-        dom.guardNote.textContent = `OK — V_gas = ${vFlask - vLiquid} mL`;
-        dom.guardNote.dataset.state = "ok";
-        dom.btnStart.disabled = false;
-        return true;
+        dom.btnStart.disabled = !tConfirmed || !liquidOk;
+        return liquidOk;
+    }
+
+    // fixup 15b — T 카드 가드 메시지 갱신 (tConfirmed 기반)
+    function updateGuardMessage() {
+        if (!tConfirmed) {
+            dom.tGuard.textContent = "온도를 입력하세요";
+            dom.tGuard.dataset.state = "error";
+        } else {
+            dom.tGuard.textContent = "";
+            dom.tGuard.dataset.state = "ok";
+        }
+    }
+
+    // fixup 15b — T 잠금 해제 (수정 또는 재설정 트리거)
+    function unlockTemperature() {
+        tConfirmed = false;
+        dom.tInput.disabled = false;
+        const buttons = dom.tPresets.querySelectorAll(".vapor-t-preset-btn");
+        buttons.forEach(b => b.disabled = false);
+        dom.tApply.textContent = "입력";
+        if (dom.tInputRow) dom.tInputRow.classList.remove("is-dirty");
+        updateGuardMessage();
+        validate();
     }
 
     dom.vFlaskSel.addEventListener("change", validate);
@@ -3872,7 +3898,7 @@ function initVaporApp(params) {
         });
     });
 
-    // ── T 컨트롤 (fixup 14 — number input + 입력 버튼 확정 + 프리셋 즉시) ──
+    // ── T 컨트롤 (fixup 15b — number input + 5 프리셋 + 입력/수정 토글 + 잠금) ──
     function applyTemperature(rawT) {
         const parsed = parseFloat(rawT);
         let T;
@@ -3892,6 +3918,13 @@ function initVaporApp(params) {
             world.setTemperature(T);
             console.log(`[Vapor] T 변경 = ${T}°C · evap_rate = ${world.evapRatePerParticlePerSec().toFixed(4)}/입자/s`);
         }
+        // fixup 15b — 확정 후 잠금 + 라벨 토글 + 가드 + 시작 enable
+        tConfirmed = true;
+        dom.tInput.disabled = true;
+        buttons.forEach(b => b.disabled = true);
+        dom.tApply.textContent = "수정";
+        updateGuardMessage();
+        validate();
     }
     // 직접 입력 = dirty 표시만, 확정 X (입력 버튼 또는 Enter 시 확정)
     dom.tInput.addEventListener("input", () => {
@@ -3900,14 +3933,21 @@ function initVaporApp(params) {
     dom.tInput.addEventListener("keydown", (e) => {
         if (e.key === "Enter") {
             e.preventDefault();
-            applyTemperature(dom.tInput.value);
+            if (!tConfirmed) applyTemperature(dom.tInput.value);
         }
     });
-    dom.tApply.addEventListener("click", () => applyTemperature(dom.tInput.value));
-    // 프리셋 = 즉시 반영 (빠른 선택)
+    // 입력/수정 토글 (fixup 15b)
+    dom.tApply.addEventListener("click", () => {
+        if (!tConfirmed) {
+            applyTemperature(dom.tInput.value);
+        } else {
+            unlockTemperature();
+        }
+    });
+    // 프리셋 = 즉시 반영 (잠금 시 disabled 라 자연 차단)
     dom.tPresets.addEventListener("click", (e) => {
         const btn = e.target.closest(".vapor-t-preset-btn");
-        if (!btn) return;
+        if (!btn || btn.disabled || tConfirmed) return;
         dom.tInput.value = String(btn.dataset.temp);
         applyTemperature(btn.dataset.temp);
     });
@@ -4078,6 +4118,8 @@ function initVaporApp(params) {
 
     // ── 시작 ──
     dom.btnStart.addEventListener("click", () => {
+        // fixup 15b — 이중 안전망 (disabled 우회 시 차단)
+        if (!tConfirmed) return;
         if (!validate()) return;
         const { vFlask, vLiquid, liquid } = getInputs();
 
@@ -4182,10 +4224,12 @@ function initVaporApp(params) {
         rateCtx.clearRect(0, 0, rateW, rateH);
         rateCtx.fillStyle = "#f8fafc";
         rateCtx.fillRect(0, 0, rateW, rateH);
-        validate();
+        // fixup 15b — 재설정 시 T 잠금 해제 (수정 / 재설정 둘 다 unlock 트리거)
+        unlockTemperature();
         console.log("[Vapor] 시뮬 리셋. 입력 재오픈 (측정점 표는 유지).");
     });
 
+    updateGuardMessage();
     validate();
 }
 
