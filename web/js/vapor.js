@@ -1,6 +1,6 @@
 // =============================================================
 // vapor.js — 증기압 시뮬 본체
-// Phase 6.1-b finalization fixup 15a (화살표 0.3s fade 캔슬 + rate prime N tick 평균)
+// Phase 6.1-b finalization fixup 15a 재작업 (1:1 페어 즉시 캔슬 + hold 1.5s + rate prime N tick 평균)
 //
 // 핵심 철학 (정공법):
 //   학생 가시 = 실측 / 시뮬 = 미시 가시화 (정성적)
@@ -34,10 +34,13 @@
 //   ── 시각 강조 (3계층 인지) ──
 //     · 사건 자체 = 노랑 #FCD34D (가시 가스 birth) + 핑크 #F472B6 (격자 응결)
 //                   둘 다 1.5s + 0.5s fade + glow blur 25 (별도 큐, 매칭 영향 X)
-//     · 빈도 차 = evap 위 화살표 / cond 아래 화살표 (fixup 11 매칭 상쇄 → fixup 15a 0.3s fade)
-//                  _addFlash 안 매칭 시 splice 대신 t_start 후퇴 (잔여 fade 0.3초)
-//                  transient (evap >> cond): 위 화살표 다수 / 평형 (evap ≈ cond): 짧은 fade 후 사라짐
-//                  학생 인지: "쌍이 만남 → 짧게 함께 사라짐"
+//     · 빈도 차 = evap 위 화살표 / cond 아래 화살표 (fixup 15a 재작업, 정공법 회귀)
+//                  _addFlash 안 매칭 시 즉시 splice + return → 양쪽 동시 소멸 (fade X)
+//                  매칭 풀 = visible only (ghost 사건은 _addFlash 호출 X — 진단 확정)
+//                  FIFO 공간 무관 (findIndex = 가장 오래된 반대 dir head)
+//                  무매칭 hold = flash_duration_sec=1.5초 (fixup 15a 재작업, 시작 직후 동시 ≈5개)
+//                  transient (evap >> cond): 위 화살표 다수 / 평형 (evap ≈ cond): 잔존 ≈0 (멎음)
+//                  잔존 화살표 수 = 빈도 차이 시각 = 학생 학습 단서
 //     · 정량 절댓값 = rate 그래프 두 곡선 만남 (_evapWin / _condWin 카운터, 매칭 영향 X)
 //
 //   ── rate 그래프 (학습 단서, 우측 카드 별도 canvas) ──
@@ -76,7 +79,8 @@
 //   · vapor-card-pvap (fixup 12, vapor-card-tp 안 P 영역으로 통합)
 //   · T 셀렉트 (fixup 12 → 11+12 integrated, number input 으로 교체 — 학생 임의 T 직접 입력)
 //   · 시작 직후 EMA prime 잡음 박힘 (fixup 9 부작용 → fixup 14 워밍업 + fixup 15a N tick 평균으로 해소)
-//   · 화살표 매칭 즉시 splice (fixup 11 → 15a 0.3s fade 캔슬로 변경, 학생 "쌍 만남" 인지 보존)
+//   · 화살표 매칭 0.3초 fade 캔슬 (fixup 15a → 15a 재작업, 즉시 splice 회귀 — 잔존 = 빈도 차 학습 단서)
+//   · params.flash_arrow_match_cancel_fade_sec (fixup 15a 키, 15a 재작업 폐기)
 //
 // docs/17 §6 참조.
 // =============================================================
@@ -510,21 +514,15 @@ class VaporWorld {
     }
 
     _addFlash(x, y, colorStr, dir) {
-        // 화살표 매칭 (fixup 15a — 즉시 splice X, 0.3초 fade 캔슬)
-        // 학생 인지: 위·아래 1쌍이 만나는 순간 → 짧게 함께 사라짐 (펀칭 X)
-        // 색 강조 (노랑/핑크) / rate 그래프 / condenseHighlights 는 별도 큐로 영향 X
+        // 화살표 매칭 (fixup 15a 재작업 — 1:1 페어 즉시 splice, 정공법 회귀)
+        // 매칭 풀 = visible only (ghost 사건은 _addFlash 호출 X — 진단 확정)
+        // FIFO 공간 무관 (findIndex = 가장 오래된 반대 dir head 매칭)
+        // 잔존 화살표 수 = 빈도 차이 시각화 = 학생 학습 단서
         const opposite = (dir === "up") ? "down" : "up";
         const matchIdx = this.flashes.findIndex(f => f.dir === opposite);
         if (matchIdx !== -1) {
-            const cancelFadeSec = this.cfg.flash_arrow_match_cancel_fade_sec ?? 0.3;
-            const fullDurMs = (this.cfg.flash_duration_sec ?? 1.0) * 1000;
-            const cancelFadeMs = cancelFadeSec * 1000;
-            const now = performance.now();
-            const f = this.flashes[matchIdx];
-            // 매칭된 화살표 t_start 후퇴 → 잔여 fade 시간 = cancelFade
-            // (이미 fade 후반인 화살표는 그대로 — Math.min 으로 보호)
-            f.t_start = Math.min(f.t_start, now - (fullDurMs - cancelFadeMs));
-            return;  // 신규 push X (정상 매칭 동작 유지)
+            this.flashes.splice(matchIdx, 1);  // 반대 dir head 즉시 제거
+            return;                             // 신규 push X → 양쪽 즉시 동시 소멸
         }
         this.flashes.push({
             x, y, color: colorStr,
