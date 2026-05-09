@@ -49,7 +49,7 @@
     },
 
     "vapor": {
-        "_comment": "Phase 6.1-b sub-step B-2 fixup — Schroeder LJ + Verlet base + 중력/spring 바닥. 자연 단위(σ=ε=m=k_B=1). T 낮추고 epsilon 강화하여 내부 입자 탈출 차단·표면 자연 증발만.",
+        "_comment": "Phase 6.1-b final — 교과서 정합 모델: 정적 격자 + 표면 동적 + 기체 자유 비행. Schroeder LJ + Verlet 시도 폐기 (사용자 검증에서 응집 풀림·떠오름 발견). 분자 동역학 시뮬 X — 학습 목표 달성에 필요한 최소 추상화.",
         "V_flask_presets_mL": [100, 250, 500],
         "V_flask_default_mL": 250,
         "V_liquid_default_mL": 50,
@@ -57,23 +57,18 @@
         "canvas_width_px": 800,
         "canvas_height_px": 480,
 
-        "N_molecules": 200,
+        "molecule_radius_px": 9,
+        "liquid_color": "#1E3A8A",
+        "surface_color": "#1E3A8A",
+        "liquid_jitter_amp_px": 0,
+        "surface_jitter_amp_px": 2,
 
-        "schroeder_box_width_sigma": 60,
-        "schroeder_dt": 0.005,
-        "schroeder_cutoff": 3.0,
-        "schroeder_init_temp": 0.25,
-        "schroeder_epsilon": 1.5,
-        "schroeder_steps_per_frame": 25,
-
-        "gravity_g": 0.001,
-        "bottom_wall_softness": 5.0,
-        "bottom_wall_threshold_sigma": 0.5,
-
-        "molecule_color": "#1E3A8A",
-        "molecule_radius_scale": 0.85,
+        "p_evap_per_sec_per_particle": 0.02,
+        "p_condense_per_hit": 0.5,
+        "gas_init_KE": 4.0,
+        "gas_particle_radius_px": 3.5,
 
         "water_mol_per_mL": 0.05551,
-        "_units_note": "1 분자 ≈ V_liquid · water_mol_per_mL · 1000 / N_molecules mmol. schroeder_init_temp 0.25 = LJ 자연 단위 (Ar 삼중점 0.7 이하, T 낮춰 KE 분포 좁힘). schroeder_epsilon 1.5 = LJ 인력 강화 (force 공식 24·ε·(2·repel-attract)/r²). pxPerUnit = canvas_width_px / schroeder_box_width_sigma. gravity_g·bottom_wall_softness 는 B-2 fixup (클러스터 떠오름 차단 + 통째 튕김 차단)."
+        "_units_note": "격자 입자 수 N_total 자동 계산 (V_liquid 영역 × molecule_radius_px 기반). 1 입자 ≈ V_liquid · water_mol_per_mL · 1000 / N_total mmol. molecule_radius_px=9 → 격자 간격 18px → V_liquid 50/V_flask 250 비율에서 N≈215 (200~300 명세 범위). 사용자 명세 radius=5 는 격자 빈틈없이 + N 200~300 과 모순이라 9 로 조정 — 시각 보고 후 튜닝."
     }
 }

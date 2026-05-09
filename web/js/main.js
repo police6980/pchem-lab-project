@@ -3833,13 +3833,14 @@ function initVaporApp(params) {
         world = new VaporWorld(cfg, vFlask, vLiquid);
         p5Handle = mountVaporSketch(world, dom.canvasCt);
 
-        // 1 분자 ≈ X mmol — LJ-like 자연 응집 모델 (sub-step 1)
+        // 1 입자 ≈ X mmol — 격자 입자 수 (액체 격자 + 표면) 자동 계산 기반
         const molPerMl = (liquid === "water") ? cfg.water_mol_per_mL : 0;
         const totalMmol = vLiquid * molPerMl * 1000;
-        const mmolPerParticle = totalMmol / cfg.N_molecules;
+        const Nlattice = world.N_total ?? 1;
+        const mmolPerParticle = totalMmol / Math.max(Nlattice, 1);
         dom.mmolSpan.textContent = mmolPerParticle.toFixed(3);
 
-        console.log(`[Vapor] 시뮬 시작 — V_flask=${vFlask}mL · V_liquid=${vLiquid}mL · V_gas=${vFlask - vLiquid}mL · liquid=${liquid} · mmol/molecule=${mmolPerParticle.toFixed(3)}`);
+        console.log(`[Vapor] 시뮬 시작 — V_flask=${vFlask}mL · V_liquid=${vLiquid}mL · V_gas=${vFlask - vLiquid}mL · liquid=${liquid} · N_lattice=${Nlattice} · mmol/lattice-particle=${mmolPerParticle.toFixed(3)}`);
     });
 
     dom.btnReset.addEventListener("click", () => {

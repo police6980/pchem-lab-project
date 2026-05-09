@@ -119,87 +119,62 @@ MVP 외 후속 트랙 학습 목표:
 
 ## 6. 시뮬레이션 명세
 
-**입자 모델**:
-- 액체상: 박스 하부 고밀도. 입자간 약한 상호작용(응집) 가정
-- 기체상: 박스 상부 자유 운동. 보일 시뮬 입자·충돌·압력 코드 재활용
-- 위상 경계: 가상의 표면. 액→기 통과(증발) 조건은 KE 임계 초과. 기→액 통과(응축)는 표면 충돌 시 일정 확률
+### 액체상·기체상 모델 — 교과서 정합 (정적 격자 + 표면 동적)
 
-### 액체상·기체상 모델 — Schroeder 2015 LJ MD base
+본 시뮬은 분자 동역학 시뮬레이션이 아님. 학습 목표 (동적 평형 가시화) 달성에 필요한 최소 추상화 모델.
 
-본 시뮬은 Schroeder 의 정통 LJ 12-6 분자 동역학 시뮬 (AAPT AJP 83(3) 210-218, 2015 / arXiv:1502.06169) 을 base 로 채택. N=수백 50fps 검증 + cell list 최적화 + MIT 라이선스. 우리 직전 piecewise·응집영역·자유낙하·격자·사건추상화 모델은 모두 안정 응집 실패 또는 비물리.
+**발견 (Phase 6.1-b 5+ 회 시도 끝)**: 액체 내부에 분자 운동을 시뮬하면 "가득 차있음" 보장 불가능 (격자 진동·자유 이동+중력·표면 띠·사건 추상화·LJ MD·응집 영역 가속도장 모두 시각 결함). 사용자가 처음부터 명시한 "분자 운동 중요 X, 표면만 명확하게" 요구가 정답.
 
-**Schroeder 그대로 포팅** (sub-step B-2):
-- 표준 LJ 12-6: potential `4(r⁻¹² - r⁻⁶) - pEatCutoff`, force `24(2r⁻¹² - r⁻⁶)/r²`.
-- Velocity Verlet 적분: half-step position+velocity → 새 force → half-step velocity.
-- Cell list O(N) — `N ≥ 100` + 박스 충분히 큰 경우 자동. linked list 기반 (`neighborOffset` 5개 cell만).
-- LJ natural units (σ = ε = m = k_B = 1; Argon 환산: σ=3.4Å, ε=0.012eV, time unit ≈ 2ps).
-- 기본 N=250, dt=0.020, forceCutoff=3 직경 단위. T=0.5 (Ar 삼중점 ~0.7, 임계 ~1.32 → 액체 거동 영역).
+#### 액체 내부 = 정적 격자
 
-**우리 변형 영역**:
-- 단일 박스 → 액체 박스 (박스 하부 `V_liquid:V_gas` 비율) 시각 영역 + 박스 전체에서 LJ 자연 거동. 응집·탈출은 LJ 결과로 자연 발생 (사건 확률 게이트 X).
-- 색 자동: 위치 (액체 영역 안/밖) + 이웃 수 / KE 기반 (sub-step B-3).
-- Schroeder UI 통째 폐기: presets / sliders / save·load / data export 등 제거. 학생 전용 패널만.
-- 신규: 증발/응축 사건 카운터·rate 그래프 (sub-step B-4), 학생 가시 패널·자동 보정 (§4.5)·4 모드 분기 (sub-step B-5).
-- Schroeder `fixedTList[]` Andersen 열역학 (Box-Muller polar 로 T 고정 분자 v 재할당) — 6.2 T mock 활용 후보.
+- V_liquid 영역에 격자 빈틈없이 배치 — 200~300 입자 자동 계산 (V_liquid 영역 면적 + `molecule_radius_px` 기반).
+- 위치 고정, 운동 X (또는 ±0.5 px 미세 진동, `liquid_jitter_amp_px`).
+- 절대 사라지지 않음. 격자 항상 가득.
 
-**자동 발생 동역학** (LJ + Verlet 자연 결과):
-- 표면 = 클러스터 가장자리, 자연 발생.
-- 증발 = 빠른 분자가 LJ 진폭 초과해 탈출 (KE 통계 결과).
-- 응축 = 기체 분자가 cluster 진입 시 LJ 인력으로 잡힘.
-- T-증기압: T ↑ → 평균 KE ↑ → 탈출 빈도 ↑ → 평형 압력 ↑. Clausius-Clapeyron 자연 발생.
-- MB 분포 직접 가시 (히스토그램 별도, 후속).
+#### 표면 한 줄 = 동적
 
-**배제된 대안 (모두 직전 시도, 시간순)**:
-- 동일 입자 모델 + 영역 분할 (6.1-b 초기): 액체 분자도 통통 튀어 학생 인지 충돌.
-- 자유 이동 + 중력 only (6.1-b''): 응집력 부재로 모든 분자 바닥에 깔림.
-- 사건 추상화 / 표면 분자 + 띠 (옵션 Z, 6.1-b'''): fake animation, 학생 인지 어색.
-- 자체 LJ-like piecewise (6.1-b sub-step 1 LJ 시도): 정통 LJ 와 함수 모양 본질 차이 + Velocity Verlet 아닌 semi-implicit Euler + 단위 임의값. 안정 응집 실패.
-- 응집 영역 + 외부 끌어당김 가속도장 (직전): 분자간 인력 자연 정합성 손실. Schroeder 채택으로 해소.
+- 격자 위 경계 한 줄 (격자 칸 수만큼).
+- 좌우 미세 진동 (±2 px, `surface_jitter_amp_px`, sinusoidal).
+- 매 1 초마다 확률 게이트 (`p_evap_per_sec_per_particle`, 매우 작게) → 통과 시 GasParticle 생성 (`gas_init_KE` 위 방향 발사).
+- 표면 입자는 사라지지 않음 (격자 자리 항상 채움).
 
-### 중력 + spring-like 바닥 (Schroeder base 위 우리 변형, B-2 fixup)
+#### 기체 = 자유 비행
 
-Schroeder 원본은 단일 박스 + 중력 없음 (모든 위치 동등). 본 시뮬은 액체/기체 영역 분리이므로 중력 필수 — 액체가 "아래" 에 있어야 학습 직관 (액체 = 무거움) 정합.
+- 시작 0 개. 증발 사건으로만 생성.
+- LJ X. 단순 hard sphere 분자-분자 충돌 (등질량 impulse exchange) + 박스 사방 hard wall 반사.
+- 색: KE HSB 매핑 (느림 청 → 빠름 적, 보일 패턴).
+- 표면 도달 시 (`y > liquid_top - 5 px`) 응축 게이트 `p_condense_per_hit` → 통과 시 사라짐, 실패 시 위로 반사.
 
-- 모든 입자에 균일 -y 가속도 (`gravity_g`, 매우 약함).
-- 액체 박스 하부 경계 = spring-like 부드러운 반발 (`bottom_wall_softness`, 클러스터 통째 튕김 차단). hard wall 반사 폐기.
-- 옆·위 캔버스 경계 = hard wall (입자 가둠 유지).
-- 액체 박스 위 경계 (V_liquid 점선) = 통과 자유 (LJ + KE 임계가 자연 게이트).
+**T 입력 → 시뮬 결합** (Phase 6.2 시점):
+- 수조 T → 표면 탈출 KE 또는 표면 진동 amplitude → 탈출 빈도 변동.
+- 액체 내부 정적이라 T 가시화는 표면·기체에만.
 
-### LJ 자연 게이트 — 표면 vs 내부
+**압력 산출** (Phase 6.4 시점):
+- 기체 입자 박스 벽 충돌 빈도 → 시뮬 P.
+- 실측 P 와 별도 비교 가시 (학생 토론 자료).
 
-LJ 인력 강도 (`schroeder_epsilon`) 와 KE 분포 (`schroeder_init_temp`) 가 적정 비율이면, 내부 입자는 사방 인력 균형으로 탈출 임계 매우 높음, 표면 입자는 한 방향만 인력 (위 X) 으로 임계 낮음. 자연스럽게 표면 입자만 증발. T_critical 이하 영역에서 작동. B-2 fixup 에서 `epsilon` 1.0 → 1.5 (인력 강화), `init_temp` 0.4 → 0.25 (KE 분포 좁힘) — 내부 탈출 차단·표면 자연 증발만.
+#### 배제된 대안 (5+ 회 시도 누적, 시간순)
 
-### 배제된 대안 (B-2 fixup 시점)
+- 동일 입자 모델 + 영역 분할 (6.1-b 초기): 액체 입자 통통 튐, 학생 인지 충돌.
+- 자유 이동 + 중력 only (6.1-b''): 응집력 부재로 모든 입자 바닥에 깔림.
+- 표면 분자 + 띠 (옵션 Z, 6.1-b'''): fake animation, 응축 시 격자 자리 모호.
+- 자체 LJ-like piecewise (첫 LJ 시도): 함수 모양 본질 차이, 응집 실패.
+- 응집 영역 + 외부 가속도장: 명시 가속도장 가둠 → 자연 게이트 X, 균등 분포.
+- Schroeder LJ + Verlet (B-2 + fixup): 응집 풀려 듬성듬성. "가득 차있음" 보장 X. 덩어리째 떠오름 (중력·spring 바닥 추가해도 미해결). 운동이 빈 공간 만듦이 본질 결함.
 
-- 응집 영역 + 외부 가속도장 (이전 시도): 명시 가속도장으로 가둠 → 자연 게이트 X, 분자간 인력 정합성 X.
-- LJ 단순 (cutoff·k 낮음, 우리 첫 LJ 시도): 응집 실패, 균등 분포.
-- LJ + 중력 X (B-2 초기): 클러스터가 덩어리째 떠오름 (사용자 검증에서 발견).
-- LJ + 중력 + hard wall 바닥: 클러스터가 바닥에서 통째 튕김 → spring-like 반발로 해소.
-- T 너무 높음 (init_temp 0.4): 내부 입자도 KE > 임계로 탈출 → T 0.25 + epsilon 1.5 로 표면만 증발.
+본 모델은 "정적 격자 + 표면 동적" 으로 위 모든 결함 회피.
 
-**T 입력 → 시뮬 결합**:
-- 수조 T → 액체상 입자 평균 KE → MB 분포 꼬리 비율 변동
-- 꼬리 입자의 단위 시간당 탈출 수 = 증발 속도
+#### 정직한 한계
 
-**압력 산출**:
-- 기체상 입자의 플라스크 벽 충돌 빈도 → 시뮬 P
-- 실측 P는 별도 게이지 표시. 시뮬 P와 실측 P 상관/괴리가 학생 토론 자료
+본 모델은 분자 동역학 시뮬레이션 X. 액체 내부 분자 운동은 추상화 (시뮬 X).
 
-**위상 통과 알고리즘**:
-- 액→기 (증발): `KE > E_escape` AND `y < surface_threshold` AND `random() < p_evap`
-- 기→액 (응축): gas particle hits surface AND `KE < E_stick` AND `random() < p_condense`
-- params.json 키: `E_escape`, `E_stick`, `p_evap`, `p_condense`, `surface_threshold`
+학습 목표 매핑:
+- ① 동적 평형 (증발 ↔ 응축 균형) — 표면 사건 + 기체 응축으로 충족.
+- ② T-증기압 — 표면 KE 또는 탈출 확률 매핑 (Phase 6.2).
+- ③ 분자 운동 분포 — 기체상 KE HSB 색 + (high 이상) MB 분포 히스토그램 보강 (Phase 6.3).
+- ④ 양방향 접근 — 평형 안정점 가시 (다른 출발 조건도 같은 plateau).
 
-**응집력 가정**:
-- 모든 입자에 균일 중력 g 적용. 액체상·기체상 동일 가속.
-- "액체상 입자"는 별도 플래그 없음 — 표면 아래 + 저KE 통계적 결과.
-- params.json 키: `gravity`, `surface_threshold`
-
-**카운터·속도 그래프**:
-- 단위 시간당 속도 (rate) 메인 표시 — sliding window + EMA smoothing.
-- 누적 수치는 별도 sub-panel (선택).
-- 학습 직결 — "동적 평형 = 두 속도가 같음" 시각화에 rate 가 누적보다 적합 (§11 결정 표 참조).
-- params.json 키: `rate_window_sec`, `rate_ema_alpha`
+학습 목표 외 (액체 내부 분자 운동 정확 모델) 은 별 학습 자료로 분리.
 
 ### 핵심 시각화 원칙 (본 시뮬의 raison d'être)
 
@@ -217,10 +192,6 @@ LJ 인력 강도 (`schroeder_epsilon`) 와 KE 분포 (`schroeder_init_temp`) 가
 - transient / plateau 음영 구분
 
 **params.json 키**: `flash_duration_ms`, `trail_length`, `equilibrium_threshold`, `evap_color`, `cond_color`
-
-**보일 시뮬 재사용 영역**:
-- 입자-벽 충돌, 충돌 빈도→압력 모듈
-- 추가 신규: 액체 영역 박스, 위상 통과 로직, 응집력 가정
 
 ### 가시화·통계 우선순위 (MVP 단계 매핑)
 
