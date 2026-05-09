@@ -3992,7 +3992,8 @@ function initVaporApp(params) {
     });
 
     function recordEquilibrium() {
-        if (!world || !world.equilibriumReached) return;
+        // fixup 15n — confirm 직후 호출 (equilibriumReached = legacy alias = confirmed)
+        if (!world || !world.equilibriumConfirmed) return;
         measureCounter += 1;
         const pt = {
             idx: measureCounter,
@@ -4006,7 +4007,12 @@ function initVaporApp(params) {
         drawPTGraph();
         console.log(`[Vapor] 측정점 추가 — #${pt.idx} T=${pt.T} P=${pt.P.toFixed(2)} t=${pt.t?.toFixed(0)}s`);
     }
-    dom.btnRecord.addEventListener("click", recordEquilibrium);
+    // fixup 15n — [평형 확정] 클릭 = world.confirmEquilibrium() + recordEquilibrium() 통합 (단일 학습 액션)
+    dom.btnRecord.addEventListener("click", () => {
+        if (!world) return;
+        const ok = world.confirmEquilibrium();
+        if (ok) recordEquilibrium();
+    });
     dom.btnClearPoints.addEventListener("click", () => {
         measurementPoints.length = 0;
         measureCounter = 0;
@@ -4174,10 +4180,15 @@ function initVaporApp(params) {
                 const ratio = world.condEMA / evapEma;
                 dom.ratioVal.textContent = ratio.toFixed(2);
                 let zone;
-                if (eqState === "exited") {
+                // fixup 15n — state 우선 5 분기 (confirmed / detected 동일 zone, ratio band 차순)
+                if (eqState === "confirmed") {
+                    zone = "confirmed";
+                } else if (eqState === "detected") {
+                    zone = "detected";
+                } else if (eqState === "exited") {
                     zone = "exit";
                 } else if (ratio >= 0.9 && ratio <= 1.1) {
-                    zone = "reached";
+                    zone = "detected";
                 } else if (ratio >= 0.85 && ratio <= 1.15) {
                     zone = "near";
                 } else {
@@ -4189,11 +4200,15 @@ function initVaporApp(params) {
                 dom.ratioVal.dataset.zone = "none";
             }
             // fixup 15h — surfaceCount / gasCount readout 폐기 (분자 수 카드 제거)
-            // 4 상태 배지 (fixup 15d — reached / exited / near / none)
+            // fixup 15n — 5 상태 배지 (none / near / detected / confirmed / exited)
             switch (eqState) {
-                case "reached":
-                    dom.eqBadge.textContent = "평형 도달 ★";
-                    dom.eqBadge.dataset.state = "reached";
+                case "confirmed":
+                    dom.eqBadge.textContent = "평형 확정 ★";
+                    dom.eqBadge.dataset.state = "confirmed";
+                    break;
+                case "detected":
+                    dom.eqBadge.textContent = "평형 감지 — 확정 대기";
+                    dom.eqBadge.dataset.state = "detected";
                     break;
                 case "exited":
                     dom.eqBadge.textContent = "평형 이탈";
@@ -4208,7 +4223,8 @@ function initVaporApp(params) {
                     dom.eqBadge.dataset.state = "none";
             }
             dom.elapsedTime.textContent = world.elapsedFormatted;
-            dom.btnRecord.disabled = !world.equilibriumReached;
+            // fixup 15n — detected 상태 (자동 감지) + confirmed X 일 때만 [평형 확정] 활성
+            dom.btnRecord.disabled = !world.equilibriumDetected || world.equilibriumConfirmed;
             // rate 그래프 (우측 카드 canvas) 재렌더 — 데이터는 1초마다 갱신, 5fps 충분
             if (typeof drawVaporRateGraph2D === "function") {
                 drawVaporRateGraph2D(rateCtx, world, cfg, rateW, rateH);

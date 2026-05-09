@@ -1,6 +1,6 @@
 // =============================================================
 // vapor.js — 증기압 시뮬 본체
-// Phase 6.1-b finalization fixup 15o (T 잠금 확장 + 가스 입자 색 단일화 #60a5fa)
+// Phase 6.1-b finalization fixup 15n (학생 평형 결정 메커니즘 — 5-state machine, 자동 → 학생 확정)
 //
 // 핵심 철학 (정공법):
 //   학생 가시 = 실측 / 시뮬 = 미시 가시화 (정성적)
@@ -212,6 +212,32 @@
 //     #vapor-mmol-per-particle ID 보존 → main.js 갱신 호출 site 0 변동.
 //     학습 단서 정합 (시뮬 시작 직후 자연 인지) + top-control 너비 부담 ↓.
 //
+// 추가 (fixup 15n — 학생 평형 결정 메커니즘, 5-state machine, 시뮬 자동 → 학생 확정 분리):
+//   · 사용자 비판: "평형도 감지하고 본인이 평형 결정하지말고, 평형에 도달한 것으로 보인다 평형 상태로
+//                    지정? 정의? 뭐 하겠는지 물어보고" → 시뮬 자동 판정 폐기, 학생 결정 메커니즘 도입.
+//   · 본 프로젝트 정공법 회귀: 측정 = 학생 결정 활동 (dual-layer = 시뮬 가시화 + 측정 활동 학생 발견).
+//   · 4-state (none/near/reached/exited, 15d) → 5-state (none/near/detected/confirmed/exited, 15n).
+//   · "detected" = 시뮬 hold 10초 자동 충족 (학생 확정 대기 상태).
+//     "confirmed" = 학생 [평형 확정] 클릭 결정 (idx + reachedAtSec 이 시점에 set, 측정점 추가 트리거).
+//   · 신규 method confirmEquilibrium() — detected 시점에 호출 가능, confirmed=true + idx + reachedAtSec set.
+//     이미 confirmed 시 재호출 차단 (중복 측정점 방지).
+//   · 신규 getter: equilibriumDetected / equilibriumConfirmed.
+//     legacy alias: equilibriumReached → confirmed (drawVaporRateGraph2D ★ gate / main.js
+//                  recordEquilibrium guard 등 backward compat 보존).
+//   · hysteresis logic 변경:
+//     - 미감지 / detected 후 이탈: 진입 band hold 충족 → state="detected" + _equilibriumDetected=true.
+//                                    idx / reachedAtSec 는 confirm 시점에 set (여기서 X).
+//     - detected 상태 + 이탈 zone 외: state="exited", _equilibriumDetected=false (재감지 가능),
+//                                       _equilibriumConfirmed = X (애초에 confirmed X).
+//     - confirmed 상태 + 이탈 zone 안: state="confirmed" (학생 결정 sticky 유지).
+//     - confirmed 상태 + 이탈 zone 외: state="exited", confirmed/idx/reachedAtSec 보존 (★ 보존, 학생
+//                                       결정 = historical record). T 변경 시만 reset.
+//   · setTemperature reset: detected + confirmed + idx + reachedAtSec + _everReachedEquilibrium 모두 초기화.
+//     T 변경 = 새 실험 조건 → 새 평형 도달 시 다시 [확정] 필요.
+//   · main.js [평형 확정] 버튼 click handler: world.confirmEquilibrium() + recordEquilibrium() 통합 호출.
+//     200ms readout: btnRecord.disabled = !equilibriumDetected || equilibriumConfirmed.
+//     5-state 배지 분기: detected (옅은 녹 #dcfce7) / confirmed (진한 녹 #86efac + bold) 분리.
+//
 // 추가 (fixup 15o — T 잠금 확장 + 가스 입자 색 단일화, 사용자 비판 2건 단순 fix ~17줄):
 //   · main.js dom.tPresets click handler — applyTemperature 자동 호출 폐기.
 //     사용자 비판 "실험 중 온도 변경할 때 확인 안 눌러도 온도가 변해버린다" 직접 해소.
@@ -366,12 +392,14 @@ class VaporWorld {
         this.condEMA = null;
         this._emaPrimed = false;        // fixup 9: 첫 정상 tick 에 EMA prime (워밍업 lag 차단)
         this._ratePrimeBuf = null;      // fixup 15a: 첫 N tick raw 누적 → 평균 prime (잡음 prime 회피)
-        // 평형 hysteresis 4-state (fixup 15d)
-        this.equilibriumReached = false;          // === (_equilibriumState === "reached")
-        this.equilibriumIdx = null;               // 도달 시점 rateHistory index (rate ★ vertical line)
-        this._equilibriumReachedAtSec = null;     // 도달 시각 (학생 표시용 — mock 비공개)
-        this._equilibriumState = "none";          // "none" / "near" / "reached" / "exited"
-        this._everReachedEquilibrium = false;     // boolean — 현재 평형 상태 (도달 후 이탈 시 false)
+        // 평형 hysteresis 5-state (fixup 15d 4-state → fixup 15n 5-state, 학생 결정 분리)
+        // state: "none" / "near" / "detected" (시뮬 hold 충족 자동) / "confirmed" (학생 [확정] 클릭) / "exited"
+        this._equilibriumState = "none";
+        this._equilibriumDetected = false;        // hold 10초 충족 = true (자동 감지)
+        this._equilibriumConfirmed = false;       // 학생 [확정] 클릭 = true (학습 결정, 측정점 추가 트리거)
+        this.equilibriumIdx = null;               // confirmed 시점에 set (rate ★ vertical line)
+        this._equilibriumReachedAtSec = null;     // confirmed 시점에 set (도달 시각 표시)
+        this._everReachedEquilibrium = false;     // boolean — 현재 detected 상태 (이탈 후 재감지 가능 위해 false)
         this._equilibriumHoldStart = null;        // 진입 zone hold 시작 시각 (performance.now ms)
         this._pressureSmoothed = 0;
         this._pressureSmoothedPrev = null;
@@ -406,11 +434,12 @@ class VaporWorld {
     // T 변경 (시뮬 리셋 X — 입자 그대로, 새 plateau 자연 도달)
     setTemperature(T_celsius) {
         this.T_celsius = T_celsius;
-        // 평형 hysteresis 4-state reset (fixup 15d, T 변경 시 history 무관)
-        this.equilibriumReached = false;
+        // 평형 5-state reset (fixup 15n, T 변경 = 새 실험 조건 → detected + confirmed 모두 초기화)
+        this._equilibriumState = "none";
+        this._equilibriumDetected = false;
+        this._equilibriumConfirmed = false;
         this.equilibriumIdx = null;
         this._equilibriumReachedAtSec = null;
-        this._equilibriumState = "none";
         this._everReachedEquilibrium = false;
         this._equilibriumHoldStart = null;
         // fixup 15e: EMA 보존 (자연 수렴) — 시작 시점 prime 의도 (워밍업 lag 차단) 와
@@ -455,9 +484,28 @@ class VaporWorld {
         return Math.max(0, Math.min(100, (1 - dist / band) * 100));
     }
 
-    // 평형 도달 시간 (자동 감지 시 기록)
+    // 평형 도달 시간 (학생 [확정] 시점 기록 — fixup 15n 학생 결정)
     get equilibriumReachedAtSec() {
         return this._equilibriumReachedAtSec ?? null;
+    }
+    // fixup 15n — 5-state getter (학생 결정 메커니즘)
+    get equilibriumDetected() { return this._equilibriumDetected; }
+    get equilibriumConfirmed() { return this._equilibriumConfirmed; }
+    // legacy alias — drawVaporRateGraph2D ★ gate / main.js recordEquilibrium guard 등 backward compat.
+    // 의미 = "학생 결정한 평형 시점" (confirmed=true, idx + reachedAtSec 모두 set 된 시점).
+    get equilibriumReached() { return this._equilibriumConfirmed; }
+
+    // 학생 [평형 확정] 클릭 핸들러 (fixup 15n).
+    // 시뮬 detected 상태 (hold 10초 자동 충족) 일 때만 확정 가능.
+    // 클릭 시: state="confirmed" + idx + reachedAtSec set → ★ 표시 + 측정점 추가 트리거.
+    confirmEquilibrium() {
+        if (!this._equilibriumDetected) return false;
+        if (this._equilibriumConfirmed) return false;  // 이미 확정 시 재클릭 차단
+        this._equilibriumState = "confirmed";
+        this._equilibriumConfirmed = true;
+        this.equilibriumIdx = this.rateHistory.length - 1;
+        this._equilibriumReachedAtSec = this.elapsedSec;
+        return true;
     }
 
     _makeSurfaceParticle(x0, y0, jitterAmp) {
@@ -810,9 +858,10 @@ class VaporWorld {
             // index 무관 (eq line 은 max 도달 후에는 이미 한참 지난 시점이라 시각 영향 X)
         }
 
-        // 평형 hysteresis 4-state (fixup 15d) — 진입 [0.9, 1.1] / 이탈 [0.85, 1.15]
-        // 4 상태: none / near / reached / exited
-        // sticky 폐기 — 이탈 zone 외 시 _everReachedEquilibrium = false → 재도달 시 hold 다시.
+        // 평형 5-state (fixup 15n) — 진입 [0.9, 1.1] / 이탈 [0.85, 1.15] hysteresis 보존.
+        // 5 상태: none / near / detected (시뮬 hold 자동) / confirmed (학생 결정) / exited.
+        // detected → confirmed 는 학생 [확정] 클릭으로만 (confirmEquilibrium method).
+        // confirmed = sticky (T 변경까지 학생 결정 보존). exit zone 외 시 state="exited" (★ 보존).
         // P_internal 변화율 보존 (real 모드 재사용 — 변경 X).
         const eqMin = this.cfg.equilibrium_ratio_min ?? 0.9;
         const eqMax = this.cfg.equilibrium_ratio_max ?? 1.1;
@@ -831,24 +880,27 @@ class VaporWorld {
         const inEnterBand = ratio != null && ratio >= eqMin && ratio <= eqMax;
         const inExitBand = ratio != null && ratio >= eqExitMin && ratio <= eqExitMax;
 
-        if (!this._everReachedEquilibrium) {
-            // 도달 전 또는 이탈 후 재시도 모드
+        if (this._equilibriumConfirmed) {
+            // 학생 결정 후 sticky — exit zone 안 = "confirmed" 유지, 외 = "exited" (★ 보존)
+            this._equilibriumState = inExitBand ? "confirmed" : "exited";
+            // _equilibriumDetected / idx / reachedAtSec 모두 confirmed 시점에 set, 변동 X.
+        } else if (!this._everReachedEquilibrium) {
+            // 미감지 또는 detected 후 이탈 → 재시도 모드
             if (inEnterBand) {
                 if (this._equilibriumHoldStart == null) {
                     this._equilibriumHoldStart = now;
                 }
                 const heldSec = (now - this._equilibriumHoldStart) / 1000;
                 if (heldSec >= holdSec) {
-                    this._equilibriumState = "reached";
+                    // 자동 감지 충족 — 학생 [확정] 대기 상태
+                    this._equilibriumState = "detected";
+                    this._equilibriumDetected = true;
                     this._everReachedEquilibrium = true;
-                    this.equilibriumReached = true;
-                    this.equilibriumIdx = this.rateHistory.length - 1;
-                    this._equilibriumReachedAtSec = this.elapsedSec;
+                    // idx / reachedAtSec 는 confirm 시점에 set, 여기서 X.
                 } else {
                     this._equilibriumState = "near";
                 }
             } else if (inExitBand) {
-                // 진입 band 외, 이탈 band 안 → "근접" (hold reset)
                 this._equilibriumHoldStart = null;
                 this._equilibriumState = "near";
             } else {
@@ -856,16 +908,15 @@ class VaporWorld {
                 this._equilibriumState = "none";
             }
         } else {
-            // 도달 상태 — 이탈 band 안 시 유지, 외 시 이탈
+            // detected 상태 (자동 감지, 학생 미확정) — 이탈 band 안 시 유지, 외 시 "exited"
             if (inExitBand) {
-                this._equilibriumState = "reached";
+                this._equilibriumState = "detected";  // 학생 확정 대기 유지
             } else {
                 this._equilibriumState = "exited";
                 this._everReachedEquilibrium = false;
+                this._equilibriumDetected = false;  // 재감지 가능
                 this._equilibriumHoldStart = null;
-                this.equilibriumReached = false;
-                this.equilibriumIdx = null;
-                this._equilibriumReachedAtSec = null;
+                // confirmed X 였으므로 idx / reachedAtSec 도 null 그대로.
             }
         }
 
@@ -877,9 +928,10 @@ class VaporWorld {
             const ke0 = 0.5 * (g0.vx * g0.vx + g0.vy * g0.vy) / ssq;
             dbg = ` · gas[0] KE=${ke0.toFixed(2)}`;
         }
-        const eqTag = (this._equilibriumState === "reached") ? " · 평형 ★"
-                    : (this._equilibriumState === "exited")  ? " · 평형 이탈"
-                    : (this._equilibriumState === "near")    ? " · 평형 근접"
+        const eqTag = (this._equilibriumState === "confirmed") ? " · 평형 확정 ★"
+                    : (this._equilibriumState === "detected") ? " · 평형 감지"
+                    : (this._equilibriumState === "exited")   ? " · 평형 이탈"
+                    : (this._equilibriumState === "near")     ? " · 평형 근접"
                     : "";
         const Pth = this.theoreticalPVap_kPa;
         const PthTag = (typeof Pth === "number") ? ` (이론 ${Pth.toFixed(1)})` : "";

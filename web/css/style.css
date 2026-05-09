@@ -3697,7 +3697,7 @@ body[data-page="vapor"] .vapor-learning-note {
     color: #475569;
 }
 
-/* =============== Vapor 3-region layout (Phase 6.1-b finalization fixup 15o) ===============
+/* =============== Vapor 3-region layout (Phase 6.1-b finalization fixup 15n) ===============
    fixup 15j — P 영역 부활 (.vapor-tp-pressure vapor-real-only hidden 제거 + placeholder 폐기 +
    단순화) + measurement-region mock placeholder 폐기 + 측정 표 이론 컬럼 폐기.
    .vapor-tp-pressure-mock + 자식 styles 폐기.
@@ -3725,7 +3725,13 @@ body[data-page="vapor"] .vapor-learning-note {
    .vapor-sim-mmol-info 신규 (시뮬 헤더 옆 inline, 11px gray).
 
    fixup 15o — T 잠금 확장 + 가스 입자 색 단일화 (사용자 비판 2건, CSS 변경 없음).
-   main.js / vapor.js / params.json 만 수정. style.css 는 헤더 docstring 갱신 only. */
+   main.js / vapor.js / params.json 만 수정. style.css 는 헤더 docstring 갱신 only.
+
+   fixup 15n — 학생 평형 결정 메커니즘 (5-state machine, 시뮬 자동 → 학생 확정 분리).
+   .vapor-eq-badge[data-state] 4 → 5 분기 (detected = 옅은 녹 #dcfce7,
+                                             confirmed = 진한 녹 #86efac + bold).
+   .vapor-ratio-text[data-zone] 정합 (reached → detected/confirmed 분리).
+   본 프로젝트 정공법 회귀 = dual-layer (시뮬 가시화 + 학생 결정 측정 활동). */
 body[data-page="vapor"] .vapor-layout-v2 {
     display: flex;
     flex-direction: column;
@@ -3982,10 +3988,15 @@ body[data-page="vapor"] .vapor-eq-badge {
     background: #e2e8f0;
     color: #64748b;
 }
-/* fixup 15d — 4 상태 분기 (reached/exit/near/none) */
-body[data-page="vapor"] .vapor-eq-badge[data-state="reached"] {
-    background: #dcfce7;
+/* fixup 15d — 4 상태 분기 / fixup 15n — 5 상태 (detected = 옅은 녹 / confirmed = 진한 녹 + bold) */
+body[data-page="vapor"] .vapor-eq-badge[data-state="detected"] {
+    background: #dcfce7;          /* 옅은 녹 — 시뮬 자동 감지, 학생 확정 대기 */
     color: #166534;
+}
+body[data-page="vapor"] .vapor-eq-badge[data-state="confirmed"] {
+    background: #86efac;          /* 진한 녹 — 학생 결정 후 ★ */
+    color: #14532d;
+    font-weight: 600;
 }
 body[data-page="vapor"] .vapor-eq-badge[data-state="exit"] {
     background: #fed7aa;
@@ -4251,11 +4262,12 @@ body[data-page="vapor"] .vapor-ratio-text {
     font-variant-numeric: tabular-nums;
     transition: color 0.3s ease;
 }
-/* fixup 15d — 4 상태 (none/near/reached/exit), 배지와 동기화 */
-body[data-page="vapor"] .vapor-ratio-text[data-zone="none"]    { color: #94a3b8; }
-body[data-page="vapor"] .vapor-ratio-text[data-zone="near"]    { color: #ca8a04; }
-body[data-page="vapor"] .vapor-ratio-text[data-zone="reached"] { color: #16a34a; font-weight: 600; }
-body[data-page="vapor"] .vapor-ratio-text[data-zone="exit"]    { color: #ea580c; font-weight: 600; }
+/* fixup 15d — 4 상태 / fixup 15n — 5 상태 (none/near/detected/confirmed/exit), 배지와 동기화 */
+body[data-page="vapor"] .vapor-ratio-text[data-zone="none"]      { color: #94a3b8; }
+body[data-page="vapor"] .vapor-ratio-text[data-zone="near"]      { color: #ca8a04; }
+body[data-page="vapor"] .vapor-ratio-text[data-zone="detected"]  { color: #16a34a; font-weight: 500; }
+body[data-page="vapor"] .vapor-ratio-text[data-zone="confirmed"] { color: #14532d; font-weight: 700; }
+body[data-page="vapor"] .vapor-ratio-text[data-zone="exit"]      { color: #ea580c; font-weight: 600; }
 
 body[data-page="vapor"] .vapor-pvap-big small {
     font-size: 12px;
