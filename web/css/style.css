@@ -3922,8 +3922,11 @@ body[data-page="vapor"] .vapor-canvas-container {
     background: #f8fafc;
     border: 1px solid #e2e8f0;
     border-radius: 4px;
-    width: 800px;
-    height: 480px;
+    /* fixup 15c — 800×480 고정 폐기, max-width + aspect-ratio (auto-shrink) */
+    width: auto;
+    max-width: 800px;
+    aspect-ratio: 800 / 480;
+    height: auto;
     flex: 0 0 auto;
     box-sizing: content-box;
     display: flex;
@@ -3933,6 +3936,8 @@ body[data-page="vapor"] .vapor-canvas-container {
 }
 body[data-page="vapor"] .vapor-canvas-container canvas {
     display: block;
+    max-width: 100%;
+    height: auto !important;
 }
 body[data-page="vapor"] .vapor-canvas-placeholder {
     color: #94a3b8;
@@ -4085,16 +4090,16 @@ body[data-page="vapor"] .vapor-tp-temp-input:disabled {
     cursor: not-allowed;
 }
 body[data-page="vapor"] .vapor-tp-pressure-mock {
-    padding: 12px 4px;
+    padding: 8px 4px;              /* fixup 15c — 12 4 → 8 4 (placeholder 영역 압축) */
     text-align: center;
     color: #94a3b8;
 }
 body[data-page="vapor"] .vapor-tp-pressure-mock .vapor-mock-icon {
-    font-size: 22px;
+    font-size: 18px;               /* fixup 15c — 22 → 18 */
     margin-bottom: 4px;
 }
 body[data-page="vapor"] .vapor-tp-pressure-mock .vapor-mock-text {
-    font-size: 12px;
+    font-size: 11px;               /* fixup 15c — 12 → 11 */
     color: #64748b;
     margin-bottom: 2px;
 }
@@ -4113,13 +4118,16 @@ body[data-page="vapor"] .vapor-cards-region {
 body[data-page="vapor"] .vapor-card {
     background: #fff;
     border-radius: 6px;
-    padding: 12px;
+    padding: 14px;                 /* fixup 15c — 12 → 14 (보일/돌턴 정합) */
     box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    min-height: 220px;             /* fixup 15c — visual weight 균형 */
 }
+body[data-page="vapor"] .vapor-card-tp { min-height: 280px; }
+body[data-page="vapor"] .vapor-card-counter { min-height: 140px; }
 body[data-page="vapor"] .vapor-card h4 {
     font-size: 12px;
     color: #64748b;
-    margin: 0 0 8px 0;
+    margin: 0 0 10px 0;            /* fixup 15c — 8 → 10 */
     text-transform: none;
     letter-spacing: 0.02em;
     font-weight: 500;
@@ -4348,7 +4356,34 @@ body[data-page="vapor"] .vapor-mock-hint {
     margin: 0;
 }
 
-/* ========== Vapor 페이지 반응형 (fixup 13) ========== */
+/* ========== Vapor 페이지 반응형 (fixup 13 + 15c) ========== */
+/* 1024~1279px (laptop 사각지대 해소, fixup 15c 신규):
+   사이드바 200→180 컴팩트, 시뮬 flex+max-width 자동 축소, 카드 280→260 */
+@media (max-width: 1279px) {
+    body[data-page="vapor"] .vapor-control-narrow {
+        flex: 0 0 180px;
+        width: 180px;
+        min-width: 180px;
+        max-width: 180px;
+        padding: 10px;
+    }
+    body[data-page="vapor"] .vapor-sim-region {
+        width: auto;
+        flex: 1 1 auto;
+        min-width: 0;
+        max-width: calc(100% - 200px - 280px - 32px);
+    }
+    body[data-page="vapor"] .vapor-canvas-container {
+        width: 100%;
+        max-width: 800px;
+        aspect-ratio: 800 / 480;
+        height: auto;
+    }
+    body[data-page="vapor"] .vapor-cards-region {
+        flex: 0 0 260px;
+    }
+}
+
 /* 1024px 이하 (태블릿): 사이드바 그대로, 시뮬+카드 wrap (시뮬 100% width, 카드 그 아래) */
 @media (max-width: 1023px) {
     body[data-page="vapor"] .vapor-top-row {
