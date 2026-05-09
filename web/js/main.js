@@ -3781,9 +3781,7 @@ function initVaporApp(params) {
         evapRateEl:       document.getElementById("vapor-evap-rate"),
         condRateEl:       document.getElementById("vapor-cond-rate"),
         ratioVal:         document.getElementById("vapor-ratio-val"),
-        surfaceCount:     document.getElementById("vapor-surface-count"),
-        gasCount:         document.getElementById("vapor-gas-count"),
-        latticeCount:     document.getElementById("vapor-lattice-count"),
+        // fixup 15h — surfaceCount / gasCount / latticeCount DOM 폐기 (분자 수 카드 제거)
         eqBadge:          document.getElementById("vapor-equilibrium-badge"),
         elapsedTime:      document.getElementById("vapor-elapsed-time"),
         tInput:           document.getElementById("vapor-t-input"),
@@ -4140,7 +4138,7 @@ function initVaporApp(params) {
         const Nlattice = world.N_total ?? 1;
         const mmolPerParticle = totalMmol / Math.max(Nlattice, 1);
         dom.mmolSpan.textContent = mmolPerParticle.toFixed(3);
-        dom.latticeCount.textContent = String(world.liquidLattice.length);
+        // fixup 15h — latticeCount DOM 폐기 (분자 수 카드 제거)
 
         applyTemperature(Number(dom.tInput.value));
 
@@ -4179,8 +4177,7 @@ function initVaporApp(params) {
                 dom.ratioVal.textContent = "—";
                 dom.ratioVal.dataset.zone = "none";
             }
-            dom.surfaceCount.textContent = String(world.surfaceCount);
-            dom.gasCount.textContent = String(world.gasCount);
+            // fixup 15h — surfaceCount / gasCount readout 폐기 (분자 수 카드 제거)
             // 4 상태 배지 (fixup 15d — reached / exited / near / none)
             switch (eqState) {
                 case "reached":
@@ -4234,9 +4231,7 @@ function initVaporApp(params) {
         dom.condRateEl.textContent = "—";
         dom.ratioVal.textContent = "—";
         dom.ratioVal.dataset.zone = "none";
-        dom.surfaceCount.textContent = "—";
-        dom.gasCount.textContent = "—";
-        dom.latticeCount.textContent = "—";
+        // fixup 15h — surfaceCount / gasCount / latticeCount reset 폐기 (분자 수 카드 제거)
         dom.eqBadge.textContent = "평형 비도달";
         dom.eqBadge.dataset.state = "none";
         dom.elapsedTime.textContent = "—";

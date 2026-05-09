@@ -3705,62 +3705,100 @@ body[data-page="vapor"] .vapor-layout-v2 {
     padding: 12px;
     background: #f1f5f9;
     min-height: calc(100vh - 56px);
-    /* fixup 15g — 1920+ desktop 우측 회색 여백 차단 (중앙 정렬) */
-    max-width: 1400px;
+    /* fixup 15h — max-width 1400 → 1500 (canvas 1100 표시 수용) */
+    max-width: 1500px;
     margin: 0 auto;
     box-sizing: border-box;
     width: 100%;
 }
 
-/* ========== 학습 목표 카드 (Johnstone 3수준, fixup 15g) ========== */
-body[data-page="vapor"] .vapor-learning-goals {
+/* ========== 위쪽 가로 영역 (fixup 15h — 사이드바 변신, 2 row) ========== */
+body[data-page="vapor"] .vapor-top-control {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 12px 14px;
     background: #fff;
     border-radius: 6px;
-    padding: 14px 16px;
     box-shadow: 0 1px 3px rgba(0,0,0,0.05);
 }
-body[data-page="vapor"] .vapor-learning-goals h3 {
-    margin: 0 0 10px 0;
-    font-size: 13px;
+body[data-page="vapor"] .vapor-top-control-row {
+    display: flex;
+    flex-direction: row;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+body[data-page="vapor"] .vapor-top-control-label {
+    flex: 0 0 auto;
+    padding: 4px 10px;
+    background: #f1f5f9;
+    border-left: 3px solid #2563eb;
+    border-radius: 3px;
+    font-size: 11px;
     font-weight: 600;
     color: #475569;
     letter-spacing: 0.02em;
+    white-space: nowrap;
 }
-body[data-page="vapor"] .vapor-goals-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 10px;
-}
-body[data-page="vapor"] .vapor-goal-card {
+body[data-page="vapor"] .vapor-top-field {
     display: flex;
-    align-items: flex-start;
-    gap: 10px;
-    padding: 10px 12px;
-    background: #f8fafc;
-    border: 1px solid #e2e8f0;
-    border-left: 3px solid #2563eb;
-    border-radius: 4px;
-}
-body[data-page="vapor"] .vapor-goal-icon {
-    font-size: 20px;
-    line-height: 1.1;
+    align-items: center;
+    gap: 6px;
     flex: 0 0 auto;
 }
-body[data-page="vapor"] .vapor-goal-body {
-    flex: 1 1 auto;
-    min-width: 0;
-}
-body[data-page="vapor"] .vapor-goal-title {
-    font-size: 12px;
-    font-weight: 600;
-    color: #1e293b;
-    margin-bottom: 3px;
-}
-body[data-page="vapor"] .vapor-goal-text {
-    margin: 0;
+body[data-page="vapor"] .vapor-top-field label {
     font-size: 11px;
-    line-height: 1.5;
     color: #475569;
+    font-weight: 500;
+    white-space: nowrap;
+}
+body[data-page="vapor"] .vapor-top-field select,
+body[data-page="vapor"] .vapor-top-field input[type="number"] {
+    padding: 5px 8px;
+    border: 1px solid #cbd5e1;
+    border-radius: 4px;
+    font-size: 12px;
+    background: #fff;
+    box-sizing: border-box;
+    font-variant-numeric: tabular-nums;
+}
+body[data-page="vapor"] .vapor-top-field select {
+    min-width: 90px;
+}
+body[data-page="vapor"] .vapor-top-field input[type="number"] {
+    width: 64px;
+}
+body[data-page="vapor"] .vapor-top-field-number-row {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+body[data-page="vapor"] .vapor-top-button-row {
+    display: flex;
+    gap: 6px;
+    flex: 0 0 auto;
+}
+body[data-page="vapor"] .vapor-top-info {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    color: #475569;
+    margin-left: auto;  /* 우측 정렬 */
+}
+body[data-page="vapor"] .vapor-guard-inline {
+    margin: 0;
+    flex: 0 0 auto;
+    min-height: 0;
+    font-size: 10px;
+    max-width: 200px;
+}
+body[data-page="vapor"] .vapor-help-inline {
+    margin: 0;
+    flex: 1 1 auto;
+    font-size: 10px;
+    color: #94a3b8;
 }
 body[data-page="vapor"] .vapor-top-row {
     display: flex;
@@ -3768,78 +3806,12 @@ body[data-page="vapor"] .vapor-top-row {
     gap: 12px;
     align-items: flex-start;
 }
-body[data-page="vapor"] .vapor-control-narrow {
-    flex: 0 0 200px;
-    width: 200px;
-    min-width: 200px;
-    max-width: 200px;
-    box-sizing: content-box;
-    overflow-x: hidden;
-    background: #fff;
-    border-radius: 6px;
-    padding: 12px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-}
-body[data-page="vapor"] .vapor-control-narrow .vapor-section {
-    margin-bottom: 14px;
-}
-body[data-page="vapor"] .vapor-control-narrow .vapor-section:last-child {
-    margin-bottom: 0;
-}
-body[data-page="vapor"] .vapor-control-narrow .vapor-section h3 {
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    margin: 0 0 8px 0;
-    color: #64748b;
-    font-weight: 600;
-}
-/* Field — 보일·돌턴 패턴 (label 위, input 아래) */
-body[data-page="vapor"] .vapor-field {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    margin-bottom: 8px;
-}
-body[data-page="vapor"] .vapor-field label {
-    font-size: 11px;
-    color: #475569;
-    font-weight: 500;
-}
-body[data-page="vapor"] .vapor-field select,
-body[data-page="vapor"] .vapor-field input[type="number"] {
-    width: 100%;
-    padding: 5px 8px;
-    border: 1px solid #cbd5e1;
-    border-radius: 4px;
-    font-size: 13px;
-    background: #fff;
-    box-sizing: border-box;
-    font-variant-numeric: tabular-nums;
-}
-body[data-page="vapor"] .vapor-field select:focus,
-body[data-page="vapor"] .vapor-field input[type="number"]:focus {
-    outline: none;
-    border-color: #2563eb;
-}
-body[data-page="vapor"] .vapor-field-number-row {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-}
-body[data-page="vapor"] .vapor-field-number-row input[type="number"] {
-    flex: 1;
-    min-width: 0;
-}
+/* fixup 15h — .vapor-control-narrow + .vapor-section + .vapor-field 사이드바 CSS 폐기.
+   대체: .vapor-top-control-row + .vapor-top-field (상단 가로 영역, 위에 정의). */
 body[data-page="vapor"] .vapor-field-unit {
     font-size: 12px;
     color: #64748b;
     font-weight: 500;
-}
-body[data-page="vapor"] .vapor-control-narrow .vapor-button-row {
-    display: flex;
-    gap: 6px;
-    margin-top: 10px;
 }
 body[data-page="vapor"] .vapor-btn-primary,
 body[data-page="vapor"] .vapor-btn-secondary {
@@ -3872,11 +3844,12 @@ body[data-page="vapor"] .vapor-btn-secondary:disabled {
     opacity: 0.45;
     cursor: not-allowed;
 }
-/* 측정 모드 — 보일 패턴 (button toggle, 가로 wrap) */
+/* 측정 모드 — fixup 15h: 상단 가로 영역 inline (4 button row) */
 body[data-page="vapor"] .vapor-mode-toggle {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
+    display: flex;
+    flex-direction: row;
     gap: 4px;
+    flex: 0 0 auto;
 }
 body[data-page="vapor"] .vapor-mode-btn {
     padding: 6px 4px;
@@ -3908,14 +3881,7 @@ body[data-page="vapor"] .vapor-help-text {
     line-height: 1.4;
     font-style: italic;
 }
-/* 보조 정보 (mmol readout) */
-body[data-page="vapor"] .vapor-info-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: baseline;
-    font-size: 11px;
-    padding: 3px 0;
-}
+/* fixup 15h — .vapor-info-row 폐기 (사이드바 보조 정보 패널), .vapor-top-info 가 대체 */
 body[data-page="vapor"] .vapor-info-label {
     color: #64748b;
 }
@@ -3941,8 +3907,10 @@ body[data-page="vapor"] .vapor-guard-note[data-state="error"] {
 }
 
 body[data-page="vapor"] .vapor-sim-region {
-    flex: 0 0 auto;
-    width: 824px;
+    /* fixup 15h — 사이드바 폐기 자리 활용, flex grow + max 1124 (canvas 1100 + padding 24) */
+    flex: 1 1 auto;
+    min-width: 0;
+    max-width: 1124px;
     background: #fff;
     border-radius: 6px;
     padding: 12px;
@@ -3991,9 +3959,9 @@ body[data-page="vapor"] .vapor-canvas-container {
     background: #f8fafc;
     border: 1px solid #e2e8f0;
     border-radius: 4px;
-    /* fixup 15c — 800×480 고정 폐기, max-width + aspect-ratio (auto-shrink) */
-    width: auto;
-    max-width: 800px;
+    /* fixup 15h — 800 → 1100 (모델 좌표 800×480 보존, CSS scaling 1.375×) */
+    width: 100%;
+    max-width: 1100px;
     aspect-ratio: 800 / 480;
     height: auto;
     flex: 0 0 auto;
@@ -4032,17 +4000,7 @@ body[data-page="vapor"] .vapor-sim-placeholder-hint {
     color: #94a3b8;
     line-height: 1.5;
 }
-/* fixup 15g — counts 카드 학습 단서 (분자 수 = 양적 지표) */
-body[data-page="vapor"] .vapor-counts-note {
-    display: block;
-    margin-top: 8px;
-    padding-top: 8px;
-    border-top: 1px dashed #e2e8f0;
-    font-size: 10px;
-    color: #94a3b8;
-    line-height: 1.5;
-    text-align: center;
-}
+/* fixup 15h — .vapor-counts-note (15g) 폐기. 분자 수 카드 자체 폐기로 자연 제거. */
 /* T + P 카드 통합 (fixup 12 — mock 입력 / real 표시 자연 전환) */
 body[data-page="vapor"] .vapor-card-tp h4 {
     margin: 0 0 8px 0;
@@ -4212,7 +4170,8 @@ body[data-page="vapor"] .vapor-tp-pressure-mock .vapor-mock-hint {
 }
 
 body[data-page="vapor"] .vapor-cards-region {
-    flex: 0 0 280px;
+    /* fixup 15h — 280 → 320 (가독성 ↑, 시뮬 660 정합) */
+    flex: 0 0 320px;
     display: flex;
     flex-direction: column;
     gap: 12px;                     /* fixup 15f — top-row gap 12 와 통일 */
@@ -4222,10 +4181,12 @@ body[data-page="vapor"] .vapor-card {
     border-radius: 6px;
     padding: 14px;                 /* fixup 15c — 12 → 14 (보일/돌턴 정합) */
     box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-    min-height: 220px;             /* fixup 15c — visual weight 균형 */
+    /* fixup 15h — rate 카드 기본 220 → 340 (시뮬 660 정합) */
+    min-height: 340px;
 }
-body[data-page="vapor"] .vapor-card-tp { min-height: 200px; }  /* fixup 15f — P 영역 mock hidden 후 압축 */
-body[data-page="vapor"] .vapor-card-counter { min-height: 140px; }
+/* fixup 15h — T+P 카드 200 → 300 (5 프리셋 + 입력 row + 가드 노트 여유) */
+body[data-page="vapor"] .vapor-card-tp { min-height: 300px; }
+/* fixup 15h — .vapor-card-counter min-height 폐기 (분자 수 카드 폐기) */
 body[data-page="vapor"] .vapor-card h4 {
     font-size: 12px;
     color: #64748b;
@@ -4306,21 +4267,7 @@ body[data-page="vapor"] .vapor-rate-value {
     color: #0f172a;
     font-variant-numeric: tabular-nums;
 }
-body[data-page="vapor"] .vapor-counter-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: baseline;
-    font-size: 12px;
-    padding: 3px 0;
-}
-body[data-page="vapor"] .vapor-counter-label {
-    color: #64748b;
-}
-body[data-page="vapor"] .vapor-counter-value {
-    color: #0f172a;
-    font-weight: 500;
-    font-variant-numeric: tabular-nums;
-}
+/* fixup 15h — .vapor-counter-row + .vapor-counter-label + .vapor-counter-value 폐기 (분자 수 카드 자체 폐기) */
 
 body[data-page="vapor"] .vapor-measurement-region {
     background: #fff;
@@ -4463,45 +4410,26 @@ body[data-page="vapor"] .vapor-mock-hint {
     margin: 0;
 }
 
-/* ========== Vapor 페이지 반응형 (fixup 13 + 15c) ========== */
-/* 1024~1279px (laptop 사각지대 해소, fixup 15c 신규):
-   사이드바 200→180 컴팩트, 시뮬 flex+max-width 자동 축소, 카드 280→260 */
+/* ========== Vapor 페이지 반응형 (fixup 13 + 15c + 15h) ========== */
+/* 1280px 미만 (laptop 사각지대): 시뮬 + 카드 자동 축소 */
 @media (max-width: 1279px) {
-    body[data-page="vapor"] .vapor-control-narrow {
-        flex: 0 0 180px;
-        width: 180px;
-        min-width: 180px;
-        max-width: 180px;
-        padding: 10px;
-    }
     body[data-page="vapor"] .vapor-sim-region {
-        width: auto;
-        flex: 1 1 auto;
-        min-width: 0;
-        max-width: calc(100% - 200px - 280px - 32px);
-    }
-    body[data-page="vapor"] .vapor-canvas-container {
-        width: 100%;
-        max-width: 800px;
-        aspect-ratio: 800 / 480;
-        height: auto;
+        max-width: calc(100% - 320px - 12px);
     }
     body[data-page="vapor"] .vapor-cards-region {
-        flex: 0 0 260px;
+        flex: 0 0 280px;  /* 320 → 280 (laptop 압축) */
     }
 }
 
-/* 1024px 이하 (태블릿): 사이드바 그대로, 시뮬+카드 wrap (시뮬 100% width, 카드 그 아래) */
+/* 1024px 이하 (태블릿): top-row wrap (시뮬 100% width, 카드 그 아래) */
 @media (max-width: 1023px) {
     body[data-page="vapor"] .vapor-top-row {
         flex-wrap: wrap;
     }
-    body[data-page="vapor"] .vapor-control-narrow {
-        flex: 0 0 200px;
-    }
     body[data-page="vapor"] .vapor-sim-region {
-        flex: 1 1 calc(100% - 224px);
-        min-width: 360px;
+        flex: 1 1 100%;
+        max-width: 100%;
+        min-width: 0;
     }
     body[data-page="vapor"] .vapor-cards-region {
         flex: 1 1 100%;
@@ -4515,12 +4443,12 @@ body[data-page="vapor"] .vapor-mock-hint {
     body[data-page="vapor"] .vapor-measurement-region {
         flex-direction: column;
     }
-    /* fixup 15g — 학습 목표 카드: 3열 유지하되 padding/font 축소 */
-    body[data-page="vapor"] .vapor-goal-card {
-        padding: 8px 10px;
+    /* fixup 15h — top-control row wrap (사이드바 변신) */
+    body[data-page="vapor"] .vapor-top-control-row {
+        flex-wrap: wrap;
     }
-    body[data-page="vapor"] .vapor-goal-text {
-        font-size: 10px;
+    body[data-page="vapor"] .vapor-top-info {
+        margin-left: 0;
     }
 }
 
@@ -4534,15 +4462,9 @@ body[data-page="vapor"] .vapor-mock-hint {
         flex-direction: column;
         flex-wrap: nowrap;
     }
-    body[data-page="vapor"] .vapor-control-narrow {
-        flex: 1 1 100%;
-        width: 100%;
-        min-width: 0;
-        max-width: none;
-        box-sizing: border-box;
-    }
     body[data-page="vapor"] .vapor-sim-region {
         flex: 1 1 100%;
+        max-width: 100%;
         min-width: 0;
     }
     body[data-page="vapor"] .vapor-cards-region {
@@ -4556,12 +4478,18 @@ body[data-page="vapor"] .vapor-mock-hint {
     body[data-page="vapor"] .vapor-canvas-container {
         max-width: 100%;
     }
+    /* fixup 15h — top-control 모바일 stack */
+    body[data-page="vapor"] .vapor-top-control-row {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 6px;
+    }
+    body[data-page="vapor"] .vapor-mode-toggle {
+        flex-wrap: wrap;
+    }
     body[data-page="vapor"] .vapor-t-presets {
         grid-template-columns: repeat(5, 1fr);
         gap: 3px;
-    }
-    body[data-page="vapor"] .vapor-mode-toggle {
-        grid-template-columns: repeat(2, 1fr);
     }
     body[data-page="vapor"] #vapor-rate-canvas {
         max-width: 100%;
@@ -4569,8 +4497,5 @@ body[data-page="vapor"] .vapor-mock-hint {
     body[data-page="vapor"] .vapor-rate-readouts {
         flex-wrap: wrap;
     }
-    /* fixup 15g — 학습 목표 카드 모바일: 1열 stack */
-    body[data-page="vapor"] .vapor-goals-grid {
-        grid-template-columns: 1fr;
-    }
+    /* fixup 15h — .vapor-goals-grid 폐기 (학습 목표 카드 자체 폐기) */
 }

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CAST — 증기압 (Phase 6.1-b finalization fixup 15g + 6.2 부분)</title>
+    <title>CAST — 증기압 (Phase 6.1-b finalization fixup 15h + 6.2 부분)</title>
     <link rel="stylesheet" href="css/style.css">
     <script src="https://cdn.jsdelivr.net/npm/p5@1.11.2/lib/p5.min.js"></script>
     <script src="https://unpkg.com/docx@8.5.0/build/index.umd.js"></script>
@@ -22,95 +22,65 @@
 <body data-page="vapor">
     <nav class="page-nav vapor-nav">
         <a href="index.html" class="nav-home" title="홈으로 돌아가기">🏠 홈으로</a>
-        <span class="nav-title">증기압 — Phase 6.1-b finalization fixup 15g + 6.2 (T 통합)</span>
+        <span class="nav-title">증기압 — Phase 6.1-b finalization fixup 15h + 6.2 (T 통합)</span>
     </nav>
 
     <div id="vapor-layout-v2" class="vapor-layout-v2">
 
-        <!-- ====== 학습 목표 카드 (Johnstone 3수준, fixup 15g) ====== -->
-        <section class="vapor-learning-goals" aria-label="학습 목표">
-            <h3>학습 목표 (Johnstone 3수준)</h3>
-            <div class="vapor-goals-grid">
-                <div class="vapor-goal-card">
-                    <span class="vapor-goal-icon" aria-hidden="true">🧪</span>
-                    <div class="vapor-goal-body">
-                        <div class="vapor-goal-title">거시 수준</div>
-                        <p class="vapor-goal-text">밀폐 용기에서 액체-기체 동적 평형이 시간에 따라 어떻게 형성되는지 관찰합니다.</p>
+        <!-- ====== 위쪽 가로 영역 (fixup 15h — 사이드바 변신, 2 row layout) ====== -->
+        <section id="vapor-top-control" class="vapor-top-control" aria-label="실험 제어 + 측정 모드">
+            <!-- Row 1: 실험 설정 + 시작/리셋 + 보조 정보 -->
+            <div class="vapor-top-control-row">
+                <span class="vapor-top-control-label">실험 설정</span>
+                <div class="vapor-top-field">
+                    <label for="vapor-v-flask">플라스크</label>
+                    <select id="vapor-v-flask">
+                        <option value="100">100 mL</option>
+                        <option value="250" selected>250 mL</option>
+                        <option value="500">500 mL</option>
+                    </select>
+                </div>
+                <div class="vapor-top-field">
+                    <label for="vapor-v-liquid">액체 부피</label>
+                    <div class="vapor-top-field-number-row">
+                        <input type="number" id="vapor-v-liquid" min="1" step="1" value="50">
+                        <span class="vapor-field-unit">mL</span>
                     </div>
                 </div>
-                <div class="vapor-goal-card">
-                    <span class="vapor-goal-icon" aria-hidden="true">⚛️</span>
-                    <div class="vapor-goal-body">
-                        <div class="vapor-goal-title">입자 수준</div>
-                        <p class="vapor-goal-text">증발·응축 사건의 빈도 차가 입자 수준에서 어떻게 평형으로 수렴하는지 시각화합니다.</p>
-                    </div>
+                <small id="vapor-v-liquid-guard" class="vapor-guard-note vapor-guard-inline" data-state="ok"></small>
+                <div class="vapor-top-field">
+                    <label for="vapor-liquid-type">액체 종류</label>
+                    <select id="vapor-liquid-type">
+                        <option value="water" selected>물 (H₂O)</option>
+                    </select>
                 </div>
-                <div class="vapor-goal-card">
-                    <span class="vapor-goal-icon" aria-hidden="true">📊</span>
-                    <div class="vapor-goal-body">
-                        <div class="vapor-goal-title">기호 수준</div>
-                        <p class="vapor-goal-text">증발 속도 ≈ 응축 속도 (비율 1.0) 라는 정성적 관계를 그래프와 비율로 해석합니다.</p>
-                    </div>
+                <div class="vapor-top-button-row">
+                    <button id="vapor-btn-start" type="button" class="vapor-btn-primary">실험 시작</button>
+                    <button id="vapor-btn-reset" type="button" class="vapor-btn-secondary" disabled>리셋</button>
                 </div>
+                <div class="vapor-top-info">
+                    <span class="vapor-info-label">1 입자 ≈</span>
+                    <span class="vapor-info-value"><span id="vapor-mmol-per-particle">—</span> mmol</span>
+                </div>
+            </div>
+
+            <!-- Row 2: 측정 모드 4 button + help-text -->
+            <div class="vapor-top-control-row">
+                <span class="vapor-top-control-label">측정 모드</span>
+                <div class="vapor-mode-toggle" role="group" aria-label="측정 모드 선택">
+                    <button type="button" class="vapor-mode-btn is-active" data-mode="mock">🖥 시뮬</button>
+                    <button type="button" class="vapor-mode-btn" data-mode="ws" disabled>🔌 WS</button>
+                    <button type="button" class="vapor-mode-btn" data-mode="real" disabled>⚡ 실센서</button>
+                    <button type="button" class="vapor-mode-btn" data-mode="vernier" disabled>📡 Vernier</button>
+                </div>
+                <p class="vapor-help-text vapor-help-inline">
+                    ws / real / vernier 는 Phase 6.3~6.4 에서 활성화됩니다.
+                </p>
             </div>
         </section>
 
-        <!-- ====== 상단 가로 행: 제어 / 시뮬 / 카드 ====== -->
+        <!-- ====== 메인 행: 시뮬 / 카드 (fixup 15h — 사이드바 폐기로 시뮬 width ↑) ====== -->
         <div class="vapor-top-row">
-
-            <!-- 좌: 실험 제어 (보일·돌턴 패턴) -->
-            <aside id="vapor-control-panel" class="vapor-panel vapor-control-narrow" aria-label="실험 제어 패널">
-                <section id="vapor-experiment-setup" class="vapor-section">
-                    <h3>실험 설정</h3>
-                    <div class="vapor-field">
-                        <label for="vapor-v-flask">플라스크 부피</label>
-                        <select id="vapor-v-flask">
-                            <option value="100">100 mL</option>
-                            <option value="250" selected>250 mL</option>
-                            <option value="500">500 mL</option>
-                        </select>
-                    </div>
-                    <div class="vapor-field vapor-field-number-input">
-                        <label for="vapor-v-liquid">액체 부피</label>
-                        <div class="vapor-field-number-row">
-                            <input type="number" id="vapor-v-liquid" min="1" step="1" value="50">
-                            <span class="vapor-field-unit">mL</span>
-                        </div>
-                    </div>
-                    <small id="vapor-v-liquid-guard" class="vapor-guard-note" data-state="ok"></small>
-                    <div class="vapor-field">
-                        <label for="vapor-liquid-type">액체 종류</label>
-                        <select id="vapor-liquid-type">
-                            <option value="water" selected>물 (H₂O)</option>
-                        </select>
-                    </div>
-                    <div class="vapor-button-row">
-                        <button id="vapor-btn-start" type="button" class="vapor-btn-primary">실험 시작</button>
-                        <button id="vapor-btn-reset" type="button" class="vapor-btn-secondary" disabled>리셋</button>
-                    </div>
-                </section>
-
-                <section id="vapor-sensor-panel" class="vapor-section">
-                    <h3>측정 모드</h3>
-                    <div class="vapor-mode-toggle" role="group" aria-label="측정 모드 선택">
-                        <button type="button" class="vapor-mode-btn is-active" data-mode="mock">🖥 시뮬</button>
-                        <button type="button" class="vapor-mode-btn" data-mode="ws" disabled>🔌 WS</button>
-                        <button type="button" class="vapor-mode-btn" data-mode="real" disabled>⚡ 실센서</button>
-                        <button type="button" class="vapor-mode-btn" data-mode="vernier" disabled>📡 Vernier</button>
-                    </div>
-                    <p class="vapor-help-text">
-                        ws / real / vernier 는 Phase 6.3~6.4 에서 활성화됩니다.
-                    </p>
-                </section>
-
-                <section id="vapor-info-panel" class="vapor-section">
-                    <h3>보조 정보</h3>
-                    <div class="vapor-info-row">
-                        <span class="vapor-info-label">1 입자 ≈</span>
-                        <span class="vapor-info-value"><span id="vapor-mmol-per-particle">—</span> mmol</span>
-                    </div>
-                </section>
-            </aside>
 
             <!-- 중: 영역 1 — 시뮬 + T 제어 -->
             <main id="vapor-sim-region" class="vapor-sim-region">
@@ -220,23 +190,7 @@
                     </p>
                 </section>
 
-                <!-- 상태 카운터 카드 -->
-                <section class="vapor-card vapor-card-counter">
-                    <h4>분자 수</h4>
-                    <div class="vapor-counter-row">
-                        <span class="vapor-counter-label">표면 (일정)</span>
-                        <span class="vapor-counter-value" id="vapor-surface-count">—</span>
-                    </div>
-                    <div class="vapor-counter-row">
-                        <span class="vapor-counter-label">기체 (변동)</span>
-                        <span class="vapor-counter-value" id="vapor-gas-count">—</span>
-                    </div>
-                    <div class="vapor-counter-row">
-                        <span class="vapor-counter-label">액체 격자</span>
-                        <span class="vapor-counter-value" id="vapor-lattice-count">—</span>
-                    </div>
-                    <small class="vapor-counts-note">분자 수 = 동적 평형의 양적 지표</small>
-                </section>
+                <!-- fixup 15h — 분자 수 카드 폐기 (시뮬 자체가 입자 수 시각 인지 단서) -->
             </aside>
         </div>
 

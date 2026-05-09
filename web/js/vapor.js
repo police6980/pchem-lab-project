@@ -1,6 +1,6 @@
 // =============================================================
 // vapor.js — 증기압 시뮬 본체
-// Phase 6.1-b finalization fixup 15g (UI 균형 다층 — 학습 목표 카드 + max-width + placeholder 강화)
+// Phase 6.1-b finalization fixup 15h (시뮬 중심 단순화 — 사이드바 위쪽 변신 + 시뮬 width ↑ + 학습 목표/분자수 폐기)
 //
 // 핵심 철학 (정공법):
 //   학생 가시 = 실측 / 시뮬 = 미시 가시화 (정성적)
@@ -114,6 +114,38 @@
 //   · 시뮬 placeholder 강화 (icon + 본문 + hint 다층) — 시작 전 단계도 페이지 의도 전달.
 //   · 분자 수 카드 footer "분자 수 = 동적 평형의 양적 지표" — 학습 단서 명시.
 //   · 측정점 영역 placeholder padding 36 → 14 px (~140 → ~80px) — mock 단계 영역 비중 축소.
+//
+// 추가 (fixup 15h — 시뮬 중심 단순화, JS DOM dict / readout 정리 + HTML+CSS 대규모 재편):
+//   · 사이드바 (.vapor-control-narrow 200px aside) 폐기 → 위쪽 가로 영역 (.vapor-top-control) 변신.
+//     2 row layout: Row 1 = 실험 설정 (V_flask / V_liquid / 액체 / 시작·리셋 / 1입자≈X mmol),
+//                  Row 2 = 측정 모드 (mock / WS / real / Vernier 4 button + help-text inline).
+//     DOM ID 보존 (vFlaskSel / vLiquidIn / liquidTypeSel / btnStart / btnReset / mmolSpan
+//                  / .vapor-mode-btn 4개) → JS 핸들러 변경 X.
+//   · 시뮬 캔버스 표시 800 → 1100 (CSS scaling 1.375×). 모델 좌표 800×480 보존
+//     (params.json canvas_width_px/canvas_height_px 무변동, 입자/격자/화살표 모두 좌표 그대로).
+//     vapor-canvas-container max-width 800 → 1100, aspect-ratio 800/480 유지.
+//     anti-alias 영향만 미세, 모델 retuning X.
+//   · vapor-layout-v2 max-width 1400 → 1500 (canvas 1100 표시 수용).
+//   · vapor-cards-region width 280 → 320 (가독성 ↑, 시뮬 660 정합).
+//   · 카드 min-height: tp 200 → 300 (5 프리셋 + 입력 row + 가드 노트 여유),
+//                    rate 220 → 340 (rate canvas 140 + readouts + note 여유).
+//     컬럼 합산 = 300 + 12 + 340 = 652 ≈ 시뮬 660 정합.
+//   · 시뮬 영역 (.vapor-sim-region) flex 0 0 824px → flex 1 1 auto + max-width 1124px
+//     (사이드바 폐기 자리 활용, canvas 1100 + padding 24).
+//
+// 폐기 (fixup 15g 신규 → 15h 번복, 의사결정 reversal 패턴 — 논문 1차 자료 가치):
+//   · 학습 목표 카드 (15g 신규: Johnstone 3수준 거시/입자/기호) — 15h 폐기.
+//     사유: 시뮬 자체가 Johnstone 3수준 학습 단서를 충분히 제공 (입자 시각화 = 입자 수준,
+//          비율 카드 = 기호 수준, 시뮬 자체 = 거시 수준) → 텍스트 중복.
+//          시뮬 width ↑ 가 학습 가치에 직접 효과, 학습 목표 카드 자리 = 시뮬 자리.
+//   · 분자 수 카드 (.vapor-card-counter, 표면/기체/액체 격자 3 row + 15g footer note) — 15h 폐기.
+//     사유: rate 카드 + 평형 배지로 학생 인지 충분. 정량 표시 자체가 "시뮬 = 미시 가시화"
+//          철학과 약간 충돌 (입자 수 = 정량 학습 단서). 시뮬 단순화 우선.
+//     JS 정리: main.js dom dict 3 항목 (surfaceCount / gasCount / latticeCount) + readout
+//             update + reset 모두 폐기. world.gasCount getter (vapor.js) 보존 (디버그 예비).
+//   · vapor-control-narrow 사이드바 + .vapor-section + .vapor-field 등 사이드바 전용 CSS 일괄 폐기.
+//   · .vapor-info-row 폐기 (사이드바 보조 정보 패널, .vapor-top-info 가 대체).
+//   · .vapor-mode-toggle grid 2x2 → flex row (4 button 가로 정렬, 위쪽 가로 영역 정합).
 //
 // docs/17 §6 참조.
 // =============================================================
