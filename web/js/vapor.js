@@ -1,6 +1,6 @@
 // =============================================================
 // vapor.js — 증기압 시뮬 본체
-// Phase 6.1-b finalization fixup 15k (시뮬 시각 확대 — CSS scaling 1.625× + visible ratio 0.4→0.7)
+// Phase 6.1-b finalization fixup 15l (여백 ↓ + rate 그래프 정렬 + 시뮬↔카드 height 정합)
 //
 // 핵심 철학 (정공법):
 //   학생 가시 = 실측 / 시뮬 = 미시 가시화 (정성적)
@@ -187,6 +187,14 @@
 //     (√0.4≈0.63 → √0.7≈0.84, ghost 의존도 ↓). 학습 가치 (시각 밀도 ↑) 우선.
 //   · regression 점검: rate EMA raw evap 1.75× ↑ (T=25 0.53/s → 0.93/s) — y축 자동 스케일 OK.
 //                     평형 검출 (15d) ratio 기반, 입자 비율 변경 무관. 측정 기능 (15j) 영향 X.
+//
+// 추가 (fixup 15l — 여백 ↓ + rate 그래프 정렬 + 시뮬↔카드 height 정합, CSS only / JS 0 변동):
+//   · max-width 1700 → 1900 (시뮬 좌우 여백 ~150 → ~20~40px 적정 도달).
+//   · #vapor-rate-canvas max-width 256 폐기 → 100% (카드 폭 자동 채움, 좌측 치우침 해소).
+//     drawVaporRateGraph2D 함수 W / H 인자 응답 → JS 0 변동 (canvas attr 256×140 보존,
+//     CSS scaling ~1.22× 시각 정합). resizeObserver / 동적 attr 변경 X (단순).
+//   · .vapor-card 기본 min-height 400 → 408 (카드 합산 360+12+408=780 ≈ 시뮬 box height 정확 정합).
+//     사용자 비판: "시뮬 box vs cards-region height 미세 어긋남 → 시뮬 박스 끝 좌측 회색 여백" 해소.
 //
 // docs/17 §6 참조.
 // =============================================================
