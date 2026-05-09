@@ -3697,7 +3697,7 @@ body[data-page="vapor"] .vapor-learning-note {
     color: #475569;
 }
 
-/* =============== Vapor 3-region layout (Phase 6.1-b finalization fixup 15n) ===============
+/* =============== Vapor 3-region layout (Phase 6.1-b finalization fixup 15q) ===============
    fixup 15j — P 영역 부활 (.vapor-tp-pressure vapor-real-only hidden 제거 + placeholder 폐기 +
    단순화) + measurement-region mock placeholder 폐기 + 측정 표 이론 컬럼 폐기.
    .vapor-tp-pressure-mock + 자식 styles 폐기.
@@ -3731,7 +3731,12 @@ body[data-page="vapor"] .vapor-learning-note {
    .vapor-eq-badge[data-state] 4 → 5 분기 (detected = 옅은 녹 #dcfce7,
                                              confirmed = 진한 녹 #86efac + bold).
    .vapor-ratio-text[data-zone] 정합 (reached → detected/confirmed 분리).
-   본 프로젝트 정공법 회귀 = dual-layer (시뮬 가시화 + 학생 결정 측정 활동). */
+   본 프로젝트 정공법 회귀 = dual-layer (시뮬 가시화 + 학생 결정 측정 활동).
+
+   fixup 15q — 평형 배지 + [확정] 버튼 rate 카드 이동 (학습 흐름 정합).
+   .vapor-rate-eq-row 신규 (rate 그래프 직속 아래, 배지 + [⊕ 평형 확정] 버튼 row).
+   .vapor-sim-mmol-info margin-left: auto (배지 폐기 후 시뮬 헤더 우측 단독 정렬).
+   인지 (rate 그래프 두 선 만남) ↔ 상태 (배지) ↔ 액션 (확정) 한 영역 통합. */
 body[data-page="vapor"] .vapor-layout-v2 {
     display: flex;
     flex-direction: column;
@@ -3974,11 +3979,13 @@ body[data-page="vapor"] .vapor-sim-elapsed {
     font-variant-numeric: tabular-nums;
     font-weight: 500;
 }
-/* fixup 15m — 보조 정보 (1 입자 ≈ X mmol) 시뮬 헤더 옆 inline (top-control 우측 끝에서 이동) */
+/* fixup 15m — 보조 정보 (1 입자 ≈ X mmol) 시뮬 헤더 옆 inline (top-control 우측 끝에서 이동)
+   fixup 15q — 배지 폐기 후 단독 우측 정렬 (justify-content: space-between → 좌 elapsed / 우 mmol) */
 body[data-page="vapor"] .vapor-sim-mmol-info {
     font-size: 11px;
     color: #64748b;
     font-variant-numeric: tabular-nums;
+    margin-left: auto;
 }
 body[data-page="vapor"] .vapor-eq-badge {
     padding: 4px 10px;
@@ -4297,6 +4304,20 @@ body[data-page="vapor"] #vapor-rate-canvas {
     border: 1px solid #e2e8f0;
     border-radius: 3px;
     margin-bottom: 8px;
+}
+/* fixup 15q — rate 카드 안 평형 배지 + [확정] 버튼 row (그래프 직속 아래, readouts 위)
+   학습 흐름: rate 그래프 두 선 만남 인지 → 배지 색 변화 → [확정] 클릭 → 측정점 자동 추가 */
+body[data-page="vapor"] .vapor-rate-eq-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+body[data-page="vapor"] .vapor-rate-eq-row .vapor-record-btn {
+    flex: 0 0 auto;
+    padding: 4px 10px;
+    font-size: 11px;
 }
 body[data-page="vapor"] .vapor-rate-readouts {
     display: flex;

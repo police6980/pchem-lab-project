@@ -1,6 +1,6 @@
 // =============================================================
 // vapor.js — 증기압 시뮬 본체
-// Phase 6.1-b finalization fixup 15n (학생 평형 결정 메커니즘 — 5-state machine, 자동 → 학생 확정)
+// Phase 6.1-b finalization fixup 15q (평형 배지 + [확정] 버튼 rate 카드 이동, 학습 흐름 정합)
 //
 // 핵심 철학 (정공법):
 //   학생 가시 = 실측 / 시뮬 = 미시 가시화 (정성적)
@@ -252,6 +252,20 @@
 //     형광 노랑 birth flash (1.5s hold + 0.5s fade) / glow blur + stroke 보존.
 //     vaporColorFromKE 함수 보존 (표면 입자에서만 사용).
 //     가스 루프 안 KE 계산 (0.5×v²/ssq) + vaporColorFromKE 호출 폐기 → 단순화.
+//
+// 추가 (fixup 15q — 평형 배지 + [확정] 버튼 rate 카드 이동, 학습 흐름 정합, HTML+CSS only):
+//   · 사용자 비판 2건:
+//     - "평형 확정 버튼이 여기(rate 카드 영역) 있어야 할 것 같아"
+//     - "이 메시지(평형 배지)도 속도 그래프 아래에 있어야 하고"
+//   · 학습 흐름 정합: rate 그래프 두 선 만남 시각 단서 → 배지 색 변화 → [확정] 클릭 → 측정점 자동 추가.
+//     인지 (rate 그래프) ↔ 액션 (확정) ↔ 결과 (배지 ★) 한 영역 통합.
+//   · vapor.html .vapor-sim-header 안 #vapor-equilibrium-badge 제거 → .vapor-card-rate 안 그래프 직속 아래
+//     신규 .vapor-rate-eq-row (배지 + [⊕ 평형 확정] 버튼 row) 추가.
+//   · vapor.html measurement-region .vapor-measure-header 에서 #vapor-btn-record 제거 → [측정점 초기화] 단독.
+//   · main.js: dom dict / click handler / disabled 조건 (15n) 모두 ID 보존, 0 변동.
+//   · style.css: .vapor-rate-eq-row { flex space-between, 배지 + 버튼 } 추가.
+//                .vapor-sim-mmol-info margin-left auto (배지 폐기 후 우측 정렬).
+//   · 시뮬 헤더: 좌 ⏱ 경과 + 우 mmol 양측 정렬 (justify-content: space-between).
 //
 // docs/17 §6 참조.
 // =============================================================

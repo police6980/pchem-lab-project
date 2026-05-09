@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CAST — 증기압 (Phase 6.1-b finalization fixup 15n + 6.2 부분)</title>
+    <title>CAST — 증기압 (Phase 6.1-b finalization fixup 15q + 6.2 부분)</title>
     <link rel="stylesheet" href="css/style.css">
     <script src="https://cdn.jsdelivr.net/npm/p5@1.11.2/lib/p5.min.js"></script>
     <script src="https://unpkg.com/docx@8.5.0/build/index.umd.js"></script>
@@ -22,7 +22,7 @@
 <body data-page="vapor">
     <nav class="page-nav vapor-nav">
         <a href="index.html" class="nav-home" title="홈으로 돌아가기">🏠 홈으로</a>
-        <span class="nav-title">증기압 — Phase 6.1-b finalization fixup 15n + 6.2 (T 통합)</span>
+        <span class="nav-title">증기압 — Phase 6.1-b finalization fixup 15q + 6.2 (T 통합)</span>
     </nav>
 
     <div id="vapor-layout-v2" class="vapor-layout-v2">
@@ -93,13 +93,9 @@
                     <span class="vapor-sim-elapsed">
                         ⏱ <span id="vapor-elapsed-time">—</span>
                     </span>
-                    <!-- fixup 15m — 보조 정보 (1 입자 ≈ X mmol) 시뮬 헤더 옆 이동 -->
+                    <!-- fixup 15q — 평형 배지 rate 카드로 이동, mmol 만 우측 정렬 -->
                     <span class="vapor-sim-mmol-info">
                         1 입자 ≈ <span id="vapor-mmol-per-particle">—</span> mmol
-                    </span>
-                    <!-- 평형 배지 — mock 모드 활성 (fixup 13, ratio 기반 평형 판정 통일) -->
-                    <span id="vapor-equilibrium-badge" class="vapor-eq-badge" data-state="none">
-                        평형 비도달
                     </span>
                 </header>
 
@@ -169,6 +165,15 @@
                 <section class="vapor-card vapor-card-rate">
                     <h4>증발 / 응축 속도</h4>
                     <canvas id="vapor-rate-canvas" width="256" height="140"></canvas>
+                    <!-- fixup 15q — 평형 배지 + [확정] 버튼 rate 카드 이동 (rate 그래프 평형 시각 단서 ↔ 배지 ↔ 액션 통합) -->
+                    <div class="vapor-rate-eq-row">
+                        <span id="vapor-equilibrium-badge" class="vapor-eq-badge" data-state="none">
+                            평형 비도달
+                        </span>
+                        <button type="button" id="vapor-btn-record" class="vapor-record-btn" disabled>
+                            ⊕ 평형 확정
+                        </button>
+                    </div>
                     <div class="vapor-rate-readouts">
                         <div class="vapor-rate-cell">
                             <span class="vapor-rate-label" style="color:#2563EB;">증발</span>
@@ -198,9 +203,7 @@
             <div class="vapor-measure-table-wrap">
                 <div class="vapor-measure-header">
                     <h3>측정점</h3>
-                    <button type="button" id="vapor-btn-record" class="vapor-record-btn" disabled>
-                        ⊕ 평형 확정
-                    </button>
+                    <!-- fixup 15q — [⊕ 평형 확정] rate 카드 이동, 측정점 영역에는 [초기화] 단독 -->
                     <button type="button" id="vapor-btn-clear-points" class="vapor-clear-btn" disabled>
                         측정점 초기화
                     </button>
