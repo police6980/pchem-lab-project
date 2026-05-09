@@ -3711,6 +3711,12 @@ body[data-page="vapor"] .vapor-learning-note {
     color: #475569;
 }
 
+/* =============== Vapor 3-region layout (Phase 6.1-b finalization fixup 17a) ===============
+   fixup 17a — vapor 페이지 AI 튜터 통합 (CSS 변경 0, .ai-sidebar 등 기존 정의 그대로 재사용).
+   vapor.html DOM 추가 (<aside id="ai-sidebar"> + #ai-reopen-btn) + main.js initVaporTutor 신설 +
+   tutor.js factory 재사용 (tutor.js 자체 변경 0, docstring L12-15 만 갱신).
+   boyle/dalton/particles 와 동일 .ai-sidebar 패턴 — CSS 정의 추가/수정 0. */
+
 /* =============== Vapor 3-region layout (Phase 6.1-b finalization fixup 15t) ===============
    fixup 15j — P 영역 부활 (.vapor-tp-pressure vapor-real-only hidden 제거 + placeholder 폐기 +
    단순화) + measurement-region mock placeholder 폐기 + 측정 표 이론 컬럼 폐기.

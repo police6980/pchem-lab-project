@@ -9,10 +9,10 @@
 // 본 모듈 = factory + 공통 logic 만. 시뮬별 적용 (보일/입자/돌턴) 은
 // 별 commit (단계 (a)/(b)/(c) 회귀 검증 후 진행).
 //
-// Phase 6.4 예약: vapor (증기압) 도 본 factory 사용 예정.
+// Phase 6.4 예약 → fixup 17a 실행 완료: vapor (증기압) factory 통합.
 // initVaporApp 안에서 createTutor(vaporConfig) 호출 — vaporConfig 는
-// docs/17 §8 명세 (학생 측정 데이터 anchored, 4 모드 분기, 소크라테스 가드).
-// 현재 (6.1-a) 는 placeholder — vaporConfig 신설·createTutor 호출 미연결.
+// main.js 안 신설 (학습 목표 4 + 절대 원칙 12 + 시뮬 시각 단서 활용 권장).
+// tutor.js 자체 변경 0 — boyle/dalton/particles 와 동일 factory 재사용.
 //
 // 권위 비교 (변경 시 양쪽 동기화 필수 — 단계 (a)~(c) 진행 중):
 //   - 보일: web/js/ai-tutor.js (1123 줄)

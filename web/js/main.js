@@ -3812,9 +3812,9 @@ ${sensorGuide}
 // ─────────────────────────────────────────────────────────────────────
 // Phase 6.1-a — Vapor pressure track (skeleton)
 //
-// vapor.html (data-page="vapor") 진입 시 호출되는 placeholder. 본 step
-// 에서는 페이지 로드·라우팅·params.vapor 파싱만 검증. 시뮬 본체·입자·
-// 모드 분기·AI 튜터 통합은 Phase 6.1-b ~ 6.4 에서 추가.
+// vapor.html (data-page="vapor") 진입 시 호출. 시뮬 본체 + AI 튜터 통합.
+// fixup 17a — AI 튜터 통합 완료 (tutor.js createTutor factory 재사용,
+// boyle/dalton/particles 와 동일 패턴, vaporConfig main.js 안 신설).
 // ─────────────────────────────────────────────────────────────────────
 function initVaporApp(params) {
     const cfg = params?.vapor;
@@ -4349,6 +4349,202 @@ function initVaporApp(params) {
 
     updateGuardMessage();
     validate();
+
+    // ─────────────────────────────────────────────────────────
+    // fixup 17a — AI 튜터 통합 (tutor.js createTutor factory 재사용).
+    // boyle/dalton 동일 패턴: vaporConfig + window.PchemTutorModule.createTutor 호출.
+    // 학생 평형 결정 메커니즘 (15n) + 시뮬 시각 단서 (15s) 통합 컨텍스트 자동 주입.
+    // ─────────────────────────────────────────────────────────
+    initVaporTutor({ cfg, getInputs, getMeasurementPoints: () => measurementPoints, getWorld: () => world });
+}
+
+// fixup 17a — vapor 학생 수준별 안내 (4 분기, dalton DALTON_LEVEL_GUIDES 정합)
+const VAPOR_LEVEL_GUIDES = {
+    elem:   "초등학생. 분자를 구슬에 비유. 수식 없이 직관적 이미지로만. 친근 톤, 격려 많이. '뜨거우면 빠르다' 수준의 직관적 설명.",
+    middle: "중학교 영재학급. 입자 운동론 기초 + 분자 운동 인지 가능. 친근 톤, 어려운 용어 설명 동반. Boltzmann 분포는 '온도에 따라 입자 속도 분포가 변함' 정도로.",
+    high:   "고등학교 영재학급. 동적 평형 / Boltzmann factor / Antoine 식 도입 가능. 엄밀성 + 학생 사고 존중. PV=nRT 와 증기압 관계 다룰 수 있음.",
+    univ:   "대학 일반화학 또는 물리화학. Clausius-Clapeyron 식, 통계역학적 평형 (μ_liquid = μ_gas), Maxwell-Boltzmann 분포 정량 가능.",
+};
+
+// fixup 17a — 4 질문 + 자유 (level 4 × 5 tabs = 20 strings)
+// vapor 학습 목표 4 핵심: 동적 평형 / T 효과 / 밀폐 평형 / 시뮬 vs 이론
+const VAPOR_QUESTION_TEXT = {
+    elem: {
+        1: "rate 그래프의 두 곡선 (증발 / 응축) 이 만났다면 어떤 의미일까요? 분자가 멈춘 걸까요?",
+        2: "온도를 올렸을 때 가스 입자 수와 압력은 어떻게 변했나요? 분자 운동과 연결해보세요.",
+        3: "측정점 표를 보세요. 온도가 높을수록 압력은 어떻게 변하나요? 패턴이 보이나요?",
+        4: "📊 [질문 생성] 버튼을 눌러 내 데이터에 맞는 질문을 받아보세요.",
+    },
+    middle: {
+        1: "두 곡선이 만나는 시점 = 평형. 분자는 사라지지 않고 사라지는 만큼 새로 생긴다는 의미를 어떻게 이해하나요?",
+        2: "온도가 높을수록 평형 압력이 커지는 이유는? 분자 운동 에너지와 연결해 설명해보세요.",
+        3: "시뮬 측정값과 이론 곡선 (회색 점선) 을 비교해보세요. 정성 경향 (T↑ → P↑) 일치 여부는?",
+        4: "📊 [질문 생성] 버튼을 눌러 내 데이터에 맞는 탐구 질문을 받아보세요.",
+    },
+    high: {
+        1: "동적 평형 = 거시적 일정 단 미시적 끊임없는 교환. rate 그래프 두 곡선이 만난 시점에 분자는 무엇을 하고 있나요?",
+        2: "Boltzmann factor exp(-E_a/kT) 로 T 효과를 설명해보세요. T=25→T=65 시 증발률 비율을 추정해보세요.",
+        3: "측정값과 이론 (Antoine 또는 표) 차이의 원인은? 시뮬 모델 한계 / 평형 도달 판단 / 측정 timing 등 가능성?",
+        4: "📊 [질문 생성] 버튼을 눌러 내 데이터에 맞는 심화 질문을 받아보세요.",
+    },
+    univ: {
+        1: "동적 평형 조건 μ_liquid(T,P) = μ_gas(T,P) 로부터 Clausius-Clapeyron 식 dlnP/dT = ΔH_vap/RT² 를 유도해보세요.",
+        2: "측정점 (T, P_vap) 들로 ln P vs 1/T 그래프를 그리면 기울기 = -ΔH_vap/R. 본 시뮬 데이터로 ΔH_vap 추정값은?",
+        3: "시뮬 모델 (입자 수 × 비례상수) vs Antoine 식 정량 차이를 통계적으로 분석. 모델 단순화의 한계는?",
+        4: "📊 [질문 생성] 버튼을 눌러 내 데이터에 맞는 정량 분석 질문을 받아보세요.",
+    },
+};
+
+function vaporGetQuestionText(level, qid) {
+    if (qid === "free") return "💬 자유 질문 모드";
+    return VAPOR_QUESTION_TEXT[level]?.[qid] || "";
+}
+
+// fixup 17a — vapor 시스템 프롬프트 (dalton daltonBuildSystemPrompt 패턴 정합).
+// 학생 평형 결정 메커니즘 (15n) + 시뮬 시각 단서 (15s) 통합 안내.
+function vaporBuildSystemPrompt(level, qid, ctx) {
+    const points = ctx.measurementPoints || [];
+    const recentPoints = points.slice(-3);
+
+    let dataContext = "";
+    if (recentPoints.length > 0) {
+        dataContext = `\n[최근 측정점 ${recentPoints.length}개]\n` + recentPoints.map((p) =>
+            `- #${p.idx}: T=${p.T.toFixed(0)}°C, P_vap(시뮬)=${p.P.toFixed(2)} kPa, 도달=${p.t != null ? p.t.toFixed(0) : "—"}s, P_vap(이론)=${p.Ptheor != null ? p.Ptheor.toFixed(2) + " kPa" : "—"}`
+        ).join("\n");
+    } else {
+        dataContext = "\n[측정 기록 없음 — 학생이 아직 [⊕ 평형 확정] 버튼을 누르지 않았습니다.]";
+    }
+
+    // 현재 시뮬 상태 (mock 모드 active)
+    const simState = (ctx.T_celsius != null) ? (
+        `\n[현재 시뮬 상태]\n` +
+        `- 실험 조건: V_flask=${ctx.V_flask} mL, V_liquid=${ctx.V_liquid} mL, V_gas=${ctx.V_gas} mL, 액체=${ctx.liquidType}\n` +
+        `- 온도 T = ${ctx.T_celsius.toFixed(1)}°C\n` +
+        `- 시뮬 P = ${ctx.P_kPa != null ? ctx.P_kPa.toFixed(2) + " kPa" : "—"}\n` +
+        `- 가스 입자 = ${ctx.gasParticles ?? "—"} 개\n` +
+        `- 경과 시간 = ${ctx.elapsed_sec != null ? ctx.elapsed_sec.toFixed(0) + "s" : "—"}\n` +
+        `- 평형 상태 = ${ctx.equilibriumState} ` +
+        `(detected=${ctx.equilibriumDetected}, confirmed=${ctx.equilibriumConfirmed}` +
+        `${ctx.equilibriumReachedAtSec != null ? `, 도달 ${ctx.equilibriumReachedAtSec.toFixed(0)}s` : ""})\n` +
+        `- rate (EMA): 증발=${ctx.evapEMA != null ? ctx.evapEMA.toFixed(2) : "—"}/s, 응축=${ctx.condEMA != null ? ctx.condEMA.toFixed(2) : "—"}/s`
+    ) : "\n[시뮬 미시작 — 학생이 [실험 시작] 버튼을 누르지 않았습니다.]";
+
+    // 데이터 소스 (현 mock only, Phase 6.3+ ws/real/vernier 예약)
+    const dataSourceLabel = "시뮬레이션 (입자 시뮬 + 입자 수 기반 P 산출)";
+    const sensorGuide = `[데이터 소스 고려사항]\n현재는 **시뮬레이션** 환경 (mock): 입자 수 × 비례상수로 P 산출, 이론 곡선 (회색 점선) 과 정성 경향 (T↑ → P↑) 일치하나 정량 차이는 정공법 (정량 정합 의무 X). 학생이 [⊕ 평형 확정] 버튼을 직접 클릭한 시점에 측정점 추가 — "측정 = 학생 결정 활동" 본 프로젝트 정공법.`;
+
+    const focusLine = qid === "free"
+        ? "현재 모드: 자유 질문 — 학생 질문에 동적 평형 / 증기압 / 시뮬 데이터와 연결해 답변. 400자 이내."
+        : `현재 탐구 질문: ${VAPOR_QUESTION_TEXT[level]?.[qid] || ""}`;
+
+    return `당신은 영재 과학교육 튜터입니다.
+대상 학생: ${VAPOR_LEVEL_GUIDES[level] || VAPOR_LEVEL_GUIDES.high}
+현재 탐구 주제: 증기압과 동적 평형 (밀폐 용기 안 액체 ↔ 기체 평형, 증발 ≈ 응축)
+[데이터 소스] ${dataSourceLabel}
+
+${focusLine}
+${dataContext}${simState}
+
+${sensorGuide}
+
+[시뮬 시각 단서 활용 권장 — 학생이 화면에서 직접 보고 있는 정보]
+- 좌측 시뮬 캔버스: 가스 입자 (연한 파랑 #60a5fa) 시각화 — 입자 수가 평형 P 직접 source
+- 시뮬 헤더 우측 "1 입자 ≈ X mmol" — 입자 → 실제 양 환산 단서
+- T+P 카드 좌측 SVG 압력계 (반원, 0~30 kPa, 빨간 바늘) — 현재 P_vap 시각
+- T+P 카드 우상단 LCD 전자시계 (도달 시각 MM:SS) — 평형 확정 시점 기록
+- T+P 카드 우하단 입자 수 막대 (gradient 파랑) — 가스 입자 정량 + 비례 시각
+- rate 카드: 증발 (파랑) / 응축 (주황) 두 곡선 + 비율 cell + 5-state 평형 배지 (none/near/detected/confirmed/exited)
+- 측정점 표 + P-T 그래프 (회색 점선 = 이론 / 파란 점 = 측정값)
+
+학습 목표 4 핵심:
+1. 동적 평형 — 증발률 ≈ 응축률 (rate 두 곡선 만남). 분자가 멈춘 게 아니라 거시 일정 + 미시 끊임없는 교환.
+2. 온도 효과 — T↑ → 증발 활성화 (Boltzmann factor exp(-E_a/kT)) → 평형 P_vap ↑.
+3. 밀폐 용기 평형 — 닫힌 V_gas 안 액체 ↔ 기체 (열린계는 평형 X). V_liquid · V_gas 분리.
+4. 시뮬 P vs 이론 — 정성 경향 일치 (T↑ → P↑), 정량 차이는 정공법 (모델 단순화 한계 + 학생 [확정] 결정 시점 영향).
+
+절대 원칙:
+1. 학생이 아직 생각하지 못한 답을 직접 알려주지 마세요. 답변을 인정하고 한 단계 더 깊은 질문을 던지세요.
+2. 학생 답변의 구체적 표현을 인용하며 피드백. 일반론 금지.
+3. 학생 데이터의 구체 숫자 (T, P, 가스 입자 수, 측정점 #) 언급하며 연결.
+4. 격려하되 과찬 금지. 틀린 부분 명확히 짚되 비난 금지.
+5. 250자 이내 (자유 모드 400자). 한 피드백에 한 핵심만.
+6. 마지막에 학생이 더 생각해볼 질문 1개 제시.
+7. 결론 짓지 말고 다음 생각으로 이어지는 질문으로 마무리.
+8. 3~4턴 이상 진행 시 자연스럽게 답에 다가가도록 수렴.
+9. 오개념 발견 시 직접 교정 X — "잠깐, [학생 표현]이라고 하셨는데, [반례 상황]에서도 그럴까요?" 형식으로 의문 제기.
+10. "측정 = 학생 결정 활동" (15n) — 학생이 직접 [⊕ 평형 확정] 클릭한 시점에 측정점 기록됨. AI는 학생 결정을 존중하고, "왜 이 시점이 평형이라고 판단했나?" 같은 메타 질문으로 학습 활동 보조.
+11. 시뮬 P 와 이론 P_vap 차이는 정공법 (정량 정합 의무 X) — 차이를 결함으로 보지 말고 모델 단순화의 자연 결과로 다룸.
+12. 대화 내용으로 학생 수준 판단. 설정과 다르다고 확신 시 응답 마지막 줄에 [[LEVEL:middle]] / [[LEVEL:high]] / [[LEVEL:univ]] 추가.
+
+한국어로 답변하세요.`;
+}
+
+// fixup 17a — vapor 페이지 AI 튜터 init (createTutor factory 호출).
+// initVaporApp 끝에서 호출. world 는 시작 후 생성되므로 getter 형태로 lazy 참조.
+function initVaporTutor(deps) {
+    if (!window.PchemTutorModule) {
+        console.error("[vapor tutor] PchemTutorModule 미로드 — tutor.js script 누락?");
+        return;
+    }
+
+    const vaporConfig = {
+        simName: "vapor",
+        sidebarSelector: "#ai-sidebar",
+        tabIds: ["1", "2", "3", "4", "free"],
+        metaTabId: "4",                   // Q4 메타 탭 (자동 질문 생성)
+        autoQuestionTabIds: [],           // 자동 question seed X (학생 진입 후 직접 질문)
+        closeConfig: { /* default prompt */ },
+        reportEnabled: false,
+        getQuestionText:   vaporGetQuestionText,
+        buildSystemPrompt: vaporBuildSystemPrompt,
+        buildDataContext: () => {
+            const w = deps.getWorld();
+            const inputs = deps.getInputs();
+            return {
+                V_flask: inputs.vFlask,
+                V_liquid: inputs.vLiquid,
+                V_gas: inputs.vFlask - inputs.vLiquid,
+                liquidType: inputs.liquid,
+                T_celsius: w?.T_celsius ?? null,
+                P_kPa: w?.pressureKPa ?? null,
+                elapsed_sec: w?.elapsedSec ?? null,
+                gasParticles: w?.gasParticles?.length ?? null,
+                equilibriumState: w?._equilibriumState ?? "none",
+                equilibriumDetected: w?.equilibriumDetected ?? false,
+                equilibriumConfirmed: w?.equilibriumConfirmed ?? false,
+                equilibriumReachedAtSec: w?.equilibriumReachedAtSec ?? null,
+                evapEMA: w?.evapEMA ?? null,
+                condEMA: w?.condEMA ?? null,
+                measurementPoints: deps.getMeasurementPoints(),
+                mode: "mock",   // Phase 6.3+ ws/real/vernier 예약
+            };
+        },
+        onLevelDetect: (level) => {
+            console.log(`[vapor tutor] 학생 수준 자동 감지: ${level}`);
+        },
+    };
+
+    const vaporTutor = window.PchemTutorModule.createTutor(vaporConfig);
+    if (!vaporTutor) {
+        console.error("[vapor tutor] createTutor 실패");
+        return;
+    }
+    window.PchemVaporTutor = vaporTutor;
+
+    // Q4 [질문 생성] 버튼 — metaTabId="4" 활성 시 default empty state 안 #btn-generate-q4 동적 렌더
+    document.addEventListener("click", (e) => {
+        if (e.target?.closest?.("#btn-generate-q4")) {
+            vaporTutor.generateMetaQuestion();
+        }
+    });
+
+    // 대화 마무리 버튼 — boyle/dalton 패턴 정합 (AI 요약)
+    const closeBtn = document.getElementById("btn-close-q");
+    if (closeBtn) {
+        closeBtn.addEventListener("click", () => vaporTutor.closeConversation());
+    }
+
+    console.log("[vapor tutor] AI 튜터 초기화 완료 (createTutor factory 재사용, fixup 17a)");
 }
 
 // 페이지 디스패처 — body.dataset.page 값으로 어느 초기화를 실행할지 결정.
