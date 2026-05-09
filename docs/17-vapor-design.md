@@ -176,6 +176,31 @@ MVP 외 후속 트랙 학습 목표:
 
 학습 목표 외 (액체 내부 분자 운동 정확 모델) 은 별 학습 자료로 분리.
 
+### Ghost 입자 — 통계 안정성 (fixup 7, 보일 패턴 재사용)
+
+기체 입자 ~50 → 통계 잡음 (Poisson 상대 오차 ~14%) → 평형도 % 널뜀.
+보일 시뮬에서 사용한 ghost 패턴 도입:
+
+**구조**:
+- 가시 표면 80 (렌더 O) + ghost 표면 800 (렌더 X) = 880 입자 모두 Boltzmann 게이트.
+- 매 evap 시 visible_ratio=0.1 로 visible vs ghost 분기:
+  - prob 10% → visible 가스 (flash + birth highlight + 충돌)
+  - prob 90% → ghost 가스 (충돌 X — O(N²) 부담 회피, 단순 물리만)
+- 응축: visible/ghost 모두 KE_gas < E_capture 게이트. visible 만 flash + cond ring.
+
+**통계 결합 (잡음 감소)**:
+- 압력: `P = (visible_gas + ghost_gas) × 0.1 × pressure_per_visible_gas`
+  → visible-equivalent 표시값 (학생 시각 정합) + 결합 통계로 잡음 √0.1 ≈ 0.32× (~3.16× 감소).
+- Rate: `rate_displayed = (visible_evap + ghost_evap) × 0.1 / elapsed_sec` → 동일 효과.
+
+**P_EMA 매 frame 평활** (`p_vap_ema_alpha`=0.05):
+- 매 frame `P_smoothed = α × P + (1-α) × P_smoothed_prev` (50fps × α=0.05 → 시간상수 0.4s, 빠른 평활).
+- 평형도 = `|P_EMA - P_eq(T)| / P_eq` (잡음 X, 한번 95% 도달 후 안정 유지).
+
+**학습 가치**:
+- 학생 시각: 변화 X (visible 가스만 보임, ghost 투명).
+- 통계: 평형도 안정 (95%+ 도달 후 잡음 X), rate 곡선 부드러움, plateau P 정확.
+
 ### 거시 보정 + 미시 사건 하이브리드 (fixup 6)
 
 사용자 통찰: 평형 판정은 거시 (P 기반, 잡음 X). 시뮬 사건은 미시 (Boltzmann 게이트, 학습 단서 보존). 둘을 분리한 하이브리드.

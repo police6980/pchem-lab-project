@@ -129,6 +129,21 @@ class VaporWorld {
         this.gasGravity = cfg.gas_gravity ?? 0.0005;
         this.ceilingKERetention = cfg.ceiling_KE_retention ?? 0.85;
 
+        // ── Ghost 풀 (보일 패턴 — 통계 안정성) ──
+        // ghostSurface 800 + visible 80 = 880 표면, 모두 Boltzmann 게이트.
+        // evap 시 visible_ratio (=0.1) 로 visible 분기, 나머지 ghost.
+        // 통계 결합 (visible + ghost) × visible_ratio → 잡음 √0.1 감소.
+        this.ghostVisibleRatio = cfg.ghost_gas_visible_ratio ?? 0.1;
+        const ghostSurfaceN = cfg.ghost_surface_count ?? 800;
+        this.ghostSurfaceParticles = [];
+        for (let i = 0; i < ghostSurfaceN; i++) {
+            // 위치 무관 (렌더 X). visual KE 만 의미 있음.
+            this.ghostSurfaceParticles.push(this._makeSurfaceParticle(0, 0, 0));
+        }
+        this.ghostGasParticles = [];
+        this._ghostEvapWin = 0;
+        this._ghostCondWin = 0;
+
         // ── Flash queue (사건 시각화 — 원 + 화살표 0.8s 페이드) ──
         this.flashes = [];
 
@@ -163,8 +178,13 @@ class VaporWorld {
 
     // ── 외부 노출용 게터 (main.js DOM 갱신) ──
     get pressureKPa() {
-        const k = this.cfg.pressure_kpa_per_gas_particle ?? 0.1;
-        return this.gasParticles.length * k;
+        // P = (visible + ghost) × visibleRatio × pressure_per_visible
+        // = visible-equivalent gas count × pressure_per_visible
+        // 통계 결합으로 잡음 √visibleRatio (≈0.32) 만큼 감소
+        const k = this.cfg.pressure_per_visible_gas_kPa
+            ?? this.cfg.pressure_kpa_per_gas_particle ?? 0.06;
+        const total = this.gasParticles.length + this.ghostGasParticles.length;
+        return total * this.ghostVisibleRatio * k;
     }
     get pressureBarPct() {
         const max = this.cfg.pressure_gauge_max_kPa ?? this.cfg.pressure_kpa_max_for_bar ?? 30;
@@ -262,7 +282,11 @@ class VaporWorld {
         // 4) 응축 게이트
         this._evalCondensation();
 
-        // 5) 매 1초: rate 샘플 + stats log
+        // 5) 매 frame P_EMA 업데이트 (alpha=p_vap_ema_alpha, 잡음 흡수)
+        const P_alpha = this.cfg.p_vap_ema_alpha ?? 0.05;
+        this._pressureSmoothed = P_alpha * this.pressureKPa + (1 - P_alpha) * this._pressureSmoothed;
+
+        // 6) 매 1초: rate 샘플 + stats log
         this._maybeTickRateAndLog();
     }
 
@@ -274,29 +298,65 @@ class VaporWorld {
         const targetChangeMs = (cfg.surface_KE_visual_target_change_sec ?? 2.0) * 1000;
         const jitter = cfg.surface_jitter_amp_px ?? 2;
         const visualKT = this._visualKT;
+        const visibleRatio = this.ghostVisibleRatio;
         const now = performance.now();
 
+        // 가시 표면 — 위치/색 update + Poisson 게이트
         for (let i = 0; i < this.surfaceParticles.length; i++) {
             const sp = this.surfaceParticles[i];
 
             // 위치 좌우 진동
             sp.x = sp.x0 + sp.amp * Math.cos(2 * Math.PI * tSec + sp.phase);
 
-            // 시각 KE — 새 target 주기적 재샘플 + 매 frame ease + 미세 노이즈
+            // 시각 KE smooth update
             if (now >= sp.ke_target_next_change_t) {
                 sp.ke_target = vaporSampleMBKE(visualKT);
-                // 다음 주기는 target 평균 ± 50% 무작위 (전체 일제 변경 회피)
                 sp.ke_target_next_change_t = now + targetChangeMs * (0.5 + Math.random());
             }
             sp.ke += (sp.ke_target - sp.ke) * smoothFactor + (Math.random() - 0.5) * 0.05;
             if (sp.ke < 0) sp.ke = 0;
 
-            // Poisson 탈출 — 매 frame 독립 평가
+            // Poisson 게이트
             if (Math.random() < pEvapPerFrame) {
-                this._spawnGasFromSurface(sp);
+                if (Math.random() < visibleRatio) {
+                    this._spawnGasFromSurface(sp);  // visible
+                } else {
+                    this._spawnGasGhost();           // ghost
+                }
                 this.surfaceParticles[i] = this._makeSurfaceParticle(sp.x0, sp.y0, jitter);
             }
         }
+
+        // Ghost 표면 — 위치/색 update X (렌더 X), 게이트만 평가
+        for (let i = 0; i < this.ghostSurfaceParticles.length; i++) {
+            if (Math.random() < pEvapPerFrame) {
+                if (Math.random() < visibleRatio) {
+                    // ghost 표면 → visible 가스. 위치는 random visible surface 에서 spawn
+                    const idx = Math.floor(Math.random() * this.surfaceParticles.length);
+                    this._spawnGasFromSurface(this.surfaceParticles[idx]);
+                } else {
+                    this._spawnGasGhost();
+                }
+                // ghost 표면 재샘플 (위치 무관, KE 시각 X)
+                this.ghostSurfaceParticles[i] = this._makeSurfaceParticle(0, 0, 0);
+            }
+        }
+    }
+
+    // Ghost 가스 spawn (렌더 X, flash X, birth_time X)
+    _spawnGasGhost() {
+        const speedScale = this.gasSpeedScale;
+        const keMin = this.cfg.gas_spawn_KE_min ?? 2.0;
+        const keMax = this.cfg.gas_spawn_KE_max ?? 4.0;
+        const ke = keMin + Math.random() * (keMax - keMin);
+        const speed = Math.sqrt(2 * ke) * speedScale;
+        const angle = -Math.PI / 2 + (Math.random() - 0.5) * (Math.PI / 4);
+        const vx = speed * Math.cos(angle);
+        const vy = speed * Math.sin(angle);
+        const x = this.box.x + Math.random() * this.box.w;
+        const y = this.liquidTopY - this.gasRadius - 1;
+        this.ghostGasParticles.push({ x, y, vx, vy, ke_at_birth: ke });
+        this._ghostEvapWin++;
     }
 
     _updateGas(dt) {
@@ -332,7 +392,7 @@ class VaporWorld {
             if (g.y < top)         g.y = top;
             else if (g.y > bottom) g.y = bottom;
         }
-        // hard sphere 충돌 (등질량 impulse) — KE 분포 다양화 (응축 가능성 ↑)
+        // hard sphere 충돌 (등질량 impulse) — 가시 가스만 (ghost 가스 충돌 X, O(N²) 부담 회피)
         const n = this.gasParticles.length;
         const minD = 2 * r;
         const minD2 = minD * minD;
@@ -358,6 +418,26 @@ class VaporWorld {
                     }
                 }
             }
+        }
+
+        // Ghost 가스 — 단순 물리 (중력 + 점성 + 벽 + 천장 KE 손실), 충돌 X
+        for (const g of this.ghostGasParticles) {
+            g.vy += gravity;
+            g.vx *= dampingFactor;
+            g.vy *= dampingFactor;
+            g.x += g.vx * dt;
+            g.y += g.vy * dt;
+            if (g.x < left  && g.vx < 0) g.vx = -g.vx;
+            if (g.x > right && g.vx > 0) g.vx = -g.vx;
+            if (g.y < top   && g.vy < 0) {
+                g.vy = -g.vy * ceilingVScale;
+                g.vx *= ceilingVScale;
+            }
+            if (g.y > bottom && g.vy > 0) g.vy = -g.vy;
+            if (g.x < left)        g.x = left;
+            else if (g.x > right)  g.x = right;
+            if (g.y < top)         g.y = top;
+            else if (g.y > bottom) g.y = bottom;
         }
     }
 
@@ -396,6 +476,8 @@ class VaporWorld {
         const ssq = speedScale * speedScale;
         const liquidTop = this.liquidTopY;
         const condColor = this.cfg.cond_flash_color || "#EA580C";
+
+        // Visible 가스 — flash + cond highlight 마커
         const remain = [];
         for (const g of this.gasParticles) {
             if (g.vy > 0 && g.y >= liquidTop - 5) {
@@ -403,7 +485,6 @@ class VaporWorld {
                 if (ke < E_capture) {
                     this._condWin++;
                     this._addFlash(g.x, liquidTop, condColor, "down");
-                    // 표면 격자에 응축 위치 마커 (가장 가까운 surface 열에 snap)
                     const cellSize = 2 * this.r;
                     const colIdx = Math.floor((g.x - this.box.x) / cellSize);
                     const sp = this.surfaceParticles[
@@ -424,6 +505,23 @@ class VaporWorld {
             remain.push(g);
         }
         this.gasParticles = remain;
+
+        // Ghost 가스 — 통계만 (flash X, marker X)
+        const ghostRemain = [];
+        for (const g of this.ghostGasParticles) {
+            if (g.vy > 0 && g.y >= liquidTop - 5) {
+                const ke = 0.5 * (g.vx * g.vx + g.vy * g.vy) / ssq;
+                if (ke < E_capture) {
+                    this._ghostCondWin++;
+                    continue;
+                } else {
+                    g.vy = -g.vy;
+                    g.y = liquidTop - 5;
+                }
+            }
+            ghostRemain.push(g);
+        }
+        this.ghostGasParticles = ghostRemain;
     }
 
     _maybeTickRateAndLog() {
@@ -431,8 +529,12 @@ class VaporWorld {
         const elapsed = now - this._lastStatsT;
         if (elapsed < 1000) return;
         const elapsedSec = elapsed / 1000;
-        const evap1s = this._evapWin / elapsedSec;
-        const cond1s = this._condWin / elapsedSec;
+        // 통계 결합 — visible + ghost 모두 포함, visible-equivalent 로 정규화 (× visibleRatio)
+        // 잡음 √visibleRatio (≈0.32) 만큼 감소
+        const totalEvap = this._evapWin + this._ghostEvapWin;
+        const totalCond = this._condWin + this._ghostCondWin;
+        const evap1s = totalEvap * this.ghostVisibleRatio / elapsedSec;
+        const cond1s = totalCond * this.ghostVisibleRatio / elapsedSec;
 
         // 3초 rolling 평균 (rate_calc_window_sec) → 들쭉날쭉 평활
         const calcWin = Math.max(1, Math.round(this.cfg.rate_calc_window_sec ?? 3.0));
@@ -461,9 +563,7 @@ class VaporWorld {
             // index 무관 (eq line 은 max 도달 후에는 이미 한참 지난 시점이라 시각 영향 X)
         }
 
-        // 압력 EMA (잡음 흡수)
-        const P_alpha = this.cfg.pressure_ema_alpha ?? 0.1;
-        this._pressureSmoothed = P_alpha * this.pressureKPa + (1 - P_alpha) * this._pressureSmoothed;
+        // (P_EMA 는 update() per-frame 으로 이동 — 매 frame 잡음 흡수)
 
         // 평형 검출 — 거시 (P 기반 |P_now - P_eq| / P_eq < threshold, 잡음 X)
         const threshold = this.cfg.equilibrium_threshold_pressure ?? 0.05;
@@ -505,6 +605,8 @@ class VaporWorld {
 
         this._evapWin = 0;
         this._condWin = 0;
+        this._ghostEvapWin = 0;
+        this._ghostCondWin = 0;
         this._lastStatsT = now;
     }
 
