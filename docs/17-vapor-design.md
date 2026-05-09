@@ -176,6 +176,41 @@ MVP 외 후속 트랙 학습 목표:
 
 학습 목표 외 (액체 내부 분자 운동 정확 모델) 은 별 학습 자료로 분리.
 
+### P 카드 원복 + ratio 위치 이동 + base 튜닝 + 화살표 매칭 (fixup 11)
+
+CC 진단 (A 평형 도달 시간 ~70초로 학교 실험 정합 X / B P 카드 placeholder 복귀 + ratio third cell 이식 / D base 튜닝 시 균형 조정 / F 화살표 매칭 상쇄) 후 사용자 합의:
+
+**P 카드 원복** (fixup 8 placeholder 패턴):
+- mock 모드에서 학생 가시 P 카드 비공개 (정공법 회귀 흐름 일관).
+- real 모드 (Phase 6.3+) 진입 시 실측 P_vap + T 표시 (`vapor-real-only` div 보존).
+- 직전 fixup 10 ratio 카드 (P 카드 placeholder 활용) 폐기, 본 fixup 11 에서 third cell 로 이식.
+
+**rate 카드 third cell — 응축/증발 비율** (G-옵션 1):
+- 평형도 % cell 완전 폐기 (직전 fixup 9 hidden 상태였음, fixup 11 third cell 자체 비율로 교체).
+- 비율 텍스트 (`condEMA / evapEMA`) + zone 색 분기 (zero/low/mid/eq/over).
+- third cell 폭 ~85px → 텍스트 + 색이 단순 + 학생 인지 적정.
+- 1.0 평형 인지 = 녹색 도달 (zone "eq"). 1.0 marker / 막대 / axis 모두 폐기 (zone 색으로 충분).
+
+**base 튜닝 + 균형 조정** (D6 권장):
+- `base_evap_rate_per_particle_per_sec`: 0.025 → 0.010 (사용자 5분 평형 명시 정합).
+- `ghost_gas_visible_ratio`: 0.2 → 0.4 (base ↓ 보강, 시각 사건 부족 회피).
+- `rate_graph_initial_x_sec`: 60 → 180 (자동 스케일 발동 줄임, 학교 실험 시간 정합).
+- `pressure_per_visible_gas_kPa`: 0.03 → 0.06 (P plateau 의미 동일, real 모드 진입 시 무관).
+- 사이드 효과: 평형 visible gas plateau 약 30개, 동시 강조 ~6~8개, 잡음 √(1/0.4) 1.58배 상승 (rate 곡선 EMA 흡수).
+
+**화살표 매칭 상쇄** (F 옵션 1):
+- `_addFlash` 안 위·아래 큐 1쌍 즉시 캔슬 (위치 무관).
+- 신규 사건 시 반대 dir 큐 검사 → 1+개면 양쪽 캔슬 (제거 + spawn 안 함). 0개면 정상 spawn.
+- transient (evap >> cond): cond 큐 0 → 위 화살표 다수 → "증발 우세" 시각.
+- 평형 (evap ≈ cond): 매칭 빈번 → 화살표 거의 X → "균형" 시각.
+- 색 강조 (노랑/핑크) 별도 큐 — 사건 자체 가시화 보존.
+- rate 그래프 정량 절댓값 보존 (`_evapWin` / `_condWin` 카운터 매칭 영향 X).
+- 학습 계층 3단계: 색 (사건) + 화살표 (빈도 차) + rate (정량).
+- 코드 +6줄 (단순 큐 매칭). pending 큐 / 비동기 타이머 / fade 캔슬 효과 X (옵션 2 / 옵션 b 기각).
+
+**vapor.js 헤더 docstring 갱신**:
+- fixup 11 활성 명세 + 폐기 항목 누적 (`vapor-card-ratio` 큰 카드 + 막대 + marker + axis, `vapor-eq-percent` DOM).
+
 ### 응축/증발 비율 + UI 통일 + 잔재 정리 (fixup 10)
 
 CC 진단 (D3 setTemperature reset 누락 / F1-a liquid_jitter dead branch / G mock 학습 단서 부재 / H 사이드바 UI 변종) 후 사용자 합의:
@@ -631,6 +666,10 @@ rate 그래프 y_max 5 (낮은 rate 정합), 평형 임계 0.5/s + min_evap 1.5/
 | 사이드바 UI = 보일·돌턴 패턴 통일 (fixup 10) | 페이지 간 일관성 확보, 학생 인지 부담↓. vertical block field + button mode toggle + guard-note 색 분기. | 보일·돌턴과 별개 디자인 유지 (UI 변종, 학습 흐름 단절) |
 | setTemperature 시 EMA / dP 누적값 리셋 (fixup 10) | T 변경은 시뮬 동적 상태 reset 의미. EMA 잔존 → 곡선 lag, dP 누적 잔존 → 평형 검출 false positive. | 부분 reset (애매한 잔존 상태 — 디버그 어려움) |
 | liquid_jitter dead branch 제거 (fixup 10) | params.json `liquid_jitter_amp_px = 0` (사용 X) + lattice amp/phase 필드 + update() 분기 = 모두 dead code. 정적 격자 = 교과서 정합 (액체상 응집), jitter 는 직관 위반. | 키 보존 (옵션 미래 활성 여지 — YAGNI) |
+| P 카드 원복 (fixup 11, mock placeholder, real 모드 활성 자연 전환) | 정공법 회귀 흐름 일관 — 학생 가시 P 는 실측 도달 후 활성. fixup 10 ratio 카드 (P 카드 placeholder 활용) 시도 → 학생 단서는 third cell 로 충분, 큰 카드 시각 자원 P_vap 으로 예약. | ratio 카드 큰 카드 유지 (P_vap real 진입 시 layout 재구성 필요), P 카드 mock 활성 (정량 정합 시도 폐기 철학 위반) |
+| 비율 표시 = rate 카드 third cell + zone 색 (fixup 11, 옵션 1) | 폭 ~85px → 텍스트 + 색 분기 단순도 ◎. 평형 인지 = 녹색 도달 (직관). 1.0 marker / 막대 / axis 시각 자원 third cell 에 비좁음. | 인라인 50px 막대 (옵션 2, 폭 빡빡), underline 표지 (옵션 3, 옵션 1 보다 시각 부담 ↑) |
+| base_evap_rate 0.010 (fixup 11, 학교 실험 시간 정합) + 균형 조정 패키지 | 사용자 명시 5분 평형 정합. 시간상수 τ ≈ 50초 → 평형 도달 ~4~5분. 균형 조정 (ratio 0.4, rate 시간축 180s, P 단위 2배) 으로 시각 사건 부족 / 자동 스케일 빈발 / P plateau 의미 변동 동시 회피. | 0.025 유지 (학교 시간 정합 X), 0.012 (사이드 효과 적당하나 사용자 명시 5분 정합 살짝 모자람) |
+| 화살표 매칭 상쇄 (fixup 11, 즉시 매칭 / 위치 무관 / 즉시 사라짐) | 학습 계층 3단계 (색=사건, 화살표=빈도 차, rate=정량) 구분 명확화. 코드 +6줄, 시각 임팩트 큼. transient 위 화살표 다수 → 평형 거의 X = 학생 직관 정합. | 대기 후 매칭 (옵션 2, 비동기 타이머 복잡, 학생 인지 부자연), 위치 가까운 쌍 우선 (O(N×M) 효과 미미), 0.3초 fade 캔슬 (옵션 b, mock 정성 인지 단계 정합성 ↓) |
 
 ---
 

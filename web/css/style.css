@@ -4020,64 +4020,17 @@ body[data-page="vapor"] .vapor-pvap-big {
     font-variant-numeric: tabular-nums;
 }
 
-/* 응축/증발 비율 카드 (fixup 10) */
-body[data-page="vapor"] .vapor-ratio-big {
-    font-size: 32px;
-    font-weight: 500;
-    color: #0f172a;
+/* 응축/증발 비율 = rate 카드 third cell (fixup 11 — zone 색 분기) */
+body[data-page="vapor"] .vapor-ratio-text {
     font-variant-numeric: tabular-nums;
-    text-align: center;
-    margin: 4px 0 8px 0;
+    transition: color 0.3s ease;
 }
-body[data-page="vapor"] .vapor-ratio-bar-wrap {
-    position: relative;
-    width: 100%;
-    height: 12px;
-    background: #e2e8f0;
-    border-radius: 6px;
-    overflow: visible;
-    margin-bottom: 22px;
-}
-body[data-page="vapor"] .vapor-ratio-bar {
-    height: 100%;
-    width: 0%;
-    border-radius: 6px;
-    transition: width 0.2s ease-out, background 0.3s ease;
-    background: #cbd5e1;
-}
-body[data-page="vapor"] .vapor-ratio-bar[data-zone="zero"]   { background: #cbd5e1; }
-body[data-page="vapor"] .vapor-ratio-bar[data-zone="low"]    { background: #94a3b8; }
-body[data-page="vapor"] .vapor-ratio-bar[data-zone="mid"]    { background: #f59e0b; }
-body[data-page="vapor"] .vapor-ratio-bar[data-zone="eq"]     { background: #16a34a; }
-body[data-page="vapor"] .vapor-ratio-bar[data-zone="over"]   { background: #2563eb; }
-body[data-page="vapor"] .vapor-ratio-marker {
-    position: absolute;
-    top: -3px;
-    bottom: -3px;
-    /* 1.0 위치 = 100% × 1.0 / 1.5 = 66.67% */
-    left: 66.67%;
-    width: 2px;
-    background: #16a34a;
-    border-radius: 1px;
-}
-body[data-page="vapor"] .vapor-ratio-axis-labels {
-    position: absolute;
-    top: 14px;
-    left: 0;
-    right: 0;
-    display: flex;
-    justify-content: space-between;
-    font-size: 9px;
-    color: #94a3b8;
-    font-variant-numeric: tabular-nums;
-}
-body[data-page="vapor"] .vapor-ratio-axis-eq {
-    position: absolute;
-    left: 66.67%;
-    transform: translateX(-50%);
-    color: #16a34a;
-    font-weight: 600;
-}
+body[data-page="vapor"] .vapor-ratio-text[data-zone="zero"]   { color: #94a3b8; }
+body[data-page="vapor"] .vapor-ratio-text[data-zone="low"]    { color: #64748b; }
+body[data-page="vapor"] .vapor-ratio-text[data-zone="mid"]    { color: #f59e0b; }
+body[data-page="vapor"] .vapor-ratio-text[data-zone="eq"]     { color: #16a34a; font-weight: 600; }
+body[data-page="vapor"] .vapor-ratio-text[data-zone="over"]   { color: #2563eb; }
+
 body[data-page="vapor"] .vapor-pvap-big small {
     font-size: 12px;
     color: #64748b;

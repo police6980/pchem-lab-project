@@ -1,50 +1,54 @@
 // =============================================================
 // vapor.js — 증기압 시뮬 본체
-// Phase 6.1-b finalization fixup 10 (응축/증발 비율 + UI 통일 + 잔재 정리)
+// Phase 6.1-b finalization fixup 11 (P 카드 원복 + ratio third cell + base 튜닝 + 화살표 매칭)
 //
 // 핵심 철학 (정공법):
 //   학생 가시 = 실측 / 시뮬 = 미시 가시화 (정성적)
-//   mock 모드: P 카드 / 측정점 표 / P-T 그래프 / 평형 ★ + 평형도 % 모두 비공개
-//   mock 학생 단서 = 응축/증발 비율 (cond/evap EMA, 1.0 도달 시 평형)
+//   mock 모드: P 카드 placeholder / 측정점 표 / P-T 그래프 / 평형 ★ + 평형도 % 모두 비공개
+//   mock 학생 단서 = (1) rate 카드 third cell 비율 (cond/evap EMA + zone 색)
+//                  (2) 화살표 매칭 상쇄 (위·아래 1쌍 캔슬 → 빈도 차 시각)
+//                  (3) 색 강조 (노랑/핑크) — 사건 자체 가시화
 //   real 모드 (Phase 6.3+): 실측 P 기반 활성, 정량 학습 활동
 //
 // 활성 명세:
 //   ── 시뮬 모델 ──
 //     · Liquid lattice = 정적 격자, 반투명 단색 (#1E40AF / opacity 0.92)
-//       (liquid_jitter dead branch 제거 — fixup 10)
 //     · SurfaceParticle = KE 시각용만 (smooth random walk, 색 매핑)
 //     · 비동기 Poisson 사건 모델 (매 frame 독립 평가)
 //     · Boltzmann factor T 통합: rate(T) = base × exp(E_a × (1 - T_ref/T))
+//     · base_evap_rate = 0.010 /입자/s (fixup 11 — 학교 실험 시간 정합, T=25 평형 ~5분)
 //
 //   ── Ghost 통계 안정성 (보일 패턴 재사용) ──
 //     · ghost 표면 800 + visible 80 = 880, 모두 게이트 평가
-//     · 매 evap 시 visible_ratio (=0.1) 로 visible vs ghost 분기
-//     · 압력 / rate 통계 결합: total × 0.1 = visible-equivalent (잡음 √0.1 감소)
+//     · 매 evap 시 visible_ratio (=0.4, fixup 11 base 튜닝 보강) 로 visible vs ghost 분기
+//     · 압력 / rate 통계 결합: total × 0.4 = visible-equivalent
 //
-//   ── 시각 강조 형광 ──
-//     · 막 등장 가시 가스: 노랑 #FCD34D 1.5s + 0.5s fade + glow blur 25
-//     · 막 응결 격자: 핑크 #F472B6 1.5s + 0.5s fade + glow + 외곽 펄스
-//     · evap flash + 위 화살표 / cond flash + 아래 화살표 (액체 묻힘 회피)
+//   ── 시각 강조 (3계층 인지) ──
+//     · 사건 자체 = 노랑 #FCD34D (가시 가스 birth) + 핑크 #F472B6 (격자 응결)
+//                   둘 다 1.5s + 0.5s fade + glow blur 25 (별도 큐, 매칭 영향 X)
+//     · 빈도 차 = evap 위 화살표 / cond 아래 화살표 (fixup 11 매칭 상쇄)
+//                  _addFlash 안 위·아래 큐 1쌍 즉시 캔슬 (위치 무관)
+//                  transient (evap >> cond): 위 화살표 다수 / 평형 (evap ≈ cond): 화살표 거의 X
+//     · 정량 절댓값 = rate 그래프 두 곡선 만남 (_evapWin / _condWin 카운터, 매칭 영향 X)
 //
 //   ── rate 그래프 (학습 단서, 우측 카드 별도 canvas) ──
-//     · 시작부터 누적, x축 자동 스케일
+//     · 시작부터 누적, x축 자동 스케일 (initial=180s, fixup 11 — 학교 시간 척도)
 //     · EMA prime (첫 tick = raw, 워밍업 lag 차단 — fixup 9)
 //     · 학생 학습 = 두 곡선 만남 = 정성적 평형
 //
-//   ── 응축/증발 비율 카드 (mock 학습 단서 — fixup 10) ──
-//     · ratio = condEMA / evapEMA, 0~1.5 막대 + 1.0 marker
-//     · zone 색 (zero/low/mid/eq/over), 1.0 도달 시 평형
+//   ── rate 카드 third cell — 응축/증발 비율 (mock 학습 단서, fixup 11) ──
+//     · ratio = condEMA / evapEMA, 텍스트 + zone 색 분기
+//     · zone (zero/low/mid/eq/over), 1.0 도달 시 녹색 (eq) → 평형 인지
 //
 //   ── 평형 자동 감지 (mock 학생 가시 X — fixup 9) ──
 //     · 내부 P 변화율 기반 (real 진입 시 P_measured 자연 전환)
 //     · equilibriumReached / equilibriumPercent getter 보존 (real 모드 재사용)
-//     · DOM 학생 가시 layer 만 비공개 (★ 배지 + 평형도 % cell hidden)
 //
 //   ── setTemperature reset (fixup 10) ──
 //     · _emaPrimed = false, _pressureSmoothedPrev = null 추가
 //     · T 변경 시 evap 곡선 lag / relChange jump 회피
 //
-// 폐기 (fixup 누적 1~10):
+// 폐기 (fixup 누적 1~11):
 //   · KE 결정적 게이트 + 1초 동기 재샘플 (fixup 3)
 //   · sliding window 60초 (fixup 6, 누적으로 변경)
 //   · evap_rate_per_particle_per_sec (fixup 4, Boltzmann 으로 대체)
@@ -52,6 +56,9 @@
 //   · 평형 P 카드 / 측정점 표 / P-T 그래프 학생 가시 (fixup 8)
 //   · 평형 ★ + 평형도 % 학생 가시 (fixup 9, 정공법 완성)
 //   · liquid_jitter_amp_px config + lattice amp/phase 필드 + update() 분기 (fixup 10)
+//   · vapor-card-ratio 큰 카드 + ratio 막대 + 1.0 marker + axis labels (fixup 10 → 11 폐기)
+//     ratio 자체는 rate 카드 third cell 로 이식 (텍스트 + zone 색)
+//   · vapor-eq-percent DOM (fixup 9 hidden 상태였음, fixup 11 third cell 자체 비율로 교체 → 완전 폐기)
 //
 // docs/17 §6 참조.
 // =============================================================
@@ -475,6 +482,14 @@ class VaporWorld {
     }
 
     _addFlash(x, y, colorStr, dir) {
+        // 화살표 매칭 상쇄 (fixup 11 — 위·아래 1쌍 즉시 캔슬, 빈도 차 시각)
+        // 색 강조 (노랑/핑크) / rate 그래프 / condenseHighlights 는 별도 큐로 영향 X
+        const opposite = (dir === "up") ? "down" : "up";
+        const matchIdx = this.flashes.findIndex(f => f.dir === opposite);
+        if (matchIdx !== -1) {
+            this.flashes.splice(matchIdx, 1);
+            return;
+        }
         this.flashes.push({
             x, y, color: colorStr,
             dir: dir || "up",  // "up" = 증발 (y 감소 방향), "down" = 응축

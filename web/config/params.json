@@ -71,12 +71,12 @@
         "T_max_celsius": 65.0,
         "T_presets_celsius": [25, 35, 45, 55, 65],
         "reference_T_celsius": 25.0,
-        "base_evap_rate_per_particle_per_sec": 0.025,
+        "base_evap_rate_per_particle_per_sec": 0.010,
         "E_a_normalized": 18.3,
         "E_capture": 2.5,
 
         "ghost_surface_count": 800,
-        "ghost_gas_visible_ratio": 0.2,
+        "ghost_gas_visible_ratio": 0.4,
 
         "surface_KE_visual_smooth_factor": 0.05,
         "surface_KE_visual_target_change_sec": 2.0,
@@ -116,7 +116,7 @@
         "condense_pulse_radius_max_px": 24,
         "condense_pulse_duration_sec": 1.0,
 
-        "rate_graph_initial_x_sec": 60,
+        "rate_graph_initial_x_sec": 180,
         "rate_graph_max_time_sec": 1800,
         "rate_calc_window_sec": 3.0,
         "rate_ema_alpha": 0.1,
@@ -130,7 +130,7 @@
         "equilibrium_hold_sec": 5.0,
         "p_internal_ema_alpha": 0.05,
 
-        "pressure_per_visible_gas_kPa": 0.03,
+        "pressure_per_visible_gas_kPa": 0.06,
         "pressure_gauge_max_kPa": 30,
 
         "pt_graph_canvas_width_px": 380,

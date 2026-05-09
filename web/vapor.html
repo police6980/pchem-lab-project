@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CAST — 증기압 (Phase 6.1-b finalization + 6.2 부분)</title>
+    <title>CAST — 증기압 (Phase 6.1-b finalization fixup 11 + 6.2 부분)</title>
     <link rel="stylesheet" href="css/style.css">
     <script src="https://cdn.jsdelivr.net/npm/p5@1.11.2/lib/p5.min.js"></script>
     <script src="https://unpkg.com/docx@8.5.0/build/index.umd.js"></script>
@@ -22,7 +22,7 @@
 <body data-page="vapor">
     <nav class="page-nav vapor-nav">
         <a href="index.html" class="nav-home" title="홈으로 돌아가기">🏠 홈으로</a>
-        <span class="nav-title">증기압 — Phase 6.1-b finalization + 6.2 (T 통합)</span>
+        <span class="nav-title">증기압 — Phase 6.1-b finalization fixup 11 + 6.2 (T 통합)</span>
     </nav>
 
     <div id="vapor-layout-v2" class="vapor-layout-v2">
@@ -123,25 +123,14 @@
             <!-- 우: 영역 2 — 3 카드 -->
             <aside id="vapor-cards-region" class="vapor-cards-region" aria-label="측정 카드">
 
-                <!-- 응축/증발 비율 카드 (mock 학습 단서) — Phase 6.3+ P 카드로 복귀 가능 -->
-                <section class="vapor-card vapor-card-ratio">
-                    <h4>응축 / 증발 비율</h4>
-                    <div class="vapor-ratio-big">
-                        <span id="vapor-ratio-val">—</span>
+                <!-- 평형 P_vap 카드 — mock 모드 비공개, real 모드 활성 (fixup 11 원복) -->
+                <section class="vapor-card vapor-card-pvap">
+                    <h4>평형 증기압 P<sub>vap</sub></h4>
+                    <div class="vapor-mock-placeholder">
+                        <div class="vapor-mock-icon">📡</div>
+                        <div class="vapor-mock-text">측정 모드 활성 후 표시</div>
+                        <div class="vapor-mock-hint">Phase 6.3+ 실센서/Vernier 연결 시 활성화</div>
                     </div>
-                    <div class="vapor-ratio-bar-wrap" aria-hidden="true">
-                        <div id="vapor-ratio-bar" class="vapor-ratio-bar" data-zone="zero"></div>
-                        <div class="vapor-ratio-marker" title="평형 = 1.0"></div>
-                        <div class="vapor-ratio-axis-labels">
-                            <span>0</span>
-                            <span class="vapor-ratio-axis-eq">1.0</span>
-                            <span>1.5</span>
-                        </div>
-                    </div>
-                    <p class="vapor-card-note">
-                        1.0 도달 시 평형 (응축 = 증발).
-                    </p>
-                    <!-- Phase 6.3+ 진입 시 hidden 해제 → 실측 P 카드로 복귀 -->
                     <div class="vapor-real-only" hidden>
                         <div class="vapor-pvap-big">
                             <span id="vapor-pressure-val">—</span>
@@ -170,14 +159,14 @@
                             <span class="vapor-rate-label" style="color:#EA580C;">응축</span>
                             <span class="vapor-rate-value"><span id="vapor-cond-rate">—</span> /s</span>
                         </div>
-                        <!-- 평형도 % cell — mock 학생 가시 X (real 모드 진입 시 hidden 해제) -->
-                        <div class="vapor-rate-cell vapor-real-only" hidden>
-                            <span class="vapor-rate-label">평형도</span>
-                            <span class="vapor-rate-value"><span id="vapor-eq-percent">—</span> %</span>
+                        <!-- 비율 cell (fixup 11 — mock 학습 단서, zone 색 분기) -->
+                        <div class="vapor-rate-cell vapor-rate-cell-ratio">
+                            <span class="vapor-rate-label">비율</span>
+                            <span class="vapor-rate-value vapor-ratio-text" id="vapor-ratio-val" data-zone="zero">—</span>
                         </div>
                     </div>
                     <p class="vapor-card-note">
-                        두 곡선이 만나는 시점 = 정성적 평형. 학습 단서로 관찰하세요.
+                        두 곡선이 만나는 시점 = 정성적 평형. 비율 1.0 (녹색) 도달 시 평형.
                     </p>
                 </section>
 
