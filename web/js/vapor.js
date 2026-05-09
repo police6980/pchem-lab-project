@@ -31,6 +31,22 @@
 const VAPOR_DT_CAP = 0.05;
 const VAPOR_MARGIN_PX = 12;
 
+// ── 이론 p_vap 보간 (실측 표 기반) ──
+function vaporInterpolatePvap(table, T_celsius) {
+    if (!Array.isArray(table) || table.length === 0) return null;
+    if (T_celsius <= table[0][0]) return table[0][1];
+    if (T_celsius >= table[table.length - 1][0]) return table[table.length - 1][1];
+    for (let i = 0; i < table.length - 1; i++) {
+        const [T0, P0] = table[i];
+        const [T1, P1] = table[i + 1];
+        if (T_celsius >= T0 && T_celsius <= T1) {
+            const t = (T_celsius - T0) / (T1 - T0);
+            return P0 + t * (P1 - P0);
+        }
+    }
+    return null;
+}
+
 // ── MB KE 샘플링 — 정규분포 근사 (mean=kT, stddev=kT/√2, max(0, .)) ──
 function vaporSampleMBKE(kT) {
     const u1 = Math.random() || 1e-9;
@@ -46,12 +62,16 @@ function vaporColorFromKE(p, ke, slowColor, fastColor, keMin, keMax) {
 }
 
 class VaporWorld {
-    constructor(cfg, vFlaskMl, vLiquidMl) {
+    constructor(cfg, vFlaskMl, vLiquidMl, liquidType) {
         this.cfg = cfg;
         this.canvasW = cfg.canvas_width_px;
         this.canvasH = cfg.canvas_height_px;
         this.vFlaskMl = vFlaskMl;
         this.vLiquidMl = vLiquidMl;
+        this.liquidType = liquidType || "water";
+
+        // ── T 상태 (Boltzmann factor 기반 evap rate) ──
+        this.T_celsius = cfg.T_default_celsius ?? 25.0;
 
         // ── 캔버스 분할: 위쪽 sim 영역 + 아래쪽 rate graph 영역 ──
         this.rateGraphH = cfg.rate_graph_height_px ?? 80;
@@ -143,6 +163,7 @@ class VaporWorld {
         this.equilibriumStartIdx = null;
         this.equilibriumReached = false;
         this.equilibriumIdx = null;
+        this._equilibriumReachedAtSec = null;
 
         // mmol 계산
         this.N_total = this.liquidLattice.length + this.surfaceParticles.length;
@@ -154,7 +175,7 @@ class VaporWorld {
         return this.gasParticles.length * k;
     }
     get pressureBarPct() {
-        const max = this.cfg.pressure_kpa_max_for_bar ?? 30;
+        const max = this.cfg.pressure_gauge_max_kPa ?? this.cfg.pressure_kpa_max_for_bar ?? 30;
         return Math.min(100, (this.pressureKPa / max) * 100);
     }
     get surfaceCount() { return this.surfaceParticles.length; }
@@ -165,6 +186,45 @@ class VaporWorld {
         const m = Math.floor(sec / 60);
         const s = sec % 60;
         return `${m}분 ${String(s).padStart(2, "0")}초`;
+    }
+
+    // T 변경 (시뮬 리셋 X — 입자 그대로, 새 plateau 자연 도달)
+    setTemperature(T_celsius) {
+        this.T_celsius = T_celsius;
+        // 평형 검출 리셋 (이전 T 의 평형 무효)
+        this.equilibriumStartIdx = null;
+        this.equilibriumReached = false;
+        this.equilibriumIdx = null;
+        // 평형 도달 시간 기록 무효화
+        this._equilibriumReachedAtSec = null;
+    }
+
+    // Boltzmann factor: rate(T) = base × exp(E_a × (1 - T_ref/T))
+    evapRatePerParticlePerSec() {
+        const base = this.cfg.base_evap_rate_per_particle_per_sec ?? 0.025;
+        const E_a = this.cfg.E_a_normalized ?? 18.3;
+        const T_ref_K = (this.cfg.reference_T_celsius ?? 25.0) + 273.15;
+        const T_K = this.T_celsius + 273.15;
+        return base * Math.exp(E_a * (1 - T_ref_K / T_K));
+    }
+
+    // 이론 p_vap (현재 T 와 액체 종류 기반 표 보간)
+    get theoreticalPVap_kPa() {
+        const tbl = this.cfg.liquids?.[this.liquidType]?.p_vap_table_celsius_to_kpa;
+        return vaporInterpolatePvap(tbl, this.T_celsius);
+    }
+
+    // 평형도 % (rate 기반 1 - |Δ|/max)
+    get equilibriumPercent() {
+        const m = Math.max(this.evapEMA, this.condEMA);
+        if (m <= 0) return 0;
+        const diff = Math.abs(this.evapEMA - this.condEMA);
+        return Math.max(0, Math.min(100, (1 - diff / m) * 100));
+    }
+
+    // 평형 도달 시간 (자동 감지 시 기록)
+    get equilibriumReachedAtSec() {
+        return this._equilibriumReachedAtSec ?? null;
     }
     get equilibriumStatus() {
         if (this.equilibriumReached) return "평형";
@@ -213,7 +273,7 @@ class VaporWorld {
 
     _updateSurfaceAndPoissonEvap(dt, tSec) {
         const cfg = this.cfg;
-        const evapRate = cfg.evap_rate_per_particle_per_sec ?? 0.2;
+        const evapRate = this.evapRatePerParticlePerSec();
         const pEvapPerFrame = evapRate * dt;
         const smoothFactor = cfg.surface_KE_visual_smooth_factor ?? 0.05;
         const targetChangeMs = (cfg.surface_KE_visual_target_change_sec ?? 2.0) * 1000;
@@ -407,12 +467,13 @@ class VaporWorld {
             if (this.equilibriumIdx != null) this.equilibriumIdx -= 1;
         }
 
-        // 평형 검출
-        const threshold = this.cfg.equilibrium_threshold_per_sec ?? 1.0;
+        // 평형 검출 — 상대 임계 (|Δ|/max < 0.05)
+        const threshold = this.cfg.equilibrium_threshold ?? 0.05;
         const holdSec = this.cfg.equilibrium_hold_sec ?? 5;
         const minEvap = this.cfg.equilibrium_min_evap_per_sec ?? 1.0;
-        const diff = Math.abs(this.evapEMA - this.condEMA);
-        if (diff < threshold && this.evapEMA > minEvap) {
+        const m = Math.max(this.evapEMA, this.condEMA);
+        const relDiff = m > 0 ? Math.abs(this.evapEMA - this.condEMA) / m : 1.0;
+        if (relDiff < threshold && this.evapEMA > minEvap) {
             if (this.equilibriumStartIdx == null) {
                 this.equilibriumStartIdx = this.rateHistory.length - 1;
             } else if (!this.equilibriumReached) {
@@ -420,9 +481,10 @@ class VaporWorld {
                 if (dwell >= holdSec) {
                     this.equilibriumReached = true;
                     this.equilibriumIdx = this.equilibriumStartIdx;
+                    this._equilibriumReachedAtSec = this.elapsedSec;
                 }
             }
-        } else if (diff >= threshold && !this.equilibriumReached) {
+        } else if (relDiff >= threshold && !this.equilibriumReached) {
             this.equilibriumStartIdx = null;
         }
 
@@ -437,7 +499,9 @@ class VaporWorld {
         const eqTag = this.equilibriumReached ? " · 평형 ★"
                     : this.equilibriumStartIdx != null ? " · 평형 근접"
                     : "";
-        console.log(`[Vapor] evap=${evapRaw.toFixed(1)}/s (ema=${this.evapEMA.toFixed(1)}) · cond=${condRaw.toFixed(1)}/s (ema=${this.condEMA.toFixed(1)}) · gas=${this.gasParticles.length} · P=${this.pressureKPa.toFixed(1)}kPa${dbg}${eqTag}`);
+        const Pth = this.theoreticalPVap_kPa;
+        const PthTag = (typeof Pth === "number") ? ` (이론 ${Pth.toFixed(1)})` : "";
+        console.log(`[Vapor] T=${this.T_celsius.toFixed(0)}°C · evap=${evapRaw.toFixed(2)}/s (ema=${this.evapEMA.toFixed(2)}) · cond=${condRaw.toFixed(2)}/s (ema=${this.condEMA.toFixed(2)}) · gas=${this.gasParticles.length} · P=${this.pressureKPa.toFixed(2)}kPa${PthTag}${dbg}${eqTag}`);
 
         this._evapWin = 0;
         this._condWin = 0;
@@ -602,8 +666,15 @@ class VaporWorld {
         const gr = this.graphRect;
         const evapColor = cfg.rate_color_evap || "#2563EB";
         const condColor = cfg.rate_color_cond || "#EA580C";
-        const yMax = cfg.rate_y_max ?? 30;
+        const yMin = cfg.rate_y_min ?? 1.0;
+        const scaleFactor = cfg.rate_y_auto_scale_factor ?? 1.2;
         const windowSec = cfg.rate_window_sec ?? 60;
+        // y 자동 스케일 — 최근 rate 최대값 기반
+        let peak = Math.max(this.evapEMA, this.condEMA);
+        for (const r of this.rateHistory) {
+            peak = Math.max(peak, r.evap_ema, r.cond_ema);
+        }
+        const yMax = Math.max(yMin, peak * scaleFactor);
 
         // 배경 + 보더
         p.noStroke();
@@ -699,12 +770,12 @@ class VaporWorld {
             p.text("평형 도달", ex + 4, innerY + 2);
         }
 
-        // y 라벨
+        // y 라벨 (자동 스케일된 max)
         p.noStroke();
         p.fill(160);
         p.textSize(9);
         p.textAlign(p.RIGHT, p.TOP);
-        p.text(`${yMax}`, gr.x + gr.w - 4, innerY - 2);
+        p.text(`${yMax.toFixed(1)}`, gr.x + gr.w - 4, innerY - 2);
         p.textAlign(p.RIGHT, p.BOTTOM);
         p.text("0", gr.x + gr.w - 4, innerY + innerH + 2);
     }

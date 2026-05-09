@@ -3696,3 +3696,380 @@ body[data-page="vapor"] .vapor-learning-note {
     line-height: 1.5;
     color: #475569;
 }
+
+/* =============== Vapor 3-region layout (Phase 6.1-b finalization) =============== */
+body[data-page="vapor"] .vapor-layout-v2 {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 12px;
+    background: #f1f5f9;
+    min-height: calc(100vh - 56px);
+}
+body[data-page="vapor"] .vapor-top-row {
+    display: flex;
+    flex-direction: row;
+    gap: 12px;
+    align-items: flex-start;
+}
+body[data-page="vapor"] .vapor-control-narrow {
+    flex: 0 0 200px;
+    background: #fff;
+    border-radius: 6px;
+    padding: 12px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+body[data-page="vapor"] .vapor-control-narrow .vapor-section h3 {
+    font-size: 13px;
+    margin: 0 0 8px 0;
+    color: #334155;
+}
+body[data-page="vapor"] .vapor-control-narrow .vapor-input-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 6px;
+    font-size: 12px;
+}
+body[data-page="vapor"] .vapor-control-narrow .vapor-input-row label {
+    flex: 0 0 50px;
+    color: #475569;
+}
+body[data-page="vapor"] .vapor-control-narrow .vapor-input-row select,
+body[data-page="vapor"] .vapor-control-narrow .vapor-input-row input[type="number"] {
+    flex: 1;
+    min-width: 0;
+    padding: 3px 6px;
+    border: 1px solid #cbd5e1;
+    border-radius: 3px;
+    font-size: 12px;
+}
+body[data-page="vapor"] .vapor-control-narrow .vapor-button-row {
+    display: flex;
+    gap: 6px;
+    margin-top: 8px;
+}
+body[data-page="vapor"] .vapor-control-narrow .vapor-button-row button {
+    flex: 1;
+    padding: 6px;
+    border-radius: 3px;
+    border: 1px solid #2563eb;
+    background: #2563eb;
+    color: #fff;
+    cursor: pointer;
+    font-size: 12px;
+}
+body[data-page="vapor"] .vapor-control-narrow .vapor-button-row button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+body[data-page="vapor"] .vapor-mode-compact {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 11px;
+}
+body[data-page="vapor"] .vapor-note-tiny {
+    font-size: 10px;
+    color: #94a3b8;
+    margin: 4px 0 0 0;
+}
+body[data-page="vapor"] .vapor-mole-readout {
+    font-size: 10px;
+    color: #64748b;
+    margin-top: 6px;
+}
+body[data-page="vapor"] .vapor-guard-note {
+    display: block;
+    font-size: 10px;
+    color: #ef4444;
+    margin: -2px 0 4px 56px;
+}
+
+body[data-page="vapor"] .vapor-sim-region {
+    flex: 1 1 auto;
+    background: #fff;
+    border-radius: 6px;
+    padding: 12px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+body[data-page="vapor"] .vapor-sim-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 12px;
+    color: #475569;
+}
+body[data-page="vapor"] .vapor-sim-elapsed {
+    font-variant-numeric: tabular-nums;
+    font-weight: 500;
+}
+body[data-page="vapor"] .vapor-eq-badge {
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 500;
+    background: #e2e8f0;
+    color: #64748b;
+}
+body[data-page="vapor"] .vapor-eq-badge[data-state="yes"] {
+    background: #dcfce7;
+    color: #166534;
+}
+body[data-page="vapor"] .vapor-canvas-container {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 4px;
+    min-height: 300px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+body[data-page="vapor"] .vapor-canvas-placeholder {
+    color: #94a3b8;
+    font-size: 13px;
+    padding: 60px 20px;
+    text-align: center;
+}
+body[data-page="vapor"] .vapor-temperature-control {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 8px 4px;
+    border-top: 1px dashed #e2e8f0;
+}
+body[data-page="vapor"] .vapor-temp-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+body[data-page="vapor"] .vapor-temp-label {
+    flex: 0 0 auto;
+    font-size: 13px;
+    color: #475569;
+}
+body[data-page="vapor"] .vapor-temp-label strong {
+    color: #1e293b;
+    font-variant-numeric: tabular-nums;
+}
+body[data-page="vapor"] .vapor-temp-slider {
+    flex: 1;
+}
+body[data-page="vapor"] .vapor-temp-presets {
+    display: flex;
+    gap: 4px;
+    justify-content: flex-start;
+}
+body[data-page="vapor"] .vapor-temp-preset-btn {
+    padding: 4px 10px;
+    border: 1px solid #cbd5e1;
+    background: #f8fafc;
+    border-radius: 3px;
+    font-size: 12px;
+    cursor: pointer;
+    color: #475569;
+}
+body[data-page="vapor"] .vapor-temp-preset-btn:hover {
+    background: #e2e8f0;
+}
+body[data-page="vapor"] .vapor-temp-preset-btn.is-active {
+    background: #dbeafe;
+    border-color: #2563eb;
+    color: #1e40af;
+    font-weight: 600;
+}
+
+body[data-page="vapor"] .vapor-cards-region {
+    flex: 0 0 280px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+body[data-page="vapor"] .vapor-card {
+    background: #fff;
+    border-radius: 6px;
+    padding: 12px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+body[data-page="vapor"] .vapor-card h4 {
+    font-size: 12px;
+    color: #64748b;
+    margin: 0 0 8px 0;
+    text-transform: none;
+    letter-spacing: 0.02em;
+    font-weight: 500;
+}
+body[data-page="vapor"] .vapor-card-note {
+    font-size: 10px;
+    color: #94a3b8;
+    margin: 4px 0 6px 0;
+}
+body[data-page="vapor"] .vapor-pvap-big {
+    font-size: 26px;
+    font-weight: 500;
+    color: #0f172a;
+    font-variant-numeric: tabular-nums;
+}
+body[data-page="vapor"] .vapor-pvap-big small {
+    font-size: 12px;
+    color: #64748b;
+    font-weight: 400;
+    margin-left: 4px;
+}
+body[data-page="vapor"] .vapor-pvap-meta {
+    margin-top: 6px;
+    font-size: 11px;
+    color: #64748b;
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+body[data-page="vapor"] .vapor-pvap-meta strong {
+    color: #1e293b;
+    font-weight: 500;
+}
+body[data-page="vapor"] .vapor-rate-readouts {
+    display: flex;
+    gap: 12px;
+    justify-content: space-between;
+}
+body[data-page="vapor"] .vapor-rate-cell {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    text-align: center;
+}
+body[data-page="vapor"] .vapor-rate-label {
+    font-size: 10px;
+    margin-bottom: 2px;
+}
+body[data-page="vapor"] .vapor-rate-value {
+    font-size: 14px;
+    font-weight: 500;
+    color: #0f172a;
+    font-variant-numeric: tabular-nums;
+}
+body[data-page="vapor"] .vapor-counter-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font-size: 12px;
+    padding: 3px 0;
+}
+body[data-page="vapor"] .vapor-counter-label {
+    color: #64748b;
+}
+body[data-page="vapor"] .vapor-counter-value {
+    color: #0f172a;
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+}
+
+body[data-page="vapor"] .vapor-measurement-region {
+    background: #fff;
+    border-radius: 6px;
+    padding: 12px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+}
+body[data-page="vapor"] .vapor-measure-table-wrap {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+body[data-page="vapor"] .vapor-measure-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+}
+body[data-page="vapor"] .vapor-measure-header h3 {
+    margin: 0;
+    font-size: 14px;
+    color: #1e293b;
+}
+body[data-page="vapor"] .vapor-record-btn,
+body[data-page="vapor"] .vapor-clear-btn {
+    padding: 5px 12px;
+    border-radius: 4px;
+    border: 1px solid #2563eb;
+    background: #2563eb;
+    color: #fff;
+    font-size: 12px;
+    cursor: pointer;
+}
+body[data-page="vapor"] .vapor-clear-btn {
+    background: #fff;
+    color: #475569;
+    border-color: #cbd5e1;
+}
+body[data-page="vapor"] .vapor-record-btn:disabled,
+body[data-page="vapor"] .vapor-clear-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+body[data-page="vapor"] .vapor-measure-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+}
+body[data-page="vapor"] .vapor-measure-table th,
+body[data-page="vapor"] .vapor-measure-table td {
+    padding: 5px 8px;
+    text-align: right;
+    border-bottom: 1px solid #e2e8f0;
+    font-variant-numeric: tabular-nums;
+}
+body[data-page="vapor"] .vapor-measure-table th {
+    text-align: right;
+    color: #64748b;
+    font-weight: 500;
+    font-size: 11px;
+    background: #f8fafc;
+}
+body[data-page="vapor"] .vapor-measure-table th:first-child,
+body[data-page="vapor"] .vapor-measure-table td:first-child {
+    text-align: left;
+    color: #94a3b8;
+    width: 32px;
+}
+body[data-page="vapor"] .vapor-measure-table tr:hover {
+    background: #f8fafc;
+}
+body[data-page="vapor"] .vapor-measure-empty td {
+    text-align: center !important;
+    color: #94a3b8;
+    font-style: italic;
+    padding: 18px !important;
+}
+body[data-page="vapor"] .vapor-row-delete-btn {
+    padding: 1px 6px;
+    border: 1px solid #fca5a5;
+    background: #fff;
+    color: #dc2626;
+    border-radius: 3px;
+    font-size: 11px;
+    cursor: pointer;
+}
+body[data-page="vapor"] .vapor-row-delete-btn:hover {
+    background: #fee2e2;
+}
+body[data-page="vapor"] .vapor-pt-graph-wrap {
+    flex: 0 0 400px;
+}
+body[data-page="vapor"] .vapor-pt-graph-wrap h3 {
+    margin: 0 0 8px 0;
+    font-size: 14px;
+    color: #1e293b;
+}
+body[data-page="vapor"] #vapor-pt-graph-canvas {
+    border: 1px solid #e2e8f0;
+    border-radius: 4px;
+    background: #fff;
+    width: 380px;
+    height: 240px;
+}

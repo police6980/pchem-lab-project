@@ -176,6 +176,43 @@ MVP 외 후속 트랙 학습 목표:
 
 학습 목표 외 (액체 내부 분자 운동 정확 모델) 은 별 학습 자료로 분리.
 
+### Phase 6.1-b finalization + 6.2 부분 통합 (3 영역 + T)
+
+**3 영역 화면 (Johnstone 3수준 매핑)**:
+- 영역 1 (시뮬 + T): sub-micro — 분자 수준 사건 관찰
+- 영역 2 (P 게이지 + rate + 카운터 카드): macro + 속도론
+- 영역 3 (측정점 표 + P-T 그래프): symbolic
+
+학생 인지 흐름: T 설정 → 시뮬 관찰 → 평형 P 기록 → 데이터 누적 → 그래프 분석 → 관계 발견.
+
+**T 통합 (Boltzmann factor)**:
+- evap_rate(T) = `base_evap_rate_per_particle_per_sec` × exp(`E_a_normalized` × (1 − T_ref_K / T_K))
+- T_ref = 25°C 기준 (`reference_T_celsius`).
+- 칼리브: base = 0.025 (T_ref 에서 plateau ~50, P~3 kPa), E_a = 18.3 (실측 비율 정합).
+- T 변경 시 시뮬 리셋 X — 입자 그대로, evap rate 만 갱신, 새 plateau 자연 도달.
+- T 슬라이더 25–65°C 연속 + 5 프리셋 버튼 (25/35/45/55/65°C).
+- 사용자 spec 의 base=0.05, E_a=1.5 는 검증 체크리스트(P 비율 ~3) 와 수학 불일치 → 검증 우선시한 칼리브 값 적용. 이론 비교는 `liquids.water.p_vap_table_celsius_to_kpa` 실측 표 lookup 으로 별도 표시.
+
+**평형 자동 감지 (relative threshold)**:
+- |evap_ema − cond_ema| / max(evap, cond) < 0.05 가 5초 유지 + evap_ema > 1.0/s.
+- 평형 도달 시 `_equilibriumReachedAtSec` 절대 시간 기록.
+- 시뮬 헤더에 평형 배지 (비도달 / 근접 / 도달).
+- 영역 2 평형 P 카드: P_vap 큰 숫자 + 막대 + "이론 X.X kPa · 도달 YYYs".
+
+**측정점 표 + P-T 그래프 (영역 3)**:
+- "평형 P 기록" 버튼 — 평형 상태 시에만 활성. 클릭 시 (T, P, t_도달, P_이론) 행 추가.
+- 측정점 행별 삭제 버튼.
+- P-T 그래프 (HTML Canvas, 380×240): 회색 점선 = 이론 곡선 (실측 표), 파란 점 = 측정값.
+- ≥ `pt_graph_min_points_for_curve` (=4) 시 측정점 연결 직선.
+- ln P vs 1/T 토글 (univ) 은 6.5 후속.
+
+**시각 finalization (fixup 5 누적)**:
+- 액체 격자 #1E40AF + opacity 0.92.
+- 표면 입자 opacity 0.55.
+- 막 등장 기체 청 stroke 3.5 → 0.5 px / 2.5초 페이드.
+- 응축 표면 격자 주황 ring 3.5 px / 2.5초 페이드.
+- evap/cond flash 18 → 2 px / 1.0초 + 화살표 40 px × 3.5 px (cond 화살표 표면 위 30px → 표면, 액체 묻힘 회피).
+
 ### 시각 균형 — 사건 가시성 finalized (fixup 5)
 
 5+ 회 검증 후 시각 균형 finalized. 사용자 4 비판 1:1 매핑:

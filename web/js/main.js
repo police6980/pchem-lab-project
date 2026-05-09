@@ -3763,23 +3763,36 @@ function initVaporApp(params) {
         console.error("[Vapor] params.vapor 부재 — params.json 확인 필요.");
         return;
     }
-    console.log("[Vapor] initVaporApp 시작 (Phase 6.1-b). params.vapor keys:", Object.keys(cfg));
+    console.log("[Vapor] initVaporApp 시작 (Phase 6.1-b finalization + 6.2). params.vapor keys:", Object.keys(cfg));
 
     const dom = {
-        vFlaskSel:     document.getElementById("vapor-v-flask"),
-        vLiquidIn:     document.getElementById("vapor-v-liquid"),
-        liquidTypeSel: document.getElementById("vapor-liquid-type"),
-        btnStart:      document.getElementById("vapor-btn-start"),
-        btnReset:      document.getElementById("vapor-btn-reset"),
-        guardNote:     document.getElementById("vapor-v-liquid-guard"),
-        mmolSpan:      document.getElementById("vapor-mmol-per-particle"),
-        canvasCt:      document.getElementById("vapor-canvas-container"),
-        pressureVal:   document.getElementById("vapor-pressure-val"),
-        pressureBar:   document.getElementById("vapor-pressure-bar"),
-        surfaceCount:  document.getElementById("vapor-surface-count"),
-        gasCount:      document.getElementById("vapor-gas-count"),
-        eqStatus:      document.getElementById("vapor-equilibrium-status"),
-        elapsedTime:   document.getElementById("vapor-elapsed-time"),
+        vFlaskSel:        document.getElementById("vapor-v-flask"),
+        vLiquidIn:        document.getElementById("vapor-v-liquid"),
+        liquidTypeSel:    document.getElementById("vapor-liquid-type"),
+        btnStart:         document.getElementById("vapor-btn-start"),
+        btnReset:         document.getElementById("vapor-btn-reset"),
+        guardNote:        document.getElementById("vapor-v-liquid-guard"),
+        mmolSpan:         document.getElementById("vapor-mmol-per-particle"),
+        canvasCt:         document.getElementById("vapor-canvas-container"),
+        pressureVal:      document.getElementById("vapor-pressure-val"),
+        pressureBar:      document.getElementById("vapor-pressure-bar"),
+        pressureTheor:    document.getElementById("vapor-pressure-theoretical"),
+        eqReachTime:      document.getElementById("vapor-eq-reach-time"),
+        evapRateEl:       document.getElementById("vapor-evap-rate"),
+        condRateEl:       document.getElementById("vapor-cond-rate"),
+        eqPercentEl:      document.getElementById("vapor-eq-percent"),
+        surfaceCount:     document.getElementById("vapor-surface-count"),
+        gasCount:         document.getElementById("vapor-gas-count"),
+        latticeCount:     document.getElementById("vapor-lattice-count"),
+        eqBadge:          document.getElementById("vapor-equilibrium-badge"),
+        elapsedTime:      document.getElementById("vapor-elapsed-time"),
+        tempSlider:       document.getElementById("vapor-temp-slider"),
+        tempCurrent:      document.getElementById("vapor-temp-current"),
+        tempPresets:      document.getElementById("vapor-temp-presets"),
+        btnRecord:        document.getElementById("vapor-btn-record"),
+        btnClearPoints:   document.getElementById("vapor-btn-clear-points"),
+        measureTbody:     document.getElementById("vapor-measure-tbody"),
+        ptCanvas:         document.getElementById("vapor-pt-graph-canvas"),
     };
     for (const [k, v] of Object.entries(dom)) {
         if (!v) {
@@ -3788,13 +3801,23 @@ function initVaporApp(params) {
         }
     }
     const placeholderEl = dom.canvasCt.querySelector(".vapor-canvas-placeholder");
+    const ptCtx = dom.ptCanvas.getContext("2d");
 
     if (cfg.V_flask_default_mL)  dom.vFlaskSel.value = String(cfg.V_flask_default_mL);
     if (cfg.V_liquid_default_mL) dom.vLiquidIn.value = String(cfg.V_liquid_default_mL);
 
+    // T 초기값
+    const T_default = cfg.T_default_celsius ?? 25;
+    dom.tempSlider.min = String(cfg.T_min_celsius ?? 25);
+    dom.tempSlider.max = String(cfg.T_max_celsius ?? 65);
+    dom.tempSlider.value = String(T_default);
+    dom.tempCurrent.textContent = String(T_default);
+
     let p5Handle = null;
     let world = null;
     let readoutTimer = null;
+    const measurementPoints = [];   // {idx, T, P, t}
+    let measureCounter = 0;
 
     const getInputs = () => ({
         vFlask:  Number(dom.vFlaskSel.value),
@@ -3824,11 +3847,200 @@ function initVaporApp(params) {
     dom.vFlaskSel.addEventListener("change", validate);
     dom.vLiquidIn.addEventListener("input",  validate);
 
+    // ── T 컨트롤 ──
+    function applyTemperature(T) {
+        const T_clamped = Math.max(
+            Number(cfg.T_min_celsius ?? 25),
+            Math.min(Number(cfg.T_max_celsius ?? 65), Number(T))
+        );
+        dom.tempSlider.value = String(T_clamped);
+        dom.tempCurrent.textContent = String(T_clamped);
+        // preset 버튼 활성화 표시
+        const buttons = dom.tempPresets.querySelectorAll(".vapor-temp-preset-btn");
+        buttons.forEach(b => {
+            b.classList.toggle("is-active", Number(b.dataset.temp) === T_clamped);
+        });
+        if (world) {
+            world.setTemperature(T_clamped);
+            console.log(`[Vapor] T 변경 = ${T_clamped}°C · evap_rate = ${world.evapRatePerParticlePerSec().toFixed(4)}/입자/s`);
+        }
+    }
+    dom.tempSlider.addEventListener("input", (e) => applyTemperature(e.target.value));
+    dom.tempPresets.addEventListener("click", (e) => {
+        const btn = e.target.closest(".vapor-temp-preset-btn");
+        if (!btn) return;
+        applyTemperature(btn.dataset.temp);
+    });
+
+    // ── 측정점 표 + P-T 그래프 ──
+    function renderMeasurementTable() {
+        if (measurementPoints.length === 0) {
+            dom.measureTbody.innerHTML =
+                `<tr class="vapor-measure-empty"><td colspan="6">아직 측정점이 없습니다. 평형 도달 후 [기록] 버튼을 누르세요.</td></tr>`;
+            dom.btnClearPoints.disabled = true;
+            return;
+        }
+        dom.btnClearPoints.disabled = false;
+        const rows = measurementPoints.map((pt) => {
+            const tStr = (pt.t != null) ? pt.t.toFixed(0) : "—";
+            const PthStr = (pt.Ptheor != null) ? pt.Ptheor.toFixed(2) : "—";
+            return `<tr data-pt-idx="${pt.idx}">
+                <td>${pt.idx}</td>
+                <td>${pt.T.toFixed(0)}</td>
+                <td>${pt.P.toFixed(2)}</td>
+                <td>${tStr}</td>
+                <td>${PthStr}</td>
+                <td><button type="button" class="vapor-row-delete-btn" data-del-idx="${pt.idx}">삭제</button></td>
+            </tr>`;
+        }).join("");
+        dom.measureTbody.innerHTML = rows;
+    }
+    dom.measureTbody.addEventListener("click", (e) => {
+        const btn = e.target.closest("[data-del-idx]");
+        if (!btn) return;
+        const idx = Number(btn.dataset.delIdx);
+        const pos = measurementPoints.findIndex(p => p.idx === idx);
+        if (pos >= 0) {
+            measurementPoints.splice(pos, 1);
+            renderMeasurementTable();
+            drawPTGraph();
+        }
+    });
+
+    function recordEquilibrium() {
+        if (!world || !world.equilibriumReached) return;
+        measureCounter += 1;
+        const pt = {
+            idx: measureCounter,
+            T: world.T_celsius,
+            P: world.pressureKPa,
+            t: world.equilibriumReachedAtSec,
+            Ptheor: world.theoreticalPVap_kPa,
+        };
+        measurementPoints.push(pt);
+        renderMeasurementTable();
+        drawPTGraph();
+        console.log(`[Vapor] 측정점 추가 — #${pt.idx} T=${pt.T} P=${pt.P.toFixed(2)} t=${pt.t?.toFixed(0)}s`);
+    }
+    dom.btnRecord.addEventListener("click", recordEquilibrium);
+    dom.btnClearPoints.addEventListener("click", () => {
+        measurementPoints.length = 0;
+        measureCounter = 0;
+        renderMeasurementTable();
+        drawPTGraph();
+    });
+
+    function drawPTGraph() {
+        const W = dom.ptCanvas.width;
+        const H = dom.ptCanvas.height;
+        const T_min = cfg.pt_graph_T_min_celsius ?? 20;
+        const T_max = cfg.pt_graph_T_max_celsius ?? 70;
+        const P_min = cfg.pt_graph_P_min_kpa ?? 0;
+        const P_max = cfg.pt_graph_P_max_kpa ?? 35;
+        const padL = 42, padR = 12, padT = 14, padB = 30;
+        const innerW = W - padL - padR;
+        const innerH = H - padT - padB;
+
+        ptCtx.clearRect(0, 0, W, H);
+        ptCtx.fillStyle = "#fff";
+        ptCtx.fillRect(0, 0, W, H);
+
+        const mapX = (T) => padL + ((T - T_min) / (T_max - T_min)) * innerW;
+        const mapY = (P) => padT + innerH - ((P - P_min) / (P_max - P_min)) * innerH;
+
+        // axes
+        ptCtx.strokeStyle = "#cbd5e1";
+        ptCtx.lineWidth = 1;
+        ptCtx.beginPath();
+        ptCtx.moveTo(padL, padT);
+        ptCtx.lineTo(padL, padT + innerH);
+        ptCtx.lineTo(padL + innerW, padT + innerH);
+        ptCtx.stroke();
+
+        // ticks + labels
+        ptCtx.fillStyle = "#94a3b8";
+        ptCtx.font = "10px sans-serif";
+        ptCtx.textAlign = "center";
+        ptCtx.textBaseline = "top";
+        for (let T = 30; T <= 70; T += 10) {
+            const x = mapX(T);
+            ptCtx.beginPath();
+            ptCtx.moveTo(x, padT + innerH);
+            ptCtx.lineTo(x, padT + innerH + 3);
+            ptCtx.stroke();
+            ptCtx.fillText(`${T}`, x, padT + innerH + 5);
+        }
+        ptCtx.textAlign = "right";
+        ptCtx.textBaseline = "middle";
+        for (let P = 5; P <= 30; P += 5) {
+            const y = mapY(P);
+            ptCtx.beginPath();
+            ptCtx.moveTo(padL - 3, y);
+            ptCtx.lineTo(padL, y);
+            ptCtx.stroke();
+            ptCtx.fillText(`${P}`, padL - 5, y);
+        }
+        ptCtx.fillStyle = "#475569";
+        ptCtx.textAlign = "center";
+        ptCtx.textBaseline = "alphabetic";
+        ptCtx.fillText("T (°C)", padL + innerW / 2, H - 8);
+        ptCtx.save();
+        ptCtx.translate(12, padT + innerH / 2);
+        ptCtx.rotate(-Math.PI / 2);
+        ptCtx.fillText("P_vap (kPa)", 0, 0);
+        ptCtx.restore();
+
+        // 이론 곡선 (점선)
+        const liquid = (world?.liquidType) ?? "water";
+        const tbl = cfg.liquids?.[liquid]?.p_vap_table_celsius_to_kpa;
+        if (Array.isArray(tbl) && tbl.length >= 2) {
+            ptCtx.strokeStyle = "#94a3b8";
+            ptCtx.setLineDash([4, 4]);
+            ptCtx.lineWidth = 1.4;
+            ptCtx.beginPath();
+            for (let i = 0; i < tbl.length; i++) {
+                const [T, P] = tbl[i];
+                if (T < T_min || T > T_max) continue;
+                const x = mapX(T);
+                const y = mapY(Math.min(P, P_max));
+                if (i === 0) ptCtx.moveTo(x, y);
+                else ptCtx.lineTo(x, y);
+            }
+            ptCtx.stroke();
+            ptCtx.setLineDash([]);
+        }
+
+        // 측정점 + 연결선
+        if (measurementPoints.length > 0) {
+            const sorted = [...measurementPoints].sort((a, b) => a.T - b.T);
+            const minPtsForCurve = cfg.pt_graph_min_points_for_curve ?? 4;
+            if (sorted.length >= minPtsForCurve) {
+                ptCtx.strokeStyle = "#2563eb";
+                ptCtx.lineWidth = 1.6;
+                ptCtx.beginPath();
+                for (let i = 0; i < sorted.length; i++) {
+                    const x = mapX(sorted[i].T);
+                    const y = mapY(Math.min(sorted[i].P, P_max));
+                    if (i === 0) ptCtx.moveTo(x, y);
+                    else ptCtx.lineTo(x, y);
+                }
+                ptCtx.stroke();
+            }
+            ptCtx.fillStyle = "#1d4ed8";
+            for (const pt of measurementPoints) {
+                ptCtx.beginPath();
+                ptCtx.arc(mapX(pt.T), mapY(Math.min(pt.P, P_max)), 4, 0, Math.PI * 2);
+                ptCtx.fill();
+            }
+        }
+    }
+    drawPTGraph();
+
+    // ── 시작 ──
     dom.btnStart.addEventListener("click", () => {
         if (!validate()) return;
         const { vFlask, vLiquid, liquid } = getInputs();
 
-        // 입력 잠금
         dom.vFlaskSel.disabled = true;
         dom.vLiquidIn.disabled = true;
         dom.liquidTypeSel.disabled = true;
@@ -3837,29 +4049,39 @@ function initVaporApp(params) {
 
         if (placeholderEl) placeholderEl.style.display = "none";
 
-        world = new VaporWorld(cfg, vFlask, vLiquid);
+        world = new VaporWorld(cfg, vFlask, vLiquid, liquid);
+        world.setTemperature(Number(dom.tempSlider.value));
         p5Handle = mountVaporSketch(world, dom.canvasCt);
 
-        // 1 입자 ≈ X mmol — 격자 입자 수 (액체 격자 + 표면) 자동 계산 기반
         const molPerMl = (liquid === "water") ? cfg.water_mol_per_mL : 0;
         const totalMmol = vLiquid * molPerMl * 1000;
         const Nlattice = world.N_total ?? 1;
         const mmolPerParticle = totalMmol / Math.max(Nlattice, 1);
         dom.mmolSpan.textContent = mmolPerParticle.toFixed(3);
+        dom.latticeCount.textContent = String(world.liquidLattice.length);
 
-        console.log(`[Vapor] 시뮬 시작 — V_flask=${vFlask}mL · V_liquid=${vLiquid}mL · V_gas=${vFlask - vLiquid}mL · liquid=${liquid} · N_lattice=${Nlattice} · mmol/lattice-particle=${mmolPerParticle.toFixed(3)}`);
+        applyTemperature(Number(dom.tempSlider.value));
 
-        // 측정값 DOM 갱신 (200ms 주기) — pressure 게이지 + 입자 수 + 평형 상태
+        console.log(`[Vapor] 시뮬 시작 — V_flask=${vFlask}mL · V_liquid=${vLiquid}mL · liquid=${liquid} · N_lattice=${Nlattice} · T=${world.T_celsius}°C · evap_rate=${world.evapRatePerParticlePerSec().toFixed(4)}/입자/s`);
+
         if (readoutTimer) clearInterval(readoutTimer);
         readoutTimer = setInterval(() => {
             if (!world) return;
-            dom.pressureVal.textContent = world.pressureKPa.toFixed(1);
+            dom.pressureVal.textContent = world.pressureKPa.toFixed(2);
             dom.pressureBar.style.width = `${world.pressureBarPct.toFixed(1)}%`;
+            const Pth = world.theoreticalPVap_kPa;
+            dom.pressureTheor.textContent = (typeof Pth === "number") ? Pth.toFixed(2) : "—";
+            const tEq = world.equilibriumReachedAtSec;
+            dom.eqReachTime.textContent = (tEq != null) ? `${tEq.toFixed(0)}s` : "—";
+            dom.evapRateEl.textContent = world.evapEMA.toFixed(2);
+            dom.condRateEl.textContent = world.condEMA.toFixed(2);
+            dom.eqPercentEl.textContent = world.equilibriumPercent.toFixed(0);
             dom.surfaceCount.textContent = String(world.surfaceCount);
             dom.gasCount.textContent = String(world.gasCount);
-            dom.eqStatus.textContent = world.equilibriumStatus;
-            dom.eqStatus.dataset.state = world.equilibriumReached ? "yes" : "no";
+            dom.eqBadge.textContent = world.equilibriumReached ? "평형 도달 ★" : (world.equilibriumStartIdx != null ? "평형 근접" : "평형 비도달");
+            dom.eqBadge.dataset.state = world.equilibriumReached ? "yes" : "no";
             dom.elapsedTime.textContent = world.elapsedFormatted;
+            dom.btnRecord.disabled = !world.equilibriumReached;
         }, 200);
     });
 
@@ -3883,13 +4105,20 @@ function initVaporApp(params) {
         dom.mmolSpan.textContent = "—";
         dom.pressureVal.textContent = "—";
         dom.pressureBar.style.width = "0%";
+        dom.pressureTheor.textContent = "—";
+        dom.eqReachTime.textContent = "—";
+        dom.evapRateEl.textContent = "—";
+        dom.condRateEl.textContent = "—";
+        dom.eqPercentEl.textContent = "—";
         dom.surfaceCount.textContent = "—";
         dom.gasCount.textContent = "—";
-        dom.eqStatus.textContent = "—";
-        dom.eqStatus.dataset.state = "no";
+        dom.latticeCount.textContent = "—";
+        dom.eqBadge.textContent = "평형 비도달";
+        dom.eqBadge.dataset.state = "no";
         dom.elapsedTime.textContent = "—";
+        dom.btnRecord.disabled = true;
         validate();
-        console.log("[Vapor] 시뮬 리셋. 입력 재오픈.");
+        console.log("[Vapor] 시뮬 리셋. 입력 재오픈 (측정점 표는 유지).");
     });
 
     validate();

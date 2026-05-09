@@ -49,7 +49,7 @@
     },
 
     "vapor": {
-        "_comment": "Phase 6.1-b 시각 균형 fixup 5. 사용자 4 비판: (1) rate 그래프 들쭉날쭉, (2) 막 나온/들어간 입자 강조 부족, (3) 응축 화살표 액체 묻힘, (4) 액체 격자 시각 너무 강함. 평활 강화: rate_ema_alpha 0.3→0.1 + rate_calc_window_sec 3.0 (3초 평균). 그래프 시간축 60초 유지. 강조: gas birth_time 변수 + 청 테두리 2.5→0.5 px 2초 페이드, 응축 위치 표면 격자 주황 마커 2초. 응축 화살표: 표면 위 30px → 표면 (액체 묻힘 회피, 색 #DC2626 진한 빨강). 격자 톤다운: liquid_color #1E3A8A → #1E40AF + liquid_opacity 0.92.",
+        "_comment": "Phase 6.1-b finalization + 6.2 partial. 3 영역 화면 (시뮬+T / P_vap·rate·counter 카드 / 측정점 표·P-T 그래프) + Boltzmann factor T 통합 + 평형 자동 감지 + 이론값 비교. T 변경 시 시뮬 리셋 X. 기체 birth_time + 청 테두리 + 응축 ring 직전 fixup 5 그대로. 시각 강화: stroke 2.5→3.5 px, duration 2.0→2.5 s, flash 12→18 px / 4→2 px / 0.8→1.0 s, arrow 30→40 px / 2.5→3.5 px. 폐기: evap_rate_per_particle_per_sec (Boltzmann 으로 대체), pressure_kpa_max_for_bar (renamed pressure_gauge_max_kPa), rate_y_max (auto-scale), equilibrium_threshold_per_sec (relative threshold). T 칼리브: base=0.025, E_a=18.3 (사용자 spec base=0.05, E_a=1.5 는 P_vap 비율 검증 체크리스트와 수학 불일치 — 검증 우선시).",
         "V_flask_presets_mL": [100, 250, 500],
         "V_flask_default_mL": 250,
         "V_liquid_default_mL": 50,
@@ -66,7 +66,13 @@
         "surface_jitter_amp_px": 2,
         "surface_opacity": 0.55,
 
-        "evap_rate_per_particle_per_sec": 0.025,
+        "T_default_celsius": 25.0,
+        "T_min_celsius": 25.0,
+        "T_max_celsius": 65.0,
+        "T_presets_celsius": [25, 35, 45, 55, 65],
+        "reference_T_celsius": 25.0,
+        "base_evap_rate_per_particle_per_sec": 0.025,
+        "E_a_normalized": 18.3,
         "E_capture": 2.5,
 
         "surface_KE_visual_smooth_factor": 0.05,
@@ -87,19 +93,19 @@
 
         "evap_flash_color": "#2563EB",
         "cond_flash_color": "#DC2626",
-        "flash_duration_sec": 0.8,
-        "flash_radius_start_px": 12,
-        "flash_radius_end_px": 4,
-        "flash_arrow_length_px": 30,
-        "flash_arrow_thickness_px": 2.5,
+        "flash_duration_sec": 1.0,
+        "flash_radius_start_px": 18,
+        "flash_radius_end_px": 2,
+        "flash_arrow_length_px": 40,
+        "flash_arrow_thickness_px": 3.5,
 
-        "gas_birth_highlight_duration_sec": 2.0,
-        "gas_birth_stroke_start_px": 2.5,
+        "gas_birth_highlight_duration_sec": 2.5,
+        "gas_birth_stroke_start_px": 3.5,
         "gas_birth_stroke_end_px": 0.5,
         "gas_birth_highlight_color": "#2563EB",
 
-        "condense_highlight_duration_sec": 2.0,
-        "condense_highlight_stroke_px": 2.5,
+        "condense_highlight_duration_sec": 2.5,
+        "condense_highlight_stroke_px": 3.5,
         "condense_highlight_color": "#EA580C",
 
         "rate_window_sec": 60,
@@ -107,15 +113,43 @@
         "rate_ema_alpha": 0.1,
         "rate_color_evap": "#2563EB",
         "rate_color_cond": "#EA580C",
-        "rate_y_max": 5,
-        "equilibrium_threshold_per_sec": 0.5,
-        "equilibrium_hold_sec": 5,
-        "equilibrium_min_evap_per_sec": 1.5,
+        "rate_y_min": 1.0,
+        "rate_y_auto_scale_factor": 1.2,
+
+        "equilibrium_threshold": 0.05,
+        "equilibrium_hold_sec": 5.0,
+        "equilibrium_min_evap_per_sec": 1.0,
 
         "pressure_kpa_per_gas_particle": 0.06,
-        "pressure_kpa_max_for_bar": 8,
+        "pressure_gauge_max_kPa": 30,
+
+        "pt_graph_canvas_width_px": 380,
+        "pt_graph_canvas_height_px": 240,
+        "pt_graph_T_min_celsius": 20,
+        "pt_graph_T_max_celsius": 70,
+        "pt_graph_P_min_kpa": 0,
+        "pt_graph_P_max_kpa": 35,
+        "pt_graph_min_points_for_curve": 4,
+
+        "liquids": {
+            "water": {
+                "label": "물 (H₂O)",
+                "p_vap_table_celsius_to_kpa": [
+                    [25, 3.17],
+                    [30, 4.24],
+                    [35, 5.62],
+                    [40, 7.38],
+                    [45, 9.59],
+                    [50, 12.34],
+                    [55, 15.74],
+                    [60, 19.92],
+                    [65, 25.03],
+                    [70, 31.16]
+                ]
+            }
+        },
 
         "water_mol_per_mL": 0.05551,
-        "_units_note": "시간 척도 학교 실험 정합. evap_rate_per_particle_per_sec 0.025: 95 surface × 0.025 ≈ 2.4/s. plateau gas ~50, 평형 ~120~180s. pressure 0.06 kPa/입자: plateau 50 → 3 kPa = 25°C 물 증기압 정합 (실측 3.17). 평활 강화 (fixup 5): rate_ema_alpha 0.1 (직전 0.3) + rate_calc_window_sec 3.0 (3초 raw rate 평균 후 EMA). rate_window_sec 60 = 그래프 시간축 60초. 시각 균형 (fixup 5): liquid_color #1E40AF + liquid_opacity 0.92 (격자 톤 다운), gas_birth_highlight 청 테두리 2.5→0.5 px 2초 페이드, condense_highlight 표면 격자 주황 ring 2.5 px 2초 페이드. cond 화살표 색 #DC2626 (진한 빨강). 응축 화살표 위치: 표면 위 30 px → 표면 (액체 묻힘 회피). gas_spawn_KE [2.0, 4.0]. gas_speed_scale 50, gas_velocity_damping 0.9995, gas_gravity 0.0005, ceiling_KE_retention 0.85. T 변경(Phase 6.2~)은 evap_rate 자체를 T 함수로."
+        "_units_note": "T 통합 (Boltzmann factor): evap_rate(T) = base × exp(E_a × (1 - T_ref_K / T_K)). 칼리브: base=0.025, E_a=18.3 → T=25°C 시 base 그대로 (0.025/입자/s, plateau ~50, P~3 kPa), T=45°C 시 0.025 × 3.17 = 0.0793/입자/s (plateau ~150, P~9.5 kPa), T=65°C 시 0.025 × 8.66 = 0.217/입자/s (plateau ~412, P~25 kPa). p_vap_table 은 이론값 (실측 표) — 시뮬 값과 비교 표시. 평형 자동 감지: |evap_ema - cond_ema| / max < 0.05 가 5초 유지 + evap_ema > 1.0/s. T 변경 시 시뮬 리셋 X — 입자 분포 유지하며 새 plateau 자연 도달. 시각 강화 (finalization): stroke 3.5 px / duration 2.5 s / flash 18→2 px / 1.0 s / arrow 40 px × 3.5 px. rate_y 자동 스케일: max(evap_ema, cond_ema, history) × 1.2, 최소 1.0. 측정점 표 + P-T 그래프 (이론 곡선 점선 + 측정점 점 + ≥4 점 시 직선 연결). gas 물리 변경 X (damping 0.9995, gravity 0.0005, ceiling 0.85). 격자 N 자동: V_liquid/V_flask=0.2 시 ~800 lattice + 95 surface."
     }
 }
