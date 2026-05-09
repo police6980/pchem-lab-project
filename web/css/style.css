@@ -3669,20 +3669,7 @@ body[data-page="vapor"] .vapor-readout-hint {
     font-weight: 400;
     margin-left: 4px;
 }
-body[data-page="vapor"] .vapor-pressure-bar-wrap {
-    width: 100%;
-    height: 8px;
-    background: #e2e8f0;
-    border-radius: 4px;
-    overflow: hidden;
-    margin: 2px 0 8px 0;
-}
-body[data-page="vapor"] .vapor-pressure-bar {
-    height: 100%;
-    width: 0%;
-    background: linear-gradient(90deg, #3b82f6, #1d4ed8);
-    transition: width 0.2s ease-out;
-}
+/* fixup 15s — .vapor-pressure-bar-wrap + .vapor-pressure-bar 폐기 (SVG 압력계 바늘이 시각 대체) */
 body[data-page="vapor"] #vapor-equilibrium-status[data-state="yes"] {
     color: #16a34a;
 }
@@ -3697,7 +3684,7 @@ body[data-page="vapor"] .vapor-learning-note {
     color: #475569;
 }
 
-/* =============== Vapor 3-region layout (Phase 6.1-b finalization fixup 15p) ===============
+/* =============== Vapor 3-region layout (Phase 6.1-b finalization fixup 15s) ===============
    fixup 15j — P 영역 부활 (.vapor-tp-pressure vapor-real-only hidden 제거 + placeholder 폐기 +
    단순화) + measurement-region mock placeholder 폐기 + 측정 표 이론 컬럼 폐기.
    .vapor-tp-pressure-mock + 자식 styles 폐기.
@@ -3744,7 +3731,15 @@ body[data-page="vapor"] .vapor-learning-note {
 
    fixup 15p — 가스 입자 수 부활 (T+P 카드 P 영역 하단 inline, 별도 카드 X).
    .vapor-pvap-particles 신규 (small text + strong tabular-nums).
-   3단계 reversal: 15g 분자 수 카드 신규 → 15h 폐기 → 15p 위치 변경 부활. */
+   3단계 reversal: 15g 분자 수 카드 신규 → 15h 폐기 → 15p 위치 변경 부활.
+
+   fixup 15s — P 영역 그래픽화 (좌 SVG 압력계 + 우 LCD 시계 + 입자 막대, 좌우 55:45 분할).
+   .vapor-pvap-big / .vapor-pressure-bar-wrap / .vapor-pressure-bar / .vapor-pvap-meta /
+   .vapor-pvap-particles 모두 폐기 → 통합 그래픽화.
+   .vapor-tp-pressure-body / .vapor-tp-pressure-left / .vapor-tp-pressure-right (flex 55:45 + 모바일 stack).
+   .vapor-pressure-gauge (SVG max-width 200) + #vapor-gauge-needle (transform 0.2s ease-out).
+   .vapor-tp-clock (LCD 어두운 배경 + LED 진한 녹 + 글로우, MM:SS).
+   .vapor-tp-particles + .vapor-tp-particles-bar (정적 max 1000, gradient #93c5fd → #60a5fa). */
 body[data-page="vapor"] .vapor-layout-v2 {
     display: flex;
     flex-direction: column;
@@ -4265,11 +4260,92 @@ body[data-page="vapor"] .vapor-card-note {
     color: #94a3b8;
     margin: 4px 0 6px 0;
 }
-body[data-page="vapor"] .vapor-pvap-big {
-    font-size: 26px;
-    font-weight: 500;
-    color: #0f172a;
+/* fixup 15s — .vapor-pvap-big / .vapor-pvap-big small / .vapor-pvap-meta / .vapor-pvap-meta strong /
+                .vapor-pvap-particles / .vapor-pvap-particles strong (15p) 폐기 — SVG 압력계 + LCD 시계 +
+                입자 막대 통합 그래픽화 (좌 55% / 우 45%). */
+/* 좌우 분할 — fixup 15s P 영역 그래픽화 */
+body[data-page="vapor"] .vapor-tp-pressure-body {
+    display: flex;
+    flex-direction: row;
+    gap: 8px;
+    align-items: stretch;
+}
+body[data-page="vapor"] .vapor-tp-pressure-left {
+    flex: 0 0 55%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+body[data-page="vapor"] .vapor-tp-pressure-right {
+    flex: 1 1 45%;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    justify-content: center;
+}
+/* SVG 반원 압력계 (viewBox 200×120, 바늘 ±90° rotate) */
+body[data-page="vapor"] .vapor-pressure-gauge {
+    width: 100%;
+    height: auto;
+    max-width: 200px;
+}
+body[data-page="vapor"] #vapor-gauge-needle {
+    transition: transform 0.2s ease-out;
+}
+/* LCD 풍 전자시계 (어두운 배경 + 진한 녹 LED + 글로우) */
+body[data-page="vapor"] .vapor-tp-clock {
+    background: #0f172a;
+    color: #86efac;
+    padding: 8px 10px;
+    border-radius: 4px;
+    text-align: center;
+    border: 1px solid #1e293b;
+    box-shadow: inset 0 1px 3px rgba(0,0,0,0.2);
+}
+body[data-page="vapor"] .vapor-tp-clock-label {
+    font-size: 9px;
+    opacity: 0.65;
+    display: block;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 3px;
+}
+body[data-page="vapor"] .vapor-tp-clock-value {
+    font-family: ui-monospace, "Courier New", monospace;
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
     font-variant-numeric: tabular-nums;
+    text-shadow: 0 0 4px rgba(134, 239, 172, 0.4);
+}
+/* 입자 수 라벨 + 막대 (정적 max 1000, gradient #93c5fd → #60a5fa, 가스 색 정합) */
+body[data-page="vapor"] .vapor-tp-particles {
+    margin-top: 4px;
+}
+body[data-page="vapor"] .vapor-tp-particles-label {
+    font-size: 11px;
+    color: #64748b;
+    margin-bottom: 5px;
+    text-align: center;
+}
+body[data-page="vapor"] .vapor-tp-particles-label strong {
+    color: #1e293b;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    font-size: 13px;
+}
+body[data-page="vapor"] .vapor-tp-particles-bar-wrap {
+    width: 100%;
+    height: 8px;
+    background: #e2e8f0;
+    border-radius: 4px;
+    overflow: hidden;
+}
+body[data-page="vapor"] .vapor-tp-particles-bar {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, #93c5fd, #60a5fa);
+    transition: width 0.3s ease-out;
 }
 
 /* 응축/증발 비율 = rate 카드 third cell (fixup 11 — zone 색 분기) */
@@ -4284,36 +4360,7 @@ body[data-page="vapor"] .vapor-ratio-text[data-zone="detected"]  { color: #16a34
 body[data-page="vapor"] .vapor-ratio-text[data-zone="confirmed"] { color: #14532d; font-weight: 700; }
 body[data-page="vapor"] .vapor-ratio-text[data-zone="exit"]      { color: #ea580c; font-weight: 600; }
 
-body[data-page="vapor"] .vapor-pvap-big small {
-    font-size: 12px;
-    color: #64748b;
-    font-weight: 400;
-    margin-left: 4px;
-}
-body[data-page="vapor"] .vapor-pvap-meta {
-    margin-top: 6px;
-    font-size: 11px;
-    color: #64748b;
-    display: flex;
-    gap: 6px;
-    flex-wrap: wrap;
-}
-body[data-page="vapor"] .vapor-pvap-meta strong {
-    color: #1e293b;
-    font-weight: 500;
-}
-/* fixup 15p — 가스 입자 수 부활 (P 영역 하단 inline, 학습 단서: 입자 수 = 증기압 source) */
-body[data-page="vapor"] .vapor-pvap-particles {
-    margin-top: 8px;
-    font-size: 12px;
-    color: #64748b;
-    text-align: left;
-}
-body[data-page="vapor"] .vapor-pvap-particles strong {
-    color: #1e293b;
-    font-weight: 600;
-    font-variant-numeric: tabular-nums;
-}
+/* fixup 15s — .vapor-pvap-big small / .vapor-pvap-meta / .vapor-pvap-particles 전부 폐기 (그래픽화 통합) */
 body[data-page="vapor"] #vapor-rate-canvas {
     display: block;
     /* fixup 15l — max-width 256 폐기 → 100% (카드 폭 정합, 좌측 치우침 해소).
@@ -4594,4 +4641,12 @@ body[data-page="vapor"] .vapor-mock-hint {
         flex-wrap: wrap;
     }
     /* fixup 15h — .vapor-goals-grid 폐기 (학습 목표 카드 자체 폐기) */
+    /* fixup 15s — P 영역 좌우 분할 모바일 stack (압력계 위 / 시계+막대 아래) */
+    body[data-page="vapor"] .vapor-tp-pressure-body {
+        flex-direction: column;
+    }
+    body[data-page="vapor"] .vapor-tp-pressure-left,
+    body[data-page="vapor"] .vapor-tp-pressure-right {
+        flex: 1 1 auto;
+    }
 }

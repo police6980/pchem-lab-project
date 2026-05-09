@@ -1,6 +1,6 @@
 // =============================================================
 // vapor.js — 증기압 시뮬 본체
-// Phase 6.1-b finalization fixup 15p (가스 입자 수 부활 — T+P 카드 P 영역 하단 inline)
+// Phase 6.1-b finalization fixup 15s (P 영역 그래픽화 — SVG 압력계 + LCD 시계 + 입자 막대)
 //
 // 핵심 철학 (정공법):
 //   학생 가시 = 실측 / 시뮬 = 미시 가시화 (정성적)
@@ -289,6 +289,35 @@
 //   · main.js dom dict gasCount 부활 + 200ms readout (world.gasParticles.length) + reset "—".
 //   · style.css .vapor-pvap-particles small text + strong tabular-nums.
 //   · world.gasCount getter (vapor.js, 15h 폐기 시 보존됨) 사용 가능 단 main.js 직접 world.gasParticles.length 호출.
+//
+// 추가 (fixup 15s — P 영역 그래픽화, 좌 SVG 압력계 + 우 LCD 시계 + 입자 막대, 시각 풍부 + Johnstone 통합):
+//   · 사용자 비판: "뭔가 너무 비어보이는데 그래픽 써가면서 풍부하게"
+//   · 사용자 명시: "입자 수와 압력을 동그란 아날로그 압력계로... 도달 시간은 전자시계 형태"
+//   · Johnstone 3수준 통합 시각화: 시뮬 (입자 가시화) = 미시 / 측정 도구 (압력계 + 시계) = 거시 /
+//                                    rate 그래프 + 비율 = 기호.
+//   · vapor.html .vapor-tp-pressure 통째 교체:
+//     - 폐기: .vapor-pvap-big / .vapor-pressure-bar-wrap / .vapor-pressure-bar / .vapor-pvap-meta /
+//             .vapor-pvap-particles (15p 신규 → 15s 우측 영역으로 통합 이동).
+//     - 신규: .vapor-tp-pressure-body (flex row 55:45) → .vapor-tp-pressure-left (SVG gauge) +
+//             .vapor-tp-pressure-right (clock + particles).
+//   · SVG 반원 압력계 (viewBox 200×120, 중심 pivot 100,105, arc radius 85):
+//     - 배경 호 (회색 트랙) + 4 눈금 라벨 (0/10/20/30 kPa) + 바늘 + 중앙 큰 숫자.
+//     - 바늘 동적 갱신: angle = (P/30)×180 - 90 clamp ±90° (CSS transform: rotate).
+//     - 색: 호 #e2e8f0 / 바늘 #dc2626 (전통 압력계 정합) / pivot #1e293b / 라벨 #64748b.
+//   · LCD 풍 전자시계 (어두운 배경 #0f172a + LED 진한 녹 #86efac + text-shadow 글로우):
+//     - 형식 "MM:SS" padStart (예: "01:25"), 미도달 "—:—".
+//     - monospace 폰트 + tabular-nums + 글자 spacing + 라벨 작은 대문자.
+//   · 입자 수 막대 (정적 max 1000):
+//     - 라벨 "가스 입자 N 개" (strong tabular-nums) + 막대 width = (n/1000)×100% clamp.
+//     - 색 gradient #93c5fd → #60a5fa (가스 색 정합, 15o 단일 색).
+//     - 정적 max 사유: 동적 max = visual jitter (입자 ↑↓ 시 막대 비례 흔들림) → 학습 가치 ↓.
+//                      정적 1000 = T=65 평형 ~730 < 1000 안전 marg + 학생 T별 채움 시각 인지.
+//   · main.js dom dict 변동: gaugeNeedle / particlesBar 신규, pressureBar 폐기.
+//                            200ms readout: 바늘 angle + 시계 MM:SS + 막대 width 갱신.
+//                            reset: 바늘 -90° + 시계 "—:—" + 막대 0% 정합.
+//   · 768 미만 모바일 반응형: .vapor-tp-pressure-body flex-direction column (압력계 위 / 시계+막대 아래).
+//   · 정공법 정합: 시각만 풍부, 데이터 source 그대로 (world.pressureKPa, world.equilibriumReachedAtSec,
+//                  world.gasParticles.length). 모드 분기 (mock/real, 15j) 영향 X.
 //
 // docs/17 §6 참조.
 // =============================================================

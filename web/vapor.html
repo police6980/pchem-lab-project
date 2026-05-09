@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CAST — 증기압 (Phase 6.1-b finalization fixup 15p + 6.2 부분)</title>
+    <title>CAST — 증기압 (Phase 6.1-b finalization fixup 15s + 6.2 부분)</title>
     <link rel="stylesheet" href="css/style.css">
     <script src="https://cdn.jsdelivr.net/npm/p5@1.11.2/lib/p5.min.js"></script>
     <script src="https://unpkg.com/docx@8.5.0/build/index.umd.js"></script>
@@ -22,7 +22,7 @@
 <body data-page="vapor">
     <nav class="page-nav vapor-nav">
         <a href="index.html" class="nav-home" title="홈으로 돌아가기">🏠 홈으로</a>
-        <span class="nav-title">증기압 — Phase 6.1-b finalization fixup 15p + 6.2 (T 통합)</span>
+        <span class="nav-title">증기압 — Phase 6.1-b finalization fixup 15s + 6.2 (T 통합)</span>
     </nav>
 
     <div id="vapor-layout-v2" class="vapor-layout-v2">
@@ -145,23 +145,58 @@
                     <!-- 구분선 (fixup 15j 부활) — T 영역 / P 영역 -->
                     <div class="vapor-tp-divider" aria-hidden="true"></div>
 
-                    <!-- P 영역 (fixup 15j 부활: 단일 측정값 + 모드별 source.
+                    <!-- P 영역 (fixup 15j 부활 단일 측정값 + 모드별 source.
+                         fixup 15s — 그래픽화: 좌 55% SVG 아날로그 압력계 / 우 45% LCD 전자시계 + 입자 막대.
+                         15p 가스 입자 inline 텍스트 → 15s 우측 영역 막대 + LCD 풍 시각 풍부.
                          mock = world.pressureKPa / real (Phase 6.3+) = 실측 센서 → 동일 DOM, source 자동 전환) -->
                     <div class="vapor-tp-section vapor-tp-pressure">
                         <div class="vapor-tp-section-label">평형 증기압 P<sub>vap</sub></div>
-                        <div class="vapor-pvap-big">
-                            <span id="vapor-pressure-val">—</span><small>kPa</small>
-                        </div>
-                        <div class="vapor-pressure-bar-wrap" aria-hidden="true">
-                            <div id="vapor-pressure-bar" class="vapor-pressure-bar"></div>
-                        </div>
-                        <div class="vapor-pvap-meta">
-                            <span>도달 <strong id="vapor-eq-reach-time">—</strong></span>
-                        </div>
-                        <!-- fixup 15p — 가스 입자 수 부활 (P 영역 하단 inline, 별도 카드 X).
-                             15g 분자 수 카드 신규 → 15h 폐기 → 15p 위치 변경 부활 (3단계 reversal). -->
-                        <div class="vapor-pvap-particles">
-                            가스 입자 <strong id="vapor-gas-count">—</strong> 개
+                        <div class="vapor-tp-pressure-body">
+                            <!-- 좌 55%: SVG 반원 아날로그 압력계 (0~30 kPa, 바늘 ±90° rotate) -->
+                            <div class="vapor-tp-pressure-left">
+                                <svg class="vapor-pressure-gauge" viewBox="0 0 200 120" aria-hidden="true">
+                                    <!-- 배경 호 (회색 트랙) -->
+                                    <path d="M 15 105 A 85 85 0 0 1 185 105"
+                                          stroke="#e2e8f0" stroke-width="10" fill="none" stroke-linecap="round"/>
+                                    <!-- 주요 눈금 + 라벨 (0 / 10 / 20 / 30 kPa) -->
+                                    <g class="gauge-ticks">
+                                        <line x1="15" y1="105" x2="22" y2="105" stroke="#64748b" stroke-width="2"/>
+                                        <text x="10" y="118" font-size="9" fill="#64748b" text-anchor="middle">0</text>
+                                        <line x1="57.5" y1="31.4" x2="62" y2="38.5" stroke="#64748b" stroke-width="2"/>
+                                        <text x="42" y="48" font-size="9" fill="#64748b" text-anchor="middle">10</text>
+                                        <line x1="142.5" y1="31.4" x2="138" y2="38.5" stroke="#64748b" stroke-width="2"/>
+                                        <text x="158" y="48" font-size="9" fill="#64748b" text-anchor="middle">20</text>
+                                        <line x1="185" y1="105" x2="178" y2="105" stroke="#64748b" stroke-width="2"/>
+                                        <text x="190" y="118" font-size="9" fill="#64748b" text-anchor="middle">30</text>
+                                    </g>
+                                    <!-- 바늘 (CSS transform rotate 동적 갱신, pivot 100,105) -->
+                                    <g id="vapor-gauge-needle" style="transform-origin: 100px 105px; transform: rotate(-90deg)">
+                                        <line x1="100" y1="105" x2="100" y2="28" stroke="#dc2626" stroke-width="3" stroke-linecap="round"/>
+                                        <circle cx="100" cy="105" r="6" fill="#1e293b"/>
+                                    </g>
+                                    <!-- 중앙 큰 숫자 (호 안 표시) -->
+                                    <text x="100" y="92" font-size="18" font-weight="700" fill="#0f172a"
+                                          text-anchor="middle" font-family="ui-monospace, monospace">
+                                        <tspan id="vapor-pressure-val">—</tspan>
+                                    </text>
+                                    <text x="100" y="110" font-size="10" fill="#64748b" text-anchor="middle">kPa</text>
+                                </svg>
+                            </div>
+                            <!-- 우 45%: LCD 풍 전자시계 + 입자 수 막대 -->
+                            <div class="vapor-tp-pressure-right">
+                                <div class="vapor-tp-clock">
+                                    <span class="vapor-tp-clock-label">도달</span>
+                                    <span class="vapor-tp-clock-value" id="vapor-eq-reach-time">—:—</span>
+                                </div>
+                                <div class="vapor-tp-particles">
+                                    <div class="vapor-tp-particles-label">
+                                        가스 입자 <strong id="vapor-gas-count">—</strong> 개
+                                    </div>
+                                    <div class="vapor-tp-particles-bar-wrap" aria-hidden="true">
+                                        <div id="vapor-tp-particles-bar" class="vapor-tp-particles-bar"></div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </section>

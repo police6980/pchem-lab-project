@@ -3776,8 +3776,10 @@ function initVaporApp(params) {
         mmolSpan:         document.getElementById("vapor-mmol-per-particle"),
         canvasCt:         document.getElementById("vapor-canvas-container"),
         pressureVal:      document.getElementById("vapor-pressure-val"),
-        pressureBar:      document.getElementById("vapor-pressure-bar"),
         // fixup 15j — pressureTheor DOM 폐기 (P 영역 이론 메타 제거, 단일 측정값 정합)
+        // fixup 15s — pressureBar 폐기 (SVG 압력계 바늘이 시각 대체), gaugeNeedle / particlesBar 신규
+        gaugeNeedle:      document.getElementById("vapor-gauge-needle"),
+        particlesBar:     document.getElementById("vapor-tp-particles-bar"),
         eqReachTime:      document.getElementById("vapor-eq-reach-time"),
         evapRateEl:       document.getElementById("vapor-evap-rate"),
         condRateEl:       document.getElementById("vapor-cond-rate"),
@@ -4161,16 +4163,20 @@ function initVaporApp(params) {
         if (readoutTimer) clearInterval(readoutTimer);
         readoutTimer = setInterval(() => {
             if (!world) return;
-            dom.pressureVal.textContent = world.pressureKPa.toFixed(2);
-            dom.pressureBar.style.width = `${world.pressureBarPct.toFixed(1)}%`;
-            // fixup 15j — 이론값 readout 폐기 (단일 측정값 표시, P-T 그래프 회색 점선만 비교 단서)
+            // fixup 15s — 압력계 바늘 angle 갱신 (P/30×180-90 clamp ±90°)
+            const p = world.pressureKPa;
+            dom.pressureVal.textContent = p.toFixed(2);
+            const angle = Math.max(-90, Math.min(90, (p / 30) * 180 - 90));
+            dom.gaugeNeedle.style.transform = `rotate(${angle}deg)`;
+            // fixup 15j — 이론값 readout 폐기 (단일 측정값, P-T 그래프 회색 점선만 비교 단서)
+            // fixup 15s — 전자시계 풍 "MM:SS" 형식 (LCD/LED 풍 시각 정합)
             const tEq = world.equilibriumReachedAtSec;
             if (tEq != null) {
                 const m = Math.floor(tEq / 60);
                 const s = Math.floor(tEq % 60);
-                dom.eqReachTime.textContent = m > 0 ? `${m}분 ${s}초` : `${s}초`;
+                dom.eqReachTime.textContent = `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
             } else {
-                dom.eqReachTime.textContent = "—";
+                dom.eqReachTime.textContent = "—:—";
             }
             // fixup 14 — 워밍업 동안 EMA null, "—" 표시
             dom.evapRateEl.textContent = (world.evapEMA == null) ? "—" : world.evapEMA.toFixed(2);
@@ -4201,8 +4207,11 @@ function initVaporApp(params) {
                 dom.ratioVal.textContent = "—";
                 dom.ratioVal.dataset.zone = "none";
             }
-            // fixup 15h — surfaceCount / gasCount / latticeCount readout 폐기 → fixup 15p — gasCount 부활
-            dom.gasCount.textContent = String(world.gasParticles.length);
+            // fixup 15h — surfaceCount / gasCount / latticeCount readout 폐기 → 15p gasCount 부활
+            // fixup 15s — particlesBar width 갱신 (정적 max 1000, gasCount/1000×100% clamp)
+            const nGas = world.gasParticles.length;
+            dom.gasCount.textContent = String(nGas);
+            dom.particlesBar.style.width = `${Math.min(100, (nGas / 1000) * 100).toFixed(1)}%`;
             // fixup 15n — 5 상태 배지 (none / near / detected / confirmed / exited)
             switch (eqState) {
                 case "confirmed":
@@ -4254,15 +4263,18 @@ function initVaporApp(params) {
         if (placeholderEl) placeholderEl.style.display = "";
         dom.mmolSpan.textContent = "—";
         dom.pressureVal.textContent = "—";
-        dom.pressureBar.style.width = "0%";
+        // fixup 15s — pressureBar reset 폐기 (압력계 바늘이 시각 대체), gaugeNeedle 0 위치 (-90°)
+        dom.gaugeNeedle.style.transform = "rotate(-90deg)";
         // fixup 15j — pressureTheor reset 폐기 (DOM 자체 제거)
-        dom.eqReachTime.textContent = "—";
+        // fixup 15s — eqReachTime "—:—" 형식 (LCD 풍 정합)
+        dom.eqReachTime.textContent = "—:—";
         dom.evapRateEl.textContent = "—";
         dom.condRateEl.textContent = "—";
         dom.ratioVal.textContent = "—";
         dom.ratioVal.dataset.zone = "none";
-        // fixup 15h reset 폐기 → fixup 15p — gasCount 부활 (P 영역 하단 inline)
+        // fixup 15h reset 폐기 → fixup 15p gasCount 부활 → fixup 15s 막대 width reset 추가
         dom.gasCount.textContent = "—";
+        dom.particlesBar.style.width = "0%";
         dom.eqBadge.textContent = "평형 비도달";
         dom.eqBadge.dataset.state = "none";
         dom.elapsedTime.textContent = "—";
