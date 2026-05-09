@@ -1,24 +1,31 @@
 // =============================================================
-// vapor.js — 증기압 시뮬 본체 (Phase 6.1-b sub-step B-2 final fixup 2)
+// vapor.js — 증기압 시뮬 본체 (Phase 6.1-b sub-step B-2 final fixup 3)
 //
-// 5 사용자 비판 + 학습 핵심 + plateau 보정:
-//   (1) 기체 단색 빨강 → KE 자연단위 lerp 색
-//   (2) 기체 정지 → gas_speed_scale 분리 (KE → px/s)
-//   (3) 표면 자리 보충 X → 탈출 시 즉시 새 SurfaceParticle
-//   (4) Boltzmann 분율 누락 → KE 변수 + 매 1초 MB 재샘플 + 결정적 게이트
-//   (5) 입자 크기 미통일 → liquid/gas 모두 r=4
-//   (6) plateau ~5~10 너무 낮음 → E_escape 1.2 + E_capture 2.5 + 약한 중력
-//                               + 천장 KE 손실 → plateau ~50~80 목표
-//   (7) 응축 사건 시각화 부족 → flash queue (evap 청 / cond 주황 1초 페이드)
+// 직전 fixup 2 검증: (1) 1초 동시 평가 → 대포 펄스, (2) 균질 표면 색.
+// 사용자 통찰 — "평균 속력만 일정하면 됨". KE 시뮬 자체 폐기, 사건 확률만 관리.
+//
+// 모델 변경:
+//   · 폐기: KE 변수 기반 결정적 게이트 + 1초 동기 재샘플
+//   · 신규: 비동기 Poisson 사건 모델 (매 frame 독립 평가)
+//     - random() < evap_rate_per_particle_per_sec × dt → 탈출
+//     - 통계: Poisson 분포 자동 (대포 X)
+//   · KE 변수 = 시각용 색 매핑만. smooth random walk + 노이즈
+//     (1초 펄스 X, 부드러운 색 변화)
+//   · gas spawn KE = 사건 발생 시 [gas_spawn_KE_min, max] uniform 샘플
+//     (표면 시각 KE 와 무관 — KE 시뮬 자체 폐기 철학 준수)
+//
+// 유지:
+//   · gas 물리 (중력 + 약한 점성 + 천장 KE 손실)
+//   · 응축 게이트 (KE_gas < E_capture, 매 frame)
+//   · flash queue (evap 청 / cond 주황 1초 페이드)
+//   · RateMiniGraph (학습 핵심)
 //
 // 학습 핵심 (raison d'être):
-//   · evap = 일정 (MB 분포 × 표면 입자 수, 두 항 다 시간 불변)
+//   · evap = 일정 (Poisson 평균 = base_rate × 표면 입자 수, 시간 불변)
 //   · cond = 점진 증가 (기체 밀도 ↑ → 표면 충돌 ↑)
-//   · 평형 = "evap 줄어든 게 아니라 cond 가 evap 까지 따라온 것"
-//   → 캔버스 하단 80px RateMiniGraph 로 두 곡선 동시 가시화
-//   → flash queue 로 사건 빈도 직관 인지
+//   · 평형 = 두 속도 만남 (evap 줄어든 게 아님)
 //
-// docs/17 §6 참조.
+// docs/17 §6 "비동기 Poisson 사건 모델" 참조.
 // =============================================================
 
 const VAPOR_DT_CAP = 0.05;
@@ -92,14 +99,15 @@ class VaporWorld {
             }
         }
 
-        // ── SurfaceParticle (KE 변수, 매 1초 MB 재샘플) ──
+        // ── SurfaceParticle (KE = 시각용만, 비동기 Poisson 모델) ──
+        // VISUAL_KT 는 시각 KE 분포 평균 (색 매핑용). 물리 게이트와 무관.
         const surfaceJitter = cfg.surface_jitter_amp_px ?? 2;
-        const kT = cfg.kT_surface ?? 1.0;
+        this._visualKT = 1.0;
         this.surfaceParticles = [];
         for (let cx = 0; cx < cols; cx++) {
             const x0 = this.box.x + (cx + 0.5) * cellSize;
             const y0 = this.box.y + this.box.h - (surfaceRowIdx + 0.5) * cellSize;
-            this.surfaceParticles.push(this._makeSurfaceParticle(x0, y0, surfaceJitter, kT));
+            this.surfaceParticles.push(this._makeSurfaceParticle(x0, y0, surfaceJitter));
         }
 
         // ── Gas (시작 0, 증발만으로 생성) ──
@@ -117,7 +125,6 @@ class VaporWorld {
         this._evapWin = 0;
         this._condWin = 0;
         this._lastStatsT = performance.now();
-        this._resampleAccum = 0;
 
         // ── Rate 추적 (학습 핵심) ──
         this.rateHistory = [];          // {evap_raw, cond_raw, evap_ema, cond_ema}
@@ -148,13 +155,17 @@ class VaporWorld {
         return "비평형";
     }
 
-    _makeSurfaceParticle(x0, y0, jitterAmp, kT) {
+    _makeSurfaceParticle(x0, y0, jitterAmp) {
+        const ke = vaporSampleMBKE(this._visualKT);
+        const targetChangeMs = (this.cfg.surface_KE_visual_target_change_sec ?? 2.0) * 1000;
         return {
             x0, y0,
             x: x0, y: y0,
             phase: Math.random() * Math.PI * 2,
             amp: jitterAmp,
-            ke: vaporSampleMBKE(kT),
+            ke: ke,
+            ke_target: ke,
+            ke_target_next_change_t: performance.now() + Math.random() * targetChangeMs,
         };
     }
 
@@ -170,27 +181,50 @@ class VaporWorld {
             }
         }
 
-        // 2) Surface 좌우 진동 (KE 와 별개, 시각적 활기)
-        for (const sp of this.surfaceParticles) {
-            sp.x = sp.x0 + sp.amp * Math.cos(2 * Math.PI * tSec + sp.phase);
-        }
+        // 2) Surface 매 frame: 위치 진동 + 시각 KE smooth update + Poisson 탈출 게이트
+        this._updateSurfaceAndPoissonEvap(cap, tSec);
 
         // 3) Gas 자유 비행 + 충돌 + 벽 반사
         this._updateGas(cap);
 
-        // 4) Surface KE 재샘플링 + Boltzmann 게이트
-        this._resampleAccum += cap;
-        const resampleT = this.cfg.surface_KE_resample_sec ?? 1.0;
-        if (this._resampleAccum >= resampleT) {
-            this._resampleAccum = 0;
-            this._resampleSurfaceAndGate();
-        }
-
-        // 5) 응축 게이트
+        // 4) 응축 게이트
         this._evalCondensation();
 
-        // 6) 매 1초: rate 샘플 + stats log
+        // 5) 매 1초: rate 샘플 + stats log
         this._maybeTickRateAndLog();
+    }
+
+    _updateSurfaceAndPoissonEvap(dt, tSec) {
+        const cfg = this.cfg;
+        const evapRate = cfg.evap_rate_per_particle_per_sec ?? 0.2;
+        const pEvapPerFrame = evapRate * dt;
+        const smoothFactor = cfg.surface_KE_visual_smooth_factor ?? 0.05;
+        const targetChangeMs = (cfg.surface_KE_visual_target_change_sec ?? 2.0) * 1000;
+        const jitter = cfg.surface_jitter_amp_px ?? 2;
+        const visualKT = this._visualKT;
+        const now = performance.now();
+
+        for (let i = 0; i < this.surfaceParticles.length; i++) {
+            const sp = this.surfaceParticles[i];
+
+            // 위치 좌우 진동
+            sp.x = sp.x0 + sp.amp * Math.cos(2 * Math.PI * tSec + sp.phase);
+
+            // 시각 KE — 새 target 주기적 재샘플 + 매 frame ease + 미세 노이즈
+            if (now >= sp.ke_target_next_change_t) {
+                sp.ke_target = vaporSampleMBKE(visualKT);
+                // 다음 주기는 target 평균 ± 50% 무작위 (전체 일제 변경 회피)
+                sp.ke_target_next_change_t = now + targetChangeMs * (0.5 + Math.random());
+            }
+            sp.ke += (sp.ke_target - sp.ke) * smoothFactor + (Math.random() - 0.5) * 0.05;
+            if (sp.ke < 0) sp.ke = 0;
+
+            // Poisson 탈출 — 매 frame 독립 평가
+            if (Math.random() < pEvapPerFrame) {
+                this._spawnGasFromSurface(sp);
+                this.surfaceParticles[i] = this._makeSurfaceParticle(sp.x0, sp.y0, jitter);
+            }
+        }
     }
 
     _updateGas(dt) {
@@ -255,35 +289,21 @@ class VaporWorld {
         }
     }
 
-    // 매 surface_KE_resample_sec 마다: 모든 surface 입자 KE 새로 MB 샘플링.
-    // KE > E_escape 면 결정적 탈출 → GasParticle 신규 + 즉시 새 SurfaceParticle.
-    _resampleSurfaceAndGate() {
-        const kT = this.cfg.kT_surface ?? 1.0;
-        const E_escape = this.cfg.E_escape ?? 3.0;
-        const jitterAmp = this.cfg.surface_jitter_amp_px ?? 2;
-        const newSurface = [];
-        for (const sp of this.surfaceParticles) {
-            sp.ke = vaporSampleMBKE(kT);
-            if (sp.ke > E_escape) {
-                this._spawnGasFromSurface(sp);
-                newSurface.push(this._makeSurfaceParticle(sp.x0, sp.y0, jitterAmp, kT));
-            } else {
-                newSurface.push(sp);
-            }
-        }
-        this.surfaceParticles = newSurface;
-    }
-
+    // Gas spawn — 표면 시각 KE 와 무관하게 [min, max] uniform 샘플
+    // (사용자 통찰: KE 시뮬 폐기, 사건 확률만 관리)
     _spawnGasFromSurface(sp) {
         const speedScale = this.gasSpeedScale;
-        const speed = Math.sqrt(2 * sp.ke) * speedScale;
+        const keMin = this.cfg.gas_spawn_KE_min ?? 2.0;
+        const keMax = this.cfg.gas_spawn_KE_max ?? 4.0;
+        const ke = keMin + Math.random() * (keMax - keMin);
+        const speed = Math.sqrt(2 * ke) * speedScale;
         const angle = -Math.PI / 2 + (Math.random() - 0.5) * (Math.PI / 4);
         const vx = speed * Math.cos(angle);
         const vy = speed * Math.sin(angle);
         this.gasParticles.push({
             x: sp.x, y: sp.y - this.gasRadius - 1,
             vx, vy,
-            ke_at_birth: sp.ke,
+            ke_at_birth: ke,
         });
         this._evapWin++;
         this._addFlash(sp.x, sp.y, this.cfg.evap_flash_color || "#2563EB");

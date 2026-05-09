@@ -49,7 +49,7 @@
     },
 
     "vapor": {
-        "_comment": "Phase 6.1-b sub-step B-2 final fixup 2. 사용자 검증: 응축 가시화 부족 + plateau ~5~10 X. 일괄 재튜닝: E_escape 3.0→1.2 (탈출 빈도 ↑), E_capture 0.5→2.5 (응축 후보 ↑), gas_velocity_damping 0.9995 (매우 약한 점성), gas_gravity 0.0005 (매우 약한 중력으로 자연스러운 표면 도달), ceiling_KE_retention 0.85 (천장 반사 시 KE 15% 손실), 신규 flash queue (evap 청 + cond 주황 1초 페이드). 목표: plateau ~50~80, 평형 30~60s, 응축 사건 1초당 5~10회 가시.",
+        "_comment": "Phase 6.1-b sub-step B-2 final fixup 3. 사용자 통찰: '평균 속력만 일정하면 됨, KE 시뮬 폐기'. 1초 동기 KE 재샘플 + 일괄 게이트 폐기 → 비동기 Poisson 사건 모델. 매 frame 각 표면 입자 독립 평가 (random() < base_rate × dt). 표면 KE 변수 = 색 매핑용만 (smooth random walk, 1초 펄스 X). 폐기: kT_surface, E_escape, surface_KE_resample_sec. 신규: evap_rate_per_particle_per_sec, surface_KE_visual_*. 유지: E_capture, 색 매핑, flash, gas 물리 (중력·점성·천장).",
         "V_flask_presets_mL": [100, 250, 500],
         "V_flask_default_mL": 250,
         "V_liquid_default_mL": 50,
@@ -64,10 +64,14 @@
         "liquid_jitter_amp_px": 0,
         "surface_jitter_amp_px": 2,
 
-        "kT_surface": 1.0,
-        "E_escape": 1.2,
+        "evap_rate_per_particle_per_sec": 0.2,
         "E_capture": 2.5,
-        "surface_KE_resample_sec": 1.0,
+
+        "surface_KE_visual_smooth_factor": 0.05,
+        "surface_KE_visual_target_change_sec": 2.0,
+
+        "gas_spawn_KE_min": 2.0,
+        "gas_spawn_KE_max": 4.0,
 
         "color_KE_slow": "#1E3A8A",
         "color_KE_fast": "#DC2626",
@@ -98,6 +102,6 @@
         "pressure_kpa_max_for_bar": 30,
 
         "water_mol_per_mL": 0.05551,
-        "_units_note": "kT_surface 1.0 = MB 평균 KE. E_escape 1.2 ≈ 0.3σ 꼬리 (정규근사 P>1.2 ≈ 39%) → 95 surface × 0.39 ≈ 37/s 출발 후 표면 KE 재샘플로 안정. gas_speed_scale 50 = KE → px/s (KE=1.2 → 78 px/s, KE=2.5 → 112 px/s). gas_velocity_damping 0.9995 = 매 dt 마다 v *= damping^dt (1초 0.05% 손실). gas_gravity 0.0005 px/s²/frame = 매 frame vy += 0.0005 (자유 비행 거의 유지하되 시간 지나면 표면 도달 경향). ceiling_KE_retention 0.85 = 천장 반사 시 v *= sqrt(0.85) → KE 15% 손실 (응축 후보 보장). E_capture 2.5 = 표면 도달 가스 KE < 2.5 면 응축. flash_duration 1.0s 페이드 (12→6 px). pressure 0.1 kPa/입자: plateau 50~80 → 5~8 kPa. 격자 N 자동: V_liquid/V_flask=0.2 시 ~800 lattice + 95 surface."
+        "_units_note": "evap_rate_per_particle_per_sec 0.2 = 입자당 초당 탈출 기대치. 95 surface × 0.2 = 19/s 평균. Poisson 분포 자동. surface_KE_visual_smooth_factor 0.05 = 매 frame ke = ke + (target - ke) × 0.05 + small_noise (부드러운 색 변화). surface_KE_visual_target_change_sec 2.0 = 시각 KE 목표 새로 정하는 주기 (대포 펄스 회피). gas_spawn_KE [2.0, 4.0] uniform = 탈출 시 가스 초기 KE — E_capture 2.5 보다 낮은 비율 ~25% (즉시 응축 회피). gas_speed_scale 50 = KE → px/s (KE=2 → 100 px/s, KE=4 → 141 px/s). gas_velocity_damping 0.9995 매우 약함, gas_gravity 0.0005 px/s²/frame 매우 약함, ceiling_KE_retention 0.85 천장 KE 15% 손실. E_capture 2.5 = 가스 KE < 2.5 면 응축. flash 1.0s 페이드 12→6 px. pressure 0.1 kPa/입자: plateau 50~80 → 5~8 kPa."
     }
 }

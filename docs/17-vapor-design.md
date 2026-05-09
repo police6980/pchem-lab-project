@@ -176,7 +176,29 @@ MVP 외 후속 트랙 학습 목표:
 
 학습 목표 외 (액체 내부 분자 운동 정확 모델) 은 별 학습 자료로 분리.
 
-### Boltzmann 게이트 (직전 균등 확률 모델 폐기)
+### 비동기 Poisson 사건 모델 (직전 1초 동기 게이트 폐기)
+
+직전 (Boltzmann 게이트) 모델 한계 — 사용자 검증 2 비판:
+- (1) 1초 단위 KE 재샘플링 + 일괄 게이트 → 매 1초 시점에 탈출 사건 동시 발생 → "대포 펄스" 시각 인위.
+- (2) 1초 동안 모든 표면 입자 KE 동시 갱신 → 표면 색이 1초마다 일제 변경, 균질하게 깜빡거림.
+
+사용자 통찰: **"평균 속력만 일정하면 됨"**. KE 변수의 물리 게이트 역할을 폐기하고, 사건 확률만 관리하면 충분.
+
+신규 모델:
+- 매 frame 각 표면 입자 독립 평가: `random() < evap_rate_per_particle_per_sec × dt` → 탈출.
+- 통계 = Poisson 분포 (시점·입자 무작위 분산, 대포 X).
+- KE 변수 = 시각용 색 매핑만. smooth random walk:
+  - `KE_target` 매 ~2초 마다 새로 MB 샘플 (각 입자 비동기, 평균 ± 50% 무작위 주기).
+  - 매 frame `KE = KE + (KE_target - KE) × smooth_factor + small_noise`.
+  - 1초 펄스 X, 부드러운 색 변화.
+- gas spawn KE = `[gas_spawn_KE_min, gas_spawn_KE_max]` uniform 샘플 (표면 시각 KE 와 무관 — KE 시뮬 자체 폐기 철학 준수).
+- T 변경 (Phase 6.2~) = `evap_rate_per_particle_per_sec` 자체를 T 함수로 (Boltzmann factor 직접 도입 안 함, base_rate 가 T 의존).
+
+폐기 키: `kT_surface`, `E_escape`, `surface_KE_resample_sec`.
+신규 키: `evap_rate_per_particle_per_sec` (=0.2), `surface_KE_visual_smooth_factor` (=0.05), `surface_KE_visual_target_change_sec` (=2.0), `gas_spawn_KE_min/max` (=2.0/4.0).
+유지 키: `E_capture` (응축 임계, KE 의존 그대로), 색 매핑 (`color_KE_min/max_for_HSB`), gas 물리 (`gas_velocity_damping`, `gas_gravity`, `ceiling_KE_retention`), flash queue.
+
+### Boltzmann 게이트 (직전 균등 확률 모델 폐기) — 폐기됨, 비동기 Poisson 으로 대체
 
 직전 모델 (균등 확률 `p_evap_per_sec_per_particle`) 한계 — 사용자 검증 4 비판 중 핵심:
 - 어느 표면 입자든 동일 확률로 탈출 → KE 정보 X.
