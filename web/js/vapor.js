@@ -121,6 +121,9 @@ class VaporWorld {
         // ── Flash queue (사건 시각화 — 원 + 화살표 0.8s 페이드) ──
         this.flashes = [];
 
+        // ── Condense location markers (표면 격자에 주황 ring 2초) ──
+        this.condenseHighlights = [];
+
         // 시뮬 경과 시간 (학교 실험 정합 표시용)
         this.startT = performance.now();
 
@@ -128,6 +131,10 @@ class VaporWorld {
         this._evapWin = 0;
         this._condWin = 0;
         this._lastStatsT = performance.now();
+
+        // 3초 raw rate 평활 버퍼 (rate_calc_window_sec)
+        this._rateRawEvapBuf = [];
+        this._rateRawCondBuf = [];
 
         // ── Rate 추적 (학습 핵심) ──
         this.rateHistory = [];          // {evap_raw, cond_raw, evap_ema, cond_ema}
@@ -314,6 +321,7 @@ class VaporWorld {
             x: sp.x, y: sp.y - this.gasRadius - 1,
             vx, vy,
             ke_at_birth: ke,
+            birth_time: performance.now(),
         });
         this._evapWin++;
         this._addFlash(sp.x, sp.y, this.cfg.evap_flash_color || "#2563EB", "up");
@@ -340,6 +348,18 @@ class VaporWorld {
                 if (ke < E_capture) {
                     this._condWin++;
                     this._addFlash(g.x, liquidTop, condColor, "down");
+                    // 표면 격자에 응축 위치 마커 (가장 가까운 surface 열에 snap)
+                    const cellSize = 2 * this.r;
+                    const colIdx = Math.floor((g.x - this.box.x) / cellSize);
+                    const sp = this.surfaceParticles[
+                        Math.max(0, Math.min(this.surfaceParticles.length - 1, colIdx))
+                    ];
+                    if (sp) {
+                        this.condenseHighlights.push({
+                            x: sp.x0, y: sp.y0,
+                            t_start: performance.now(),
+                        });
+                    }
                     continue;
                 } else {
                     g.vy = -g.vy;
@@ -356,11 +376,20 @@ class VaporWorld {
         const elapsed = now - this._lastStatsT;
         if (elapsed < 1000) return;
         const elapsedSec = elapsed / 1000;
-        const evapRaw = this._evapWin / elapsedSec;
-        const condRaw = this._condWin / elapsedSec;
+        const evap1s = this._evapWin / elapsedSec;
+        const cond1s = this._condWin / elapsedSec;
 
-        // EMA
-        const alpha = this.cfg.rate_ema_alpha ?? 0.3;
+        // 3초 rolling 평균 (rate_calc_window_sec) → 들쭉날쭉 평활
+        const calcWin = Math.max(1, Math.round(this.cfg.rate_calc_window_sec ?? 3.0));
+        this._rateRawEvapBuf.push(evap1s);
+        this._rateRawCondBuf.push(cond1s);
+        while (this._rateRawEvapBuf.length > calcWin) this._rateRawEvapBuf.shift();
+        while (this._rateRawCondBuf.length > calcWin) this._rateRawCondBuf.shift();
+        const evapRaw = this._rateRawEvapBuf.reduce((s, v) => s + v, 0) / this._rateRawEvapBuf.length;
+        const condRaw = this._rateRawCondBuf.reduce((s, v) => s + v, 0) / this._rateRawCondBuf.length;
+
+        // EMA (α 0.1, 추가 평활)
+        const alpha = this.cfg.rate_ema_alpha ?? 0.1;
         this.evapEMA = alpha * evapRaw + (1 - alpha) * this.evapEMA;
         this.condEMA = alpha * condRaw + (1 - alpha) * this.condEMA;
 
@@ -435,19 +464,22 @@ class VaporWorld {
     drawMolecules(p) {
         const cfg = this.cfg;
         const r = this.r;
-        const liquidColor = p.color(cfg.liquid_color || "#1E3A8A");
+        const liquidColor = p.color(cfg.liquid_color || "#1E40AF");
+        const liquidOpacity = cfg.liquid_opacity ?? 1.0;
+        liquidColor.setAlpha(Math.max(0, Math.min(255, Math.round(liquidOpacity * 255))));
         const slow = p.color(cfg.color_KE_slow || "#1E3A8A");
         const fast = p.color(cfg.color_KE_fast || "#DC2626");
         const keMin = cfg.color_KE_min_for_HSB ?? 0.0;
         const keMax = cfg.color_KE_max_for_HSB ?? 5.0;
 
+        // Liquid lattice (톤 다운된 단색 + opacity)
         p.noStroke();
-
         p.fill(liquidColor);
         for (const m of this.liquidLattice) {
             p.circle(m.x, m.y, r * 2);
         }
 
+        // Surface particles (반투명, KE 색)
         const surfaceOpacity = cfg.surface_opacity ?? 0.55;
         const surfaceAlpha = Math.max(0, Math.min(255, Math.round(surfaceOpacity * 255)));
         for (const sp of this.surfaceParticles) {
@@ -457,13 +489,56 @@ class VaporWorld {
             p.circle(sp.x, sp.y, r * 2);
         }
 
+        // Gas particles — 막 나온 입자는 청 테두리 강조 (2초 페이드)
         const gasR = this.gasRadius;
         const ssq = this.gasSpeedScale * this.gasSpeedScale;
+        const birthDur = (cfg.gas_birth_highlight_duration_sec ?? 2.0) * 1000;
+        const strokeStart = cfg.gas_birth_stroke_start_px ?? 2.5;
+        const strokeEnd = cfg.gas_birth_stroke_end_px ?? 0.5;
+        const birthColorStr = cfg.gas_birth_highlight_color || "#2563EB";
+        const now = performance.now();
         for (const g of this.gasParticles) {
             const ke = 0.5 * (g.vx * g.vx + g.vy * g.vy) / ssq;
             p.fill(vaporColorFromKE(p, ke, slow, fast, keMin, keMax));
+            const ageMs = now - (g.birth_time || 0);
+            if (ageMs < birthDur) {
+                const t = ageMs / birthDur;
+                const sw = strokeStart + (strokeEnd - strokeStart) * t;
+                const stCol = p.color(birthColorStr);
+                stCol.setAlpha((1 - t) * 255);
+                p.stroke(stCol);
+                p.strokeWeight(sw);
+            } else {
+                p.noStroke();
+            }
             p.circle(g.x, g.y, gasR * 2);
         }
+        p.noStroke();
+    }
+
+    // ── Condense location markers (표면 격자에 주황 ring 2초 페이드) ──
+    drawCondenseHighlights(p) {
+        const cfg = this.cfg;
+        const duration = (cfg.condense_highlight_duration_sec ?? 2.0) * 1000;
+        const sw = cfg.condense_highlight_stroke_px ?? 2.5;
+        const colorStr = cfg.condense_highlight_color || "#EA580C";
+        const ringR = this.r + 1;
+        const now = performance.now();
+        const remain = [];
+        p.noFill();
+        for (const ch of this.condenseHighlights) {
+            const elapsed = now - ch.t_start;
+            if (elapsed >= duration) continue;
+            const t = elapsed / duration;
+            const alpha = (1 - t) * 255;
+            const col = p.color(colorStr);
+            col.setAlpha(alpha);
+            p.stroke(col);
+            p.strokeWeight(sw);
+            p.circle(ch.x, ch.y, ringR * 2);
+            remain.push(ch);
+        }
+        this.condenseHighlights = remain;
     }
 
     // ── Flash queue 렌더 (원 + 화살표, 0.8s 페이드, 12 → 4 px) ──
@@ -491,20 +566,29 @@ class VaporWorld {
             p.strokeWeight(2);
             p.circle(f.x, f.y, r * 2);
 
-            // 화살표 — 방향: up = 증발 (y 감소), down = 응축 (y 증가)
-            const sign = f.dir === "down" ? 1 : -1;
-            const tail = f.y + sign * (rStart * 0.5);
-            const tip = tail + sign * arrowLen;
+            // 화살표
+            //   up   (증발): tail 표면, tip 위 (기체 영역으로)
+            //   down (응축): tail 표면 위 30 px (기체 영역), tip 표면 살짝 위
+            //                → 액체에 묻히지 X (사용자 비판 (3))
+            let tail, tip;
+            if (f.dir === "down") {
+                tail = f.y - arrowLen;
+                tip = f.y - 1;
+            } else {
+                tail = f.y;
+                tip = f.y - arrowLen;
+            }
             p.strokeWeight(arrowThick);
             p.line(f.x, tail, f.x, tip);
 
-            // 화살촉 (작은 삼각형)
+            // 화살촉 (작은 삼각형, apex = tip)
             p.noStroke();
             const fillCol = p.color(f.color);
             fillCol.setAlpha(alpha);
             p.fill(fillCol);
             const headSize = 5;
-            const baseY = tip - sign * headSize;
+            // up: apex 위, base 아래 / down: apex 아래, base 위
+            const baseY = f.dir === "down" ? tip - headSize : tip + headSize;
             p.triangle(f.x, tip, f.x - headSize * 0.7, baseY, f.x + headSize * 0.7, baseY);
 
             remain.push(f);
@@ -641,6 +725,7 @@ function mountVaporSketch(world, container) {
             p.background(248, 250, 252);
             world.drawWalls(p);
             world.drawMolecules(p);
+            world.drawCondenseHighlights(p);
             world.drawFlashes(p);
             world.drawRateGraph(p);
         };

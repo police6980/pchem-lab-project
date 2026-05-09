@@ -49,7 +49,7 @@
     },
 
     "vapor": {
-        "_comment": "Phase 6.1-b sub-step B-2 final fixup 4. 사용자 결정 통합: (1) 표면 입자 반투명, (2) 증발/응축 flash + 화살표, (3) 시뮬 시간 척도 = 학교 실험 (평형 2~3분), (4) 경과 시간 표시. 시간 척도 정합: evap_rate 0.2 → 0.025 (표면 80×0.025 = 2/s 평균 → 평형 ~120~180s), pressure 0.1 → 0.06 (plateau 50 → 3 kPa, 25°C 물 증기압 정합). 파생 재조정: rate_y_max 30 → 5 (그래프 가시), pressure_kpa_max_for_bar 30 → 8 (게이지 가시), equilibrium_threshold 1.0 → 0.5 + min_evap 1.0 → 1.5 (낮은 rate 정합). 시각: surface_opacity 0.55, flash 12→4 px 0.8s 페이드 + 화살표 30 px (evap 위 / cond 아래).",
+        "_comment": "Phase 6.1-b 시각 균형 fixup 5. 사용자 4 비판: (1) rate 그래프 들쭉날쭉, (2) 막 나온/들어간 입자 강조 부족, (3) 응축 화살표 액체 묻힘, (4) 액체 격자 시각 너무 강함. 평활 강화: rate_ema_alpha 0.3→0.1 + rate_calc_window_sec 3.0 (3초 평균). 그래프 시간축 60초 유지. 강조: gas birth_time 변수 + 청 테두리 2.5→0.5 px 2초 페이드, 응축 위치 표면 격자 주황 마커 2초. 응축 화살표: 표면 위 30px → 표면 (액체 묻힘 회피, 색 #DC2626 진한 빨강). 격자 톤다운: liquid_color #1E3A8A → #1E40AF + liquid_opacity 0.92.",
         "V_flask_presets_mL": [100, 250, 500],
         "V_flask_default_mL": 250,
         "V_liquid_default_mL": 50,
@@ -60,7 +60,8 @@
 
         "molecule_radius_px": 4,
         "gas_particle_radius_px": 4,
-        "liquid_color": "#1E3A8A",
+        "liquid_color": "#1E40AF",
+        "liquid_opacity": 0.92,
         "liquid_jitter_amp_px": 0,
         "surface_jitter_amp_px": 2,
         "surface_opacity": 0.55,
@@ -85,15 +86,25 @@
         "ceiling_KE_retention": 0.85,
 
         "evap_flash_color": "#2563EB",
-        "cond_flash_color": "#EA580C",
+        "cond_flash_color": "#DC2626",
         "flash_duration_sec": 0.8,
         "flash_radius_start_px": 12,
         "flash_radius_end_px": 4,
         "flash_arrow_length_px": 30,
         "flash_arrow_thickness_px": 2.5,
 
-        "rate_window_sec": 180,
-        "rate_ema_alpha": 0.3,
+        "gas_birth_highlight_duration_sec": 2.0,
+        "gas_birth_stroke_start_px": 2.5,
+        "gas_birth_stroke_end_px": 0.5,
+        "gas_birth_highlight_color": "#2563EB",
+
+        "condense_highlight_duration_sec": 2.0,
+        "condense_highlight_stroke_px": 2.5,
+        "condense_highlight_color": "#EA580C",
+
+        "rate_window_sec": 60,
+        "rate_calc_window_sec": 3.0,
+        "rate_ema_alpha": 0.1,
         "rate_color_evap": "#2563EB",
         "rate_color_cond": "#EA580C",
         "rate_y_max": 5,
@@ -105,6 +116,6 @@
         "pressure_kpa_max_for_bar": 8,
 
         "water_mol_per_mL": 0.05551,
-        "_units_note": "시간 척도 학교 실험 정합. evap_rate_per_particle_per_sec 0.025 = 입자당 초당 탈출 기대치. 95 surface × 0.025 ≈ 2.4/s 평균. Poisson 분포 자동. plateau gas ~50 (gas lifetime ~25s) → 평형 도달 ~120~180s. pressure 0.06 kPa/입자: plateau 50 → 3 kPa = 25°C 물 증기압 정합 (실측 ≈ 3.17 kPa). pressure_kpa_max_for_bar 8 = 게이지 가시 (3 kPa = 38% 막대). rate_y_max 5 = 그래프 가시 (2/s = 40% 높이). equilibrium_threshold 0.5/s + min_evap 1.5/s = 낮은 rate 정합 (조기 trigger 회피). rate_window_sec 180 = 3분 슬라이딩 (전체 timeline 가시). surface_opacity 0.55 = 표면 반투명 (액체 격자와 시각 차별). flash 0.8s 페이드 12→4 px + 화살표 30 px (evap 위 / cond 아래). gas_spawn_KE [2.0, 4.0] uniform: E_capture 2.5 대비 ~25% 즉시 응축 회피. gas_speed_scale 50, gas_velocity_damping 0.9995, gas_gravity 0.0005 px/s²/frame, ceiling_KE_retention 0.85. T 변경(Phase 6.2~)은 evap_rate_per_particle_per_sec 자체를 T 함수로."
+        "_units_note": "시간 척도 학교 실험 정합. evap_rate_per_particle_per_sec 0.025: 95 surface × 0.025 ≈ 2.4/s. plateau gas ~50, 평형 ~120~180s. pressure 0.06 kPa/입자: plateau 50 → 3 kPa = 25°C 물 증기압 정합 (실측 3.17). 평활 강화 (fixup 5): rate_ema_alpha 0.1 (직전 0.3) + rate_calc_window_sec 3.0 (3초 raw rate 평균 후 EMA). rate_window_sec 60 = 그래프 시간축 60초. 시각 균형 (fixup 5): liquid_color #1E40AF + liquid_opacity 0.92 (격자 톤 다운), gas_birth_highlight 청 테두리 2.5→0.5 px 2초 페이드, condense_highlight 표면 격자 주황 ring 2.5 px 2초 페이드. cond 화살표 색 #DC2626 (진한 빨강). 응축 화살표 위치: 표면 위 30 px → 표면 (액체 묻힘 회피). gas_spawn_KE [2.0, 4.0]. gas_speed_scale 50, gas_velocity_damping 0.9995, gas_gravity 0.0005, ceiling_KE_retention 0.85. T 변경(Phase 6.2~)은 evap_rate 자체를 T 함수로."
     }
 }
