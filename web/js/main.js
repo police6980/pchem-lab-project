@@ -3815,6 +3815,8 @@ ${sensorGuide}
 // vapor.html (data-page="vapor") 진입 시 호출. 시뮬 본체 + AI 튜터 통합.
 // fixup 17a — AI 튜터 통합 완료 (tutor.js createTutor factory 재사용,
 // boyle/dalton/particles 와 동일 패턴, vaporConfig main.js 안 신설).
+// fixup 17b — vaporTutor.init() 호출 누락 수정 (17a regression).
+// dalton:3492 동일 위치 패턴 — settings 토글 / 탭 / 입력 / select 모두 부활.
 // ─────────────────────────────────────────────────────────────────────
 function initVaporApp(params) {
     const cfg = params?.vapor;
@@ -4544,7 +4546,11 @@ function initVaporTutor(deps) {
         closeBtn.addEventListener("click", () => vaporTutor.closeConversation());
     }
 
-    console.log("[vapor tutor] AI 튜터 초기화 완료 (createTutor factory 재사용, fixup 17a)");
+    // fixup 17b — init() 호출 누락 수정 (17a regression). dalton:3492 동일 패턴.
+    // factory 안 settings 토글 / 탭 / 입력창 / level/model select 핸들러 바인딩 진입.
+    vaporTutor.init();
+
+    console.log("[vapor tutor] AI 튜터 초기화 완료 (createTutor factory 재사용, fixup 17b)");
 }
 
 // 페이지 디스패처 — body.dataset.page 값으로 어느 초기화를 실행할지 결정.

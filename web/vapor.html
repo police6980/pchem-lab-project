@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CAST — 증기압 (Phase 6.1-b finalization fixup 17a + 6.4 AI 튜터 통합)</title>
+    <title>CAST — 증기압 (Phase 6.1-b finalization fixup 17b — sidebar layout + init 수정)</title>
     <link rel="stylesheet" href="css/style.css">
     <script src="https://cdn.jsdelivr.net/npm/p5@1.11.2/lib/p5.min.js"></script>
     <script src="https://unpkg.com/docx@8.5.0/build/index.umd.js"></script>
@@ -26,9 +26,15 @@
 <body data-page="vapor">
     <nav class="page-nav vapor-nav">
         <a href="index.html" class="nav-home" title="홈으로 돌아가기">🏠 홈으로</a>
-        <span class="nav-title">증기압 — Phase 6.1-b finalization fixup 17a + 6.4 (AI 튜터 통합)</span>
+        <span class="nav-title">증기압 — Phase 6.1-b finalization fixup 17b (사이드바 layout 정공법 + init 수정)</span>
     </nav>
 
+    <!-- fixup 17b — flex 부모 신설 (boyle #basic-mode 패턴 복제).
+         #vapor-page-wrap = flex row, <main> = flex:1 + min-width:0, <aside> = flex-basis 380.
+         vapor-layout-v2 max-width 1900 정책 (15l) 그대로 main 안 보존.
+         body.sidebar-collapsed → #ai-sidebar display:none → main 자동 100% 확장. -->
+    <div id="vapor-page-wrap" class="vapor-page-wrap">
+    <main id="vapor-main-container" class="vapor-main-container">
     <div id="vapor-layout-v2" class="vapor-layout-v2">
 
         <!-- ====== 위쪽 가로 영역 (fixup 15h — 사이드바 변신, 2 row layout) ====== -->
@@ -278,9 +284,11 @@
             </div>
         </section>
     </div>
+    </main>
 
-    <!-- fixup 17a — AI 튜터 사이드바 (boyle/dalton 동일 패턴, id/class 100% 정합).
-         tutor.js factory 의 #ai-sidebar 셀렉터 사용. CSS 0 변경 (.ai-sidebar 등 모두 정의됨). -->
+    <!-- fixup 17b — AI 튜터 사이드바 (boyle/dalton 동일 패턴, id/class 100% 정합) +
+         flex 부모 #vapor-page-wrap 안 main 옆 sibling.
+         tutor.js factory 의 #ai-sidebar 셀렉터 사용. .ai-sidebar 기본 정의 (style.css:42-55) 활용. -->
     <script>
         document.addEventListener("DOMContentLoaded", () => {
             document.getElementById("btn-ai-collapse")?.addEventListener("click", () => {
@@ -370,6 +378,7 @@
             <button id="btn-send-message" title="전송" disabled>↑</button>
         </div>
     </aside>
+    </div><!-- /#vapor-page-wrap -->
     <button id="ai-reopen-btn" title="AI 튜터 열기">💬</button>
 </body>
 </html>
