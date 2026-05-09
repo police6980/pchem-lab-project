@@ -156,6 +156,27 @@ MVP 외 후속 트랙 학습 목표:
 - 자체 LJ-like piecewise (6.1-b sub-step 1 LJ 시도): 정통 LJ 와 함수 모양 본질 차이 + Velocity Verlet 아닌 semi-implicit Euler + 단위 임의값. 안정 응집 실패.
 - 응집 영역 + 외부 끌어당김 가속도장 (직전): 분자간 인력 자연 정합성 손실. Schroeder 채택으로 해소.
 
+### 중력 + spring-like 바닥 (Schroeder base 위 우리 변형, B-2 fixup)
+
+Schroeder 원본은 단일 박스 + 중력 없음 (모든 위치 동등). 본 시뮬은 액체/기체 영역 분리이므로 중력 필수 — 액체가 "아래" 에 있어야 학습 직관 (액체 = 무거움) 정합.
+
+- 모든 입자에 균일 -y 가속도 (`gravity_g`, 매우 약함).
+- 액체 박스 하부 경계 = spring-like 부드러운 반발 (`bottom_wall_softness`, 클러스터 통째 튕김 차단). hard wall 반사 폐기.
+- 옆·위 캔버스 경계 = hard wall (입자 가둠 유지).
+- 액체 박스 위 경계 (V_liquid 점선) = 통과 자유 (LJ + KE 임계가 자연 게이트).
+
+### LJ 자연 게이트 — 표면 vs 내부
+
+LJ 인력 강도 (`schroeder_epsilon`) 와 KE 분포 (`schroeder_init_temp`) 가 적정 비율이면, 내부 입자는 사방 인력 균형으로 탈출 임계 매우 높음, 표면 입자는 한 방향만 인력 (위 X) 으로 임계 낮음. 자연스럽게 표면 입자만 증발. T_critical 이하 영역에서 작동. B-2 fixup 에서 `epsilon` 1.0 → 1.5 (인력 강화), `init_temp` 0.4 → 0.25 (KE 분포 좁힘) — 내부 탈출 차단·표면 자연 증발만.
+
+### 배제된 대안 (B-2 fixup 시점)
+
+- 응집 영역 + 외부 가속도장 (이전 시도): 명시 가속도장으로 가둠 → 자연 게이트 X, 분자간 인력 정합성 X.
+- LJ 단순 (cutoff·k 낮음, 우리 첫 LJ 시도): 응집 실패, 균등 분포.
+- LJ + 중력 X (B-2 초기): 클러스터가 덩어리째 떠오름 (사용자 검증에서 발견).
+- LJ + 중력 + hard wall 바닥: 클러스터가 바닥에서 통째 튕김 → spring-like 반발로 해소.
+- T 너무 높음 (init_temp 0.4): 내부 입자도 KE > 임계로 탈출 → T 0.25 + epsilon 1.5 로 표면만 증발.
+
 **T 입력 → 시뮬 결합**:
 - 수조 T → 액체상 입자 평균 KE → MB 분포 꼬리 비율 변동
 - 꼬리 입자의 단위 시간당 탈출 수 = 증발 속도

@@ -1,6 +1,6 @@
 // =============================================================
-// vapor.js — 증기압 시뮬 본체 (Phase 6.1-b sub-step B-2)
-//             Schroeder LJ + Velocity Verlet base
+// vapor.js — 증기압 시뮬 본체 (Phase 6.1-b sub-step B-2 fixup)
+//             Schroeder LJ + Velocity Verlet base + 중력 / spring 바닥
 //
 // 출처 attribution (MIT License, sub-step B-1 검증):
 //   Daniel V. Schroeder, "Interactive molecular dynamics,"
@@ -21,13 +21,17 @@
 // 본 프로젝트 변형 (Schroeder UI 통째 폐기 + 우리 특화):
 //   · Schroeder presets/sliders/save·load/data export 등 모두 제거
 //   · p5 instance mode wrapping (mountVaporSketch 인터페이스 유지)
-//   · 박스 영역 분할: 박스 사방 강한 반사 (입자 가둠) + 액체 박스
-//     위 경계 (V_liquid:V_gas 비율) = 시각 점선만 (통과 자유)
+//   · 박스 영역 분할: 옆·위 hard wall + 바닥 spring-like 반발 (B-2 fixup,
+//     클러스터 통째 튕김 차단). 액체 박스 위 경계 (V_liquid:V_gas 비율) =
+//     시각 점선만 (통과 자유, LJ + KE 자연 게이트로 표면 입자만 증발)
+//   · 균일 -y 중력 (gravity_g) — Schroeder 단일 박스 가정 위배 보정 (B-2 fixup)
+//   · LJ 인력 강화 (schroeder_epsilon=1.5) + T 낮춤 (init_temp=0.25) —
+//     내부 입자 탈출 차단, 표면 입자만 자연 증발 (B-2 fixup)
 //   · Sigma 단위 → 캔버스 px 변환 (pxPerUnit = canvasW/boxWidth)
 //   · 색은 단색 (molecule_color) — sub-step B-3 에서 자동 매핑
 //   · 사건 카운터·rate 그래프·학생 패널·자동 보정·4 모드 — sub-step B-4 ~ B-5
 //
-// Sub-step B-2 검증 기준: 200 입자 액체 박스 안 응집 + 가끔 탈출 + 50fps.
+// Sub-step B-2 fixup 검증 기준: 클러스터 침전 (떠오름 X) + 표면 입자만 가끔 탈출 + 50fps.
 // 폐기된 자체 시도들 (응집영역 + 가속도장, LJ-like piecewise, 자유낙하,
 // 격자 진동, 표면 추상화) docs/17 §6 참조.
 // =============================================================
@@ -47,9 +51,12 @@ class VaporWorld {
         this.cutoff2  = this.cutoff * this.cutoff;
         this.pEatCutoff = 4 * (Math.pow(this.cutoff, -12) - Math.pow(this.cutoff, -6));
         this.dt       = cfg.schroeder_dt ?? 0.005;
-        this.initT    = cfg.schroeder_init_temp ?? 0.4;
+        this.initT    = cfg.schroeder_init_temp ?? 0.25;
         this.stepsPerFrame = cfg.schroeder_steps_per_frame ?? 25;
-        this.gravity  = cfg.schroeder_gravity ?? 0;
+        this.gravity  = cfg.gravity_g ?? 0.001;          // 균일 -y 가속도 (B-2 fixup)
+        this.epsilon  = cfg.schroeder_epsilon ?? 1.5;    // LJ 인력 강화 (B-2 fixup)
+        this.bottomSoftness    = cfg.bottom_wall_softness ?? 5.0;  // spring 강도
+        this.bottomThreshold   = cfg.bottom_wall_threshold_sigma ?? 0.5; // 깊이 임계 (sigma)
 
         // ── 박스 크기 (sigma 단위) ──
         // canvas 가로:세로 비율 따라 자동. boxWidth 는 cfg 에서.
@@ -118,9 +125,10 @@ class VaporWorld {
     _computeAccelerations() {
         const N = this.N;
         const cutoff2 = this.cutoff2;
+        // 균일 중력 (-y) — B-2 fixup. 단일 박스 가정 위배 보정 (액체 = 무거움 학습 직관).
         for (let i = 0; i < N; i++) {
             this.ax[i] = 0;
-            this.ay[i] = -this.gravity;  // Schroeder gravity 부호: -y (아래쪽)
+            this.ay[i] = -this.gravity;
         }
 
         // Cell list 조건 — Schroeder 그대로
@@ -141,7 +149,7 @@ class VaporWorld {
                                 const rSqInv = 1.0 / rSquared;
                                 const attract = rSqInv * rSqInv * rSqInv;
                                 const repel = attract * attract;
-                                const fOverR = 24.0 * ((2.0 * repel) - attract) * rSqInv;
+                                const fOverR = 24.0 * this.epsilon * ((2.0 * repel) - attract) * rSqInv;
                                 const fx = fOverR * dx;
                                 const fy = fOverR * dy;
                                 this.ax[i] += fx; this.ay[i] += fy;
@@ -196,7 +204,7 @@ class VaporWorld {
                                 const rSqInv = 1.0 / rSquared;
                                 const attract = rSqInv * rSqInv * rSqInv;
                                 const repel = attract * attract;
-                                const fOverR = 24.0 * ((2.0 * repel) - attract) * rSqInv;
+                                const fOverR = 24.0 * this.epsilon * ((2.0 * repel) - attract) * rSqInv;
                                 const fx = fOverR * dx;
                                 const fy = fOverR * dy;
                                 this.ax[i] += fx; this.ay[i] += fy;
@@ -205,6 +213,21 @@ class VaporWorld {
                         }
                     }
                 }
+            }
+        }
+        this._applyBottomSpring();
+    }
+
+    // Spring-like 바닥 반발 — B-2 fixup. 클러스터 통째 튕김 차단.
+    // 입자가 y < threshold 깊이에 들어가면 깊이 비례 위 방향 force.
+    _applyBottomSpring() {
+        const N = this.N;
+        const k = this.bottomSoftness;
+        const th = this.bottomThreshold;
+        for (let i = 0; i < N; i++) {
+            if (this.y[i] < th) {
+                const depth = th - this.y[i];
+                this.ay[i] += k * depth;
             }
         }
     }
@@ -229,10 +252,13 @@ class VaporWorld {
                 this.x[i] = 2 * this.boxWidth - this.x[i];
                 this.vx[i] = -this.vx[i];
             }
+            // 위 (y > boxHeight) hard wall 유지. 바닥 (y < 0) 은 spring 으로 처리.
+            // 안전 클램프만 — 반사 X (클러스터 통째 추진 방지, B-2 fixup).
             if (this.y[i] < 0) {
-                this.y[i] = -this.y[i];
-                this.vy[i] = -this.vy[i];
-            } else if (this.y[i] > this.boxHeight) {
+                this.y[i] = 0;
+                if (this.vy[i] < 0) this.vy[i] = 0;
+            }
+            if (this.y[i] > this.boxHeight) {
                 this.y[i] = 2 * this.boxHeight - this.y[i];
                 this.vy[i] = -this.vy[i];
             }
