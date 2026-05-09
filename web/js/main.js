@@ -4158,26 +4158,47 @@ function initVaporApp(params) {
             // fixup 14 — 워밍업 동안 EMA null, "—" 표시
             dom.evapRateEl.textContent = (world.evapEMA == null) ? "—" : world.evapEMA.toFixed(2);
             dom.condRateEl.textContent = (world.condEMA == null) ? "—" : world.condEMA.toFixed(2);
-            // 응축/증발 비율 (fixup 11 — rate 카드 third cell, zone 색 분기)
+            // 응축/증발 비율 + zone 색 4 상태 (fixup 15d — state 우선, ratio band 차순)
             const evapEma = world.evapEMA;
+            const eqState = world._equilibriumState ?? "none";
             if (evapEma != null && evapEma > 0.05) {
                 const ratio = world.condEMA / evapEma;
                 dom.ratioVal.textContent = ratio.toFixed(2);
-                let zone = "zero";
-                if (ratio < 0.1)        zone = "zero";
-                else if (ratio < 0.5)   zone = "low";
-                else if (ratio < 0.9)   zone = "mid";
-                else if (ratio <= 1.1)  zone = "eq";
-                else                    zone = "over";
+                let zone;
+                if (eqState === "exited") {
+                    zone = "exit";
+                } else if (ratio >= 0.9 && ratio <= 1.1) {
+                    zone = "reached";
+                } else if (ratio >= 0.85 && ratio <= 1.15) {
+                    zone = "near";
+                } else {
+                    zone = "none";
+                }
                 dom.ratioVal.dataset.zone = zone;
             } else {
                 dom.ratioVal.textContent = "—";
-                dom.ratioVal.dataset.zone = "zero";
+                dom.ratioVal.dataset.zone = "none";
             }
             dom.surfaceCount.textContent = String(world.surfaceCount);
             dom.gasCount.textContent = String(world.gasCount);
-            dom.eqBadge.textContent = world.equilibriumReached ? "평형 도달 ★" : (world.equilibriumStartIdx != null ? "평형 근접" : "평형 비도달");
-            dom.eqBadge.dataset.state = world.equilibriumReached ? "yes" : "no";
+            // 4 상태 배지 (fixup 15d — reached / exited / near / none)
+            switch (eqState) {
+                case "reached":
+                    dom.eqBadge.textContent = "평형 도달 ★";
+                    dom.eqBadge.dataset.state = "reached";
+                    break;
+                case "exited":
+                    dom.eqBadge.textContent = "평형 이탈";
+                    dom.eqBadge.dataset.state = "exit";
+                    break;
+                case "near":
+                    dom.eqBadge.textContent = "평형 근접";
+                    dom.eqBadge.dataset.state = "near";
+                    break;
+                default:
+                    dom.eqBadge.textContent = "평형 비도달";
+                    dom.eqBadge.dataset.state = "none";
+            }
             dom.elapsedTime.textContent = world.elapsedFormatted;
             dom.btnRecord.disabled = !world.equilibriumReached;
             // rate 그래프 (우측 카드 canvas) 재렌더 — 데이터는 1초마다 갱신, 5fps 충분
@@ -4212,12 +4233,12 @@ function initVaporApp(params) {
         dom.evapRateEl.textContent = "—";
         dom.condRateEl.textContent = "—";
         dom.ratioVal.textContent = "—";
-        dom.ratioVal.dataset.zone = "zero";
+        dom.ratioVal.dataset.zone = "none";
         dom.surfaceCount.textContent = "—";
         dom.gasCount.textContent = "—";
         dom.latticeCount.textContent = "—";
         dom.eqBadge.textContent = "평형 비도달";
-        dom.eqBadge.dataset.state = "no";
+        dom.eqBadge.dataset.state = "none";
         dom.elapsedTime.textContent = "—";
         dom.btnRecord.disabled = true;
         // rate 그래프 캔버스 클리어

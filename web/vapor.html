@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CAST — 증기압 (Phase 6.1-b finalization fixup 15c + 15a redo v4 + 6.2 부분)</title>
+    <title>CAST — 증기압 (Phase 6.1-b finalization fixup 15d + 6.2 부분)</title>
     <link rel="stylesheet" href="css/style.css">
     <script src="https://cdn.jsdelivr.net/npm/p5@1.11.2/lib/p5.min.js"></script>
     <script src="https://unpkg.com/docx@8.5.0/build/index.umd.js"></script>
@@ -22,7 +22,7 @@
 <body data-page="vapor">
     <nav class="page-nav vapor-nav">
         <a href="index.html" class="nav-home" title="홈으로 돌아가기">🏠 홈으로</a>
-        <span class="nav-title">증기압 — Phase 6.1-b finalization fixup 15c + 15a redo v4 + 6.2 (T 통합)</span>
+        <span class="nav-title">증기압 — Phase 6.1-b finalization fixup 15d + 6.2 (T 통합)</span>
     </nav>
 
     <div id="vapor-layout-v2" class="vapor-layout-v2">
@@ -91,7 +91,7 @@
                         ⏱ <span id="vapor-elapsed-time">—</span>
                     </span>
                     <!-- 평형 배지 — mock 모드 활성 (fixup 13, ratio 기반 평형 판정 통일) -->
-                    <span id="vapor-equilibrium-badge" class="vapor-eq-badge" data-state="no">
+                    <span id="vapor-equilibrium-badge" class="vapor-eq-badge" data-state="none">
                         평형 비도달
                     </span>
                 </header>
@@ -181,7 +181,7 @@
                         <!-- 비율 cell (fixup 11 — mock 학습 단서, zone 색 분기) -->
                         <div class="vapor-rate-cell vapor-rate-cell-ratio">
                             <span class="vapor-rate-label">비율</span>
-                            <span class="vapor-rate-value vapor-ratio-text" id="vapor-ratio-val" data-zone="zero">—</span>
+                            <span class="vapor-rate-value vapor-ratio-text" id="vapor-ratio-val" data-zone="none">—</span>
                         </div>
                     </div>
                     <p class="vapor-card-note">

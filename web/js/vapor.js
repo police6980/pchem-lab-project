@@ -1,6 +1,6 @@
 // =============================================================
 // vapor.js — 증기압 시뮬 본체
-// Phase 6.1-b finalization fixup 15a redo v4 (매칭 폐기 + 단순 자연 fade only)
+// Phase 6.1-b finalization fixup 15d (rate ema 안정화 + 평형 hysteresis 4-state)
 //
 // 핵심 철학 (정공법):
 //   학생 가시 = 실측 / 시뮬 = 미시 가시화 (정성적)
@@ -54,17 +54,21 @@
 //     · ratio = condEMA / evapEMA, 텍스트 + zone 색 분기
 //     · zone (zero/low/mid/eq/over), 1.0 도달 시 녹색 (eq) → 평형 인지
 //
-//   ── 평형 자동 감지 (fixup 13 — ratio 기반 단일 metric, mock 활성) ──
-//     · ratio = condEMA / evapEMA 가 [equilibrium_ratio_min, equilibrium_ratio_max] 안 holdSec 유지 → 평형
-//     · 시뮬 헤더 배지 (mock 활성) + rate 그래프 ★ + 비율 zone 색 = 동일 트리거
-//     · P_internal 변화율 평형 판정 폐기 (직전 fixup 8~9), 진단용 _lastRelChange 보존
-//     · equilibriumReached / equilibriumPercent getter 보존 (real 모드 재사용 가능)
+//   ── 평형 자동 감지 (fixup 15d — hysteresis 4-state, mock 활성) ──
+//     · 4 상태: "none" / "near" / "reached" / "exited"
+//     · 진입 zone [0.9, 1.1] holdSec=10초 → "reached" + _everReachedEquilibrium=true
+//     · 도달 후 이탈 zone [0.85, 1.15] 안 = "reached" 유지 (hysteresis 잡음 보호)
+//     · 이탈 zone 외 시 "exited" + _everReachedEquilibrium=false → 재도달 시 hold 다시
+//     · 시뮬 헤더 배지 + rate 그래프 ★ + 비율 zone 색 모두 _equilibriumState 기반 동기화
+//     · 직전 fixup 13 단일 metric ratio 0.9~1.1 / 5초 hold sticky 평형 폐기 (이탈 추적 부재)
+//     · P_internal 변화율 평형 판정 폐기 (fixup 8~9), 진단용 _lastRelChange 보존
+//     · equilibrium_change_threshold / equilibrium_warmup_sec 보존 (real 모드 재사용 의도)
 //
 //   ── setTemperature reset (fixup 10) ──
 //     · _emaPrimed = false, _pressureSmoothedPrev = null 추가
 //     · T 변경 시 evap 곡선 lag / relChange jump 회피
 //
-// 폐기 (fixup 누적 1~15a):
+// 폐기 (fixup 누적 1~15d):
 //   · KE 결정적 게이트 + 1초 동기 재샘플 (fixup 3)
 //   · sliding window 60초 (fixup 6, 누적으로 변경)
 //   · evap_rate_per_particle_per_sec (fixup 4, Boltzmann 으로 대체)
@@ -85,6 +89,10 @@
 //   · setTemperature 안 누적 화살표 fade 이동 (redo v3, redo v4 폐기 — T 변경 시 화살표 손대지 X)
 //   · params.flash_arrow_match_cancel_fade_sec (15a v1) / match_min_hold_sec (v2) /
 //     match_fade_sec / max_cap_per_dir / t_change_fade_sec (v3, v4 모두 폐기)
+//   · fixup 13 sticky 평형 (단일 ratio band + 5초 hold, 이탈 추적 X) — fixup 15d 폐기
+//   · equilibriumStartIdx 필드 (fixup 13, fixup 15d 폐기 — _equilibriumHoldStart ms 로 의미 이전)
+//   · DOM data-state="yes"/"no" / data-zone "zero"/"low"/"mid"/"eq"/"over" (fixup 11~13)
+//     fixup 15d 폐기 → 4 분기 (reached/exit/near/none) 통일
 //
 // docs/17 §6 참조.
 // =============================================================
@@ -225,10 +233,13 @@ class VaporWorld {
         this.condEMA = null;
         this._emaPrimed = false;        // fixup 9: 첫 정상 tick 에 EMA prime (워밍업 lag 차단)
         this._ratePrimeBuf = null;      // fixup 15a: 첫 N tick raw 누적 → 평균 prime (잡음 prime 회피)
-        this.equilibriumStartIdx = null;
-        this.equilibriumReached = false;
-        this.equilibriumIdx = null;
-        this._equilibriumReachedAtSec = null;
+        // 평형 hysteresis 4-state (fixup 15d)
+        this.equilibriumReached = false;          // === (_equilibriumState === "reached")
+        this.equilibriumIdx = null;               // 도달 시점 rateHistory index (rate ★ vertical line)
+        this._equilibriumReachedAtSec = null;     // 도달 시각 (학생 표시용 — mock 비공개)
+        this._equilibriumState = "none";          // "none" / "near" / "reached" / "exited"
+        this._everReachedEquilibrium = false;     // boolean — 현재 평형 상태 (도달 후 이탈 시 false)
+        this._equilibriumHoldStart = null;        // 진입 zone hold 시작 시각 (performance.now ms)
         this._pressureSmoothed = 0;
         this._pressureSmoothedPrev = null;
         this._lastRelChange = 1.0;
@@ -262,11 +273,13 @@ class VaporWorld {
     // T 변경 (시뮬 리셋 X — 입자 그대로, 새 plateau 자연 도달)
     setTemperature(T_celsius) {
         this.T_celsius = T_celsius;
-        // 평형 검출 리셋 (이전 T 의 평형 무효)
-        this.equilibriumStartIdx = null;
+        // 평형 hysteresis 4-state reset (fixup 15d, T 변경 시 history 무관)
         this.equilibriumReached = false;
         this.equilibriumIdx = null;
         this._equilibriumReachedAtSec = null;
+        this._equilibriumState = "none";
+        this._everReachedEquilibrium = false;
+        this._equilibriumHoldStart = null;
         // fixup 10: evap 곡선 자연 전환 보장 (10초 lag 차단)
         this._emaPrimed = false;
         // fixup 15a: T 변경 시 새 평형 향해 prime 평균 다시 (잡음 prime 회피)
@@ -663,13 +676,15 @@ class VaporWorld {
             // index 무관 (eq line 은 max 도달 후에는 이미 한참 지난 시점이라 시각 영향 X)
         }
 
-        // 평형 검출 — ratio = condEMA / evapEMA (fixup 13, 단일 metric)
-        // ratio 가 [eq_min, eq_max] 안 holdSec 지속 → 평형
-        // 직전 P_internal 변화율 기반 평형 판정 폐기 (★ 표지 + 비율 zone 색 모순 회피).
-        // P_internal 변화율 보존 (real 모드에서 P_measured 변화율 기반 별도 판정 가능).
+        // 평형 hysteresis 4-state (fixup 15d) — 진입 [0.9, 1.1] / 이탈 [0.85, 1.15]
+        // 4 상태: none / near / reached / exited
+        // sticky 폐기 — 이탈 zone 외 시 _everReachedEquilibrium = false → 재도달 시 hold 다시.
+        // P_internal 변화율 보존 (real 모드 재사용 — 변경 X).
         const eqMin = this.cfg.equilibrium_ratio_min ?? 0.9;
         const eqMax = this.cfg.equilibrium_ratio_max ?? 1.1;
-        const holdSec = this.cfg.equilibrium_hold_sec ?? 5;
+        const eqExitMin = this.cfg.equilibrium_exit_ratio_min ?? 0.85;
+        const eqExitMax = this.cfg.equilibrium_exit_ratio_max ?? 1.15;
+        const holdSec = this.cfg.equilibrium_hold_sec ?? 10;
         const ratio = (this.evapEMA != null && this.evapEMA > 0.05) ? (this.condEMA / this.evapEMA) : null;
 
         // 진단용 P 변화율 보존 (real 모드 재사용)
@@ -679,21 +694,45 @@ class VaporWorld {
             : 1.0;
         this._pressureSmoothedPrev = this._pressureSmoothed;
 
-        const eqEligible = ratio != null && ratio >= eqMin && ratio <= eqMax;
+        const inEnterBand = ratio != null && ratio >= eqMin && ratio <= eqMax;
+        const inExitBand = ratio != null && ratio >= eqExitMin && ratio <= eqExitMax;
 
-        if (eqEligible) {
-            if (this.equilibriumStartIdx == null) {
-                this.equilibriumStartIdx = this.rateHistory.length - 1;
-            } else if (!this.equilibriumReached) {
-                const dwell = (this.rateHistory.length - 1) - this.equilibriumStartIdx;
-                if (dwell >= holdSec) {
-                    this.equilibriumReached = true;
-                    this.equilibriumIdx = this.equilibriumStartIdx;
-                    this._equilibriumReachedAtSec = this.elapsedSec;
+        if (!this._everReachedEquilibrium) {
+            // 도달 전 또는 이탈 후 재시도 모드
+            if (inEnterBand) {
+                if (this._equilibriumHoldStart == null) {
+                    this._equilibriumHoldStart = now;
                 }
+                const heldSec = (now - this._equilibriumHoldStart) / 1000;
+                if (heldSec >= holdSec) {
+                    this._equilibriumState = "reached";
+                    this._everReachedEquilibrium = true;
+                    this.equilibriumReached = true;
+                    this.equilibriumIdx = this.rateHistory.length - 1;
+                    this._equilibriumReachedAtSec = this.elapsedSec;
+                } else {
+                    this._equilibriumState = "near";
+                }
+            } else if (inExitBand) {
+                // 진입 band 외, 이탈 band 안 → "근접" (hold reset)
+                this._equilibriumHoldStart = null;
+                this._equilibriumState = "near";
+            } else {
+                this._equilibriumHoldStart = null;
+                this._equilibriumState = "none";
             }
-        } else if (!this.equilibriumReached) {
-            this.equilibriumStartIdx = null;
+        } else {
+            // 도달 상태 — 이탈 band 안 시 유지, 외 시 이탈
+            if (inExitBand) {
+                this._equilibriumState = "reached";
+            } else {
+                this._equilibriumState = "exited";
+                this._everReachedEquilibrium = false;
+                this._equilibriumHoldStart = null;
+                this.equilibriumReached = false;
+                this.equilibriumIdx = null;
+                this._equilibriumReachedAtSec = null;
+            }
         }
 
         // 콘솔
@@ -704,8 +743,9 @@ class VaporWorld {
             const ke0 = 0.5 * (g0.vx * g0.vx + g0.vy * g0.vy) / ssq;
             dbg = ` · gas[0] KE=${ke0.toFixed(2)}`;
         }
-        const eqTag = this.equilibriumReached ? " · 평형 ★"
-                    : this.equilibriumStartIdx != null ? " · 평형 근접"
+        const eqTag = (this._equilibriumState === "reached") ? " · 평형 ★"
+                    : (this._equilibriumState === "exited")  ? " · 평형 이탈"
+                    : (this._equilibriumState === "near")    ? " · 평형 근접"
                     : "";
         const Pth = this.theoreticalPVap_kPa;
         const PthTag = (typeof Pth === "number") ? ` (이론 ${Pth.toFixed(1)})` : "";

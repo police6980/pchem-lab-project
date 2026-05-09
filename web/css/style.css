@@ -3914,9 +3914,22 @@ body[data-page="vapor"] .vapor-eq-badge {
     background: #e2e8f0;
     color: #64748b;
 }
-body[data-page="vapor"] .vapor-eq-badge[data-state="yes"] {
+/* fixup 15d — 4 상태 분기 (reached/exit/near/none) */
+body[data-page="vapor"] .vapor-eq-badge[data-state="reached"] {
     background: #dcfce7;
     color: #166534;
+}
+body[data-page="vapor"] .vapor-eq-badge[data-state="exit"] {
+    background: #fed7aa;
+    color: #9a3412;
+}
+body[data-page="vapor"] .vapor-eq-badge[data-state="near"] {
+    background: #fef9c3;
+    color: #854d0e;
+}
+body[data-page="vapor"] .vapor-eq-badge[data-state="none"] {
+    background: #e2e8f0;
+    color: #64748b;
 }
 body[data-page="vapor"] .vapor-canvas-container {
     background: #f8fafc;
@@ -4149,11 +4162,11 @@ body[data-page="vapor"] .vapor-ratio-text {
     font-variant-numeric: tabular-nums;
     transition: color 0.3s ease;
 }
-body[data-page="vapor"] .vapor-ratio-text[data-zone="zero"]   { color: #94a3b8; }
-body[data-page="vapor"] .vapor-ratio-text[data-zone="low"]    { color: #64748b; }
-body[data-page="vapor"] .vapor-ratio-text[data-zone="mid"]    { color: #f59e0b; }
-body[data-page="vapor"] .vapor-ratio-text[data-zone="eq"]     { color: #16a34a; font-weight: 600; }
-body[data-page="vapor"] .vapor-ratio-text[data-zone="over"]   { color: #2563eb; }
+/* fixup 15d — 4 상태 (none/near/reached/exit), 배지와 동기화 */
+body[data-page="vapor"] .vapor-ratio-text[data-zone="none"]    { color: #94a3b8; }
+body[data-page="vapor"] .vapor-ratio-text[data-zone="near"]    { color: #ca8a04; }
+body[data-page="vapor"] .vapor-ratio-text[data-zone="reached"] { color: #16a34a; font-weight: 600; }
+body[data-page="vapor"] .vapor-ratio-text[data-zone="exit"]    { color: #ea580c; font-weight: 600; }
 
 body[data-page="vapor"] .vapor-pvap-big small {
     font-size: 12px;
