@@ -239,9 +239,9 @@ univ (대학교 일반화학/물리화학 초기):
 9. 이전 턴의 학생 답변·AI 응답을 `messages` 배열로 전체 누적 전송 (맥락 유지)
 10. 대화 턴 수가 8회를 넘으면 시스템이 [세션 초기화]를 제안
 
-### 4.6 데이터 소스 분기 (Phase 5.5~5.9)
+### 4.6 데이터 소스 분기 (Phase 5.5~5.9, Phase 6.4 vapor 통합)
 
-**도입 배경**: 학생이 mock(시뮬) · ws(에뮬레이터) · real(ESP32 자작) · vernier(상용 BLE) 4 모드 중 어느 것을 쓰는지에 따라 측정 데이터의 성격이 다르다. 동일 프롬프트로 모든 모드를 다루면 vernier 학생에게 "이상기체 법칙이 정확히 성립" 같은 sim 가이드가 나가는 정합성 어긋남 발생.
+**도입 배경**: 학생이 mock(시뮬) · ws(에뮬레이터) · real(ESP32 자작) · vernier(상용 BLE) 4 모드 중 어느 것을 쓰는지에 따라 측정 데이터의 성격이 다르다. 동일 프롬프트로 모든 모드를 다루면 vernier 학생에게 "이상기체 법칙이 정확히 성립" 같은 sim 가이드가 나가는 정합성 어긋남 발생. Phase 6.4 fixup 17a 에서 vapor 페이지도 본 분기 패턴 정합 (단 현재 mock 만 active, ws/real/vernier 는 Phase 6.3+ 예약).
 
 #### 4.6.1 분기 패턴 (4종)
 
@@ -256,6 +256,7 @@ univ (대학교 일반화학/물리화학 초기):
 - Boyle: `ui.js:1754-1789` — `buildDataContext.dataSource` 4종 + `buildSystemPrompt.sensorGuide` 4종
 - Dalton: `main.js:3324-3416` — `buildDataContext` 콜백에서 `daltonSensorManager.mode` 직접 접근 (같은 closure) → `daltonBuildSystemPrompt(level, qid, ctx)` 의 `ctx.mode` 경유
 - 입자운동 (`ui.js:2235` `createAdvAiTutor`): dataSource 분기 X. 입자운동은 모드 운용 시나리오와 무관한 시뮬 전용 페이지라 추가 작업 X (현 보존)
+- **Vapor**: `main.js:4484+` `initVaporTutor` — `vaporConfig + buildDataContext.mode "mock"`. Phase 6.3 ws/real/vernier 예약 (4 데이터 소스 분기 정합). factory 재사용 (`tutor.js` 자체 변경 0). 자세 자세 = §4.6.5 + `docs/17` §14.
 
 **vernier 본문 인용 (시뮬별 분량 차이 시각화)**:
 
@@ -335,6 +336,76 @@ mock/ws/real 본문은 각 시뮬 코드 직접 참조 (Boyle `ui.js:1782-1789` 
 **후속 의무**:
 - 부피 고정 기구 도착 후 V_A_current_mL 시각 검증 + Vernier sensorGuide 본문 응답 품질 평가 → 분량 단축 여부 재결정 (현 vernier 본문 ~290자 = 5요소 반영 우선, 실측 단계에서 약점 발견 시 단축)
 - 작업 D-(4) 측정 데이터 연동 점검 / D-(5) 응답 가드 (소크라테스식) 진입 시 본 §4.6 보강 가능
+
+#### 4.6.5 Phase 6.4 fixup 17a vapor AI 튜터 통합
+
+**Phase 6.4 예약 실행**: `tutor.js` 헤더 docstring 안 "Phase 6.4 예약: vapor 도 본 factory 사용 예정" (Phase 6.1-a `b3972b3` 선언) → fixup 17a (`f0acb06`) 실행. tutor.js 자체 변경 0 (factory + 공통 logic 그대로). 페이지 간 UX 일관성 (boyle/particles/dalton/vapor 동일 사이드바 + 학습 흐름).
+
+**vaporConfig 명세** (요약):
+
+```js
+const vaporConfig = {
+    simName: "vapor",
+    sidebarSelector: "#ai-sidebar",
+    tabIds: ["1", "2", "3", "4", "free"],
+    metaTabId: "4",
+    closeConfig: { /* default prompt */ },
+    reportEnabled: false,
+    getQuestionText: vaporGetQuestionText,
+    buildSystemPrompt: vaporBuildSystemPrompt,   // 학습 목표 4 + 절대 원칙 12 + 시뮬 시각 단서 활용
+    buildDataContext: () => ({ /* T / P / 평형 5-state / measurementPoints / mode "mock" */ }),
+    onLevelDetect: (level) => { /* 학생 수준 자동 감지 */ },
+};
+window.PchemTutorModule.createTutor(vaporConfig);
+vaporTutor.init();   // ← fixup 17b 누락 수정 (silent regression 본질, dalton:3492 동일 패턴)
+```
+
+**VAPOR_LEVEL_GUIDES** (4 수준):
+- **elem (초등)**: 입자 운동 직관 + 액체↔기체 변화 정성.
+- **middle (중등)**: 동적 평형 개념 + 온도 의존성 정성.
+- **high (고등)**: 클라우지우스-클라페롱 식 정성 + 평형 정량 (P_eq(T)).
+- **univ (대학)**: ln P vs 1/T 직선 + ΔH_vap 도출.
+
+**VAPOR_QUESTION_TEXT** (4 수준 × 5 탭 = 20):
+- Q1 동적 평형 / Q2 T 효과 / Q3 시뮬 vs 이론 / Q4 메타 (자동 생성) / free 자유 질문.
+
+**vaporBuildSystemPrompt — 시뮬 시각 단서 활용 권장**:
+- rate 그래프 두 곡선 만남 (정성적 평형, fixup 7~14 진화).
+- 압력계 + LCD 시계 + 입자 막대 (fixup 15s Johnstone 3수준 통합).
+- 평형 5-state 배지 (fixup 15n).
+- 화살표 자연 fade (fixup 15a v4 사건 빈도 시각).
+- 형광 색 (fixup 8 노랑 + 핑크 사건 강조).
+
+**buildDataContext 반환 객체 (vapor)**:
+
+```js
+{
+    T_celsius,                       // tInput.value (학생 입력)
+    P_kPa,                           // world.pressureKPa (mock=시뮬값)
+    V_flask, V_liquid, V_gas,        // 사이드바 입력
+    liquidType,                      // 현재 water 만 (Phase 6.7 ethanol 예정)
+    elapsed_sec,                     // world.elapsedSec
+    gasParticles,                    // world.gasParticles.length
+    equilibriumState,                // none/near/detected/confirmed/exited (fixup 15n 5-state)
+    equilibriumDetected,             // boolean getter
+    equilibriumConfirmed,            // boolean getter
+    equilibriumReachedAtSec,
+    evapEMA, condEMA,
+    measurementPoints,               // recordEquilibrium 누적
+    mode: "mock",                    // Phase 6.3+ ws/real/vernier 예약
+}
+```
+
+**Phase 6.3 4 데이터 소스 분기 예약**: 현재 vapor `mode` = "mock" 만 active. ws/real/vernier 활성화 시점 = Phase 6.3 (실센서 도착 후). sensorGuide 본문은 boyle/dalton 패턴 정합 추정 — 실측 활성화 시 작성. 단일 측정값 모드별 source 분기 철학 (`docs/17` §6 fixup 15j) 정합 — `world.pressureKPa` (mock 시뮬값) → `world.pressureMeasured` (real 실측값) 자연 교체. AI 튜터 buildDataContext 무변경 (P_kPa 출처만 자동 분기).
+
+**commits**:
+- `f0acb06` (fixup 17a) — vapor AI 튜터 통합 (tutor.js factory 재사용, +308/-8)
+- `753b723` (fixup 17b) — silent regression 수정 (vaporTutor.init() 1줄 누락) + flex 부모 시도
+- `e9459c1` (fixup 17d) — 시스템 layout 본질 발견 (@media 1599 → 1199 + flex 부모 정공법)
+
+**일지**: `docs/10-dev-journal.md § Phase 6.4 fixup 17a~17g-1` (17h-1d entry).
+
+**자세**: `docs/17-vapor-design.md` §14 (vapor AI 튜터 통합) + §15 (시스템 layout).
 
 ---
 

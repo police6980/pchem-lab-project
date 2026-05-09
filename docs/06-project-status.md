@@ -397,6 +397,61 @@ Arduino·ESP32 하드웨어 입수 전 선행 가능한 브라우저·프로토�
 
 **Phase 3 잔여**: `phase3-real-sensor` 브랜치 SW 완료. Step 3-6 실물 조립·검증 하드웨어 도착 대기. Phase 5.4/5.5 → Step I 와 동시 진행 가능.
 
+**완료 (Phase 5.6, 2026-04-28)** — docs 정합 + tests 보강 + CI 통합 (자율 5 트랙 #7~#11)
+- [x] docs 5건 stale 정리 (cross-ref 보강), tests 보강, CI 통합
+- 마지막 commit: `224e203` "docs: Phase 5.4/5.5 정합 점검"
+
+**완료 (Phase 5.7, 2026-04-29)** — AI 튜터 통합 모듈 (트랙 6, 14 commits)
+- [x] `web/js/tutor.js` factory 신설 (`createTutor(config)`) — 보일/입자운동/돌턴 3 패턴 분산 통합
+- [x] 단계 (a-2) 보일 적용 — Hybrid wrapper (commit `4538546`)
+- [x] 단계 (b) 입자운동 적용 — Hybrid wrapper (commit `7b5c589`)
+- [x] 단계 (c) 돌턴 적용 — Hybrid wrapper (commit `231e1cc`)
+- 마지막 commit: `fafcbd2` "docs(journal): Phase 5.7 트랙 6 — 14 commits"
+
+**완료 (Phase 5.8, 2026-05-06)** — Vernier GDX-GP 정식 편입 + Boyle 단일 채널
+- [x] Vernier GDX-GP를 4번째 SensorSource 로 추가 (mock/ws/real/vernier 4 모드)
+- [x] `web/js/vernier.js` `VernierBridgeSensorSource` 신설 (godirect-js BLE)
+- [x] Boyle 단일 채널 mode 토글 (`btn-mode-vernier`)
+- 마지막 commit: `3d55b44` "feat(sensor): Vernier GDX-GP를 4번째 SensorSource로 추가"
+
+**완료 (Phase 5.9, 2026-05-06~07)** — Vernier Dalton 적용 + AI 튜터 D-(3) Vernier substate
+- [x] Dalton Vernier 모드 UI + 상태머신 (`daltonState.vernier` IDLE → INJECTING → STABILIZING → READY_TO_CAPTURE → CAPTURED 5상태) + 측정 버튼 (1 클릭 P_initial / 2 클릭 P_total) (commit `6a547e1`)
+- [x] AI 튜터 dataSource 분기 4종 (`mock/ws/real/vernier`) + Vernier substate 컨텍스트 (`docs/07` §4.6)
+- [x] 1센서 운용 한계 (P_A·P_B 동시 측정 불가) → P_total 비교로 Dalton 검증
+- 마지막 commit: `4694fc8` "docs(ai-tutor): dataSource 4종 분기 + Vernier substate 컨텍스트"
+
+**완료 (Phase 5.10, 2026-05-08)** — 펌웨어 셋업 + Phase 5.9 작업 5 / D 트랙
+- [x] 펌웨어 셋업 + 8 commits 의사결정 기록
+- 마지막 commit: `112e131` "docs(journal): Phase 5.10 펌웨어 셋업 + Phase 5.9 작업 5 / D 트랙"
+
+**완료 (Phase 6.0, 2026-05-09)** — vapor 설계 (docs/17) + 시뮬 물리 명세 3건 묶음 + 외부 API 배제 결정
+- [x] `docs/17-vapor-design.md` 신규 (~866 줄, 13 섹션) — 삼각플라스크+수조 셋업, 학습 목표 4 (동적 평형 중심), 4 모드 분기, AI 튜터 anchoring, MVP Phase 6.0~6.4 분할
+- [x] **외부 시뮬 API 배제 결정** — matter.js / 클라우드 SaaS / PhET / AI 시뮬 모두 배제, 자체 구현 유지
+- [x] **시뮬 물리 명세 3건 확정** — (1) 위상 통과 = KE 임계 + 표면 근접 + 확률 게이트, (2) 응집력 = 약 중력 + 표면 stick, (3) 카운터 = rate + EMA + 누적 sub-panel
+- [x] **액체 종류 + 액체 양 비교 활동을 6.5 로 통합** 결정
+- 마지막 commit: `fa09d50` "docs(journal): Phase 6.0 physics specs + external API decision"
+
+**완료 (Phase 6.1-a, 2026-05-09)** — main 통합 baseline + vapor 페이지 골격
+- [x] `phase5-real-sensor` → `phase6-vapor-design` 머지 (Phase 3 SW + 5.3/5.4/5.7/5.9 통합본 = 실센서 SensorSource + tutor.js factory + multi-channel + Vernier 통합) (commit `a4d05b9`)
+- [x] `web/vapor.html` 신규 + `initVaporApp` 분기 + `params.vapor` placeholder + `tutor.js` "Phase 6.4 예약" 명시 (commit `b3972b3`)
+
+**완료 (Phase 6.1-b, 2026-05-09)** — vapor 시뮬 본체 + finalization fixup 1~16
+- [x] **5+ 회 액체 모델 시도-폐기 사이클** (sub-step 1) — dense free / option Z / LJ-like / 응집 영역 / Schroeder LJ MD 모두 폐기 → 정적 격자 + 표면 동역학 회귀 (Phase 6.1-b final 마커, commit `a8aa875`)
+- [x] **finalization fixup 1~14** — translucent 표면 + 형광 색 + ghost particle (√N 잡음 흡수) + EMA prime + calibration 폐기 + P_internal 평형 + 응축/증발 비율 + T+P 카드 통합 + T number input + 평형 ratio 단일 metric + rate 워밍업 + T 입력 확정
+- [x] **finalization fixup 15a~15t** — 화살표 매칭 4단계 진화 → 매칭 폐기 + dual-layer 학생 평형 결정 (5-state machine + [확정] 버튼) + P 영역 그래픽화 (Johnstone 3수준 통합 = SVG 압력계 + LCD 시계 + 입자 막대) + 사이드바 → top-control 변환 + CSS scaling 모델 좌표 보존
+- [x] **fixup 16a Dalton 부피 입력 확정 버튼** (vapor 15b 패턴 100% 재사용 — 페이지 간 패턴 재사용 첫 사례, commit `f64c37e`)
+- 마지막 commit: `f64c37e` "feat(dalton): volume input confirm button — vapor 15b pattern reuse (fixup 16a)"
+
+**완료 (Phase 6.4, 2026-05-09)** — vapor AI 튜터 통합 + 시스템 layout 본질 발견 + INDEX 카드 + 헤더 통일 + dead code 정리
+- [x] **fixup 17a vapor AI 튜터 통합** — `tutor.js` factory 재사용 (Phase 6.4 예약 docstring 실행, tutor.js 자체 변경 0). vaporConfig 신설 (학습 목표 4 + 절대 원칙 12 + 시뮬 시각 단서 활용). VAPOR_LEVEL_GUIDES (4 수준) + VAPOR_QUESTION_TEXT (4×5=20).
+- [x] **fixup 17b/17c/17d 사이드바 layout 4단계 진화** — silent regression (vaporTutor.init() 1줄 누락) + flex 부모 시도 (적응형 미작동) → dalton fixed 복제 (잘못된 옵션) → **시스템 차원 본질 발견** (`@media (max-width: 1599px)` 룰 = 모든 가림 문제 원인) → 1599 → 1199 축소 + 캔버스 max-width:100% 룰 1279 → 1599 확장 + flex 부모 정공법 회귀 (vapor/boyle/particles 일괄, dalton 별도)
+- [x] **fixup 17e INDEX vapor 카드** (boyle 다음, 4 라벨 MBL/Simulation/AI/Arduino, vapor.png 사용자 캡처)
+- [x] **fixup 17f 4 페이지 헤더 통일** (CAST prefix + Phase/fixup 표시, 개발용 in-progress, 완료 시 제거 의도)
+- [x] **fixup 17g-1 dead code 보수 정리** (신중 모드 4-등급 분류, codebase healthy 검증, 등급 A 2건만 폐기)
+- [x] **fixup 17h-1a/1b/1c/1d 일지 append** (Phase 6.1-a + sub-step B-2 series + finalization fixup 4-14 + 15a~15t + 16a + 17a~17g-1, +1232 줄 / 46 결정 블록 / 67 commits 합성)
+- [x] **fixup 17h-2 vapor 설계 갱신** (`docs/17` §6 fixup 15+ append + §11 결정 표 16 행 + §13~§18 신설 + §99 핸드오프 갱신, +567 줄)
+- 마지막 commit: `4b99b05` "docs(vapor-design): fixup 15a~17g-1 reflect + §13~§18 신설 — update (fixup 17h-2)"
+
 ---
 
 ## 4. 남은 Phase (로드맵)
@@ -418,7 +473,14 @@ Arduino·ESP32 하드웨어 입수 전 선행 가능한 브라우저·프로토�
 - 샤를 법칙 — 별도 하드웨어 (`docs/02-hardware-charles.md`), DS18B20 + 에어챔버
 - 게이뤼삭·이상기체 법칙 통합 UX
 
-### Phase 6: 교사 도구
+### Phase 6.x: 증기압 실험 (vapor 트랙, `phase6-vapor-design` 브랜치)
+**Phase 6.0~6.4 완료** (위 §3 참조, `docs/17-vapor-design.md` 권위 문서).
+- **Phase 6.3** = ws/real/vernier 활성화 (vapor 4 데이터 소스 분기)
+- **Phase 6.5** = 액체 종류 + 액체 양 비교 활동 (β + α 통합, water 외 ethanol 등 추가)
+- **Phase 6.6** = 학생 수준 검증 + README 정합
+- **Phase 6.7** = README 정합 + 추가 액체 옵션 (메탄올 등 확장)
+
+### Phase 7: 교사 도구 (구 Phase 6, vapor 트랙 시작 후 라벨 변경)
 - 학생 활동 모니터링 대시보드
 - 다중 사용자 지원 (서버·DB 필요, 아키텍처 변화 수반)
 
@@ -518,7 +580,8 @@ Arduino·ESP32 하드웨어 입수 전 선행 가능한 브라우저·프로토�
 - **GitHub 저장소**: https://github.com/police6980/pchem-lab-project (public)
 - **배포 URL**: https://police6980.github.io/pchem-lab-project/web/
 - **브랜치**: `main`
-- **릴리스 태그**: `v0.2-mvp-ui-complete` (Part 3.5 UI 완성), `v0.3-ai-tutor-live` (Phase 2-B 완료), `v0.4-boyle-complete` (보일 시뮬레이터 완성 — **최신**)
+- **릴리스 태그**: `v0.2-mvp-ui-complete` (Part 3.5 UI 완성), `v0.3-ai-tutor-live` (Phase 2-B 완료), `v0.4-boyle-complete` (보일 시뮬레이터 완성). 추가 sub-tag: `phase5.1-stepA-complete`, `phase5.1-complete`, `tutor-unify-before-c`.
+- **v0.4 이후 신규 릴리스 태그 부재** (Phase 5.5+ / 6.x 미태깅, 본 트랙 `phase5-real-sensor` / `phase6-vapor-design` 브랜치 진행 중).
 
 ---
 
@@ -544,5 +607,6 @@ Arduino·ESP32 하드웨어 입수 전 선행 가능한 브라우저·프로토�
 - `14-calibration-pipeline.md` — Phase 5.4 — 실센서 캘리브레이션 파이프라인 (영점 + 2점 보정)
 - `15-params-config-guide.md` — Phase 5.4 — params.json + SCENE + gases 권위
 - `16-developer-onboarding.md` — 개발자 / 새 PC 진입 가이드
+- `17-vapor-design.md` — Phase 6.0 vapor 설계서 (Phase 6.4 fixup 17h-2 갱신, §13 학생 평형 결정 5-state machine + §14 AI 튜터 통합 + §15 시스템 layout 본질 + §16 헤더 통일 + §17 INDEX 카드 + §18 dead code 부록 + §99 핸드오프)
 - `19-real-sensor-integration-checklist.md` — Phase 5 Step I 단일 절차서 (실물 도착 시)
 - `tools/firmware-emulator/README.md` — 에뮬 권위 (CLI 키 / 노이즈 4 모드 / 시나리오 회귀)

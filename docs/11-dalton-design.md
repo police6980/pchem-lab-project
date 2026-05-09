@@ -1645,6 +1645,62 @@ Phase 5.2 종료 후 1일 집중 세션. 8 commits, 누적 +1830/-153, 결정 11
 
 상세 결정 기록 (11건) 은 `docs/10-dev-journal.md` 의 Phase 5.3 섹션 (362 lines).
 
+### 18.7 Phase 5.4 멀티채널 + 5.9 D Vernier + 6.1-b fixup 16a (2026-04-27 ~ 2026-05-09 누적)
+
+본 § = Phase 5.4 멀티채널 도입 + Phase 5.9 D Vernier 통합 + Phase 6.1-b fixup 16a 부피 입력 확정 누적 갱신. 본문 §1~§17 + §18.1~§18.6 보존, 본 §18.7 = 변경 이력 부록 신규 entry.
+
+#### Phase 5.4 멀티채널 (commit `f21b659` + 후속, 2026-04-27)
+
+- **protocol v1.2** (`ch` 필드 신설): 단일 펌웨어 → 다중 채널 데이터 emit.
+- **dual-channel SensorSource**: `ch="A"` / `ch="B"` 분기 → `daltonSensorManager` 안 두 채널 routing.
+- **dalton 게이지 라우팅**: ws/real 모드 두 센서 게이지 + ch live 라벨 + raw 값 표시.
+- 입자 수 ↔ 압력 일관성 (실센서 압력 → 입자 수 시뮬 동기, commit `0dda5bf`).
+- mock 모드 P_A 게이지 회귀 정정 (commit `4ea6a65`).
+- cross-ref `docs/12-protocol-v1.2.md` (프로토콜 명세) + `docs/13-multi-channel-interface.md` (multi-channel SensorSource 인터페이스) + `docs/14-calibration-pipeline.md` (실센서 캘리브레이션 + 영점 + 2점 보정) + `docs/15-params-config-guide.md` (params.json 권위).
+
+#### Phase 5.9 D Vernier 통합 (commit `6a547e1`, 2026-05-06)
+
+- **Dalton Vernier 모드 활성화** — 4 데이터 소스 분기 정합 (mock/ws/real/vernier).
+- **상태머신 (`daltonState.vernier` substate, 5상태)**:
+  - `IDLE` → `INJECTING` (학생 시린지 누름) → `STABILIZING` (압력 안정 대기) → `READY_TO_CAPTURE` (학생 클릭 대기) → `CAPTURED` (P_total 캡처 완료).
+- **측정 버튼 (1 클릭 / 2 클릭 분기)**:
+  - 1 클릭 = `P_initial` 캡처 (결합 시스템 초기 압력, 누름 전).
+  - 2 클릭 = `P_total` 캡처 (평형 후 P_total).
+- **1센서 운용 한계**: Vernier GDX-GP 1대 = P_A·P_B 동시 측정 불가. Dalton 검증은 평형 P_total 비교로 진행.
+- **V_A_current_mL 역산**: T 소거 식 `V_A_current = P_initial·(V_A+V_B)/P_current − V_B` (학생 누름 정도 실시간 추정).
+- **이론값**: `P_total = P_initial·(V_A+V_B)/V_B`.
+- 변경 파일: `web/css/style.css` + `web/dalton.html` + `web/js/main.js` (3 파일, +204).
+- cross-ref `docs/07` §4.6.1 (분기 패턴 4종) + §4.6.2 (Vernier substate 컨텍스트, P_initial/P_total/V_A_current_mL).
+
+#### Phase 6.1-b fixup 16a 부피 입력 확정 버튼 (commit `f64c37e`, 2026-05-09)
+
+- **vapor 15b 패턴 100% 재사용** — 페이지 간 패턴 재사용 첫 사례. 검증 자산 재활용 가치.
+- **변경 자세**:
+  - V_A / V_B input 옆 `[입력]` / `[수정]` 버튼 추가 (`dalton-volume-a-apply` / `dalton-volume-b-apply`).
+  - `vAConfirmed` / `vBConfirmed` 별도 flag (독립 확정 — V_A 만 변경 시 V_B 보존).
+  - input dirty class (typing 시 점선 border 주황 시각 단서).
+  - **blur 자동 commit 폐기** — 학생 명시 클릭만 (Enter 키 보존).
+  - `updateInjectButtonState` — 시작 버튼 gate (`!vA || !vB` 시 disabled).
+  - 리셋 시 `vA/vBConfirmed = false` 초기화 + 버튼 텍스트 복원.
+  - 페이지 로드 시 default 50/50 visible 단 미확정 (학생 [입력] 강제).
+- **사용자 비판**: "Enter 모를 수 있으니" — 명시 [입력] 버튼 필요.
+- **vapor 15b 패턴 정합**:
+  - vapor: `tConfirmed` flag + `applyTemperature` 후 잠금 + [입력]/[수정] 토글.
+  - dalton: `vAConfirmed / vBConfirmed` 독립 flag + `applyVolumeFromBtn` + [입력]/[수정] 토글.
+- 변경 파일: `web/css/style.css` + `web/dalton.html` + `web/js/main.js` (3 파일, +105/-15).
+- cross-ref `docs/10-dev-journal.md § Phase 6.1-b finalization fixup 15a~15t + Dalton 16a` (17h-1c entry, fixup 16a 결정 블록).
+
+#### 누적 갱신 자세
+
+본 §18.7 = Phase 5.4 / 5.9 / 6.1-b 누적 entry. 이전 §18.1~§18.6 (Phase 5.0~5.3) 보존. 향후 Phase 6 dalton 영향 작업 시 §18.8 등 신규 entry 추가.
+
+**관련 cross-ref 종합**:
+- 일지: `docs/10-dev-journal.md` Phase 5.4 / 5.9 / 6.1-b 섹션 (fixup 16a = 17h-1c entry).
+- AI 튜터: `docs/07-ai-tutor.md` §4.6 데이터 소스 분기 + §4.6.2 Vernier substate.
+- vapor 패턴 재사용: `docs/17-vapor-design.md` §6 fixup 15b T 입력 잠금 (원 패턴) + §13 학생 평형 결정 메커니즘 (페이지 간 패턴 재사용 가치).
+
 ---
 
 **이 문서는 CC 실행 대기 상태의 최종본이다. 사용자 최종 확인 → Phase 5.1 Step A 시작.**
+
+**Phase 5.4 / 5.9 D / 6.1-b fixup 16a 누적 후 (2026-05-09 시점, fixup 17h-3 갱신)**: 본문 §1~§17 + §18.1~§18.6 보존. §18.7 신규 entry (Phase 5.4 멀티채널 + 5.9 D Vernier + 6.1-b fixup 16a). 향후 Phase 6 dalton 영향 작업 시 §18.X 추가.
