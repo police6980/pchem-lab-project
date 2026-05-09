@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CAST — 증기압 (Phase 6.1-b finalization fixup 17c — sidebar dalton 패턴)</title>
+    <title>CAST — 증기압 (Phase 6.1-b finalization fixup 17d — system layout 1599→1199 + vapor flex 부모)</title>
     <link rel="stylesheet" href="css/style.css">
     <script src="https://cdn.jsdelivr.net/npm/p5@1.11.2/lib/p5.min.js"></script>
     <script src="https://unpkg.com/docx@8.5.0/build/index.umd.js"></script>
@@ -26,12 +26,16 @@
 <body data-page="vapor">
     <nav class="page-nav vapor-nav">
         <a href="index.html" class="nav-home" title="홈으로 돌아가기">🏠 홈으로</a>
-        <span class="nav-title">증기압 — Phase 6.1-b finalization fixup 17c (사이드바 dalton 패턴)</span>
+        <span class="nav-title">증기압 — Phase 6.1-b finalization fixup 17d (1599→1199 + flex 부모)</span>
     </nav>
 
-    <!-- fixup 17c — 17b flex 부모 (vapor-page-wrap / vapor-main-container) 제거.
-         17a 구조 회귀 (vapor-layout-v2 + aside sibling).
-         사이드바 layout 은 dalton 패턴 (style.css 안 vapor 전용 position:fixed + drawer). -->
+    <!-- fixup 17d — boyle #basic-mode 패턴 정확 복제 (17b 정공법 복귀).
+         #vapor-page-wrap = flex row, <main> = flex:1 + min-width:0, <aside> = flex-basis 380.
+         vapor-layout-v2 max-width 1900 정책 (15l) 그대로 main 안 보존.
+         CC 진단 핵심: @media 1599 룰을 1199 로 축소 → ≥1200 flex 자동 축소 정상 작동.
+         body.sidebar-collapsed → 전역 #ai-sidebar { display:none } → main 자동 100% 확장. -->
+    <div id="vapor-page-wrap" class="vapor-page-wrap">
+    <main id="vapor-main-container" class="vapor-main-container">
     <div id="vapor-layout-v2" class="vapor-layout-v2">
 
         <!-- ====== 위쪽 가로 영역 (fixup 15h — 사이드바 변신, 2 row layout) ====== -->
@@ -281,10 +285,12 @@
             </div>
         </section>
     </div>
+    </main>
 
-    <!-- fixup 17c — AI 튜터 사이드바 (boyle/dalton 동일 패턴, id/class 100% 정합).
-         tutor.js factory 의 #ai-sidebar 셀렉터 사용. layout = dalton 패턴 (style.css 안 vapor 전용
-         position:fixed + drawer ≤1279px). -->
+    <!-- fixup 17d — AI 튜터 사이드바 (boyle/dalton 동일 패턴, id/class 100% 정합) +
+         flex 부모 #vapor-page-wrap 안 main 옆 sibling.
+         tutor.js factory 의 #ai-sidebar 셀렉터 사용.
+         ≥1200 flex 자동 축소 / ≤1199 전역 overlay (style.css:2336 @media 1199). -->
     <script>
         document.addEventListener("DOMContentLoaded", () => {
             document.getElementById("btn-ai-collapse")?.addEventListener("click", () => {
@@ -374,6 +380,7 @@
             <button id="btn-send-message" title="전송" disabled>↑</button>
         </div>
     </aside>
+    </div><!-- /#vapor-page-wrap -->
     <button id="ai-reopen-btn" title="AI 튜터 열기">💬</button>
 </body>
 </html>

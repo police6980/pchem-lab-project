@@ -2329,11 +2329,14 @@ body.adv-sidebar-collapsed #adv-ai-reopen-btn {
 
 /* ============================================================
    Responsive Step 1 — AI sidebar overlay mode on narrow viewports.
-   Below 1600px, both sidebars leave the flex flow (position:fixed)
-   and slide in from the right like a drawer. Push-mode (≥1600px)
-   is untouched; all rules live inside @media so rollback is clean.
+   fixup 17d (Phase 6.1-b finalization): 1599 → 1199 축소.
+   본질 발견: 기존 1599 룰이 boyle/particles/vapor 모든 가림 문제 원인.
+   ≥1200 viewport 에서 flex 자동 축소 (적응형 정공법) 활성,
+   <1200 fixed overlay 보존 (좁은 폭 canvas 시각 보존, 1599 룰 의도 절반 유지).
+   vapor.html flex 부모 (#vapor-page-wrap) 신설로 vapor 도 자동 축소 정합.
+   dalton 은 별도 grid layout 보유, 본 룰 영향 X (별도 룰).
    ============================================================ */
-@media (max-width: 1599px) {
+@media (max-width: 1199px) {
     #ai-sidebar,
     #adv-ai-sidebar {
         position: fixed;
@@ -2386,8 +2389,11 @@ body.adv-sidebar-collapsed #adv-ai-reopen-btn {
    only the display size shrinks, so world coordinates and the
    physics simulation are unaffected. height:auto preserves the
    aspect ratio.
+   fixup 17d: 1279 → 1599 확장. 1599 overlay 룰 → 1199 축소 후
+   1200~1599 범위 flex 자동 축소 활성, 캔버스 max-width:100% 정합 필수.
+   (vapor 캔버스는 별도 룰로 모든 폭 max-width:100% 이미 적용됨, style.css:4146)
    ============================================================ */
-@media (max-width: 1279px) {
+@media (max-width: 1599px) {
     #section-canvas canvas,
     #histogram-area canvas,
     #adv-sim-canvas-container canvas,
@@ -3711,77 +3717,37 @@ body[data-page="vapor"] .vapor-learning-note {
     color: #475569;
 }
 
-/* =============== Vapor 3-region layout (Phase 6.1-b finalization fixup 17c) ===============
-   fixup 17c — vapor 사이드바 dalton 패턴 복제 (17b flex 부모 일부 rollback).
-   17b 신설 #vapor-page-wrap / #vapor-main-container 제거 + 자체 flex CSS 폐기.
-   17a 구조 회귀 (vapor-layout-v2 + aside sibling) + dalton 패턴 (position:fixed) 신규 적용.
-   ≥1280px: aside 우상단 fixed 380px, body.sidebar-collapsed 시 hide (전역 룰 활용).
-   ≤1279px: drawer (dalton 정확 복제 — 단 sidebar-open 대신 vapor 의 sidebar-collapsed 토글 정합).
-   사용자 합의 A — dalton 동작 일관성 우선. init() 1줄 (17b) 보존. main.js / vapor.js 무관.
+/* =============== Vapor 3-region layout (Phase 6.1-b finalization fixup 17d) ===============
+   fixup 17d — 시스템 layout 1599→1199 축소 + vapor flex 부모 재현.
+   본질 발견 (CC 진단): @media 1599 룰 (style.css:2336-2362) 이 boyle/particles/vapor
+   모든 가림 문제 원인. 1599 → 1199 축소로 ≥1200 flex 자동 축소 (적응형 정공법) 활성.
+   #vapor-page-wrap = flex row 부모, #vapor-main-container = flex:1 + min-width:0,
+   <aside id="ai-sidebar"> = flex-basis 380 (.ai-sidebar 기본 정의 활용).
+   17b 정공법 복귀 + 17c body[data-page="vapor"] CSS 폐기 (#ai-sidebar 일반 룰 사용).
+   vapor canvas 는 자체 max-width:100% (style.css:4146) 이라 모든 폭 정합.
+   vapor.js / main.js 변경 0. dalton 제외 (사용자 비판 X + grid wrap risk 격리).
 
+   fixup 17c — vapor 사이드바 dalton 패턴 복제 (17b flex 부모 rollback). 17d 에서 폐기.
    fixup 17b — vapor 사이드바 layout 정공법 (boyle #basic-mode flex 패턴 복제) +
-   vaporTutor.init() 누락 수정 (17a regression). flex 부모 17c 에서 rollback.
+   vaporTutor.init() 누락 수정 (17a regression). flex 부모 17d 에서 재현.
 
    fixup 17a — vapor 페이지 AI 튜터 통합 (CSS 변경 0, .ai-sidebar 등 기존 정의 그대로 재사용).
    vapor.html DOM 추가 (<aside id="ai-sidebar"> + #ai-reopen-btn) + main.js initVaporTutor 신설 +
    tutor.js factory 재사용 (tutor.js 자체 변경 0, docstring L12-15 만 갱신).
    boyle/dalton/particles 와 동일 .ai-sidebar 패턴 — CSS 정의 추가/수정 0. */
 
-/* fixup 17c — vapor 사이드바 fixed 위치 (dalton 패턴 복제, vapor 전용 selector 격리) */
-body[data-page="vapor"] .ai-sidebar {
-    position: fixed;
-    top: 16px;
-    right: 16px;
-    width: 380px;
-    margin: 0;
+/* fixup 17d — vapor flex 부모 (boyle #basic-mode 패턴 정확 복제) */
+body[data-page="vapor"] .vapor-page-wrap {
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
 }
-
-/* fixup 17c — ≤1279px drawer 화 (dalton 패턴 복제, sidebar-collapsed 토글 정합) */
-@media (max-width: 1279px) {
-    body[data-page="vapor"] {
-        padding-right: 16px;
-    }
-    body[data-page="vapor"] .ai-sidebar {
-        position: fixed;
-        top: 16px;
-        right: 16px;
-        width: min(380px, calc(100vw - 32px));
-        max-height: calc(100vh - 32px);
-        overflow-y: auto;
-        z-index: 1000;
-        box-shadow: -4px 0 16px rgba(0, 0, 0, 0.15);
-    }
-    /* sidebar-collapsed = drawer 닫힘 (vapor.html script 토글 정합).
-       전역 body.sidebar-collapsed #ai-sidebar { display:none } 룰 (style.css:724) 자동 적용 */
-    body[data-page="vapor"] #ai-reopen-btn {
-        display: block;
-        position: fixed;
-        right: 0;
-        top: 50%;
-        transform: translateY(-50%);
-        bottom: auto;
-        width: auto;
-        height: auto;
-        z-index: 999;
-        background: #1e2433;
-        color: #cdd6f4;
-        border: 1px solid #2e3650;
-        border-right: none;
-        border-radius: 8px 0 0 8px;
-        padding: 12px 8px;
-        font-size: 18px;
-        cursor: pointer;
-        writing-mode: vertical-rl;
-        box-shadow: -2px 0 8px rgba(0, 0, 0, 0.15);
-    }
-    body[data-page="vapor"] #ai-reopen-btn:hover {
-        background: #2e3650;
-    }
-    /* drawer 펼침 상태 = sidebar-collapsed 미적용. reopen-btn 숨김 (사이드바 노출 시) */
-    body[data-page="vapor"]:not(.sidebar-collapsed) #ai-reopen-btn {
-        display: none;
-    }
+body[data-page="vapor"] .vapor-main-container {
+    flex: 1;
+    min-width: 0;   /* flex item 캔버스 overflow 회피 */
 }
+/* sidebar-collapsed 시 main 자동 100% 확장 (전역 .ai-sidebar display:none 룰 활용, style.css:724) */
+/* ≤1199 fixed overlay 는 전역 @media 1199 룰 (style.css:2336) 자동 적용 */
 
 /* =============== Vapor 3-region layout (Phase 6.1-b finalization fixup 15t) ===============
    fixup 15j — P 영역 부활 (.vapor-tp-pressure vapor-real-only hidden 제거 + placeholder 폐기 +
