@@ -3776,7 +3776,7 @@ function initVaporApp(params) {
         canvasCt:         document.getElementById("vapor-canvas-container"),
         pressureVal:      document.getElementById("vapor-pressure-val"),
         pressureBar:      document.getElementById("vapor-pressure-bar"),
-        pressureTheor:    document.getElementById("vapor-pressure-theoretical"),
+        // fixup 15j — pressureTheor DOM 폐기 (P 영역 이론 메타 제거, 단일 측정값 정합)
         eqReachTime:      document.getElementById("vapor-eq-reach-time"),
         evapRateEl:       document.getElementById("vapor-evap-rate"),
         condRateEl:       document.getElementById("vapor-cond-rate"),
@@ -3954,20 +3954,19 @@ function initVaporApp(params) {
     function renderMeasurementTable() {
         if (measurementPoints.length === 0) {
             dom.measureTbody.innerHTML =
-                `<tr class="vapor-measure-empty"><td colspan="6">아직 측정점이 없습니다. 평형 도달 후 [기록] 버튼을 누르세요.</td></tr>`;
+                `<tr class="vapor-measure-empty"><td colspan="5">아직 측정점이 없습니다. 평형 도달 후 [기록] 버튼을 누르세요.</td></tr>`;
             dom.btnClearPoints.disabled = true;
             return;
         }
         dom.btnClearPoints.disabled = false;
+        // fixup 15j — 이론 컬럼 폐기 (사용자 의도: 단일 측정값). pt.Ptheor 데이터는 P-T 그래프 회색 점선용 보존.
         const rows = measurementPoints.map((pt) => {
             const tStr = (pt.t != null) ? pt.t.toFixed(0) : "—";
-            const PthStr = (pt.Ptheor != null) ? pt.Ptheor.toFixed(2) : "—";
             return `<tr data-pt-idx="${pt.idx}">
                 <td>${pt.idx}</td>
                 <td>${pt.T.toFixed(0)}</td>
                 <td>${pt.P.toFixed(2)}</td>
                 <td>${tStr}</td>
-                <td>${PthStr}</td>
                 <td><button type="button" class="vapor-row-delete-btn" data-del-idx="${pt.idx}">삭제</button></td>
             </tr>`;
         }).join("");
@@ -4149,10 +4148,15 @@ function initVaporApp(params) {
             if (!world) return;
             dom.pressureVal.textContent = world.pressureKPa.toFixed(2);
             dom.pressureBar.style.width = `${world.pressureBarPct.toFixed(1)}%`;
-            const Pth = world.theoreticalPVap_kPa;
-            dom.pressureTheor.textContent = (typeof Pth === "number") ? Pth.toFixed(2) : "—";
+            // fixup 15j — 이론값 readout 폐기 (단일 측정값 표시, P-T 그래프 회색 점선만 비교 단서)
             const tEq = world.equilibriumReachedAtSec;
-            dom.eqReachTime.textContent = (tEq != null) ? `${tEq.toFixed(0)}s` : "—";
+            if (tEq != null) {
+                const m = Math.floor(tEq / 60);
+                const s = Math.floor(tEq % 60);
+                dom.eqReachTime.textContent = m > 0 ? `${m}분 ${s}초` : `${s}초`;
+            } else {
+                dom.eqReachTime.textContent = "—";
+            }
             // fixup 14 — 워밍업 동안 EMA null, "—" 표시
             dom.evapRateEl.textContent = (world.evapEMA == null) ? "—" : world.evapEMA.toFixed(2);
             dom.condRateEl.textContent = (world.condEMA == null) ? "—" : world.condEMA.toFixed(2);
@@ -4225,7 +4229,7 @@ function initVaporApp(params) {
         dom.mmolSpan.textContent = "—";
         dom.pressureVal.textContent = "—";
         dom.pressureBar.style.width = "0%";
-        dom.pressureTheor.textContent = "—";
+        // fixup 15j — pressureTheor reset 폐기 (DOM 자체 제거)
         dom.eqReachTime.textContent = "—";
         dom.evapRateEl.textContent = "—";
         dom.condRateEl.textContent = "—";

@@ -3697,7 +3697,11 @@ body[data-page="vapor"] .vapor-learning-note {
     color: #475569;
 }
 
-/* =============== Vapor 3-region layout (Phase 6.1-b finalization) =============== */
+/* =============== Vapor 3-region layout (Phase 6.1-b finalization fixup 15j) ===============
+   fixup 15j — P 영역 부활 (.vapor-tp-pressure vapor-real-only hidden 제거 + placeholder 폐기 +
+   단순화) + measurement-region mock placeholder 폐기 + 측정 표 이론 컬럼 폐기.
+   .vapor-tp-pressure-mock + 자식 styles 폐기.
+   의사결정 reversal: 15f hidden → 15h 유지 → 15j 부활 (3단계, 사용자 의도 회복). */
 body[data-page="vapor"] .vapor-layout-v2 {
     display: flex;
     flex-direction: column;
@@ -4149,25 +4153,7 @@ body[data-page="vapor"] .vapor-tp-temp-input:disabled {
     color: #64748b;
     cursor: not-allowed;
 }
-body[data-page="vapor"] .vapor-tp-pressure-mock {
-    padding: 8px 4px;              /* fixup 15c — 12 4 → 8 4 (placeholder 영역 압축) */
-    text-align: center;
-    color: #94a3b8;
-}
-body[data-page="vapor"] .vapor-tp-pressure-mock .vapor-mock-icon {
-    font-size: 18px;               /* fixup 15c — 22 → 18 */
-    margin-bottom: 4px;
-}
-body[data-page="vapor"] .vapor-tp-pressure-mock .vapor-mock-text {
-    font-size: 11px;               /* fixup 15c — 12 → 11 */
-    color: #64748b;
-    margin-bottom: 2px;
-}
-body[data-page="vapor"] .vapor-tp-pressure-mock .vapor-mock-hint {
-    font-size: 10px;
-    color: #94a3b8;
-    line-height: 1.4;
-}
+/* fixup 15j — .vapor-tp-pressure-mock + 자식 styles 폐기 (P 영역 placeholder 자체 폐기, 단일 측정값 표시) */
 
 body[data-page="vapor"] .vapor-cards-region {
     /* fixup 15h — 280 → 320 (가독성 ↑, 시뮬 660 정합) */

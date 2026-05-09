@@ -1,6 +1,6 @@
 // =============================================================
 // vapor.js — 증기압 시뮬 본체
-// Phase 6.1-b finalization fixup 15h (시뮬 중심 단순화 — 사이드바 위쪽 변신 + 시뮬 width ↑ + 학습 목표/분자수 폐기)
+// Phase 6.1-b finalization fixup 15j (P 영역 부활 + 측정 기능 활성 — 단일 측정값 모드별 source 분기)
 //
 // 핵심 철학 (정공법):
 //   학생 가시 = 실측 / 시뮬 = 미시 가시화 (정성적)
@@ -146,6 +146,32 @@
 //   · vapor-control-narrow 사이드바 + .vapor-section + .vapor-field 등 사이드바 전용 CSS 일괄 폐기.
 //   · .vapor-info-row 폐기 (사이드바 보조 정보 패널, .vapor-top-info 가 대체).
 //   · .vapor-mode-toggle grid 2x2 → flex row (4 button 가로 정렬, 위쪽 가로 영역 정합).
+//
+// 추가 (fixup 15j — P 영역 부활 + 측정 기능 활성, 단일 측정값 모드별 source 분기 철학 회복):
+//   · T+P 카드 P 영역 (.vapor-tp-pressure) vapor-real-only + hidden 속성 일괄 제거 → mock 모드 즉시 활성.
+//     안 placeholder (vapor-tp-pressure-mock 아이콘+text+hint) 제거 / vapor-tp-pressure-real wrap 단순화.
+//     이론값 메타 (vapor-pressure-theoretical) DOM 제거 — 단일 측정값 표시.
+//     구분선 (.vapor-tp-divider) 의 vapor-real-only + hidden 제거 → 항상 표시.
+//     신규 단순 구조: section-label + pvap-big + pressure-bar-wrap + pvap-meta (도달 시각만).
+//   · measurement-region 안 .vapor-mock-placeholder-wide 통째 제거 → 측정 표 + 버튼 + P-T 그래프 즉시 활성.
+//     기존 .vapor-real-only hidden wrap 제거 (mock 모드 활성 == real 모드 인프라 즉시 사용).
+//   · 측정 표 thead 안 "이론 (kPa)" 컬럼 제거 (사용자 의도 정합: 시뮬일 때는 시뮬값만).
+//     5 컬럼: # / T (°C) / P_vap (kPa) / 도달 (s) / 삭제. main.js renderMeasurementTable 정합 갱신.
+//   · main.js readout: dom.pressureTheor 호출 폐기. dom.eqReachTime 포맷 "분/초" 화 (정량 인지 ↑).
+//     measurementPoints 데이터 안 pt.Ptheor 보존 — P-T 그래프 회색 점선 (이론 곡선) 시각 비교용.
+//   · world.pressureKPa getter (vapor.js:305) — 기존 코드 0 변동.
+//     P 계산: total × ghostVisibleRatio × pressure_per_visible_gas_kPa = (가스+ghost) × 0.4 × 0.06.
+//     mock 모드 입자 수 기반 자연 발생 양. real 모드 (Phase 6.3+) 진입 시 실측 변수로 자동 전환 디자인.
+//   · recordEquilibrium / drawPTGraph (main.js 기존 구현) — hidden wrap 제거만으로 즉시 활성.
+//     평형 도달 시 [기록] 버튼 자동 활성 (world.equilibriumReached === true 트리거, 15d 정합).
+//
+// 폐기 (의사결정 3단계 reversal — 논문 1차 자료 가치):
+//   · fixup 15f P 영역 mock hidden (15c 사용자 비판 "딱딱 비어보이는" 해소 시도)
+//   · fixup 15h hidden 유지 (시뮬 중심 단순화 흐름 정합 판단)
+//   · fixup 15j 부활 (사용자 의도 "시뮬일 때는 시뮬값", 단일 측정값 모드별 source 분기 철학 회복)
+//   3단계 reversal 패턴 자체가 본 프로젝트 정공법 회귀 의사결정 기록 가치 (논문 방법론 1차 자료).
+//   사용자 명시: "이론값 시뮬값 나누지말고 시뮬일때는 시뮬값이 나오는거고 실제 실험할때는 실험값이 나오는거고"
+//   → 단일 DOM, source 만 모드별 분기 (mock=world.pressureKPa / real=센서 실측, Phase 6.3+).
 //
 // docs/17 §6 참조.
 // =============================================================
