@@ -3697,11 +3697,17 @@ body[data-page="vapor"] .vapor-learning-note {
     color: #475569;
 }
 
-/* =============== Vapor 3-region layout (Phase 6.1-b finalization fixup 15j) ===============
+/* =============== Vapor 3-region layout (Phase 6.1-b finalization fixup 15k) ===============
    fixup 15j — P 영역 부활 (.vapor-tp-pressure vapor-real-only hidden 제거 + placeholder 폐기 +
    단순화) + measurement-region mock placeholder 폐기 + 측정 표 이론 컬럼 폐기.
    .vapor-tp-pressure-mock + 자식 styles 폐기.
-   의사결정 reversal: 15f hidden → 15h 유지 → 15j 부활 (3단계, 사용자 의도 회복). */
+   의사결정 reversal: 15f hidden → 15h 유지 → 15j 부활 (3단계, 사용자 의도 회복).
+
+   fixup 15k — 시뮬 시각 확대 (사용자 비판 "빈 공간 많은데" 해소).
+   max-width 1500 → 1700, canvas-container 1100 → 1300 (CSS scaling 1.625×, 모델 800×480 보존).
+   cards-region 320 → 340. card-tp min-height 300 → 360, card 기본 340 → 400 (시뮬 780 정합).
+   params.json: ghost_gas_visible_ratio 0.4 → 0.7 (visible 입자 1.75× ↑, T=25 53→93),
+                pressure_per_visible_gas_kPa 0.06 → 0.034 (P 값 보존, 비례 조정). */
 body[data-page="vapor"] .vapor-layout-v2 {
     display: flex;
     flex-direction: column;
@@ -3709,8 +3715,9 @@ body[data-page="vapor"] .vapor-layout-v2 {
     padding: 12px;
     background: #f1f5f9;
     min-height: calc(100vh - 56px);
-    /* fixup 15h — max-width 1400 → 1500 (canvas 1100 표시 수용) */
-    max-width: 1500px;
+    /* fixup 15h — max-width 1400 → 1500 (canvas 1100 표시 수용)
+       fixup 15k — 1500 → 1700 (canvas 1300 표시 수용, 사용자 비판 "빈 공간" 해소) */
+    max-width: 1700px;
     margin: 0 auto;
     box-sizing: border-box;
     width: 100%;
@@ -3911,10 +3918,11 @@ body[data-page="vapor"] .vapor-guard-note[data-state="error"] {
 }
 
 body[data-page="vapor"] .vapor-sim-region {
-    /* fixup 15h — 사이드바 폐기 자리 활용, flex grow + max 1124 (canvas 1100 + padding 24) */
+    /* fixup 15h — 사이드바 폐기 자리 활용, flex grow + max 1124 (canvas 1100 + padding 24)
+       fixup 15k — max 1124 → 1324 (canvas 1300 + padding 24, 시뮬 시각 확대) */
     flex: 1 1 auto;
     min-width: 0;
-    max-width: 1124px;
+    max-width: 1324px;
     background: #fff;
     border-radius: 6px;
     padding: 12px;
@@ -3963,9 +3971,10 @@ body[data-page="vapor"] .vapor-canvas-container {
     background: #f8fafc;
     border: 1px solid #e2e8f0;
     border-radius: 4px;
-    /* fixup 15h — 800 → 1100 (모델 좌표 800×480 보존, CSS scaling 1.375×) */
+    /* fixup 15h — 800 → 1100 (모델 좌표 800×480 보존, CSS scaling 1.375×)
+       fixup 15k — 1100 → 1300 (CSS scaling 1.625×, 사용자 비판 "빈 공간" 해소) */
     width: 100%;
-    max-width: 1100px;
+    max-width: 1300px;
     aspect-ratio: 800 / 480;
     height: auto;
     flex: 0 0 auto;
@@ -4156,8 +4165,9 @@ body[data-page="vapor"] .vapor-tp-temp-input:disabled {
 /* fixup 15j — .vapor-tp-pressure-mock + 자식 styles 폐기 (P 영역 placeholder 자체 폐기, 단일 측정값 표시) */
 
 body[data-page="vapor"] .vapor-cards-region {
-    /* fixup 15h — 280 → 320 (가독성 ↑, 시뮬 660 정합) */
-    flex: 0 0 320px;
+    /* fixup 15h — 280 → 320 (가독성 ↑, 시뮬 660 정합)
+       fixup 15k — 320 → 340 (시뮬 780 정합, P 영역 부활 흡수) */
+    flex: 0 0 340px;
     display: flex;
     flex-direction: column;
     gap: 12px;                     /* fixup 15f — top-row gap 12 와 통일 */
@@ -4167,11 +4177,13 @@ body[data-page="vapor"] .vapor-card {
     border-radius: 6px;
     padding: 14px;                 /* fixup 15c — 12 → 14 (보일/돌턴 정합) */
     box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-    /* fixup 15h — rate 카드 기본 220 → 340 (시뮬 660 정합) */
-    min-height: 340px;
+    /* fixup 15h — rate 카드 기본 220 → 340 (시뮬 660 정합)
+       fixup 15k — 340 → 400 (시뮬 780 정합, 카드 합산 772) */
+    min-height: 400px;
 }
-/* fixup 15h — T+P 카드 200 → 300 (5 프리셋 + 입력 row + 가드 노트 여유) */
-body[data-page="vapor"] .vapor-card-tp { min-height: 300px; }
+/* fixup 15h — T+P 카드 200 → 300 (5 프리셋 + 입력 row + 가드 노트 여유)
+   fixup 15k — 300 → 360 (P 영역 부활 흡수, 시뮬 780 정합) */
+body[data-page="vapor"] .vapor-card-tp { min-height: 360px; }
 /* fixup 15h — .vapor-card-counter min-height 폐기 (분자 수 카드 폐기) */
 body[data-page="vapor"] .vapor-card h4 {
     font-size: 12px;
@@ -4396,14 +4408,15 @@ body[data-page="vapor"] .vapor-mock-hint {
     margin: 0;
 }
 
-/* ========== Vapor 페이지 반응형 (fixup 13 + 15c + 15h) ========== */
+/* ========== Vapor 페이지 반응형 (fixup 13 + 15c + 15h + 15k) ========== */
 /* 1280px 미만 (laptop 사각지대): 시뮬 + 카드 자동 축소 */
 @media (max-width: 1279px) {
     body[data-page="vapor"] .vapor-sim-region {
-        max-width: calc(100% - 320px - 12px);
+        /* fixup 15k — cards 340 정합 (320 → 340) */
+        max-width: calc(100% - 340px - 12px);
     }
     body[data-page="vapor"] .vapor-cards-region {
-        flex: 0 0 280px;  /* 320 → 280 (laptop 압축) */
+        flex: 0 0 300px;  /* fixup 15k — 280 → 300 (laptop 압축, 15h 기준치 ↑) */
     }
 }
 

@@ -76,7 +76,7 @@
         "E_capture": 2.5,
 
         "ghost_surface_count": 800,
-        "ghost_gas_visible_ratio": 0.4,
+        "ghost_gas_visible_ratio": 0.7,
 
         "surface_KE_visual_smooth_factor": 0.05,
         "surface_KE_visual_target_change_sec": 2.0,
@@ -137,7 +137,7 @@
         "equilibrium_warmup_sec": 10,
         "p_internal_ema_alpha": 0.05,
 
-        "pressure_per_visible_gas_kPa": 0.06,
+        "pressure_per_visible_gas_kPa": 0.034,
         "pressure_gauge_max_kPa": 30,
 
         "pt_graph_canvas_width_px": 380,

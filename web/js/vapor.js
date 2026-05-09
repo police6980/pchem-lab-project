@@ -1,6 +1,6 @@
 // =============================================================
 // vapor.js — 증기압 시뮬 본체
-// Phase 6.1-b finalization fixup 15j (P 영역 부활 + 측정 기능 활성 — 단일 측정값 모드별 source 분기)
+// Phase 6.1-b finalization fixup 15k (시뮬 시각 확대 — CSS scaling 1.625× + visible ratio 0.4→0.7)
 //
 // 핵심 철학 (정공법):
 //   학생 가시 = 실측 / 시뮬 = 미시 가시화 (정성적)
@@ -172,6 +172,21 @@
 //   3단계 reversal 패턴 자체가 본 프로젝트 정공법 회귀 의사결정 기록 가치 (논문 방법론 1차 자료).
 //   사용자 명시: "이론값 시뮬값 나누지말고 시뮬일때는 시뮬값이 나오는거고 실제 실험할때는 실험값이 나오는거고"
 //   → 단일 DOM, source 만 모드별 분기 (mock=world.pressureKPa / real=센서 실측, Phase 6.3+).
+//
+// 추가 (fixup 15k — 시뮬 시각 확대, 사용자 비판 "빈 공간 많은데" 해소):
+//   · CSS scaling 1.375× → 1.625× (max-width 1500→1700, canvas-container 1100→1300).
+//     모델 좌표 800×480 보존 (p5 internal 변경 X). cards-region 320 → 340.
+//   · params.json ghost_gas_visible_ratio 0.4 → 0.7 (visible 입자 1.75× ↑).
+//     T=25 평형 visible 53→93 / T=65 평형 417→730. sparse 인상 직접 ↓.
+//   · params.json pressure_per_visible_gas_kPa 0.06 → 0.034 (P 정합 보존, 비례 조정).
+//     world.pressureKPa = (visible+ghost) × ratio × k → (×) × 0.7 × 0.034 ≈ (×) × 0.024
+//     ≈ 직전 (×) × 0.4 × 0.06 → P 값 직전과 거의 동일.
+//   · 카드 min-height: tp 300→360 (P 영역 부활 height 흡수), card 기본 340→400.
+//     카드 합산 360 + 12 + 400 = 772 ≈ 시뮬 ~780 정합.
+//   · 트레이드오프: ghost 통계 √visible_ratio 잡음 흡수 효과 일부 손실
+//     (√0.4≈0.63 → √0.7≈0.84, ghost 의존도 ↓). 학습 가치 (시각 밀도 ↑) 우선.
+//   · regression 점검: rate EMA raw evap 1.75× ↑ (T=25 0.53/s → 0.93/s) — y축 자동 스케일 OK.
+//                     평형 검출 (15d) ratio 기반, 입자 비율 변경 무관. 측정 기능 (15j) 영향 X.
 //
 // docs/17 §6 참조.
 // =============================================================
