@@ -1319,6 +1319,7 @@ function initDaltonApp(params) {
             daltonState.vernier.P_total_kPa = null;
             daltonState.vernier.V_A_current_mL = null;
             daltonState.vernier._r1InitialCount = null;  // fixup 18-H: baseline 리셋
+            daltonState.pressureFrozen = false;          // fixup 18-M: Vernier 진입 자세 unfreeze (모드 전환 시 freeze 잔존 차단)
             // 작업 4: Vernier 진입 시 plunger 위치 = 학생이 사전 입력한 V_A 그대로
             daltonState.syringeA.targetVolume = daltonState.syringeA.volume;
             setVernierStage("IDLE");
@@ -3286,6 +3287,8 @@ function initDaltonApp(params) {
         console.log(`[Vernier] P_total captured: ${daltonState.vernier.P_total_kPa.toFixed(2)} kPa`);
         setVernierStage("CAPTURED");
         addVernierRecord();
+        // fixup 18-M: 측정 종료 자세 = P_B 게이지 freeze (학생 측정값 보존 시각, 초기화 시 unfreeze)
+        daltonState.pressureFrozen = true;
     }
 
     // ─────────────────────────────────────────────────────────
