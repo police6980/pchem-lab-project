@@ -2833,7 +2833,8 @@ function initDaltonApp(params) {
                 return;
             }
 
-            // 막대 그리기 (각 회차)
+            // fixup 18-L: 막대 그리기 (각 회차) — 모든 모드 통일 (단일 P_total 막대, gasB color)
+            // mock/ws/real/Vernier = 동일 자세. 분압 학습 = 측정 표 (P_A/P_B 둘째 자리) 보존.
             p.textSize(10);
             for (let i = 0; i < N; i++) {
                 const r = records[i];
@@ -2842,63 +2843,18 @@ function initDaltonApp(params) {
                 const baseY = yToPx(0);
                 const totalTopY = yToPx(r.P_total);
 
-                if (r.mode === "vernier") {
-                    // fixup 18-K: Vernier = 분압 직접 측정 X = 단일 P_total 막대 (gasB color)
-                    const gasBColor = (r.gasB && cfg.gases[r.gasB]) ? cfg.gases[r.gasB].color : "#27AE60";
-                    p.fill(gasBColor);
-                    p.noStroke();
-                    p.rect(barX, totalTopY, barW, baseY - totalTopY);
-                } else {
-                    // mock/ws/real = stacked bar (P_A 하단 + P_B 상단)
-                    const gasAColor = (r.gasA && cfg.gases[r.gasA]) ? cfg.gases[r.gasA].color : "#1F2937";
-                    const airTopY = yToPx(r.P_A);
-                    p.fill(gasAColor);
-                    p.noStroke();
-                    p.rect(barX, airTopY, barW, baseY - airTopY);
+                const gasBColor = (r.gasB && cfg.gases[r.gasB]) ? cfg.gases[r.gasB].color : "#27AE60";
+                p.fill(gasBColor);
+                p.noStroke();
+                p.rect(barX, totalTopY, barW, baseY - totalTopY);
 
-                    const gasBColor = (r.gasB && cfg.gases[r.gasB]) ? cfg.gases[r.gasB].color : "#27AE60";
-                    p.fill(gasBColor);
-                    p.rect(barX, totalTopY, barW, airTopY - totalTopY);
-                }
-
-                // P_total 값 막대 위 표기 (양 모드 공통)
+                // P_total 값 막대 위 표기 — 첫째 자리 (fixup 18-A 게이지 LCD 정합)
                 p.fill(0, 0, 20);
                 p.textAlign(p.CENTER, p.BOTTOM);
-                p.text(r.P_total.toFixed(2), barX + barW / 2, totalTopY - 2);
+                p.text(r.P_total.toFixed(1), barX + barW / 2, totalTopY - 2);
             }
 
-            // 범례 (우상단)
-            p.textAlign(p.LEFT, p.CENTER);
-            p.textSize(11);
-            const legendX = plotX + plotW - 110;
-            const legendY = plotY + 10;
-
-            // Phase 5.4: records 의 unique 가스 종류로 동적 범례 생성
-            // 등장 순 — gasB 먼저 (막대 stack 상단), 그 다음 gasA (하단). 범례 위→아래 일관.
-            const uniqueGases = new Map();  // gasKey → { color, label }
-            for (const r of records) {
-                if (r.gasB && !uniqueGases.has(r.gasB)) {
-                    const def = cfg.gases[r.gasB] || {};
-                    uniqueGases.set(r.gasB, { color: def.color || "#27AE60", label: def.label || r.gasB });
-                }
-            }
-            for (const r of records) {
-                if (r.gasA && !uniqueGases.has(r.gasA)) {
-                    const def = cfg.gases[r.gasA] || {};
-                    uniqueGases.set(r.gasA, { color: def.color || "#1F2937", label: def.label || r.gasA });
-                }
-            }
-
-            let legendIdx = 0;
-            for (const [, def] of uniqueGases) {
-                const itemY = legendY + legendIdx * 18;
-                p.fill(def.color);
-                p.noStroke();
-                p.rect(legendX, itemY - 5, 12, 12);
-                p.fill(0, 0, 20);
-                p.text(def.label, legendX + 18, itemY + 1);
-                legendIdx++;
-            }
+            // fixup 18-L: 범례 영역 폐기 — 모든 모드 단일 막대 자세 = 범례 불필요 (학생 인지 부담 ↓)
         };
     }
 
