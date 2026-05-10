@@ -3285,15 +3285,18 @@ function initDaltonApp(params) {
         const animSec = cfg.vernier?.finalize_animation_sec ?? 1.5;
         await new Promise((resolve) => setTimeout(resolve, animSec * 1000));
 
-        // 잔여 pending 강제 분출 + R1 잔여 안전망 (finalizeInjectedVolume 패턴 인라인 — V_A 보존)
+        // 잔여 pending 강제 분출 + R5 외 모든 영역 안전망 (finalizeInjectedVolume 패턴 인라인 — V_A 보존)
         while (pendingTransferParticles.length > 0) {
             const p = pendingTransferParticles.shift();
             teleportToR5NozzleEntry(p);
             allParticles.push(p);
         }
+        // fixup 18-I: R5 외 모든 영역 (R1/R2/R3/R4/null) 분자 강제 R5 텔레포트
+        // R3 (결합관) + 노즐 통로 갇힌 분자 처리 — mock forceRemainingToR5 패턴 정합
         for (let i = allParticles.length - 1; i >= 0; i--) {
             const p = allParticles[i];
-            if (getRegion(p.x, p.y) === 1 || isParticleInSyringeABox(p)) {
+            const region = getRegion(p.x, p.y);
+            if (region !== 5) {
                 allParticles.splice(i, 1);
                 teleportToR5NozzleEntry(p);
                 allParticles.push(p);
