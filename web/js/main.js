@@ -1456,12 +1456,12 @@ function initDaltonApp(params) {
 
     // ─────────────────────────────────────────────────────────
     // 단위 포맷 헬퍼 — atm(내부) → 표시 문자열
-    // atm: 소수 둘째 자리. kPa: 소수 첫째 자리 (일반적 관행).
+    // atm: 소수 첫째 자리 (학생 인지 부담 ↓ 우선). kPa: 소수 첫째 자리 (일반적 관행).
     // ─────────────────────────────────────────────────────────
-    function formatPressure(atmVal, precision = 2) {
+    function formatPressure(atmVal, precision = 1) {
         // 압력 readout LCD 박스용 — 숫자만 반환 (단위는 별도 span 에서 처리)
-        // fixup 18-A: precision 파라미터 = 게이지 LCD = 1 (첫째 자리, 학생 인지 부담 ↓)
-        //                                  측정 표/이론값 = 2 (정밀 보존, V_dead 학습 흐름)
+        // fixup 18-A → 18-N: precision 기본값 = 1 (모든 atm 표시 첫째 자리 통일)
+        // 게이지 LCD / 측정 표 / 이론값 / 부분 압력 list 모두 첫째 자리 (V_dead 학습 = 0.1 atm 차이 인지 가능)
         if (daltonState.displayUnit === "kPa") {
             return atmToKPa(atmVal).toFixed(1);
         }
