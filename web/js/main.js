@@ -891,6 +891,7 @@ function initDaltonApp(params) {
             _lastGuardWarnTime: 0,   // 작업 4: 가드 경고 rate-limit (10 Hz 송신 로그 폭주 방지)
             _stabilityHistory: [],   // 작업 5: peak-to-peak 변화율 산출용 슬라이딩 윈도우 [{t, p}, ...]
             _stableSince: null,      // 작업 5: 최초 안정 진입 시각 (ms). null = 안정 아님
+            _r1InitialCount: null,   // fixup 18-H: 측정 1번째 클릭 시점 R1 분자 수 (비례 텔레포트 baseline)
         },
     };
 
@@ -1030,11 +1031,30 @@ function initDaltonApp(params) {
                     daltonState.vernier.V_A_current_mL = vAprime;
                     daltonState.syringeA.targetVolume = vAprime;
                     // displayedVolume 은 lerpDisplayedVolumes() 가 매 프레임 보간 → 시각 부드러움
-                    // fixup 18-E: P_A = P_initial × V_A_initial / V_A' (Boyle's law)
-                    // 누름 → V_A' ↓ → P_A ↑ 시각 정합. ch=1 emit 없는 Vernier 단일 센서 보완.
-                    if (vAprime > 0) {
-                        const V_A_initial = daltonState.syringeA.volume;
-                        daltonState.pressureASensor = (daltonState.vernier.P_initial_kPa * V_A_initial / vAprime) / 101.325;
+
+                    // fixup 18-H: V_A_current 비율 비례 분자 R1 → R5 텔레포트 (사용자 누름 시각 동시 진행)
+                    // 누름 비율 = V_A_current / V_A_initial → R1 잔존 목표 = R1_initial × 비율
+                    // 차이만큼 mock teleportToR5NozzleEntry 재사용
+                    const V_A_initial_mL = daltonState.syringeA.volume;
+                    const r1Initial = daltonState.vernier._r1InitialCount;
+                    if (r1Initial != null && r1Initial > 0 && V_A_initial_mL > 0) {
+                        const ratio = Math.max(0, Math.min(1, vAprime / V_A_initial_mL));
+                        const targetR1 = Math.floor(r1Initial * ratio);
+                        let currentR1 = 0;
+                        for (const p of allParticles) {
+                            if (getRegion(p.x, p.y) === 1 || isParticleInSyringeABox(p)) currentR1++;
+                        }
+                        const toMove = currentR1 - targetR1;
+                        if (toMove > 0) {
+                            let moved = 0;
+                            for (let i = allParticles.length - 1; i >= 0 && moved < toMove; i--) {
+                                const p = allParticles[i];
+                                if (getRegion(p.x, p.y) === 1 || isParticleInSyringeABox(p)) {
+                                    teleportToR5NozzleEntry(p);
+                                    moved++;
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -1298,6 +1318,7 @@ function initDaltonApp(params) {
             daltonState.vernier.P_initial_kPa = null;
             daltonState.vernier.P_total_kPa = null;
             daltonState.vernier.V_A_current_mL = null;
+            daltonState.vernier._r1InitialCount = null;  // fixup 18-H: baseline 리셋
             // 작업 4: Vernier 진입 시 plunger 위치 = 학생이 사전 입력한 V_A 그대로
             daltonState.syringeA.targetVolume = daltonState.syringeA.volume;
             setVernierStage("IDLE");
@@ -1490,10 +1511,18 @@ function initDaltonApp(params) {
 
         if (stage === "IDLE") {
             // mock: P_A = P_B = pBatm (Phase 5.3 패턴). ws/real: 각 채널 실측.
-            const pA = isMock ? pBatm : daltonState.pressureASensor;
-            if (dom.pressureA) dom.pressureA.textContent = formatPressure(pA);
-            if (dom.pressureAUnit) dom.pressureAUnit.textContent = unit;
-            updateGauge(dom.gaugeA, pA, dom.gaugeWarningA);
+            // fixup 18-G: Vernier = 단일 센서로 P_A 직접 측정 X = "—" + 바늘 0
+            const isVernier = daltonSensorManager.mode === "vernier";
+            if (isVernier) {
+                if (dom.pressureA) dom.pressureA.textContent = "—";
+                if (dom.pressureAUnit) dom.pressureAUnit.textContent = "";
+                updateGauge(dom.gaugeA, 0, dom.gaugeWarningA);
+            } else {
+                const pA = isMock ? pBatm : daltonState.pressureASensor;
+                if (dom.pressureA) dom.pressureA.textContent = formatPressure(pA);
+                if (dom.pressureAUnit) dom.pressureAUnit.textContent = unit;
+                updateGauge(dom.gaugeA, pA, dom.gaugeWarningA);
+            }
             if (dom.pressureB) dom.pressureB.textContent = formatPressure(pBatm);
             if (dom.pressureBUnit) dom.pressureBUnit.textContent = unit;
             updateGauge(dom.gaugeB, pBatm, dom.gaugeWarningB);
@@ -4014,6 +4043,12 @@ records 비어있으면 학생 질문에 답하지 말고 먼저 측정 1회 진
             // 1번째 캡처: 결합 시스템 초기 압력 (대기압)
             daltonState.vernier.P_initial_kPa = daltonState.emaP_B_kPa;
             console.log(`[Vernier] P_initial captured: ${daltonState.vernier.P_initial_kPa.toFixed(2)} kPa`);
+            // fixup 18-H: INJECTING 진입 직전 R1 분자 수 캡처 (비례 텔레포트 baseline)
+            let r1Count = 0;
+            for (const p of allParticles) {
+                if (getRegion(p.x, p.y) === 1 || isParticleInSyringeABox(p)) r1Count++;
+            }
+            daltonState.vernier._r1InitialCount = r1Count;
             setVernierStage("INJECTING");
         } else if (stage === "READY_TO_CAPTURE") {
             // fixup 18-F: 2번째 캡처 = async finalize 흐름 (1.5초 텔레포트 애니 + P_total 캡처 + records push)
