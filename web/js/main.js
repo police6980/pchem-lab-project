@@ -3602,7 +3602,8 @@ function initDaltonApp(params) {
         const formatRecordLine = (r) => {
             if (r.mode === "vernier") {
                 const vAcur = (r.V_A_current != null) ? `${r.V_A_current.toFixed(1)} mL` : "미측정";
-                return `- 회차 ${r.n} [Vernier 실측]: V_A=${r.V_A_initial}, V_B=${r.V_B}, V_A_current=${vAcur}, P_total=${r.P_total.toFixed(2)} atm (실측), P_A/P_B=N/A (분압 직접 측정 불가), n_*=N/A, gas_A=${r.gasA}, gas_B=${r.gasB}`;
+                // fixup 19: P_theory 추가 — AI 자동 차이 인지 (소크라테스식 추론 진입 baseline)
+                return `- 회차 ${r.n} [Vernier 실측]: V_A=${r.V_A_initial}, V_B=${r.V_B}, V_A_current=${vAcur}, P_total=${r.P_total.toFixed(2)} atm (실측), P_theory=${r.theoryAtm.toFixed(2)} atm (이론), P_A/P_B=N/A (분압 직접 측정 불가), n_*=N/A, gas_A=${r.gasA}, gas_B=${r.gasB}`;
             }
             return `- 회차 ${r.n}: V_A=${r.V_A_initial}, V_B=${r.V_B}, P_total=${r.P_total.toFixed(2)} atm, P_A=${r.P_A.toFixed(2)} atm, P_B=${r.P_B.toFixed(2)} atm, n_A=${r.n_A}, n_B=${r.n_B}, n_total=${r.n_total}, gas_A=${r.gasA}, gas_B=${r.gasB}`;
         };
@@ -3652,7 +3653,7 @@ function initDaltonApp(params) {
         const sensorGuide = mode === "real"
             ? `[데이터 소스 고려사항]\n현재는 **실물 센서** (ESP32 + 압력 센서) 환경: 측정 오차·기밀 불량·온도 드리프트 등 실험 현실 요인을 질문/피드백에 적극 반영. 학생이 시린지 눈금을 직접 읽었다는 전제로 오차 원인 탐구를 유도.`
             : mode === "vernier"
-            ? `[데이터 소스 고려사항]\n현재는 **Vernier GDX-GP** (상용 BLE 압력 센서, ±3 kPa 검정 정확도) + **콕 결합 셋업** (3-way 콕은 A·B 연결 위치 고정, GDX는 측정 포트). 측정 단계 = 1번 클릭으로 결합 시스템 초기 P_initial 캡처 → 학생이 A 시린지 누름 → 평형 후 2번 클릭으로 P_total 캡처. **1센서 운용 한계**: P_A·P_B 동시 측정 불가, 시작·끝 두 점만 의미 있음 — Dalton 법칙 검증은 평형 P_total 비교로 진행. V_A_current 는 V_A' = P_initial·(V_A+V_B)/P_current − V_B 역산으로 학생 누름 정도 실시간 추정. 이론값: P_total = P_initial·(V_A+V_B)/V_B.\nVernier 모드에서는 GDX-GP 가 결합 시린지의 총 압력만 측정합니다. P_A, P_B (가스별 분압) 은 직접 측정 불가, records 에 null 로 기록됩니다. 학생의 실측 데이터는 P_total + V_A_current 두 값입니다. 이론값과의 비교 시 이 점을 고려하세요.\nVernier 한정: Q1·Q2 에서 P_A/P_B 인용 X. P_total + V_A/V_B + V_A_current 세 값으로 분석 유도. "분압 직접 측정 못 했지만 P_total 과 부피로 P_A+P_B = P_total 은 간접 검증 가능" 안내.`
+            ? `[데이터 소스 고려사항]\n현재는 **Vernier GDX-GP** (상용 BLE 압력 센서, ±3 kPa 검정 정확도) + **콕 결합 셋업** (3-way 콕은 A·B 연결 위치 고정, GDX는 측정 포트). 측정 단계 = 1번 클릭으로 결합 시스템 초기 P_initial 캡처 → 학생이 A 시린지 누름 → 평형 후 2번 클릭으로 P_total 캡처. **1센서 운용 한계**: P_A·P_B 동시 측정 불가, 시작·끝 두 점만 의미 있음 — Dalton 법칙 검증은 평형 P_total 비교로 진행. V_A_current 는 V_A' = P_initial·(V_A+V_B)/P_current − V_B 역산으로 학생 누름 정도 실시간 추정. 이론값: P_total = P_initial·(V_A+V_B)/V_B.\nVernier 모드에서는 GDX-GP 가 결합 시린지의 총 압력만 측정합니다. P_A, P_B (가스별 분압) 은 직접 측정 불가, records 에 null 로 기록됩니다. 학생의 실측 데이터는 P_total + V_A_current 두 값입니다. 이론값과의 비교 시 이 점을 고려하세요.\nVernier 한정: Q1·Q2 에서 P_A/P_B 인용 X. P_total + V_A/V_B + V_A_current 세 값으로 분석 유도. "분압 직접 측정 못 했지만 P_total 과 부피로 P_A+P_B = P_total 은 간접 검증 가능" 안내.\n[P 차이 추론 안내 — 학생 자율 사고 사이클 핵심 (fixup 19)]\n학생 측정값 P_total(실측) 과 이론값 P_theory 차이 발견 시 (예: ~5% 자세) 직접 원인 알려주지 말고 학생 추론 진입 안내. 소크라테스식 질문: "이론값과 실측값이 거의 같지만 약간 차이가 있어요. 어디서 왔을까요?"\n학생 가설 list (모두 가능, 검증 진입 안내): (1) 결합관/콕 추가 부피 (학생 V_A+V_B 외 추가 빈 공간 — 본질), (2) 기체 비이상성 (압력 ↑ 시 PV=nRT 편차), (3) 기체 누출 (콕 기밀 자세), (4) 온도 변화 (압축 시 단열 효과), (5) 측정 노이즈 (±3 kPa GDX 검정 정확도).\n검증 진입 안내: V_A/V_B 변경 측정 비교 → 차이 비율 일정 시 = (1) 결합관 부피 자세 / 차이 P 의존 시 = (2) 비이상성 자세 / 차이 시간 의존 시 = (3) 누출 자세.\n학생이 (1) 결합관 부피 본질 도달 = 영재교육 핵심 발견 — 인정 + "그 부피 어떻게 측정할 수 있을까요?" 진입.`
             : mode === "ws"
             ? `[데이터 소스 고려사항]\n현재는 **펌웨어 에뮬레이터** (가짜 센서) 환경: 실험 노이즈는 없으나 학생이 시린지 눈금을 직접 입력. 측정 절차를 묻는 질문은 가능하되 측정 오차·드리프트 해석은 지양.`
             : `[데이터 소스 고려사항]\n현재는 **시뮬레이션** 환경: 이상기체 법칙이 정확히 성립하는 조건이므로 이론 중심 탐구. 분자 수 보존·부분 압력 가산성을 입자 시각으로 직접 확인 가능. "실험으로 검증하려면 어떻게 측정해야 할까?" 같은 확장 질문으로 현실과 연결 유도.`;
