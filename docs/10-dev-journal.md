@@ -4594,3 +4594,117 @@ vernier 본문은 운용 시나리오 5요소 신규.
 **배제된 대안**: 일괄 17g 처리 (regression 위험), 등급 D 즉시 처리 (사용자 의도 명확화 우선).
 
 (누적 24 fixup 검증 결과 codebase healthy = Phase 6 finalization 단계 검증 자산.)
+
+---
+
+## Phase 6.4 — Dalton Vernier 통합 흐름 안정화 (2026-05-10)
+
+### 2026-05-10 — Vernier 측정 cycle 통합 정합 (cherry-pick D 시리즈 + fixup 18 시리즈 + fixup 19)
+
+#### 한 일
+
+- D 시리즈 7 cherry-pick (`d6c6dbe` ~ `5e3f4b0`) → `phase6-vapor-design` 흡수 (충돌 3건 양쪽 보존 정책 적용)
+- fixup 18 시리즈 11건 (D/E/F/GH/I/J/A/K/L/M/N) — Vernier 측정 cycle 잔존 결손 통합 처리
+- fixup 19 = AI 튜터 추론 흐름 강화 (V_dead UI 정정)
+- 합계 19 commits ahead of `origin/phase6-vapor-design`
+
+#### 결정: 자동 안정화 P 변화 감지 가드 (fixup 18-D)
+
+**배경**: Vernier 모드 측정 1번째 클릭 직후 = baseline 노이즈만으로 자동 안정화 즉시 도달 = 학생이 시린지 누르기 전 INJECTING → READY_TO_CAPTURE 자동 진입 자세 발견.
+
+**결정**: `params.json vernier.stability_change_threshold_kpa = 5.0` 추가. peak-to-peak 변화량 + 변화 감지 가드 동시 진입.
+
+**근거**: 학생이 누름 전 = baseline 자세 = 안정화 도달 의도 X. 변화 감지 가드 = "측정 시작 후 P 변화 자세 발견 + 그 후 안정화" 흐름 정합.
+
+**배제된 대안**: 측정 1번째 클릭 후 N초 cooldown = 학생 측 누름 시점 자유도 X.
+
+#### 결정: P_A 게이지 = Vernier 단일 센서 한계 자세 명시 (fixup 18-GH/J)
+
+**배경**: Vernier GDX-GP = 결합 시스템 P_total 단일 측정 = P_A 직접 측정 X. 그러나 fixup 18-E 적용 자세 = Boyle's law `P_A = P_initial × V_A_initial / V_A_current` 추정값 표시 = 학생이 "P_A 직접 측정한 것"으로 오해 = 학습 본질 위반.
+
+**결정**:
+- IDLE 자세 (측정 클릭 전) = P_A = P_B 동일 표시 (대기압 1.0 atm 평형 자세)
+- 측정 시작 후 (INJECTING/STABILIZING/READY_TO_CAPTURE/CAPTURED) = P_A LCD "—" + 바늘 0
+
+**근거**: 영재교육 학습 사이클 = 평형 인지 → 측정 본질 발견 → "P_A 직접 측정 X = P_total만 측정 가능" 자율 인지 진입.
+
+**배제된 대안**:
+- Boyle's law 추정값 표시 = 학생 오해 위험
+- 게이지 hidden = UI 일관성 X + 분량 ↑
+
+#### 결정: 시린지 A 누름과 동시에 분자 비례 텔레포트 (fixup 18-H)
+
+**배경**: 직전 자세 = 측정 2번째 클릭 시에만 텔레포트 = 사용자 시린지 누름 동안 분자 자세 변화 X = mock 흐름 정합 X 발견.
+
+**결정**: `daltonState.vernier._r1InitialCount` 필드 신설 + INJECTING 진입 시 R1 분자 수 baseline 캡처 + onChannelData(0) Vernier INJECTING 분기 안 비례 텔레포트 추가.
+
+**근거**: 누름 비율 `V_A_current / V_A_initial × R1_initial = 목표 R1 분자 수`. 매 sample (10 Hz) 비교 + 차이만큼 mock `teleportToR5NozzleEntry` 재사용 = 시각 직관 + 분량 작음.
+
+**배제된 대안**: 측정 2번째 클릭 시 한 번에 텔레포트 = mock 흐름 정합 X.
+
+#### 결정: R5 외 모든 영역 분자 강제 텔레포트 (fixup 18-I)
+
+**배경**: fixup 18-F `runVernierFinalize` R1 안전망만 처리 = R2 (시린지 A 노즐) / R3 (결합관) / R4 (시린지 B 노즐) 영역 분자 갇힘 = 결합관 + 시린지 A 바닥에 ~12-15 분자 잔존 발견.
+
+**결정**: `region !== 5` 모든 영역 (R1/R2/R3/R4/null) 분자 강제 R5 텔레포트.
+
+**근거**: mock `forceRemainingToR5` 패턴 정합. 분량 매우 작음 (3 라인). null 영역 (계산 영역 외) 자세 자체 처리 정합.
+
+**배제된 대안**: R2/R3/R4 별도 분기 = 분량 ↑ + 가독성 ↓.
+
+#### 결정: 측정 차트 모드 통일 + 범례 폐기 (fixup 18-L, fixup 18-K 정정)
+
+**배경**: 직전 자세 = mode 분기 (mock = stacked bar P_A + P_B / Vernier = 단일 P_total 막대). 사용자 의도 = "차트 자세 모드 통일 + 단순화 + 분압 학습 = 측정 표 자세 보존".
+
+**결정**: 모든 모드 (mock/ws/real/Vernier) = 단일 P_total 막대 (gasB color 통일) + 범례 32 라인 영역 폐기 + P_total 텍스트 = 첫째 자리.
+
+**근거**: 분압 학습 본질 = 측정 표 (P_A/P_B 컬럼) 자세 그대로 보존. 차트 = 측정 결과 비교 자세 = 단순 P_total. 학생 인지 부담 ↓.
+
+**배제된 대안**: mock stacked bar 보존 = mode 분기 잔존 + 학습 자세 모호.
+
+#### 결정: 모든 atm 표시 첫째 자리 통일 (fixup 18-N, fixup 18-A 정정)
+
+**배경**: fixup 18-A 적용 자세 = 게이지 LCD 첫째 자리 + 측정 표 둘째 자리 정밀 보존. 그러나 사용자 시연 = "측정 표 1.85 atm = 1.9 atm 반올림 의도" 발견.
+
+**결정**: `formatPressure` 시그니처 정밀도 기본값 `precision = 2` → `precision = 1` 변경. 게이지 LCD 6건 = 정밀도 명시 자세 그대로. 측정 표 + 이론값 + 부분 압력 list = 자동 첫째 자리 진입.
+
+**근거**: 측정 정밀 보존 의무 X. 학생 인지 부담 ↓ 우선. V_dead 학습 흐름 = 0.1 atm 차이 인지 가능 자세 정합.
+
+**배제된 대안**: 호출 영역 별 `precision = 1` 명시 (~10 호출 영역) = 분량 ↑.
+
+#### 결정: 측정 후 P_B 게이지 freeze + 초기화 시 unfreeze (fixup 18-M)
+
+**배경**: 측정 2번째 클릭 후 (CAPTURED 진입) = 사용자 시린지 자세 변경 시 GDX-GP 실측 P_B 갱신 = 측정 결과 보존 시각 정합 X.
+
+**결정**: `daltonState.pressureFrozen` flag (이미 존재) 재사용. `runVernierFinalize` 끝 = `true` 설정. 초기화 (`resetExperiment`) 안 = `false` 설정 (이미 존재 자세). Vernier 모드 진입 substate reset 영역 = `false` 안전망 추가.
+
+**근거**: 학습 본질 = 측정 = 결과 보존 자세 = 변동 X. 기존 flag 재사용 = 분량 매우 작음 (3 라인).
+
+**배제된 대안**: 별도 freeze flag 신설 = 분량 ↑ + 기존 flag 자세와 중복.
+
+#### 결정: AI 튜터 P 차이 추론 흐름 강화 (fixup 19, V_dead UI 정정) — **본 chat 핵심 결정**
+
+**배경**: 직전 합의 = V_dead 입력 UI 신설 (학생이 직접 V_dead 입력 + 코드 보정 + 측정 표 컬럼 추가). 그러나 사용자 정정 = "dead volume 용어 X + 별도 보정 UI X + AI 튜터가 P 차이 추론 흐름 안내 = 학생 자율 발견".
+
+**결정**:
+- V_dead 입력 UI / params.json `dead_volume_default` / 측정 표 보정 컬럼 = 모두 폐기
+- `formatRecordLine` Vernier 분기 = `P_theory` 추가 (AI 자동 차이 인지)
+- `sensorGuide` Vernier 분기 = "P 차이 추론 안내" 단락 신설 (5 가설 + V_A/V_B 검증 흐름 + 소크라테스식 진입)
+- mock 분기 + 응답 가드 (D-(5)) = 변경 X
+- docs/07-ai-tutor.md §4.6.10 신설 (본 fixup 통합 1 commit)
+
+**근거**: 영재교육 raison d'être = 학생 자율 발견 사이클 = 정답 주입 X. V_dead UI = 정답 주입 = 학생 사고 X. AI 튜터 추론 흐름 = "왜 이론값 vs 실측값 차이?" → 5 가설 안내 (결합관 부피 / 비이상성 / 누출 / 온도 / 노이즈) → V_A/V_B 변경 검증 진입 → 학생 결합관 부피 본질 도달 = 영재교육 핵심 발견.
+
+**배제된 대안**:
+- (R-2) 모든 모드 통합 = mock 이상기체 자세 = 차이 의도 X
+- (R-3) Q5 신규 탭 = UI 변경 분량 ↑ + 학습 흐름 변경
+- V_dead 입력 UI = 정답 주입 = 학생 사고 X = 영재교육 본질 위반
+
+#### Phase 6.4 마일스톤
+
+- 19 commits ahead of `origin/phase6-vapor-design`
+- anchor tag `pre-cherrypick-9d94d7e` 보존 (롤백 안전망)
+- working tree clean
+- D 시리즈 7 cherry-pick 흡수 + fixup 18 시리즈 11건 + fixup 19 정정 종결
+- 사용자 시연 검증 통과 자세 (Vernier 측정 cycle 1회 흐름 = P_A 평형 → P_A "—" → 분자 비례 → 1.5초 애니 → 측정 표 + 차트 + freeze)
+- AI 튜터 추론 흐름 강화 = 영재교육 자율 발견 사이클 보존
