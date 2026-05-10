@@ -1030,6 +1030,12 @@ function initDaltonApp(params) {
                     daltonState.vernier.V_A_current_mL = vAprime;
                     daltonState.syringeA.targetVolume = vAprime;
                     // displayedVolume 은 lerpDisplayedVolumes() 가 매 프레임 보간 → 시각 부드러움
+                    // fixup 18-E: P_A = P_initial × V_A_initial / V_A' (Boyle's law)
+                    // 누름 → V_A' ↓ → P_A ↑ 시각 정합. ch=1 emit 없는 Vernier 단일 센서 보완.
+                    if (vAprime > 0) {
+                        const V_A_initial = daltonState.syringeA.volume;
+                        daltonState.pressureASensor = (daltonState.vernier.P_initial_kPa * V_A_initial / vAprime) / 101.325;
+                    }
                 }
             }
             // 작업 5: 자동 안정화 감지 — INJECTING 또는 STABILIZING 단계에서만 호출 (call site 가드)
@@ -2901,7 +2907,7 @@ function initDaltonApp(params) {
         INJECTING:          "주입 중 — 손 뗀 후 안정화될 때까지 기다리세요",
         STABILIZING:        "안정화 중...",
         READY_TO_CAPTURE:   "안정 도달 — 측정 버튼을 눌러 평형 압력을 기록하세요",
-        CAPTURED:           "기록 완료. V_A' 실측값을 입력하세요",
+        CAPTURED:           "기록 완료. 다음 측정을 위해 [초기화]를 누르세요",
     };
 
     function setVernierStage(newStage) {
@@ -3262,6 +3268,35 @@ function initDaltonApp(params) {
             mode: "vernier",                      // D-(4): 출처 식별
         };
         daltonState.measurementRecords.push(record);
+
+        // fixup 18-E: <tr> 생성 + tbody append (mock addRecord L3199-3220 패턴 재사용)
+        // P_A / P_B / n_A / n_B / n_total = "—" (Vernier 단일 센서 한계 반영)
+        if (!dom.recordsTbody) return;
+        const unit = getPressureUnit();
+        const tr = document.createElement("tr");
+        tr.dataset.recordN = n;
+        tr.innerHTML = `
+            <td class="compare-cell"><input type="checkbox" class="compare-checkbox" data-record-n="${n}"></td>
+            <td>${n}</td>
+            <td>${V_A_initial}</td>
+            <td>${V_B}</td>
+            <td>${formatPressure(theoryAtm)} ${unit}</td>
+            <td>${P_total_atm != null ? formatPressure(P_total_atm) + " " + unit : "—"}</td>
+            <td>—</td>
+            <td>—</td>
+            <td>—</td>
+            <td>—</td>
+            <td>—</td>
+            <td class="delete-cell"><button type="button" class="record-delete-btn" data-record-n="${n}" title="회차 ${n} 삭제">🗑️</button></td>
+        `;
+        dom.recordsTbody.appendChild(tr);
+
+        if (n === 1) {
+            if (dom.recordsEmpty) dom.recordsEmpty.classList.add("hidden");
+        }
+        if (daltonChartP5Instance) {
+            daltonChartP5Instance.redraw();
+        }
     }
 
     // ─────────────────────────────────────────────────────────
