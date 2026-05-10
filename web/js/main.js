@@ -1095,6 +1095,7 @@ function initDaltonApp(params) {
         const threshold = vc.stability_threshold_kpa_per_sec ?? 0.1;
         const holdSec = vc.stability_hold_sec ?? 3.0;
         const windowSec = vc.stability_window_sec ?? 1.0;
+        const changeThreshold = vc.stability_change_threshold_kpa ?? 5.0;
 
         v._stabilityHistory.push({ t: now_ms, p: p_kPa });
         const cutoff = now_ms - windowSec * 1000;
@@ -1109,8 +1110,11 @@ function initDaltonApp(params) {
             if (e.p > maxP) maxP = e.p;
         }
         const rate = (maxP - minP) / windowSec;
+        // fixup 18-D: P_initial 대비 변화 감지 가드 — baseline 노이즈만으로 자동 전환 차단
+        const P_initial = v.P_initial_kPa;
+        const changeDetected = (P_initial != null) && Math.abs(p_kPa - P_initial) >= changeThreshold;
 
-        if (rate < threshold) {
+        if (rate < threshold && changeDetected) {
             if (v._stableSince === null) v._stableSince = now_ms;
             const elapsedMs = now_ms - v._stableSince;
             if (elapsedMs >= holdSec * 1000) {
@@ -1121,7 +1125,11 @@ function initDaltonApp(params) {
             }
         } else {
             v._stableSince = null;
-            if (dom.stabCountdown) dom.stabCountdown.textContent = "";
+            if (dom.stabCountdown) {
+                dom.stabCountdown.textContent = changeDetected
+                    ? ""
+                    : "시린지를 눌러 주입을 시작하세요";
+            }
         }
     }
 
