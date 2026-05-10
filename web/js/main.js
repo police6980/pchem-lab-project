@@ -1457,12 +1457,14 @@ function initDaltonApp(params) {
     // 단위 포맷 헬퍼 — atm(내부) → 표시 문자열
     // atm: 소수 둘째 자리. kPa: 소수 첫째 자리 (일반적 관행).
     // ─────────────────────────────────────────────────────────
-    function formatPressure(atmVal) {
+    function formatPressure(atmVal, precision = 2) {
         // 압력 readout LCD 박스용 — 숫자만 반환 (단위는 별도 span 에서 처리)
+        // fixup 18-A: precision 파라미터 = 게이지 LCD = 1 (첫째 자리, 학생 인지 부담 ↓)
+        //                                  측정 표/이론값 = 2 (정밀 보존, V_dead 학습 흐름)
         if (daltonState.displayUnit === "kPa") {
             return atmToKPa(atmVal).toFixed(1);
         }
-        return atmVal.toFixed(2);
+        return atmVal.toFixed(precision);
     }
 
     function getPressureUnit() {
@@ -1518,7 +1520,7 @@ function initDaltonApp(params) {
             if (isVernier) {
                 const vernierStage = daltonState.vernier.stage;
                 if (vernierStage === "IDLE") {
-                    if (dom.pressureA) dom.pressureA.textContent = formatPressure(pBatm);
+                    if (dom.pressureA) dom.pressureA.textContent = formatPressure(pBatm, 1);
                     if (dom.pressureAUnit) dom.pressureAUnit.textContent = unit;
                     updateGauge(dom.gaugeA, pBatm, dom.gaugeWarningA);
                 } else {
@@ -1528,11 +1530,11 @@ function initDaltonApp(params) {
                 }
             } else {
                 const pA = isMock ? pBatm : daltonState.pressureASensor;
-                if (dom.pressureA) dom.pressureA.textContent = formatPressure(pA);
+                if (dom.pressureA) dom.pressureA.textContent = formatPressure(pA, 1);
                 if (dom.pressureAUnit) dom.pressureAUnit.textContent = unit;
                 updateGauge(dom.gaugeA, pA, dom.gaugeWarningA);
             }
-            if (dom.pressureB) dom.pressureB.textContent = formatPressure(pBatm);
+            if (dom.pressureB) dom.pressureB.textContent = formatPressure(pBatm, 1);
             if (dom.pressureBUnit) dom.pressureBUnit.textContent = unit;
             updateGauge(dom.gaugeB, pBatm, dom.gaugeWarningB);
         } else if (stage === "INJECTING") {
@@ -1541,7 +1543,7 @@ function initDaltonApp(params) {
             if (dom.pressureAUnit) dom.pressureAUnit.textContent = "";
             updateGauge(dom.gaugeA, 1.00, dom.gaugeWarningA);
             if (isMock) {
-                if (dom.pressureB) dom.pressureB.textContent = formatPressure(pBatm);
+                if (dom.pressureB) dom.pressureB.textContent = formatPressure(pBatm, 1);
                 if (dom.pressureBUnit) dom.pressureBUnit.textContent = unit;
                 updateGauge(dom.gaugeB, pBatm, dom.gaugeWarningB);
             } else {
@@ -1554,7 +1556,7 @@ function initDaltonApp(params) {
             if (dom.pressureA) dom.pressureA.textContent = "—";
             if (dom.pressureAUnit) dom.pressureAUnit.textContent = "";
             updateGauge(dom.gaugeA, 0, dom.gaugeWarningA);
-            if (dom.pressureB) dom.pressureB.textContent = formatPressure(pBatm);
+            if (dom.pressureB) dom.pressureB.textContent = formatPressure(pBatm, 1);
             if (dom.pressureBUnit) dom.pressureBUnit.textContent = unit;
             updateGauge(dom.gaugeB, pBatm, dom.gaugeWarningB);
         } else {
@@ -1562,7 +1564,7 @@ function initDaltonApp(params) {
             if (dom.pressureA) dom.pressureA.textContent = "—";
             if (dom.pressureAUnit) dom.pressureAUnit.textContent = "";
             updateGauge(dom.gaugeA, 0, dom.gaugeWarningA);
-            if (dom.pressureB) dom.pressureB.textContent = formatPressure(pBatm);
+            if (dom.pressureB) dom.pressureB.textContent = formatPressure(pBatm, 1);
             if (dom.pressureBUnit) dom.pressureBUnit.textContent = unit;
             updateGauge(dom.gaugeB, pBatm, dom.gaugeWarningB);
             updatePartialPressureList();
