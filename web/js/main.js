@@ -1512,11 +1512,20 @@ function initDaltonApp(params) {
         if (stage === "IDLE") {
             // mock: P_A = P_B = pBatm (Phase 5.3 패턴). ws/real: 각 채널 실측.
             // fixup 18-G: Vernier = 단일 센서로 P_A 직접 측정 X = "—" + 바늘 0
+            // fixup 18-J: 측정 클릭 전 (IDLE) = 결합 시스템 평형 자세 = P_A = P_B 동일 표시
+            //          측정 클릭 후 (INJECTING~CAPTURED) = "—" + 바늘 0 (P_A 직접 측정 X)
             const isVernier = daltonSensorManager.mode === "vernier";
             if (isVernier) {
-                if (dom.pressureA) dom.pressureA.textContent = "—";
-                if (dom.pressureAUnit) dom.pressureAUnit.textContent = "";
-                updateGauge(dom.gaugeA, 0, dom.gaugeWarningA);
+                const vernierStage = daltonState.vernier.stage;
+                if (vernierStage === "IDLE") {
+                    if (dom.pressureA) dom.pressureA.textContent = formatPressure(pBatm);
+                    if (dom.pressureAUnit) dom.pressureAUnit.textContent = unit;
+                    updateGauge(dom.gaugeA, pBatm, dom.gaugeWarningA);
+                } else {
+                    if (dom.pressureA) dom.pressureA.textContent = "—";
+                    if (dom.pressureAUnit) dom.pressureAUnit.textContent = "";
+                    updateGauge(dom.gaugeA, 0, dom.gaugeWarningA);
+                }
             } else {
                 const pA = isMock ? pBatm : daltonState.pressureASensor;
                 if (dom.pressureA) dom.pressureA.textContent = formatPressure(pA);
