@@ -2604,7 +2604,12 @@ function initDaltonApp(params) {
         if (injectionPistonAnimating) {
             const sA = daltonState.syringeA;
             const elapsed = performance.now() - sA.injectionStartTime;
-            const totalMs = (cfg.injection_animation_sec || 3) * 1000;
+            // fixup 18-F: Vernier 모드 = 짧은 finalize 애니 (1.5초 기본). mock = 3초 주입 애니.
+            const isVernier = daltonSensorManager.mode === "vernier";
+            const totalSec = isVernier
+                ? (cfg.vernier?.finalize_animation_sec ?? 1.5)
+                : (cfg.injection_animation_sec || 3);
+            const totalMs = totalSec * 1000;
             const progress = Math.min(1, elapsed / totalMs);
             sA.displayedVolume = sA.injectionStartVolume * (1 - progress);
             // Step C-3 v6: 피스톤 진행률에 따라 pending → B 분출
@@ -3229,6 +3234,52 @@ function initDaltonApp(params) {
         if (daltonChartP5Instance) {
             daltonChartP5Instance.redraw();
         }
+    }
+
+    // ─────────────────────────────────────────────────────────
+    // fixup 18-F: Vernier 측정 2번째 클릭 시 텔레포트 애니 + P_total 캡처 + records push
+    // mock runInjectionAnimation 패턴 재사용 (startInjectionTransfer + drawDaltonScene 자동 보간 +
+    //   updateInjectionTransfer setPressureImmediate 가드는 mock 한정 자동 우회).
+    // mock finalizeInjectedVolume과 달리 syringeA.volume = 0 강제 X — V_A_initial 보존 (computeVernierVA 의존).
+    // ─────────────────────────────────────────────────────────
+    async function runVernierFinalize() {
+        if (injectionPistonAnimating) return;  // 중복 호출 방지
+
+        const sA = daltonState.syringeA;
+        sA.injectionStartVolume = sA.displayedVolume;
+        sA.injectionStartTime = performance.now();
+        injectionPistonAnimating = true;
+
+        // R1 잔존 분자 → pending splice (drawDaltonScene 매 frame updateInjectionTransfer 자동 분출)
+        startInjectionTransfer();
+
+        const animSec = cfg.vernier?.finalize_animation_sec ?? 1.5;
+        await new Promise((resolve) => setTimeout(resolve, animSec * 1000));
+
+        // 잔여 pending 강제 분출 + R1 잔여 안전망 (finalizeInjectedVolume 패턴 인라인 — V_A 보존)
+        while (pendingTransferParticles.length > 0) {
+            const p = pendingTransferParticles.shift();
+            teleportToR5NozzleEntry(p);
+            allParticles.push(p);
+        }
+        for (let i = allParticles.length - 1; i >= 0; i--) {
+            const p = allParticles[i];
+            if (getRegion(p.x, p.y) === 1 || isParticleInSyringeABox(p)) {
+                allParticles.splice(i, 1);
+                teleportToR5NozzleEntry(p);
+                allParticles.push(p);
+            }
+        }
+        // 시각 V=0 강제 (target/displayed만, syringeA.volume = V_A_initial 보존)
+        sA.targetVolume = 0;
+        sA.displayedVolume = 0;
+        injectionPistonAnimating = false;
+
+        // P_total 캡처 + records push
+        daltonState.vernier.P_total_kPa = daltonState.emaP_B_kPa;
+        console.log(`[Vernier] P_total captured: ${daltonState.vernier.P_total_kPa.toFixed(2)} kPa`);
+        setVernierStage("CAPTURED");
+        addVernierRecord();
     }
 
     // ─────────────────────────────────────────────────────────
@@ -3965,12 +4016,8 @@ records 비어있으면 학생 질문에 답하지 말고 먼저 측정 1회 진
             console.log(`[Vernier] P_initial captured: ${daltonState.vernier.P_initial_kPa.toFixed(2)} kPa`);
             setVernierStage("INJECTING");
         } else if (stage === "READY_TO_CAPTURE") {
-            // 2번째 캡처: 평형 압력 P_total
-            daltonState.vernier.P_total_kPa = daltonState.emaP_B_kPa;
-            console.log(`[Vernier] P_total captured: ${daltonState.vernier.P_total_kPa.toFixed(2)} kPa`);
-            setVernierStage("CAPTURED");
-            // D-(4): 측정 결과 records 에 누적 → AI 튜터 ctx 에 노출
-            addVernierRecord();
+            // fixup 18-F: 2번째 캡처 = async finalize 흐름 (1.5초 텔레포트 애니 + P_total 캡처 + records push)
+            runVernierFinalize();
         }
         // 다른 stage 에선 버튼이 disabled 라 도달 안 함 (방어).
     });

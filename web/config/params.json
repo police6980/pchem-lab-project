@@ -43,7 +43,8 @@
             "stability_threshold_kpa_per_sec": 0.1,
             "stability_hold_sec": 3.0,
             "stability_window_sec": 1.0,
-            "stability_change_threshold_kpa": 5.0
+            "stability_change_threshold_kpa": 5.0,
+            "finalize_animation_sec": 1.5
         },
         "sensor": {
             "ema_alpha": 0.2,
