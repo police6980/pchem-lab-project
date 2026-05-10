@@ -2840,24 +2840,31 @@ function initDaltonApp(params) {
                 const slotX = plotX + i * slotW;
                 const barX = slotX + barOffset;
                 const baseY = yToPx(0);
+                const totalTopY = yToPx(r.P_total);
 
-                // 가스 A (P_A) — 막대 하단
-                const gasAColor = (r.gasA && cfg.gases[r.gasA]) ? cfg.gases[r.gasA].color : "#1F2937";
-                const airTopY = yToPx(r.P_A);
-                p.fill(gasAColor);
-                p.noStroke();
-                p.rect(barX, airTopY, barW, baseY - airTopY);
+                if (r.mode === "vernier") {
+                    // fixup 18-K: Vernier = 분압 직접 측정 X = 단일 P_total 막대 (gasB color)
+                    const gasBColor = (r.gasB && cfg.gases[r.gasB]) ? cfg.gases[r.gasB].color : "#27AE60";
+                    p.fill(gasBColor);
+                    p.noStroke();
+                    p.rect(barX, totalTopY, barW, baseY - totalTopY);
+                } else {
+                    // mock/ws/real = stacked bar (P_A 하단 + P_B 상단)
+                    const gasAColor = (r.gasA && cfg.gases[r.gasA]) ? cfg.gases[r.gasA].color : "#1F2937";
+                    const airTopY = yToPx(r.P_A);
+                    p.fill(gasAColor);
+                    p.noStroke();
+                    p.rect(barX, airTopY, barW, baseY - airTopY);
 
-                // 가스 B (P_B) — 막대 상단 (P_A 위에 stack)
-                const gasBColor = (r.gasB && cfg.gases[r.gasB]) ? cfg.gases[r.gasB].color : "#27AE60";
-                const co2TopY = yToPx(r.P_A + r.P_B);  // = P_total
-                p.fill(gasBColor);
-                p.rect(barX, co2TopY, barW, airTopY - co2TopY);
+                    const gasBColor = (r.gasB && cfg.gases[r.gasB]) ? cfg.gases[r.gasB].color : "#27AE60";
+                    p.fill(gasBColor);
+                    p.rect(barX, totalTopY, barW, airTopY - totalTopY);
+                }
 
-                // P_total 값 막대 위 표기
+                // P_total 값 막대 위 표기 (양 모드 공통)
                 p.fill(0, 0, 20);
                 p.textAlign(p.CENTER, p.BOTTOM);
-                p.text(r.P_total.toFixed(2), barX + barW / 2, co2TopY - 2);
+                p.text(r.P_total.toFixed(2), barX + barW / 2, totalTopY - 2);
             }
 
             // 범례 (우상단)
