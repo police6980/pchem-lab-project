@@ -77,6 +77,7 @@ async function initBasicApp(params) {
     });
     initSensorPanel(sensorManager);
     sensorManager.setMode("mock");
+    window._sensorManager = sensorManager; // DEBUG: cfg/calib 콘솔 검증용 (Phase 3 RX 처리 검증)
 
     let pistonHitsAccumulator = 0;
     // Snapshot of the values currently shown in the info panel. Measurement
