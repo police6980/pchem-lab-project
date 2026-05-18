@@ -1,0 +1,1506 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>보일·돌턴 시뮬레이션 사전·사후 검사지 보강안</title>
+<style>
+/* ========== Reset / Base ========== */
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0;
+  font-family: "Pretendard Variable","Pretendard","Apple SD Gothic Neo","Noto Sans KR",system-ui,sans-serif;
+  background: #f7f7f5;
+  color: #1f2937;
+  line-height: 1.65;
+  font-size: 15.5px;
+  -webkit-font-smoothing: antialiased;
+}
+:root {
+  --primary: #1e3a8a;
+  --primary-soft: #3b82f6;
+  --accent: #d97706;
+  --ok: #059669;
+  --warn: #dc2626;
+  --muted: #6b7280;
+  --line: #e5e7eb;
+  --bg: #ffffff;
+  --bg-soft: #f3f4f6;
+  --code: #fef3c7;
+  --hl: #fde68a;
+  --shadow: 0 1px 3px rgba(0,0,0,.06), 0 6px 24px rgba(0,0,0,.04);
+}
+a { color: var(--primary-soft); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* ========== Layout ========== */
+.wrap {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+header.top {
+  background: linear-gradient(135deg,#1e3a8a 0%,#1e40af 50%,#312e81 100%);
+  color: #fff;
+  padding: 42px 0 56px;
+  border-bottom: 6px solid var(--accent);
+}
+header .badge {
+  display: inline-block;
+  background: rgba(255,255,255,.18);
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  letter-spacing: .04em;
+  margin-bottom: 10px;
+}
+header h1 {
+  margin: 0 0 6px;
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -.01em;
+}
+header .sub {
+  opacity: .85;
+  font-size: 14px;
+  max-width: 760px;
+}
+header .meta {
+  margin-top: 18px;
+  font-size: 13px;
+  opacity: .8;
+}
+header .meta span { margin-right: 16px; }
+
+/* ========== Sticky nav ========== */
+nav.sticky {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: rgba(255,255,255,.95);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--line);
+}
+nav.sticky .navbar {
+  display: flex;
+  gap: 2px;
+  overflow-x: auto;
+  padding: 8px 0;
+  scrollbar-width: thin;
+}
+nav.sticky a {
+  flex: 0 0 auto;
+  padding: 8px 14px;
+  border-radius: 6px;
+  font-size: 13px;
+  color: var(--muted);
+  font-weight: 500;
+  white-space: nowrap;
+  transition: all .15s;
+}
+nav.sticky a:hover { background: var(--bg-soft); color: var(--primary); text-decoration: none; }
+nav.sticky a.active { background: var(--primary); color: #fff; }
+
+/* ========== Sections ========== */
+main { padding: 40px 0 80px; }
+section {
+  background: var(--bg);
+  border-radius: 12px;
+  padding: 28px 32px;
+  margin-bottom: 28px;
+  box-shadow: var(--shadow);
+  border: 1px solid var(--line);
+}
+section h2 {
+  margin: 0 0 4px;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--primary);
+  border-bottom: 2px solid var(--accent);
+  padding-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+section h2 .num {
+  background: var(--accent);
+  color: #fff;
+  font-size: 13px;
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-weight: 600;
+}
+section h2 + .lede {
+  margin: 14px 0 22px;
+  color: var(--muted);
+  font-size: 14px;
+}
+section h3 {
+  font-size: 17px;
+  font-weight: 700;
+  margin: 28px 0 10px;
+  color: #111;
+  border-left: 4px solid var(--accent);
+  padding-left: 10px;
+}
+section h4 {
+  font-size: 15px;
+  font-weight: 600;
+  margin: 18px 0 8px;
+  color: var(--primary);
+}
+p { margin: 8px 0; }
+
+/* ========== Tables ========== */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 12px 0 6px;
+  font-size: 14px;
+}
+table th, table td {
+  border: 1px solid var(--line);
+  padding: 8px 11px;
+  text-align: left;
+  vertical-align: top;
+}
+table th {
+  background: var(--bg-soft);
+  font-weight: 600;
+  color: var(--primary);
+}
+table tr:nth-child(even) td { background: #fafafa; }
+table.compact td, table.compact th { padding: 6px 8px; font-size: 13.5px; }
+
+/* ========== Cards ========== */
+.card-grid {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(auto-fit,minmax(220px,1fr));
+  margin: 16px 0;
+}
+.card {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 16px;
+  background: #fff;
+  transition: transform .15s, box-shadow .15s;
+}
+.card:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,.07); }
+.card .tag {
+  display: inline-block;
+  background: var(--accent);
+  color: #fff;
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+.card h4 { margin: 0 0 6px; font-size: 15px; }
+.card .body { font-size: 13px; color: var(--muted); }
+
+/* ========== Pills ========== */
+.pill {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  margin-right: 4px;
+}
+.pill.ok { background: #d1fae5; color: #065f46; }
+.pill.warn { background: #fee2e2; color: #991b1b; }
+.pill.info { background: #dbeafe; color: #1e40af; }
+.pill.gold { background: #fef3c7; color: #92400e; }
+.pill.muted { background: #e5e7eb; color: #374151; }
+
+/* ========== Stars ========== */
+.stars { color: var(--accent); font-weight: 700; letter-spacing: 1px; }
+
+/* ========== Highlights ========== */
+mark { background: var(--hl); padding: 0 3px; border-radius: 3px; }
+.code-inline { background: var(--code); padding: 1px 6px; border-radius: 3px; font-family: ui-monospace,monospace; font-size: 13px; }
+
+/* ========== Callouts ========== */
+.callout {
+  background: #f0f9ff;
+  border-left: 4px solid var(--primary-soft);
+  padding: 14px 18px;
+  margin: 14px 0;
+  border-radius: 4px;
+  font-size: 14px;
+}
+.callout.warn { background: #fef2f2; border-left-color: var(--warn); }
+.callout.ok { background: #f0fdf4; border-left-color: var(--ok); }
+.callout.note { background: #fffbeb; border-left-color: var(--accent); }
+.callout strong { color: var(--primary); }
+.callout.warn strong { color: var(--warn); }
+.callout.ok strong { color: var(--ok); }
+
+/* ========== Accordion ========== */
+details {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0;
+  margin: 8px 0;
+  background: #fff;
+  transition: box-shadow .15s;
+}
+details[open] { box-shadow: var(--shadow); }
+details summary {
+  cursor: pointer;
+  padding: 12px 18px;
+  font-weight: 600;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  user-select: none;
+}
+details summary::after {
+  content: "▸";
+  color: var(--muted);
+  transition: transform .2s;
+}
+details[open] summary::after { transform: rotate(90deg); }
+details .inner { padding: 0 18px 18px; border-top: 1px solid var(--line); padding-top: 14px; }
+
+/* ========== Tabs ========== */
+.tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 2px solid var(--line);
+  margin: 16px 0 0;
+}
+.tabs button {
+  background: none;
+  border: none;
+  padding: 10px 16px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--muted);
+  border-bottom: 3px solid transparent;
+  margin-bottom: -2px;
+  font-family: inherit;
+  transition: all .15s;
+}
+.tabs button:hover { color: var(--primary); }
+.tabs button.active { color: var(--primary); border-bottom-color: var(--accent); font-weight: 700; }
+.tab-panel { display: none; padding: 16px 0; }
+.tab-panel.active { display: block; }
+
+/* ========== Item compare (before/after) ========== */
+.compare {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: 1fr 1fr;
+  margin: 14px 0;
+}
+@media (max-width: 720px) { .compare { grid-template-columns: 1fr; } }
+.compare > div {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 14px 16px;
+  background: #fafafa;
+}
+.compare .before { border-left: 4px solid var(--warn); }
+.compare .after { border-left: 4px solid var(--ok); }
+.compare h5 {
+  margin: 0 0 8px;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+}
+.compare .before h5 { color: var(--warn); }
+.compare .after h5 { color: var(--ok); }
+.choice { display: block; padding: 5px 0; font-size: 14px; }
+.choice .label { display: inline-block; width: 18px; font-weight: 700; color: var(--primary); }
+.choice .basis { color: var(--muted); font-size: 12px; margin-left: 6px; }
+.choice.correct { background: rgba(5,150,105,.08); padding-left: 8px; border-radius: 4px; }
+
+/* ========== Drawing rubric interactive ========== */
+.rubric-card {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 18px 20px;
+  background: linear-gradient(180deg,#fff 0%,#fafafa 100%);
+  margin: 14px 0;
+}
+.rubric-card .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.rubric-card .title { font-weight: 700; color: var(--primary); }
+.score-display {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--accent);
+  background: #fff7ed;
+  padding: 4px 14px;
+  border-radius: 999px;
+  border: 2px solid var(--accent);
+  min-width: 70px;
+  text-align: center;
+}
+.criterion {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px dashed var(--line);
+  cursor: pointer;
+  user-select: none;
+}
+.criterion:last-child { border-bottom: none; }
+.criterion input[type=checkbox] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--ok);
+  cursor: pointer;
+}
+.criterion .desc { flex: 1; font-size: 14px; }
+.criterion .pts { font-size: 13px; color: var(--muted); font-weight: 600; }
+.criterion.checked .desc { color: var(--ok); font-weight: 500; }
+
+/* ========== 4-tier matrix interactive ========== */
+.tier-matrix {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 4px;
+  margin: 18px 0;
+  font-size: 13px;
+}
+.tier-matrix .cell {
+  padding: 10px 8px;
+  background: var(--bg-soft);
+  border-radius: 6px;
+  text-align: center;
+  cursor: pointer;
+  transition: all .15s;
+  border: 1px solid transparent;
+}
+.tier-matrix .cell:hover { border-color: var(--primary); }
+.tier-matrix .cell.header {
+  background: var(--primary);
+  color: #fff;
+  font-weight: 600;
+  cursor: default;
+}
+.tier-matrix .cell.header:hover { border-color: transparent; }
+.tier-matrix .cell.selected { background: var(--accent); color: #fff; }
+.tier-result {
+  margin-top: 14px;
+  padding: 14px 18px;
+  background: #f0f9ff;
+  border-left: 4px solid var(--primary-soft);
+  border-radius: 6px;
+  min-height: 60px;
+  font-size: 14px;
+}
+.tier-result .judge {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--primary);
+  display: block;
+  margin-bottom: 4px;
+}
+
+/* ========== Time calculator ========== */
+.time-calc {
+  background: var(--bg-soft);
+  border-radius: 10px;
+  padding: 20px 22px;
+  margin: 16px 0;
+}
+.time-calc .row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 0;
+  border-bottom: 1px solid #e5e7eb;
+}
+.time-calc .row:last-child { border-bottom: none; padding-top: 16px; }
+.time-calc input[type=checkbox] { width: 18px; height: 18px; accent-color: var(--primary); cursor: pointer; }
+.time-calc label { display: flex; align-items: center; gap: 10px; cursor: pointer; flex: 1; font-size: 14px; }
+.time-calc .mins { font-weight: 600; color: var(--accent); font-family: ui-monospace,monospace; }
+.time-calc .total {
+  display: flex; justify-content: space-between; align-items: center;
+  font-weight: 700;
+  font-size: 17px;
+  color: var(--primary);
+}
+.time-calc .total .val {
+  font-family: ui-monospace,monospace;
+  font-size: 24px;
+  color: var(--accent);
+}
+.gauge {
+  height: 14px;
+  background: #fff;
+  border-radius: 99px;
+  border: 1px solid var(--line);
+  overflow: hidden;
+  margin: 10px 0 4px;
+  position: relative;
+}
+.gauge .bar {
+  height: 100%;
+  transition: width .3s ease, background .3s ease;
+  border-radius: 99px;
+}
+.gauge .target {
+  position: absolute;
+  top: -5px;
+  width: 2px;
+  height: 24px;
+  background: var(--warn);
+}
+.gauge-labels { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); }
+
+/* ========== SVG drawing examples ========== */
+.svg-row { display: flex; gap: 14px; flex-wrap: wrap; margin: 14px 0; }
+.svg-row .svg-card {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px;
+  background: #fff;
+  flex: 1 1 220px;
+  text-align: center;
+}
+.svg-row .svg-card .label {
+  display: block;
+  font-weight: 600;
+  margin-top: 6px;
+  font-size: 13px;
+}
+.svg-row .svg-card.right .label { color: var(--ok); }
+.svg-row .svg-card.wrong .label { color: var(--warn); }
+.svg-row .svg-card.start .label { color: var(--muted); }
+.svg-row .svg-card svg { background: #fafafa; border-radius: 4px; }
+.svg-row .svg-card .note {
+  font-size: 11.5px;
+  color: var(--muted);
+  margin-top: 4px;
+  line-height: 1.4;
+}
+
+/* ========== Citation table ========== */
+.cite-filter { display: flex; gap: 6px; flex-wrap: wrap; margin: 10px 0 14px; }
+.cite-filter button {
+  padding: 5px 12px;
+  font-size: 12.5px;
+  border: 1px solid var(--line);
+  background: #fff;
+  border-radius: 999px;
+  cursor: pointer;
+  font-family: inherit;
+  color: var(--muted);
+  font-weight: 500;
+}
+.cite-filter button.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+
+/* ========== Footer ========== */
+footer {
+  text-align: center;
+  font-size: 12.5px;
+  color: var(--muted);
+  padding: 28px 0;
+  border-top: 1px solid var(--line);
+  margin-top: 40px;
+}
+
+/* ========== Print ========== */
+@media print {
+  body { background: #fff; font-size: 11pt; }
+  nav.sticky { display: none; }
+  section { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+  header.top { background: #1e3a8a !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  details[open] summary::after, details summary::after { display: none; }
+  details { box-shadow: none; }
+  .tab-panel { display: block !important; border-top: 1px dashed #ccc; padding-top: 10px; }
+  .tabs { display: none; }
+}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <span class="badge">CHEMISTRY EDUCATION · ASSESSMENT INSTRUMENT</span>
+    <h1>보일·돌턴 시뮬레이션 사전·사후 검사지 보강안</h1>
+    <p class="sub">한국 고등학교 1~2학년 대상 기체 개념 진단·시뮬레이션 효과 측정을 위한 검사지 재설계 문서.
+       기존 12 MC + 10 T/F (3-tier) 구조를 기반으로, 외부 문헌 70여 편의 합성을 거쳐 5가지 핵심 보강 방향을 제시.</p>
+    <div class="meta">
+      <span>📅 2026-05-18</span>
+      <span>🎯 대상: 고1~2 (n 미정)</span>
+      <span>⏱ 소요 ~25분</span>
+      <span>📋 총 20 stem (T/F 8 + MC 9 + 신설 1 + 그림 2)</span>
+    </div>
+  </div>
+</header>
+
+<nav class="sticky">
+  <div class="wrap">
+    <div class="navbar">
+      <a href="#summary">요약</a>
+      <a href="#diagnose">1. 현재 진단</a>
+      <a href="#decisions">2. 핵심 결정</a>
+      <a href="#drawing">3-1. 입자 그리기</a>
+      <a href="#fourtier">3-2. 4-tier</a>
+      <a href="#distractor">3-3. 한국화 distractor</a>
+      <a href="#macro-micro">3-4. 거시-미시 연계</a>
+      <a href="#slim">3-5. 슬림화</a>
+      <a href="#scoring">4. 채점·통계</a>
+      <a href="#grades">5. 고1·고2 분리</a>
+      <a href="#citations">6. 인용</a>
+      <a href="#gap">7. 연구 공백</a>
+    </div>
+  </div>
+</nav>
+
+<main>
+  <div class="wrap">
+
+  <!-- ============== SUMMARY ============== -->
+  <section id="summary">
+    <h2><span class="num">0</span> TL;DR — 핵심 결정 5가지</h2>
+    <p class="lede">전체 보강안의 5개 축. 각 카드를 클릭하면 본문 해당 섹션으로 이동.</p>
+    <div class="card-grid">
+      <a class="card" href="#drawing" style="text-decoration:none;color:inherit">
+        <span class="tag">신설</span>
+        <h4>1. 입자 그리기 anchor 2문항</h4>
+        <p class="body">Boyle 압축 + Dalton 혼합. Nyachwaya(2011) 5범주 17코드 루브릭 + AP Chemistry 채점 기준 압축.</p>
+      </a>
+      <a class="card" href="#fourtier" style="text-decoration:none;color:inherit">
+        <span class="tag">업그레이드</span>
+        <h4>2. 4-tier 부분 적용</h4>
+        <p class="body">핵심 4문항에 "이유 확신도" 추가. 오개념 / 학습부족 / 추측 / 위장 정답 분리.</p>
+      </a>
+      <a class="card" href="#distractor" style="text-decoration:none;color:inherit">
+        <span class="tag">재설계</span>
+        <h4>3. distractor 한국화</h4>
+        <p class="body">SERC 고2 실응답 + Kind(RSC) 오개념 비율 + Yalçınkaya 7오개념을 distractor에 매핑.</p>
+      </a>
+      <a class="card" href="#macro-micro" style="text-decoration:none;color:inherit">
+        <span class="tag">신설</span>
+        <h4>4. 거시-미시 연계 1문항</h4>
+        <p class="body">시뮬레이션 효과 측정의 핵심. 강훈식(2008) 연계오류 6원인 기반.</p>
+      </a>
+      <a class="card" href="#slim" style="text-decoration:none;color:inherit">
+        <span class="tag">슬림</span>
+        <h4>5. 문항 슬림화</h4>
+        <p class="body">T/F 10→8, MC 12→9, 그림 2 = 총 20 stem. 25분 내 완료.</p>
+      </a>
+    </div>
+  </section>
+
+  <!-- ============== 1. DIAGNOSE ============== -->
+  <section id="diagnose">
+    <h2><span class="num">1</span> 현재 검사지 진단</h2>
+    <p class="lede"><code class="code-inline">measure/기체에 대한 개념 조사(응답).xlsx</code>를 분석한 결과. 강점은 보존, 약점은 다음 섹션에서 보강.</p>
+
+    <div class="tabs" data-tabset="diag">
+      <button class="active" data-tab="strong">✓ 강점 (보존)</button>
+      <button data-tab="weak">⚠ 약점 (보완 대상)</button>
+      <button data-tab="map">📋 문항-오개념 매핑</button>
+    </div>
+
+    <div class="tab-panel active" data-panel="strong">
+      <ul>
+        <li><strong>3-tier 구조</strong> (답 + 이유 + 확신도) — Treagust (1988), Caleon &amp; Subramaniam (2010, IJSE)의 국제 표준 준수.</li>
+        <li><strong>BL / PN / DL / MA 코드 체계</strong> — Boyle / Particle Nature / Dalton / Math 4 영역으로 명확 분류.</li>
+        <li><strong>T/F 10문항 ↔ 본 MC 12문항의 1:1 오개념 대응</strong> — 구조적 정합성이 높아 동일 학생에서 두 형식 응답을 교차 검증 가능.</li>
+        <li><strong>Q3·Q5·Q9·Q11 등 추론 문항 포함</strong> — 시뮬레이션이 즉답을 주지 않는 영역(질량 불변, 용기 모양 영향, 분압의 분자량 무관, 중력 효과)을 별도로 측정.</li>
+      </ul>
+    </div>
+
+    <div class="tab-panel" data-panel="weak">
+      <table>
+        <thead><tr><th style="width:34%">약점</th><th>근거 자료</th></tr></thead>
+        <tbody>
+          <tr><td><strong>시뮬레이션 효과 핵심인 거시-미시 표상 연계 문항 부재</strong></td>
+              <td>강훈식·신석진·노태희 (2008) 연계오류 6원인 / Treagust·Chittleborough·Mamiala (2003) 삼중 표상 / Williamson &amp; Abraham (1995, JRST)</td></tr>
+          <tr><td><strong>distractor가 일반론적</strong> — 한국 학생 실응답 미반영</td>
+              <td>SERC (서울대 과학교육연구소) 고1·고2 응답 분포 PDF / Kind (RSC Education) 16+ 학생 오개념 항목별 비율</td></tr>
+          <tr><td><strong>입자 표상 자유산출 과제 없음</strong> — MC만으로는 미시 모델 형성 도달 측정 불가</td>
+              <td>Sanger (2000, JCE) / Nyachwaya et al. (2011, CERP) / Avargil &amp; Saxena (2023, RSE)</td></tr>
+          <tr><td><strong>"이유에 대한 확신" 미분리</strong> — 3-tier만으로는 false-positive 오개념 검출 한계</td>
+              <td>Kaltakci-Gurel, Eryilmaz &amp; McDermott (2016, RSTE) 4-tier 권고</td></tr>
+          <tr><td><strong>"충돌횟수" 같은 모호 용어 검증 부재</strong></td>
+              <td>박철규·이승용·홍훈기 (2023, 현장과학교육) — WCT(단위시간당) vs WCAT(단위시간·면적당) 혼용</td></tr>
+          <tr><td><strong>고1·고2 통합</strong> — 한국 교육과정 분리 미반영</td>
+              <td>2015 개정 교육과정 분석 + 고기환·강경희·신동희 (2008) 교과서 23종 분석</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="tab-panel" data-panel="map">
+      <p class="lede">현재 검사지 22개 문항의 영역·오개념 코드 매핑.</p>
+      <table class="compact">
+        <thead><tr><th>코드</th><th>유형</th><th>오개념 진술</th><th>본 MC 연계</th></tr></thead>
+        <tbody>
+          <tr><td><span class="pill info">BL1</span></td><td>T/F</td><td>압력과 부피는 비례</td><td>Q1, Q2</td></tr>
+          <tr><td><span class="pill info">BL2</span></td><td>T/F</td><td>압력 증가 → 입자 크기 감소</td><td>Q3 (간접)</td></tr>
+          <tr><td><span class="pill info">BL3</span></td><td>T/F</td><td>밀폐 부피 ↓ → 입자 수 ↓</td><td>Q3</td></tr>
+          <tr><td><span class="pill info">BL7</span></td><td>T/F</td><td>주사기 당김 = 진공이 기체 끌어당김</td><td>Q4</td></tr>
+          <tr><td><span class="pill gold">PN3</span></td><td>T/F</td><td>기체 팽창 시 입자 자체가 팽창</td><td>Q3 (부분)</td></tr>
+          <tr><td><span class="pill warn">DL1</span></td><td>T/F</td><td>새 기체 추가 → 기존 분압 변화</td><td>Q7, Q8</td></tr>
+          <tr><td><span class="pill warn">DL2</span></td><td>T/F</td><td>전체압 = 분압의 평균</td><td>Q7</td></tr>
+          <tr><td><span class="pill warn">DL4</span></td><td>T/F</td><td>무거운 기체가 압력의 대부분 차지</td><td>Q9</td></tr>
+          <tr><td><span class="pill warn">DL9</span></td><td>T/F</td><td>미량 기체의 분압은 0</td><td>Q10</td></tr>
+          <tr><td><span class="pill muted">MA1</span></td><td>T/F</td><td>부피 2배 → 압력 2 감소 (수학적 혼동)</td><td>Q2</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ============== 2. DECISIONS ============== -->
+  <section id="decisions">
+    <h2><span class="num">2</span> 보강 핵심 결정 — 의사결정 근거</h2>
+    <p class="lede">5가지 결정 각각에 대해 <strong>배경 / 결정 / 근거 / 배제된 대안</strong>을 명시 (논문 작성 시 Methods 인용용).</p>
+
+    <details open>
+      <summary>결정 1. 입자 그리기 anchor 2문항 도입</summary>
+      <div class="inner">
+        <p><strong>배경</strong>: 시뮬레이션은 미시 입자 모델 형성을 직접 보여주는데, 검사지는 MC·T/F뿐이라 학생이 시뮬레이션에서 "본 것"을 자기 언어·표상으로 재구성했는지 측정 불가.</p>
+        <p><strong>결정</strong>: Boyle 압축 1문항 + Dalton 혼합 1문항 = 총 2문항 그리기 anchor 도입. Nyachwaya 5범주 17코드 + AP Chemistry FRQ 채점 기준 압축한 5점 루브릭.</p>
+        <p><strong>근거</strong>:
+          ① Sanger (2000) — 입자 그림이 MC가 못 잡는 오류 검출.
+          ② Avargil &amp; Saxena (2023) — 폐쇄형 고득점자도 그림 과제에서 미시 모델 취약.
+          ③ <mark>한재영·이지영·곽진하·노태희 (2006, 한국과학교육학회지)</mark> — 한국 중1 quasi-experimental, 그리기·분석 집단이 통제군보다 유의 향상.
+        </p>
+        <p><strong>배제된 대안</strong>:
+          (a) 12개 모두 그림 추가 — 시간 초과·채점 부담;
+          (b) 자유서술만 — 채점자 간 일관성 ↓ (Stammes &amp; de Putter-Smits, 2025 CERP 지적);
+          (c) 그림 선택형(MC 형태) — 산출형의 진단력 손실.
+        </p>
+      </div>
+    </details>
+
+    <details>
+      <summary>결정 2. 4-tier 부분 적용 (4문항)</summary>
+      <div class="inner">
+        <p><strong>배경</strong>: 3-tier(답+이유+답확신도)는 정답+오이유 조합에서 "답 확신은 높지만 이유 확신은 낮음" 같은 미세 패턴을 못 잡음. 4-tier는 이유 확신도까지 추가.</p>
+        <p><strong>결정</strong>: 12개 전체 적용은 시간 초과 → 핵심 진단 가치 높은 <mark>Q3, Q4, Q7, Q11</mark> 4문항만 4-tier로.</p>
+        <p><strong>근거</strong>: Kaltakci-Gurel, Eryilmaz &amp; McDermott (2016, RSTE, 34(2)). 4-tier는 false-positive 오개념(찍어서 맞은 정답) 솎아내기에 효과적.</p>
+        <p><strong>배제된 대안</strong>:
+          (a) 12개 모두 4-tier — 학생 피로 + 응답 시간 30분 초과;
+          (b) 3-tier 유지 — 의사결정 단순성은 ↑이나 진단 정밀도 손실;
+          (c) CRI(Hasan et al. 1999) 단일 확신도 — 1990년대 기법으로 현재 표준 외.
+        </p>
+      </div>
+    </details>
+
+    <details>
+      <summary>결정 3. distractor 한국화</summary>
+      <div class="inner">
+        <p><strong>배경</strong>: 현재 distractor는 일반 오개념 카탈로그에서 추출되어 한국 고등학생이 "실제로 자주 고르는" 오답인지 검증 안 됨.</p>
+        <p><strong>결정</strong>: 3종 자료로 distractor 전수 재검토.
+          (i) <mark>SERC 서울대 과학교육연구소 고1·고2 응답 분포 PDF</mark> — 한국 학생 1차 응답 텍스트;
+          (ii) Kind (RSC Education) — 16+ 학생 오개념 항목별 비율;
+          (iii) Yalçınkaya &amp; Boz (2015, CERP) — 10학년 7오개념 목록.
+        </p>
+        <p><strong>근거</strong>: 한국 학생 표현 어휘("벽에 부딪치는 횟수", "빽빽해져서")가 distractor에 포함되어야 학생이 그 선지를 "자기 생각"으로 인식. 그렇지 않으면 어색해서 회피 → distractor 효율 ↓.</p>
+        <p><strong>배제된 대안</strong>: 영문 검사지 직역 — 한국 학생에게 부자연스러운 표현 다수.</p>
+      </div>
+    </details>
+
+    <details>
+      <summary>결정 4. 거시-미시 표상 연계 문항 1개 신설 (Q13)</summary>
+      <div class="inner">
+        <p><strong>배경</strong>: 시뮬레이션의 가장 큰 특징은 거시(게이지·슬라이더)와 미시(입자 운동)를 동시 표시. 효과 측정은 두 표상의 변환에서 발생해야 하는데, 현재 검사지는 거시 또는 미시 한쪽씩만 묻는 문항으로 구성.</p>
+        <p><strong>결정</strong>: 거시 → 미시 변환 4지선다 문항 1개 신설. 부피 변화 시 (압력 게이지, 입자 수, 입자 크기, 속력) 4요소의 변화를 동시에 예측.</p>
+        <p><strong>근거</strong>: <mark>강훈식·신석진·노태희 (2008, 대한화학회지, 52(5), 550)</mark> — 보일·샤를 연계오류 6원인 분석. 이 문항으로 6원인 중 (1)(2)(3) 직접 측정.</p>
+        <p><strong>배제된 대안</strong>: 자유서술 — 채점 부담;  비교 4문항 세트 — 시간 초과.</p>
+      </div>
+    </details>
+
+    <details>
+      <summary>결정 5. 슬림화 (T/F 10→8, MC 12→9)</summary>
+      <div class="inner">
+        <p><strong>배경</strong>: 현행 22 stem + 그림 2 + 신설 1 = 25 항목이면 30분 이상 소요. 목표 25분 내로 압축 필요.</p>
+        <p><strong>결정</strong>:
+          T/F에서 BL2·BL3 제거(본 MC와 직접 중복) → 8개.
+          MC에서 Q2(Q1과 영역 중복) + Q5(시뮬과 거리, 일반 오개념) 제거 → 9개. (Q1 정성→정량 통합 또는 별도 유지 옵션)
+        </p>
+        <p><strong>근거</strong>: Pesman &amp; Eryilmaz (2010) — 문항 중복은 신뢰도(α)는 올리지만 변별도와 시간 효율 떨어뜨림. Crocker &amp; Algina (1986) — 한 영역당 3~5문항이 신뢰도·시간의 최적.</p>
+        <p><strong>배제된 대안</strong>: 전부 유지 (45분+) / T/F 전수 제거 (warm-up 손실) / MC만 절반 (영역 균형 깨짐).</p>
+      </div>
+    </details>
+  </section>
+
+  <!-- ============== 3-1. DRAWING ============== -->
+  <section id="drawing">
+    <h2><span class="num">3-1</span> 입자 그리기 anchor 2문항 (신설)</h2>
+    <p class="lede">시뮬레이션이 미시 모델 형성을 보여주는 만큼, 검사지도 학생이 자기 손으로 미시 표상을 산출하도록 요구. Nyachwaya 5범주 17코드 + AP Chemistry 채점 기준 압축.</p>
+
+    <h3>문항 D1 — Boyle 압축 입자 표상</h3>
+    <div class="callout note">
+      <strong>지시문</strong>: 부피 V인 주사기 안에 기체 분자 8개가 흩어져 있다.
+      주사기 손잡이를 눌러 부피를 V/2로 줄였다.<br/>
+      (1) 압축 직후 분자들이 어떻게 분포·운동하는지 빈 상자 안에 그려라.
+      분자 개수, 분자 크기, 분자 간 간격, 운동 표시(화살표) 모두 포함할 것.<br/>
+      (2) 1단계 그림을 그렇게 그린 이유를 2~3문장으로 적어라.
+    </div>
+
+    <h4>채점용 앵커 도해 (학생 응답 분류 예시)</h4>
+    <div class="svg-row">
+      <div class="svg-card start">
+        <svg width="140" height="100" viewBox="0 0 140 100">
+          <rect x="5" y="5" width="130" height="90" fill="none" stroke="#374151" stroke-width="1.5" rx="2"/>
+          <!-- 8 particles spread out -->
+          <circle cx="20" cy="22" r="5" fill="#3b82f6"/>
+          <circle cx="55" cy="32" r="5" fill="#3b82f6"/>
+          <circle cx="95" cy="20" r="5" fill="#3b82f6"/>
+          <circle cx="120" cy="42" r="5" fill="#3b82f6"/>
+          <circle cx="30" cy="60" r="5" fill="#3b82f6"/>
+          <circle cx="70" cy="72" r="5" fill="#3b82f6"/>
+          <circle cx="105" cy="78" r="5" fill="#3b82f6"/>
+          <circle cx="45" cy="85" r="5" fill="#3b82f6"/>
+          <!-- motion arrows -->
+          <line x1="20" y1="22" x2="14" y2="14" stroke="#374151" stroke-width="1" marker-end="url(#arr)"/>
+          <line x1="55" y1="32" x2="64" y2="40" stroke="#374151" stroke-width="1" marker-end="url(#arr)"/>
+          <line x1="95" y1="20" x2="103" y2="12" stroke="#374151" stroke-width="1" marker-end="url(#arr)"/>
+          <defs>
+            <marker id="arr" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+              <polygon points="0,0 6,3 0,6" fill="#374151"/>
+            </marker>
+          </defs>
+        </svg>
+        <span class="label">시작 상태 (V)</span>
+        <div class="note">8개 분자, 균일 분포, 운동 화살표</div>
+      </div>
+
+      <div class="svg-card right">
+        <svg width="80" height="100" viewBox="0 0 80 100">
+          <rect x="5" y="5" width="70" height="90" fill="none" stroke="#374151" stroke-width="1.5" rx="2"/>
+          <circle cx="18" cy="20" r="5" fill="#059669"/>
+          <circle cx="42" cy="18" r="5" fill="#059669"/>
+          <circle cx="62" cy="32" r="5" fill="#059669"/>
+          <circle cx="28" cy="42" r="5" fill="#059669"/>
+          <circle cx="55" cy="55" r="5" fill="#059669"/>
+          <circle cx="22" cy="68" r="5" fill="#059669"/>
+          <circle cx="50" cy="78" r="5" fill="#059669"/>
+          <circle cx="18" cy="88" r="5" fill="#059669"/>
+          <line x1="18" y1="20" x2="11" y2="14" stroke="#374151" stroke-width="1" marker-end="url(#arr2)"/>
+          <line x1="42" y1="18" x2="48" y2="10" stroke="#374151" stroke-width="1" marker-end="url(#arr2)"/>
+          <line x1="62" y1="32" x2="70" y2="38" stroke="#374151" stroke-width="1" marker-end="url(#arr2)"/>
+          <defs>
+            <marker id="arr2" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+              <polygon points="0,0 6,3 0,6" fill="#374151"/>
+            </marker>
+          </defs>
+        </svg>
+        <span class="label">✓ 정답 모델</span>
+        <div class="note">개수 8 유지, 크기 동일, 균일 분포, 운동 표시</div>
+      </div>
+
+      <div class="svg-card wrong">
+        <svg width="80" height="100" viewBox="0 0 80 100">
+          <rect x="5" y="5" width="70" height="90" fill="none" stroke="#374151" stroke-width="1.5" rx="2"/>
+          <!-- 8 particles but smaller (BL2 misconception) -->
+          <circle cx="18" cy="20" r="2.5" fill="#dc2626"/>
+          <circle cx="42" cy="18" r="2.5" fill="#dc2626"/>
+          <circle cx="62" cy="32" r="2.5" fill="#dc2626"/>
+          <circle cx="28" cy="42" r="2.5" fill="#dc2626"/>
+          <circle cx="55" cy="55" r="2.5" fill="#dc2626"/>
+          <circle cx="22" cy="68" r="2.5" fill="#dc2626"/>
+          <circle cx="50" cy="78" r="2.5" fill="#dc2626"/>
+          <circle cx="18" cy="88" r="2.5" fill="#dc2626"/>
+        </svg>
+        <span class="label">✗ 오답 BL2</span>
+        <div class="note">분자 크기 작아짐 — 입자 자체가 압축됨 오개념</div>
+      </div>
+
+      <div class="svg-card wrong">
+        <svg width="80" height="100" viewBox="0 0 80 100">
+          <rect x="5" y="5" width="70" height="90" fill="none" stroke="#374151" stroke-width="1.5" rx="2"/>
+          <!-- 4 particles only (BL3) -->
+          <circle cx="22" cy="22" r="5" fill="#dc2626"/>
+          <circle cx="55" cy="32" r="5" fill="#dc2626"/>
+          <circle cx="30" cy="60" r="5" fill="#dc2626"/>
+          <circle cx="50" cy="78" r="5" fill="#dc2626"/>
+        </svg>
+        <span class="label">✗ 오답 BL3</span>
+        <div class="note">입자 수 감소 — 압축 시 분자 소실 오개념</div>
+      </div>
+
+      <div class="svg-card wrong">
+        <svg width="80" height="100" viewBox="0 0 80 100">
+          <rect x="5" y="5" width="70" height="90" fill="none" stroke="#374151" stroke-width="1.5" rx="2"/>
+          <!-- piled at bottom (gravity confusion) -->
+          <circle cx="18" cy="80" r="5" fill="#dc2626"/>
+          <circle cx="30" cy="80" r="5" fill="#dc2626"/>
+          <circle cx="42" cy="80" r="5" fill="#dc2626"/>
+          <circle cx="55" cy="80" r="5" fill="#dc2626"/>
+          <circle cx="24" cy="68" r="5" fill="#dc2626"/>
+          <circle cx="36" cy="68" r="5" fill="#dc2626"/>
+          <circle cx="48" cy="68" r="5" fill="#dc2626"/>
+          <circle cx="60" cy="68" r="5" fill="#dc2626"/>
+        </svg>
+        <span class="label">✗ 오답 분포 오류</span>
+        <div class="note">바닥 쌓임 — 고체·액체 표상의 잘못된 적용</div>
+      </div>
+    </div>
+
+    <h4>인터랙티브 채점 시뮬레이터 (D1)</h4>
+    <p>아래 5개 기준을 학생 그림이 만족하는지 체크해보면 실시간 점수가 계산됨. 채점자 훈련용으로 활용.</p>
+    <div class="rubric-card" id="rubric-d1">
+      <div class="header">
+        <span class="title">D1 채점 시뮬레이터</span>
+        <span class="score-display" id="d1-score">0 / 5</span>
+      </div>
+      <div class="criterion" data-rubric="d1">
+        <input type="checkbox" id="d1c1"><label for="d1c1" class="desc">입자 개수 보존 (압축 전과 동일하게 8개)</label><span class="pts">+1</span>
+      </div>
+      <div class="criterion" data-rubric="d1">
+        <input type="checkbox" id="d1c2"><label for="d1c2" class="desc">입자 크기 불변 (분자 자체는 압축되지 않음)</label><span class="pts">+1</span>
+      </div>
+      <div class="criterion" data-rubric="d1">
+        <input type="checkbox" id="d1c3"><label for="d1c3" class="desc">분포 균일성 (한쪽 쏠림·바닥 쌓임 없음)</label><span class="pts">+1</span>
+      </div>
+      <div class="criterion" data-rubric="d1">
+        <input type="checkbox" id="d1c4"><label for="d1c4" class="desc">운동 표시 (최소 일부 분자에 화살표 또는 운동 묘사)</label><span class="pts">+1</span>
+      </div>
+      <div class="criterion" data-rubric="d1">
+        <input type="checkbox" id="d1c5"><label for="d1c5" class="desc">이유 진술 정합성 (그림의 변화를 입자 충돌·간격으로 설명)</label><span class="pts">+1</span>
+      </div>
+    </div>
+
+    <h3>문항 D2 — Dalton 분압 입자 표상</h3>
+    <div class="callout note">
+      <strong>지시문</strong>: 같은 부피·온도의 두 용기 A, B.
+      A에 He(○) 6개, B에 Ne(●) 6개가 있다.
+      B의 모든 입자를 A에 옮겨 혼합했다.<br/>
+      (1) 혼합 후 용기 A의 입자 상태를 그려라.<br/>
+      (2) 혼합 전후 He의 분압, Ne의 분압, 전체 압력의 관계를 한 문장으로 적어라.
+    </div>
+
+    <h4>채점용 앵커 도해</h4>
+    <div class="svg-row">
+      <div class="svg-card start">
+        <svg width="160" height="100" viewBox="0 0 160 100">
+          <rect x="5" y="20" width="70" height="70" fill="none" stroke="#374151" stroke-width="1.5"/>
+          <text x="40" y="14" text-anchor="middle" font-size="11" fill="#374151">용기 A (He)</text>
+          <circle cx="20" cy="40" r="6" fill="none" stroke="#1e40af" stroke-width="2"/>
+          <circle cx="50" cy="38" r="6" fill="none" stroke="#1e40af" stroke-width="2"/>
+          <circle cx="35" cy="58" r="6" fill="none" stroke="#1e40af" stroke-width="2"/>
+          <circle cx="60" cy="65" r="6" fill="none" stroke="#1e40af" stroke-width="2"/>
+          <circle cx="22" cy="72" r="6" fill="none" stroke="#1e40af" stroke-width="2"/>
+          <circle cx="50" cy="82" r="6" fill="none" stroke="#1e40af" stroke-width="2"/>
+
+          <rect x="90" y="20" width="70" height="70" fill="none" stroke="#374151" stroke-width="1.5"/>
+          <text x="125" y="14" text-anchor="middle" font-size="11" fill="#374151">용기 B (Ne)</text>
+          <circle cx="105" cy="40" r="6" fill="#7c3aed"/>
+          <circle cx="135" cy="38" r="6" fill="#7c3aed"/>
+          <circle cx="120" cy="58" r="6" fill="#7c3aed"/>
+          <circle cx="145" cy="65" r="6" fill="#7c3aed"/>
+          <circle cx="107" cy="72" r="6" fill="#7c3aed"/>
+          <circle cx="135" cy="82" r="6" fill="#7c3aed"/>
+        </svg>
+        <span class="label">시작 상태</span>
+        <div class="note">A: He 6개 / B: Ne 6개 (각 1 atm)</div>
+      </div>
+
+      <div class="svg-card right">
+        <svg width="100" height="100" viewBox="0 0 100 100">
+          <rect x="5" y="20" width="90" height="70" fill="none" stroke="#374151" stroke-width="1.5"/>
+          <text x="50" y="14" text-anchor="middle" font-size="11" fill="#059669">혼합 후 (A)</text>
+          <!-- 6 He + 6 Ne mixed uniformly -->
+          <circle cx="15" cy="32" r="6" fill="none" stroke="#1e40af" stroke-width="2"/>
+          <circle cx="38" cy="30" r="6" fill="#7c3aed"/>
+          <circle cx="60" cy="35" r="6" fill="none" stroke="#1e40af" stroke-width="2"/>
+          <circle cx="82" cy="32" r="6" fill="#7c3aed"/>
+          <circle cx="26" cy="50" r="6" fill="#7c3aed"/>
+          <circle cx="48" cy="52" r="6" fill="none" stroke="#1e40af" stroke-width="2"/>
+          <circle cx="70" cy="50" r="6" fill="#7c3aed"/>
+          <circle cx="88" cy="55" r="6" fill="none" stroke="#1e40af" stroke-width="2"/>
+          <circle cx="15" cy="72" r="6" fill="#7c3aed"/>
+          <circle cx="38" cy="78" r="6" fill="none" stroke="#1e40af" stroke-width="2"/>
+          <circle cx="60" cy="78" r="6" fill="#7c3aed"/>
+          <circle cx="82" cy="75" r="6" fill="none" stroke="#1e40af" stroke-width="2"/>
+        </svg>
+        <span class="label">✓ 정답 모델</span>
+        <div class="note">12개 균일 혼합, He·Ne 구분 표시</div>
+      </div>
+
+      <div class="svg-card wrong">
+        <svg width="100" height="100" viewBox="0 0 100 100">
+          <rect x="5" y="20" width="90" height="70" fill="none" stroke="#374151" stroke-width="1.5"/>
+          <text x="50" y="14" text-anchor="middle" font-size="11" fill="#dc2626">DL1 오개념</text>
+          <!-- 6 He pushed out? Some particles disappeared -->
+          <circle cx="20" cy="40" r="6" fill="none" stroke="#1e40af" stroke-width="2"/>
+          <circle cx="50" cy="40" r="6" fill="#7c3aed"/>
+          <circle cx="80" cy="40" r="6" fill="none" stroke="#1e40af" stroke-width="2"/>
+          <circle cx="30" cy="65" r="6" fill="#7c3aed"/>
+          <circle cx="60" cy="65" r="6" fill="none" stroke="#1e40af" stroke-width="2"/>
+          <circle cx="80" cy="80" r="6" fill="#7c3aed"/>
+        </svg>
+        <span class="label">✗ 오답 DL1</span>
+        <div class="note">새 기체 추가 시 기존 기체 일부 소실 (잘못)</div>
+      </div>
+
+      <div class="svg-card wrong">
+        <svg width="100" height="100" viewBox="0 0 100 100">
+          <rect x="5" y="20" width="90" height="70" fill="none" stroke="#374151" stroke-width="1.5"/>
+          <text x="50" y="14" text-anchor="middle" font-size="11" fill="#dc2626">분리 오개념</text>
+          <!-- He top half, Ne bottom (segregation) -->
+          <circle cx="20" cy="30" r="6" fill="none" stroke="#1e40af" stroke-width="2"/>
+          <circle cx="40" cy="30" r="6" fill="none" stroke="#1e40af" stroke-width="2"/>
+          <circle cx="60" cy="30" r="6" fill="none" stroke="#1e40af" stroke-width="2"/>
+          <circle cx="80" cy="30" r="6" fill="none" stroke="#1e40af" stroke-width="2"/>
+          <circle cx="30" cy="45" r="6" fill="none" stroke="#1e40af" stroke-width="2"/>
+          <circle cx="60" cy="45" r="6" fill="none" stroke="#1e40af" stroke-width="2"/>
+          <line x1="5" y1="55" x2="95" y2="55" stroke="#dc2626" stroke-width="1" stroke-dasharray="3,2"/>
+          <circle cx="20" cy="68" r="6" fill="#7c3aed"/>
+          <circle cx="45" cy="68" r="6" fill="#7c3aed"/>
+          <circle cx="70" cy="68" r="6" fill="#7c3aed"/>
+          <circle cx="30" cy="82" r="6" fill="#7c3aed"/>
+          <circle cx="60" cy="82" r="6" fill="#7c3aed"/>
+          <circle cx="85" cy="82" r="6" fill="#7c3aed"/>
+        </svg>
+        <span class="label">✗ 오답 DL4</span>
+        <div class="note">무거운 기체가 아래로 가라앉음 (잘못)</div>
+      </div>
+    </div>
+
+    <h4>인터랙티브 채점 시뮬레이터 (D2)</h4>
+    <div class="rubric-card" id="rubric-d2">
+      <div class="header">
+        <span class="title">D2 채점 시뮬레이터</span>
+        <span class="score-display" id="d2-score">0 / 5</span>
+      </div>
+      <div class="criterion" data-rubric="d2"><input type="checkbox" id="d2c1"><label for="d2c1" class="desc">입자 총 수 보존 (12개 모두 표현)</label><span class="pts">+1</span></div>
+      <div class="criterion" data-rubric="d2"><input type="checkbox" id="d2c2"><label for="d2c2" class="desc">종 구분 표시 (He·Ne 시각적으로 구분)</label><span class="pts">+1</span></div>
+      <div class="criterion" data-rubric="d2"><input type="checkbox" id="d2c3"><label for="d2c3" class="desc">혼합 균일성 (층화·분리 없음)</label><span class="pts">+1</span></div>
+      <div class="criterion" data-rubric="d2"><input type="checkbox" id="d2c4"><label for="d2c4" class="desc">분압 독립성 진술 (P_He·P_Ne 각각 1 atm 유지)</label><span class="pts">+1</span></div>
+      <div class="criterion" data-rubric="d2"><input type="checkbox" id="d2c5"><label for="d2c5" class="desc">총압 가법성 진술 (P_total = P_He + P_Ne = 2 atm)</label><span class="pts">+1</span></div>
+    </div>
+
+    <div class="callout">
+      <strong>채점자 신뢰도 (Inter-rater reliability)</strong>:
+      파일럿 채점 단계에서 2명 이상의 평가자가 동일 답안을 채점하고 Cohen's κ ≥ 0.70 확인 권장.
+      낮으면 앵커 예시 추가·기준 명확화 후 재훈련.
+      (Stammes &amp; de Putter-Smits, 2025)
+    </div>
+  </section>
+
+  <!-- ============== 3-2. 4-TIER ============== -->
+  <section id="fourtier">
+    <h2><span class="num">3-2</span> 4-tier 부분 적용 (핵심 4문항)</h2>
+    <p class="lede">Q3, Q4, Q7, Q11 4문항에 한해 "이유 확신도(X-4)" 추가. 12문항 전체 적용 시 시간 초과 + 학생 피로 → 진단 가치 가장 높은 4개만.</p>
+
+    <h3>구조</h3>
+    <table class="compact">
+      <thead><tr><th>단계</th><th>현재 (3-tier)</th><th>개선 (4-tier)</th></tr></thead>
+      <tbody>
+        <tr><td>X-1</td><td>답 선택</td><td>답 선택</td></tr>
+        <tr><td>X-2</td><td>이유 선택</td><td>이유 선택</td></tr>
+        <tr><td>X-3</td><td>답에 대한 확신도 (1~5)</td><td>답에 대한 확신도 (1~5)</td></tr>
+        <tr><td>X-4</td><td>— (없음)</td><td><mark>이유에 대한 확신도 (1~5) 신설</mark></td></tr>
+      </tbody>
+    </table>
+
+    <h3>인터랙티브 판별 매트릭스</h3>
+    <p>아래 셀을 클릭하면 해당 조합의 진단 결과가 표시됨. Caleon &amp; Subramaniam (2010) 표준.</p>
+    <div class="tier-matrix" id="tier-mx">
+      <div class="cell header"></div>
+      <div class="cell header">답 정답</div>
+      <div class="cell header">답 정답</div>
+      <div class="cell header">답 오답</div>
+      <div class="cell header">답 오답</div>
+
+      <div class="cell header">↓ 이유</div>
+      <div class="cell" data-judge="aa-hh" data-result="과학적 이해|답·이유·확신 모두 정합. 진정한 개념 형성 상태. 시뮬레이션 사후 도달 목표.">정답<br/><small>확신 高</small></div>
+      <div class="cell" data-judge="aa-ll" data-result="운으로 맞음 또는 미정착|답과 이유는 맞으나 확신이 낮음. 학습 진행 중 또는 추측. 사후 검사에서 확신 ↑ 확인 필요.">정답<br/><small>확신 低</small></div>
+      <div class="cell" data-judge="ao-hh" data-result="False positive (위장된 오개념)|답만 우연히 맞고 이유는 틀린데 확신은 높음. 가장 위험한 패턴. 시뮬레이션도 해결 어려움.">오답<br/><small>확신 高</small></div>
+      <div class="cell" data-judge="ao-ll" data-result="학습 부족|답·이유 모두 틀리고 확신도 낮음. 단순 미학습 상태. 시뮬레이션 효과 가장 크게 나타나는 영역.">오답<br/><small>확신 低</small></div>
+
+      <div class="cell header">정답</div>
+      <div class="cell" data-judge="oa-hh" data-result="모순 — 재검토 필요|이유는 정답인데 답이 오답. 응답 오류 또는 부주의. 응답 신뢰도 의심.">정답<br/><small>확신 高</small></div>
+      <div class="cell" data-judge="oa-ll" data-result="흔치 않음|이유 정답·답 오답 + 낮은 확신. 측정 오류 또는 즉답 실수.">정답<br/><small>확신 低</small></div>
+      <div class="cell" data-judge="oo-hh" data-result="확신 있는 오개념 (Robust misconception)|답·이유·확신 모두 일관되게 오답. 가장 견고한 오개념. 시뮬레이션만으로 교정 어려움.">오답<br/><small>확신 高</small></div>
+      <div class="cell" data-judge="oo-ll" data-result="혼란 상태|답·이유 모두 오답이지만 자신도 잘 모르는 상태. 교정 가능성 가장 높음.">오답<br/><small>확신 低</small></div>
+    </div>
+    <div class="tier-result" id="tier-result">
+      <span class="judge">↑ 셀을 클릭해 판정 결과 확인</span>
+      각 조합이 시뮬레이션 효과 측정에서 어떻게 해석되는지 표시됩니다.
+    </div>
+
+    <div class="callout ok">
+      <strong>왜 4문항만인가</strong>: Q3 (입자 수·질량 — PN3 오개념), Q4 (진공 BL7), Q7 (Dalton 기본 DL1·DL2), Q11 (중력/분압)은 모두
+      <em>"답은 맞히기 쉬운데 이유가 깊은 오개념인" 패턴</em>이 나타나는 영역. 4-tier로 false-positive 정밀 검출 가능.
+    </div>
+  </section>
+
+  <!-- ============== 3-3. DISTRACTOR ============== -->
+  <section id="distractor">
+    <h2><span class="num">3-3</span> distractor 한국화 — 사례 비교</h2>
+    <p class="lede">기존 distractor는 일반 오개념 카탈로그 기반. 한국 학생이 "실제로 자주 고르는" 오답으로 재설계하면 변별도 ↑.</p>
+
+    <div class="tabs" data-tabset="distr">
+      <button class="active" data-tab="q1">Q1 — 부피 반감</button>
+      <button data-tab="q7">Q7 — Dalton 혼합</button>
+      <button data-tab="q4">Q4 — 진공 오개념</button>
+    </div>
+
+    <div class="tab-panel active" data-panel="q1">
+      <p>일정한 온도에서 밀폐된 실린더의 부피를 절반으로 줄이면 기체 압력은?</p>
+      <div class="compare">
+        <div class="before">
+          <h5>기존 distractor</h5>
+          <span class="choice"><span class="label">A)</span>1/2배</span>
+          <span class="choice correct"><span class="label">B)</span>2배 <span class="pill ok">정답</span></span>
+          <span class="choice"><span class="label">C)</span>변화 없음</span>
+          <span class="choice"><span class="label">D)</span>4배</span>
+        </div>
+        <div class="after">
+          <h5>한국화 distractor</h5>
+          <span class="choice"><span class="label">A)</span>1/2배 <span class="basis">BL1 비례 오개념</span></span>
+          <span class="choice correct"><span class="label">B)</span>2배 <span class="pill ok">정답</span></span>
+          <span class="choice"><span class="label">C)</span>변화 없음 — 분자 수가 그대로니까 <span class="basis">SERC 고2 실응답</span></span>
+          <span class="choice"><span class="label">D)</span>4배 — 부피가 절반이면 압력도 2 만큼 늘어야 4배 <span class="basis">MA1 수학적 혼동</span></span>
+        </div>
+      </div>
+      <div class="callout">
+        <strong>이유 단계 (Q1-2) 도 동일 원리로 한국화</strong>: 분자가 "벽에 부딪치는 횟수" 같은 SERC 실응답 표현 채택.
+        한국 학생의 친숙 어휘를 distractor에 직접 사용해야 "자기 생각으로 보임" → 선지 회피 최소화.
+      </div>
+    </div>
+
+    <div class="tab-panel" data-panel="q7">
+      <p>같은 부피·온도의 두 용기 — A에 N₂(2 atm), B에 O₂(1 atm). 모두 한 용기로 옮겨 혼합. 전체 압력은?</p>
+      <div class="compare">
+        <div class="before">
+          <h5>기존 distractor</h5>
+          <span class="choice"><span class="label">A)</span>1 atm</span>
+          <span class="choice"><span class="label">B)</span>1.5 atm</span>
+          <span class="choice"><span class="label">C)</span>2 atm</span>
+          <span class="choice correct"><span class="label">D)</span>3 atm <span class="pill ok">정답</span></span>
+        </div>
+        <div class="after">
+          <h5>한국화 distractor</h5>
+          <span class="choice"><span class="label">A)</span>1.5 atm <span class="basis">DL2 — 분압의 평균</span></span>
+          <span class="choice"><span class="label">B)</span>2 atm <span class="basis">DL4 변형 — 더 큰 값 채택</span></span>
+          <span class="choice"><span class="label">C)</span>2.5 atm — 새 기체 추가하면 기존 압력이 조금 줄어듦 <span class="basis">DL1</span></span>
+          <span class="choice correct"><span class="label">D)</span>3 atm <span class="pill ok">정답 (P_total = P_N₂ + P_O₂)</span></span>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-panel" data-panel="q4">
+      <p>잠긴 주사기의 피스톤을 바깥쪽으로 당기면 내부 압력은?</p>
+      <div class="compare">
+        <div class="before">
+          <h5>기존 distractor</h5>
+          <span class="choice"><span class="label">A)</span>높아진다</span>
+          <span class="choice correct"><span class="label">B)</span>낮아진다 <span class="pill ok">정답</span></span>
+          <span class="choice"><span class="label">C)</span>변화 없음</span>
+          <span class="choice"><span class="label">D)</span>알 수 없다</span>
+        </div>
+        <div class="after">
+          <h5>한국화 distractor (이유 단계까지 함께)</h5>
+          <span class="choice"><span class="label">A)</span>높아진다 — 진공이 생기면 공기가 빨려 들어오니까 <span class="basis">BL7 진공 오개념</span></span>
+          <span class="choice correct"><span class="label">B)</span>낮아진다 — 같은 분자 수가 더 큰 공간에 분포 <span class="pill ok">정답</span></span>
+          <span class="choice"><span class="label">C)</span>변화 없음 — 밀폐되어 있으니 압력 보존 <span class="basis">Kind RSC: 16+ 학생 22% 응답</span></span>
+          <span class="choice"><span class="label">D)</span>처음에 낮아졌다 시간이 지나면 회복 <span class="basis">SERC 시간 인지 오개념</span></span>
+        </div>
+      </div>
+    </div>
+
+    <h3>distractor 작성 원칙 5가지</h3>
+    <ol>
+      <li><strong>모든 오답은 명시적 오개념 코드와 연결</strong> — 그렇지 않으면 distractor가 아니라 "그냥 틀린 답".</li>
+      <li><strong>한국 학생 표현 어휘 사용</strong> — "벽에 부딪치는 횟수", "빽빽해져서", "공기가 빨려 들어오니까" 등.</li>
+      <li><strong>각 선지 분포 사후 분석</strong> — 한 distractor가 5% 미만이면 비기능적, 재설계 대상 (Crocker &amp; Algina, 1986).</li>
+      <li><strong>선지 4~5개 권장</strong> — 5개는 추측 확률 ↓이나 시간 ↑. T/F는 2지선다이므로 무관.</li>
+      <li><strong>이유(X-2) 선지도 동일 원칙 적용</strong> — 답 선지보다 이유 선지가 진단 가치 더 높음.</li>
+    </ol>
+  </section>
+
+  <!-- ============== 3-4. MACRO-MICRO ============== -->
+  <section id="macro-micro">
+    <h2><span class="num">3-4</span> 거시-미시 표상 연계 문항 (Q13 신설)</h2>
+    <p class="lede">시뮬레이션의 가장 큰 특징은 거시(게이지·슬라이더)와 미시(입자 운동)를 <strong>동시 표시</strong>한다는 점.
+       효과 측정은 두 표상의 변환에서 발생해야 함. 강훈식 외 (2008)의 연계오류 6원인 중 (1)(2)(3) 직접 측정.</p>
+
+    <h3>Q13 — 시뮬레이션 변환 예측</h3>
+    <div class="callout note">
+      <strong>지시문</strong>: 아래는 보일 법칙 시뮬레이션의 한 장면이다.<br/>
+      [거시] 압력 게이지 <strong>1.0 atm</strong>, 부피 슬라이더 <strong>2.0 L</strong><br/>
+      [미시] 입자 12개가 무작위 분포, 평균 속력 화살표<br/><br/>
+      학생이 부피를 1.0 L로 줄였을 때, 시뮬레이션이 보여줄 변화로 옳은 것은?
+    </div>
+
+    <table>
+      <thead><tr><th style="width:14%">선지</th><th style="width:18%">압력 게이지</th><th style="width:14%">입자 수</th><th style="width:14%">입자 크기</th><th style="width:18%">평균 속력</th><th>오개념 코드</th></tr></thead>
+      <tbody>
+        <tr style="background:rgba(5,150,105,.06)">
+          <td><strong>A) 정답</strong></td><td>2.0 atm</td><td>12개</td><td>동일</td><td>동일</td><td><span class="pill ok">과학적 모델</span></td>
+        </tr>
+        <tr>
+          <td>B)</td><td>2.0 atm</td><td>6개</td><td>동일</td><td>동일</td><td><span class="pill warn">BL3</span> 압축 시 분자 소실</td>
+        </tr>
+        <tr>
+          <td>C)</td><td>0.5 atm</td><td>12개</td><td>동일</td><td>증가</td><td><span class="pill warn">BL1</span> 비례 + 운동 변화 오개념</td>
+        </tr>
+        <tr>
+          <td>D)</td><td>2.0 atm</td><td>12개</td><td><strong>작아짐</strong></td><td>동일</td><td><span class="pill warn">BL2</span> PN3 입자 자체가 압축</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h4>왜 이 문항이 효과 측정 핵심인가</h4>
+    <div class="callout ok">
+      이 문항은 단순 PV 관계 한 가지가 아니라 <strong>4개 변수(P, n, 입자 크기, 속력)의 변화 방향</strong>을 동시에 묻는다.
+      시뮬레이션이 시각적으로 보여주는 4개 표상을 학생이 정합적으로 결합했는지 측정.
+      학생이 사전에 D를 골랐다가 사후에 A로 바꾸면 → <strong>시뮬레이션의 미시 표상 효과가 직접 확인됨</strong>.
+    </div>
+
+    <div class="callout note">
+      <strong>변형 옵션</strong>: 4지선다 대신 <em>4개 변수 각각을 ↑/↓/= 로 표시하는 표 채우기</em> 형식으로도 출제 가능.
+      4개 × 3 = 12 셀로 진단 정밀도 ↑ 하지만 시간·채점 부담 ↑.
+    </div>
+  </section>
+
+  <!-- ============== 3-5. SLIM ============== -->
+  <section id="slim">
+    <h2><span class="num">3-5</span> 슬림화 — 인터랙티브 시간 계산기</h2>
+    <p class="lede">아래 체크박스를 토글하면 실시간으로 총 소요 시간이 계산됨. 목표는 25분 (가용 30분 - 안전 마진 5분).</p>
+
+    <div class="time-calc" id="timecalc">
+      <div class="row">
+        <label><input type="checkbox" class="tc" data-min="0.4" checked> T/F 8문항 (BL2·BL3 제외)</label>
+        <span class="mins"><span class="cnt">8</span>개 × 0.4분 = <span class="sub">3.2</span>분</span>
+      </div>
+      <div class="row">
+        <label><input type="checkbox" class="tc" data-min="1.5" checked> 3-tier MC 5문항 (Q1, Q6, Q8, Q9, Q12)</label>
+        <span class="mins">5개 × 1.5분 = <span class="sub">7.5</span>분</span>
+      </div>
+      <div class="row">
+        <label><input type="checkbox" class="tc" data-min="2.0" checked> 4-tier MC 4문항 (Q3, Q4, Q7, Q11)</label>
+        <span class="mins">4개 × 2.0분 = <span class="sub">8.0</span>분</span>
+      </div>
+      <div class="row">
+        <label><input type="checkbox" class="tc" data-min="2.0" checked> Q13 거시-미시 연계 (신설)</label>
+        <span class="mins">1개 × 2.0분 = <span class="sub">2.0</span>분</span>
+      </div>
+      <div class="row">
+        <label><input type="checkbox" class="tc" data-min="3.5" checked> 입자 그리기 D1 (Boyle)</label>
+        <span class="mins">1개 × 3.5분 = <span class="sub">3.5</span>분</span>
+      </div>
+      <div class="row">
+        <label><input type="checkbox" class="tc" data-min="3.5" checked> 입자 그리기 D2 (Dalton)</label>
+        <span class="mins">1개 × 3.5분 = <span class="sub">3.5</span>분</span>
+      </div>
+      <div class="row">
+        <label><input type="checkbox" class="tc" data-min="1.5"> [옵션] Q2 정량 보일 (고2 버전)</label>
+        <span class="mins">1개 × 1.5분 = <span class="sub">1.5</span>분</span>
+      </div>
+      <div class="row">
+        <label><input type="checkbox" class="tc" data-min="1.5"> [옵션] Q5 용기 모양 (시뮬과 거리)</label>
+        <span class="mins">1개 × 1.5분 = <span class="sub">1.5</span>분</span>
+      </div>
+      <div class="row">
+        <label><input type="checkbox" class="tc" data-min="1.5"> [옵션] Q10 미량기체 (DL9와 중복)</label>
+        <span class="mins">1개 × 1.5분 = <span class="sub">1.5</span>분</span>
+      </div>
+      <div class="gauge">
+        <div class="bar" id="gauge-bar"></div>
+        <div class="target" id="target-mark"></div>
+      </div>
+      <div class="gauge-labels"><span>0분</span><span>15분</span><span>25분 (목표)</span><span>40분</span></div>
+      <div class="row total">
+        <span>예상 소요 시간</span>
+        <span class="val" id="total-time">27.7분</span>
+      </div>
+    </div>
+
+    <h3>최종 권장 구성 (기본 버전)</h3>
+    <table>
+      <thead><tr><th>영역</th><th>항목</th><th>수</th><th>예상 시간</th></tr></thead>
+      <tbody>
+        <tr><td>T/F screening</td><td>BL1, BL7, PN3, DL1, DL2, DL4, DL9, MA1</td><td>8</td><td>~3.2분</td></tr>
+        <tr><td>3-tier MC</td><td>Q1, Q6, Q8, Q9, Q12</td><td>5</td><td>~7.5분</td></tr>
+        <tr><td>4-tier MC</td><td>Q3, Q4, Q7, Q11</td><td>4</td><td>~8.0분</td></tr>
+        <tr><td>거시-미시 연계 (신설)</td><td>Q13</td><td>1</td><td>~2.0분</td></tr>
+        <tr><td>입자 그리기 anchor</td><td>D1, D2</td><td>2</td><td>~7.0분</td></tr>
+        <tr style="background:rgba(217,119,6,.1)"><td><strong>합계</strong></td><td></td><td><strong>20</strong></td><td><strong>~27.7분</strong></td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ============== 4. SCORING ============== -->
+  <section id="scoring">
+    <h2><span class="num">4</span> 채점·통계 분석 프로토콜</h2>
+    <p class="lede">측정 → 분석 → 보고의 표준 절차. 논문 Methods·Results 섹션에 그대로 인용 가능.</p>
+
+    <h3>채점 (Scoring)</h3>
+    <table class="compact">
+      <thead><tr><th>항목 유형</th><th>채점 규칙</th><th>최대 점</th></tr></thead>
+      <tbody>
+        <tr><td>T/F</td><td>정답 1점</td><td>1</td></tr>
+        <tr><td>3-tier MC</td><td>답 정답 1점 + 이유 정답 1점</td><td>2</td></tr>
+        <tr><td>4-tier MC</td><td>답·이유 합산 + 확신도 가중 (高 ×1.5 / 中 ×1.0 / 低 ×0.5)</td><td>3 (최대)</td></tr>
+        <tr><td>거시-미시 연계 (Q13)</td><td>4지선다 정답 1점</td><td>1</td></tr>
+        <tr><td>입자 그리기 (D1·D2)</td><td>5개 기준 각 1점 (위 § 3-1 루브릭)</td><td>5</td></tr>
+      </tbody>
+    </table>
+
+    <div class="callout note">
+      <strong>총점 예시</strong>: T/F 8 + 3-tier 5×2 + 4-tier 4×3 + Q13 1 + 그림 2×5 = <strong>41점 만점</strong>
+    </div>
+
+    <h3>효과 측정 지표 (Pre → Post)</h3>
+    <table>
+      <thead><tr><th>지표</th><th>공식</th><th>해석 기준</th><th>출처</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><strong>Hake's normalized gain (g)</strong></td>
+          <td><code class="code-inline">g = (post − pre) / (max − pre)</code></td>
+          <td>g &lt; 0.30 낮음 / 0.30–0.70 중간 / &gt; 0.70 높음</td>
+          <td>Hake (1998), AJP</td>
+        </tr>
+        <tr>
+          <td><strong>Cohen's d (대응표본)</strong></td>
+          <td><code class="code-inline">d = (M_post − M_pre) / SD_pooled</code></td>
+          <td>0.2 작음 / 0.5 중간 / 0.8 큼</td>
+          <td>Cohen (1988)</td>
+        </tr>
+        <tr>
+          <td><strong>오개념 교정률</strong></td>
+          <td>(pre 오개념 → post 과학개념) ÷ (pre 오개념 N)</td>
+          <td>50% 이상 권고</td>
+          <td>Trundle &amp; Bell (2010)</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>검사지 자체 타당화 통계</h3>
+    <table>
+      <thead><tr><th>지표</th><th>최소 기준</th><th>비고</th></tr></thead>
+      <tbody>
+        <tr><td>Cronbach α / KR-20 (내적 일관성)</td><td>≥ 0.70</td><td>전체 + 영역별(BL/PN/DL/MA) 각각 산출</td></tr>
+        <tr><td>변별도 (point-biserial correlation)</td><td>≥ 0.30</td><td>0.20~0.30 검토 / &lt; 0.20 제거</td></tr>
+        <tr><td>난이도 (p값)</td><td>0.20 ~ 0.80</td><td>0.40~0.60이 이상적</td></tr>
+        <tr><td>채점자 신뢰도 (그림 anchor, Cohen's κ)</td><td>≥ 0.70</td><td>2명 이상 독립 채점 후 산출</td></tr>
+        <tr><td>Content Validity Index (CVI)</td><td>≥ 0.80</td><td>전문가 3~5명 검토</td></tr>
+      </tbody>
+    </table>
+
+    <h3>오개념 변화 분류 (Pre → Post)</h3>
+    <table class="compact">
+      <thead><tr><th>유형</th><th>Pre</th><th>Post</th><th>해석</th></tr></thead>
+      <tbody>
+        <tr><td>유지</td><td>과학</td><td>과학</td><td>이미 도달 — 시뮬레이션 무효 영역 (천장 효과)</td></tr>
+        <tr style="background:rgba(5,150,105,.08)"><td><strong>교정</strong></td><td>오개념</td><td>과학</td><td>시뮬레이션 효과의 직접 증거</td></tr>
+        <tr style="background:rgba(220,38,38,.06)"><td>퇴행</td><td>과학</td><td>오개념</td><td>혼란 야기 — 시뮬레이션 설계 검토 필요</td></tr>
+        <tr><td>대체</td><td>오개념 A</td><td>오개념 B</td><td>부분 효과 — 새 오개념의 출처 추적</td></tr>
+        <tr><td>저항</td><td>오개념</td><td>오개념(동일)</td><td>견고한 오개념 — 시뮬레이션만으로 부족</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ============== 5. GRADES ============== -->
+  <section id="grades">
+    <h2><span class="num">5</span> 고1·고2 버전 분리 권고</h2>
+    <p class="lede">2015 개정 교육과정 분석상 고1(통합과학)과 고2(화학Ⅰ·Ⅱ)의 기체 학습 깊이는 질적으로 다름.
+       동일 검사지로는 천장·바닥 효과 발생 가능 → 두 버전 분리 제안.</p>
+
+    <table>
+      <thead><tr><th>항목</th><th>고1 버전</th><th>고2 버전</th></tr></thead>
+      <tbody>
+        <tr><td><strong>대상</strong></td><td>통합과학 이수자</td><td>화학Ⅰ·Ⅱ 선택자</td></tr>
+        <tr><td><strong>Q2 (정량 보일)</strong></td><td>제외 (P₁V₁=P₂V₂ 미학습)</td><td>포함</td></tr>
+        <tr><td><strong>Q9 (H₂ vs CO₂ 분압)</strong></td><td>"예측"만 (계산 미요구)</td><td>정량 비교</td></tr>
+        <tr><td><strong>Q13 (거시-미시 연계)</strong></td><td>정성 (게이지·입자 수만)</td><td>정량 (속력·온도 포함)</td></tr>
+        <tr><td><strong>그림 anchor</strong></td><td>운동 표시만</td><td>평균 자유경로·충돌 빈도 포함</td></tr>
+        <tr><td><strong>T/F MA1</strong></td><td>제외 (수학적 비례 학습 전)</td><td>포함</td></tr>
+        <tr><td><strong>예상 소요</strong></td><td>~22분</td><td>~28분</td></tr>
+      </tbody>
+    </table>
+
+    <div class="callout">
+      <strong>근거</strong>: 2015 개정 교육과정 + 노태희·임희준·우규환 (1995) 중·고 비교 + 고기환·강경희·신동희 (2008) 교과서 23종 분석.
+      특히 한국 교과서 다수가 보일·샤를을 비유 위주로 다루어, 고1 단계는 정량 기대치 ↓ 권장.
+    </div>
+  </section>
+
+  <!-- ============== 6. CITATIONS ============== -->
+  <section id="citations">
+    <h2><span class="num">6</span> 핵심 인용 베이스</h2>
+    <p class="lede">필터 버튼으로 영역·언어별로 좁혀볼 수 있음. 논문 작성 시 Methods·Discussion 섹션 인용 핵심 17편.</p>
+
+    <div class="cite-filter">
+      <button class="active" data-filter="all">전체 17</button>
+      <button data-filter="method">방법론</button>
+      <button data-filter="content">내용·오개념</button>
+      <button data-filter="sim">시뮬레이션</button>
+      <button data-filter="ko">한국 문헌</button>
+      <button data-filter="critical">★★★ 필수</button>
+    </div>
+
+    <table class="compact" id="cite-tbl">
+      <thead><tr><th style="width:5%">#</th><th style="width:25%">저자(연도)</th><th>제목 · 저널</th><th style="width:8%">평가</th></tr></thead>
+      <tbody>
+        <tr data-cat="method critical"><td>1</td><td>Treagust, D. F. (1988)</td><td>Development and use of diagnostic tests to evaluate students' misconceptions in science. <em>IJSE, 10(2), 159–169</em></td><td><span class="stars">★★★</span></td></tr>
+        <tr data-cat="method critical"><td>2</td><td>Caleon, I. &amp; Subramaniam, R. (2010)</td><td>Development and application of a three-tier diagnostic test. <em>IJSE, 32(7), 939–961</em></td><td><span class="stars">★★★</span></td></tr>
+        <tr data-cat="method critical"><td>3</td><td>Pesman, H. &amp; Eryilmaz, A. (2010)</td><td>Three-tier test development for simple electric circuits. <em>J. Educ. Res., 103(3), 208–222</em></td><td><span class="stars">★★★</span></td></tr>
+        <tr data-cat="method"><td>4</td><td>Kaltakci-Gurel, D. et al. (2016)</td><td>Four-tier test for geometrical optics misconceptions. <em>RSTE, 34(2)</em></td><td><span class="stars">★★</span></td></tr>
+        <tr data-cat="method critical"><td>5</td><td>Nyachwaya, J. M. et al. (2011)</td><td>An open-ended drawing tool for assessing PNM. <em>CERP, 12(2), 121–132</em></td><td><span class="stars">★★★</span></td></tr>
+        <tr data-cat="method critical"><td>6</td><td>Sanger, M. J. (2000)</td><td>Using particulate drawings to determine students' conceptions. <em>JCE, 77(6), 762–766</em></td><td><span class="stars">★★★</span></td></tr>
+        <tr data-cat="method critical"><td>7</td><td>Hake, R. R. (1998)</td><td>Interactive-engagement vs traditional: 6,000 students. <em>AJP, 66(1), 64–74</em></td><td><span class="stars">★★★</span></td></tr>
+        <tr data-cat="content critical"><td>8</td><td>Kautz, C. H. et al. (2005) I &amp; II</td><td>Student understanding of ideal gas law: macroscopic + microscopic. <em>AJP, 73(11)</em></td><td><span class="stars">★★★</span></td></tr>
+        <tr data-cat="content critical"><td>9</td><td>Calik, M. &amp; Ayas, A. (2005)</td><td>8th-graders' chemistry concept understanding. <em>JRST, 42(6), 638–667</em></td><td><span class="stars">★★★</span></td></tr>
+        <tr data-cat="content critical"><td>10</td><td>Yalçınkaya, E. &amp; Boz, Y. (2015)</td><td>Case-based instruction on 10th gas concepts. <em>CERP, 16(1), 104–118</em></td><td><span class="stars">★★★</span></td></tr>
+        <tr data-cat="content critical"><td>11</td><td>Uyulgan, M. A. et al. (2014)</td><td>3-tier diagnostic for gas laws (직접 템플릿). <em>J. Baltic Sci. Ed., 13(5), 662–677</em></td><td><span class="stars">★★★</span></td></tr>
+        <tr data-cat="sim critical"><td>12</td><td>Williamson, V. M. &amp; Abraham, M. R. (1995)</td><td>Computer animation on particulate mental models. <em>JRST, 32(5), 521–534</em></td><td><span class="stars">★★★</span></td></tr>
+        <tr data-cat="sim"><td>13</td><td>Adams, W. K. et al. (2008)</td><td>PhET educational simulations Part I — engagement and learning. <em>J. Interactive Learning Research, 19(3)</em></td><td><span class="stars">★★</span></td></tr>
+        <tr data-cat="ko critical"><td>14</td><td>조인영·박현주·최병순 (1999)</td><td>기체분자운동론에 대한 고등학생들의 개념 및 개념유형. <em>대한화학회지, 43(6), 699–706</em></td><td><span class="stars">★★★</span></td></tr>
+        <tr data-cat="ko critical"><td>15</td><td>강훈식·신석진·노태희 (2008)</td><td>다중 표상 활용 보일·샤를 법칙 연계 오류. <em>대한화학회지, 52(5), 550</em></td><td><span class="stars">★★★</span></td></tr>
+        <tr data-cat="ko critical"><td>16</td><td>한재영·이지영·곽진하·노태희 (2006)</td><td>입자 개념 학습에서 그림 그리기와 분석의 효과. <em>한국과학교육학회지, 26(1), 9–15</em></td><td><span class="stars">★★★</span></td></tr>
+        <tr data-cat="ko critical"><td>17</td><td>SERC (서울대 과학교육연구소)</td><td>압력과 부피·온도 관계에 관한 학생들의 개념 (고1·고2 PDF). <em>serc.snu.ac.kr</em></td><td><span class="stars">★★★</span></td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ============== 7. GAP ============== -->
+  <section id="gap">
+    <h2><span class="num">7</span> 연구 공백과 본 연구의 위치</h2>
+    <div class="callout ok">
+      <strong>발견</strong>: PhET-기체-한국 고1~2 효과 연구는 RISS·KCI·DBpia 모두에서 <strong>부재</strong>.
+      국내 PhET 효과 연구는 전기회로·일반 화학에 집중 (예: 신정윤·박상우, 2023, 새물리).
+      본 연구가 PhET-기체-한국 고1~2 효과 연구로서의 직접 공백을 채움.
+    </div>
+    <h3>선행 연구 지형과 본 연구의 차별점</h3>
+    <ul>
+      <li><strong>방법론적 차별점</strong>: 기존 한국 기체 개념 연구는 면담(조인영 1999)·교실 실험(강훈식 2008) 위주.
+          본 연구는 3-tier + 4-tier + 그림 anchor 결합 검사지를 한국 학생에 처음 적용.</li>
+      <li><strong>자료적 차별점</strong>: distractor를 한국 1차 응답(SERC)에 기반해 한국화. 영문 검사지 직역의 한계 극복.</li>
+      <li><strong>이론적 위치</strong>: 시뮬레이션 효과 연구의 국제 계보 (Williamson &amp; Abraham 1995 → Adams 2008 → 본 연구)에 한국 고등학교 맥락 추가.</li>
+    </ul>
+
+    <h3>다음 단계 체크리스트</h3>
+    <ul style="list-style:none;padding-left:0">
+      <li>☐ 본 보강안 기반 실제 문항지 작성 (한글 문서·인쇄용 PDF)</li>
+      <li>☐ 시범 채점용 앵커 그림 예시 작성 (D1·D2 각 3~5개)</li>
+      <li>☐ 고1·고2 분리 버전 실제 문항지 작성</li>
+      <li>☐ 전문가 검토용 CVI 양식 (3~5명 화학교육 전문가)</li>
+      <li>☐ 파일럿 (n ≈ 30) → 변별도·난이도·α 산출 → 문항 수정</li>
+      <li>☐ 본 검사 표본 크기·학교 섭외 계획 (G*Power 기반 효과 크기 d=0.5 검출 시 n ≈ 64/집단)</li>
+      <li>☐ IRB / 학교 승인 절차</li>
+    </ul>
+  </section>
+
+  </div>
+</main>
+
+<footer>
+  <div class="wrap">
+    문서 생성: 2026-05-18 · 자료 종합: 4개 에이전트 (paper-database-hunter, paper-citation-tracker, paper-grey-literature-finder, 한국 DB 조사) ·
+    총 합성 문헌 70+ 편<br/>
+    프린트 가능 · 단일 파일 (CSS·JS 임베드) · 외부 의존성 없음
+  </div>
+</footer>
+
+<script>
+/* ========== Sticky nav active state ========== */
+const sections = document.querySelectorAll('main section');
+const navLinks = document.querySelectorAll('nav.sticky a');
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      const id = e.target.id;
+      navLinks.forEach(l => l.classList.toggle('active', l.getAttribute('href') === '#' + id));
+    }
+  });
+}, { rootMargin: '-30% 0px -60% 0px' });
+sections.forEach(s => observer.observe(s));
+
+/* ========== Tabs ========== */
+document.querySelectorAll('.tabs').forEach(tabs => {
+  const set = tabs.dataset.tabset;
+  tabs.querySelectorAll('button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const tab = btn.dataset.tab;
+      tabs.querySelectorAll('button').forEach(b => b.classList.toggle('active', b === btn));
+      const container = tabs.parentElement;
+      container.querySelectorAll('.tab-panel').forEach(p => {
+        p.classList.toggle('active', p.dataset.panel === tab);
+      });
+    });
+  });
+});
+
+/* ========== Rubric scoring ========== */
+function setupRubric(rubricId, scoreId) {
+  const card = document.getElementById(rubricId);
+  const score = document.getElementById(scoreId);
+  const max = card.querySelectorAll('.criterion').length;
+  card.querySelectorAll('.criterion').forEach(crit => {
+    const cb = crit.querySelector('input[type=checkbox]');
+    crit.addEventListener('click', (e) => {
+      if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'LABEL') {
+        cb.checked = !cb.checked;
+      }
+      crit.classList.toggle('checked', cb.checked);
+      const total = card.querySelectorAll('input[type=checkbox]:checked').length;
+      score.textContent = total + ' / ' + max;
+      score.style.background = total === max ? '#d1fae5' : '#fff7ed';
+      score.style.borderColor = total === max ? '#059669' : '#d97706';
+      score.style.color = total === max ? '#065f46' : '#d97706';
+    });
+  });
+}
+setupRubric('rubric-d1', 'd1-score');
+setupRubric('rubric-d2', 'd2-score');
+
+/* ========== 4-tier matrix ========== */
+const mxCells = document.querySelectorAll('#tier-mx .cell:not(.header)');
+const mxResult = document.getElementById('tier-result');
+mxCells.forEach(cell => {
+  cell.addEventListener('click', () => {
+    mxCells.forEach(c => c.classList.remove('selected'));
+    cell.classList.add('selected');
+    const [judge, detail] = (cell.dataset.result || '').split('|');
+    mxResult.innerHTML = '<span class="judge">' + (judge || '') + '</span>' + (detail || '');
+  });
+});
+
+/* ========== Time calculator ========== */
+const TARGET = 25;
+const MAX_GAUGE = 40;
+function updateTime() {
+  let total = 0;
+  document.querySelectorAll('#timecalc .tc:checked').forEach(cb => {
+    total += parseFloat(cb.dataset.min);
+  });
+  document.getElementById('total-time').textContent = total.toFixed(1) + '분';
+  const pct = Math.min(100, (total / MAX_GAUGE) * 100);
+  const bar = document.getElementById('gauge-bar');
+  bar.style.width = pct + '%';
+  if (total < 20) bar.style.background = '#059669';
+  else if (total <= 28) bar.style.background = '#d97706';
+  else bar.style.background = '#dc2626';
+
+  // target line at 25/40 = 62.5%
+  document.getElementById('target-mark').style.left = ((TARGET / MAX_GAUGE) * 100) + '%';
+}
+document.querySelectorAll('#timecalc .tc').forEach(cb => cb.addEventListener('change', updateTime));
+updateTime();
+
+/* ========== Citation filter ========== */
+document.querySelectorAll('.cite-filter button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.cite-filter button').forEach(b => b.classList.toggle('active', b === btn));
+    const f = btn.dataset.filter;
+    document.querySelectorAll('#cite-tbl tbody tr').forEach(row => {
+      const cats = row.dataset.cat || '';
+      row.style.display = (f === 'all' || cats.includes(f)) ? '' : 'none';
+    });
+  });
+});
+</script>
+
+</body>
+</html>
