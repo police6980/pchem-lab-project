@@ -1,0 +1,275 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>기체 개념 진단 검사지 — 전체 문항 (7 오개념)</title>
+<style>
+*{box-sizing:border-box;}
+body{margin:0;font-family:"Pretendard","Apple SD Gothic Neo","Noto Sans KR",system-ui,sans-serif;background:#f7f7f5;color:#1f2937;line-height:1.55;font-size:14.5px;}
+:root{--primary:#1e3a8a;--ok:#059669;--warn:#dc2626;--muted:#6b7280;--line:#e5e7eb;--accent:#d97706;}
+.wrap{max-width:1040px;margin:0 auto;padding:0 22px;}
+header.top{background:linear-gradient(135deg,#1e3a8a,#312e81);color:#fff;padding:30px 0 36px;border-bottom:6px solid var(--accent);}
+header h1{margin:0 0 6px;font-size:22px;}header .sub{opacity:.88;font-size:13px;}
+nav.sticky{position:sticky;top:0;z-index:50;background:rgba(255,255,255,.96);backdrop-filter:blur(8px);border-bottom:1px solid var(--line);}
+nav.sticky .navbar{display:flex;gap:2px;overflow-x:auto;padding:7px 0;}
+nav.sticky a{flex:0 0 auto;padding:7px 12px;border-radius:6px;font-size:13px;color:var(--muted);font-weight:500;white-space:nowrap;text-decoration:none;}
+main{padding:28px 0 70px;}
+section{background:#fff;border-radius:12px;padding:20px 24px;margin-bottom:18px;box-shadow:0 1px 3px rgba(0,0,0,.06);border:1px solid var(--line);}
+section h2{margin:0 0 8px;font-size:18px;color:var(--primary);border-bottom:2px solid var(--accent);padding-bottom:7px;}
+h3{font-size:15.5px;margin:18px 0 4px;color:#111;border-left:4px solid var(--accent);padding-left:8px;}
+.ang{font-size:12.5px;color:var(--accent);font-weight:700;margin:10px 0 2px;}
+.stem{font-size:14px;margin:3px 0 6px;}
+table{width:100%;border-collapse:collapse;margin:5px 0 10px;font-size:13px;}
+th,td{border:1px solid var(--line);padding:5px 8px;text-align:left;vertical-align:top;}
+th{background:#f3f4f6;color:var(--primary);}
+tr.correct td{background:rgba(5,150,105,.09);}
+.code{font-weight:700;color:var(--primary);}
+.ok{color:var(--ok);font-weight:700;}.bad{color:var(--warn);font-weight:600;font-size:11.5px;}
+.note{font-size:12.5px;color:var(--muted);margin:6px 0;}
+.tf-true{color:var(--ok);font-weight:700;}.tf-false{color:var(--warn);font-weight:700;}
+.pics{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-start;margin:6px 0;}
+.pic{text-align:center;border:1px solid var(--line);border-radius:8px;padding:6px;width:96px;}
+.pic.ok{border:1.5px solid var(--ok);background:rgba(5,150,105,.06);}
+.pic .lab{font-size:12px;font-weight:700;margin-top:2px;}
+.pic .cap{font-size:11px;color:var(--muted);line-height:1.3;}
+svg{background:#fafafa;border-radius:4px;}
+</style>
+</head>
+<body>
+<header class="top"><div class="wrap">
+  <h1>기체 개념 진단 검사지 — 전체 문항</h1>
+  <p class="sub">보일 영역 3 · 돌턴 영역 2 · 기체 일반 2 = 핵심 오개념 7개. 각 오개념마다 진위형 1문항 + 객관식(답·이유·확신도) 2문항(진위형 7 + 객관식 14). 정답·진단 오개념은 작성자용(실제 배포본에서는 숨김).</p>
+</div></header>
+<nav class="sticky"><div class="wrap"><div class="navbar">
+  <a href="#tf">진위형</a><a href="#boyle">보일 영역</a><a href="#dalton">돌턴 영역</a><a href="#gas">기체 일반</a>
+</div></div></nav>
+<main><div class="wrap">
+
+<section id="tf">
+  <h2>진위형 7문항</h2>
+  <p class="note">진술이 과학적으로 맞으면 '참', 틀리면 '거짓'. 객관식과 겹치지 않도록 서로 다른 측면을 묻는다(참 3 / 거짓 4). 실제 배포 시 객관식과 떨어뜨려 무작위 배치.</p>
+  <table>
+    <thead><tr><th style="width:8%">영역</th><th>진술</th><th style="width:10%">정답</th></tr></thead>
+    <tbody>
+      <tr><td>보일</td><td>기체의 부피를 늘리면 압력도 함께 커진다.</td><td class="tf-false">거짓</td></tr>
+      <tr><td>보일</td><td>기체를 압축하면 분자들이 서로 합쳐져 더 큰 분자가 된다.</td><td class="tf-false">거짓</td></tr>
+      <tr><td>보일</td><td>진공은 주변 기체를 빨아들이는 힘을 가진다.</td><td class="tf-false">거짓</td></tr>
+      <tr><td>돌턴</td><td>혼합 기체의 전체 압력은 각 기체가 내는 부분 압력의 합이다.</td><td class="tf-true">참</td></tr>
+      <tr><td>돌턴</td><td>혼합 기체에서는 무거운 기체가 전체 압력의 대부분을 차지한다.</td><td class="tf-false">거짓</td></tr>
+      <tr><td>기체 일반</td><td>기체의 압력은 분자들이 용기 벽에 끊임없이 충돌하기 때문에 생긴다.</td><td class="tf-true">참</td></tr>
+      <tr><td>기체 일반</td><td>용기의 모양이나 재질이 달라도, 온도·부피·기체의 양이 같으면 압력은 같다.</td><td class="tf-true">참</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section id="boyle">
+  <h2>보일 영역 — 압력·부피, 입자 보존, 진공 흡입</h2>
+
+  <h3>오개념 B1 — 압력과 부피의 관계</h3>
+  <div class="ang">객관식 1 — 직접 판단(정량)</div>
+  <div class="stem">일정한 온도에서 밀폐된 주사기의 부피를 처음의 1/3로 압축하였다. 내부 기체의 압력은 어떻게 되는가?</div>
+  <table><thead><tr><th>답</th><th>이유</th></tr></thead><tbody>
+    <tr class="correct"><td><span class="ok">3배가 된다 ✓</span></td><td><span class="ok">같은 수의 분자가 더 좁은 공간에서 벽에 충돌하는 횟수가 늘기 때문 ✓</span></td></tr>
+    <tr><td>1/3로 작아진다 <span class="bad">(정비례 오개념)</span></td><td>부피와 압력은 같은 비율로 함께 변하기 때문 <span class="bad">(정비례 오개념)</span></td></tr>
+    <tr><td>변하지 않는다 <span class="bad">(압력 불변 오개념)</span></td><td>압력은 기체의 고유한 성질이라 일정하기 때문 <span class="bad">(압력 불변 오개념)</span></td></tr>
+    <tr><td>2/3로 작아진다 <span class="bad">(수학적 합산 오류)</span></td><td>줄어든 부피만큼 압력이 빠져나가기 때문 <span class="bad">(수학적 합산 오류)</span></td></tr>
+  </tbody></table>
+
+  <div class="ang">객관식 2 — 그래프 고르기</div>
+  <div class="stem">일정한 온도에서 부피(가로축)에 따른 압력(세로축)의 관계를 가장 잘 나타낸 그래프는?</div>
+  <div class="pics">
+    <div class="pic ok">
+      <svg width="80" height="70" viewBox="0 0 80 70"><line x1="12" y1="58" x2="74" y2="58" stroke="#374151"/><line x1="12" y1="58" x2="12" y2="6" stroke="#374151"/><path d="M18 12 Q28 50 70 54" fill="none" stroke="#1f2937" stroke-width="2.2"/></svg>
+      <div class="lab" style="color:var(--ok)">A ✓</div><div class="cap">우하향 곡선<br>(반비례)</div>
+    </div>
+    <div class="pic">
+      <svg width="80" height="70" viewBox="0 0 80 70"><line x1="12" y1="58" x2="74" y2="58" stroke="#374151"/><line x1="12" y1="58" x2="12" y2="6" stroke="#374151"/><line x1="12" y1="58" x2="68" y2="12" stroke="#1f2937" stroke-width="2.2"/></svg>
+      <div class="lab" style="color:var(--warn)">B</div><div class="cap">우상향 직선<br>(정비례 오개념)</div>
+    </div>
+    <div class="pic">
+      <svg width="80" height="70" viewBox="0 0 80 70"><line x1="12" y1="58" x2="74" y2="58" stroke="#374151"/><line x1="12" y1="58" x2="12" y2="6" stroke="#374151"/><line x1="14" y1="30" x2="70" y2="30" stroke="#1f2937" stroke-width="2.2"/></svg>
+      <div class="lab" style="color:var(--warn)">C</div><div class="cap">수평선<br>(압력 불변 오개념)</div>
+    </div>
+    <div class="pic">
+      <svg width="80" height="70" viewBox="0 0 80 70"><line x1="12" y1="58" x2="74" y2="58" stroke="#374151"/><line x1="12" y1="58" x2="12" y2="6" stroke="#374151"/><line x1="14" y1="12" x2="68" y2="54" stroke="#1f2937" stroke-width="2.2"/></svg>
+      <div class="lab" style="color:var(--warn)">D</div><div class="cap">우하향 직선<br>(선형 감소 오개념)</div>
+    </div>
+  </div>
+  <table><thead><tr><th>이유</th></tr></thead><tbody>
+    <tr class="correct"><td><span class="ok">A: 압력과 부피의 곱이 일정하여, 부피가 늘면 압력이 반비례로 줄기 때문 ✓</span></td></tr>
+    <tr><td>B: 부피와 압력이 같은 비율로 함께 커지기 때문 <span class="bad">(정비례 오개념)</span></td></tr>
+    <tr><td>C: 밀폐되어 있으면 부피가 변해도 압력이 일정하기 때문 <span class="bad">(압력 불변 오개념)</span></td></tr>
+    <tr><td>D: 부피가 일정량 늘 때마다 압력이 일정량씩 줄기 때문 <span class="bad">(선형 감소 오개념)</span></td></tr>
+  </tbody></table>
+
+  <h3>오개념 B2 — 압축·팽창 시 입자 보존</h3>
+  <div class="ang">객관식 1 — 입자 그림 고르기(크기·개수 동시 진단)</div>
+  <div class="stem">아래는 분자 8개가 든 주사기의 처음 상태(부피 V)이다. 이 기체를 <strong>절반 부피로 압축</strong>하였을 때의 모습으로 가장 옳은 그림은? (분자 = ●)</div>
+  <div class="pics" style="margin-bottom:2px;">
+    <div class="pic" style="border-color:#374151;">
+      <svg width="64" height="120" viewBox="0 0 64 120"><rect x="3" y="3" width="58" height="114" fill="none" stroke="#374151" stroke-width="1.3"/><circle cx="17" cy="18" r="5.5" fill="#374151"/><circle cx="44" cy="22" r="5.5" fill="#374151"/><circle cx="29" cy="42" r="5.5" fill="#374151"/><circle cx="49" cy="54" r="5.5" fill="#374151"/><circle cx="16" cy="68" r="5.5" fill="#374151"/><circle cx="40" cy="78" r="5.5" fill="#374151"/><circle cx="23" cy="98" r="5.5" fill="#374151"/><circle cx="47" cy="104" r="5.5" fill="#374151"/></svg>
+      <div class="lab">압축 전</div><div class="cap">부피 V · 분자 8개</div>
+    </div>
+  </div>
+  <div class="note" style="margin:2px 0 6px;">위 상태를 절반 부피로 압축한 뒤의 모습 (아래 보기의 상자는 처음의 절반으로 좁아진 부피):</div>
+  <div class="pics">
+    <div class="pic ok">
+      <svg width="46" height="80" viewBox="0 0 46 80"><rect x="3" y="3" width="40" height="74" fill="none" stroke="#374151" stroke-width="1.3"/><circle cx="13" cy="14" r="5.5" fill="#374151"/><circle cx="32" cy="16" r="5.5" fill="#374151"/><circle cx="20" cy="30" r="5.5" fill="#374151"/><circle cx="34" cy="34" r="5.5" fill="#374151"/><circle cx="12" cy="46" r="5.5" fill="#374151"/><circle cx="29" cy="50" r="5.5" fill="#374151"/><circle cx="16" cy="64" r="5.5" fill="#374151"/><circle cx="33" cy="66" r="5.5" fill="#374151"/></svg>
+      <div class="lab" style="color:var(--ok)">A ✓</div><div class="cap">8개·크기 그대로</div>
+    </div>
+    <div class="pic">
+      <svg width="46" height="80" viewBox="0 0 46 80"><rect x="3" y="3" width="40" height="74" fill="none" stroke="#374151" stroke-width="1.3"/><circle cx="13" cy="14" r="2.6" fill="#374151"/><circle cx="32" cy="16" r="2.6" fill="#374151"/><circle cx="20" cy="30" r="2.6" fill="#374151"/><circle cx="34" cy="34" r="2.6" fill="#374151"/><circle cx="12" cy="46" r="2.6" fill="#374151"/><circle cx="29" cy="50" r="2.6" fill="#374151"/><circle cx="16" cy="64" r="2.6" fill="#374151"/><circle cx="33" cy="66" r="2.6" fill="#374151"/></svg>
+      <div class="lab" style="color:var(--warn)">B</div><div class="cap">크기 작아짐<br>(입자 크기 축소)</div>
+    </div>
+    <div class="pic">
+      <svg width="46" height="80" viewBox="0 0 46 80"><rect x="3" y="3" width="40" height="74" fill="none" stroke="#374151" stroke-width="1.3"/><circle cx="16" cy="20" r="5.5" fill="#374151"/><circle cx="31" cy="34" r="5.5" fill="#374151"/><circle cx="15" cy="52" r="5.5" fill="#374151"/><circle cx="31" cy="64" r="5.5" fill="#374151"/></svg>
+      <div class="lab" style="color:var(--warn)">C</div><div class="cap">4개로 줄어듦<br>(입자 수 감소)</div>
+    </div>
+    <div class="pic">
+      <svg width="46" height="80" viewBox="0 0 46 80"><rect x="3" y="3" width="40" height="74" fill="#cbd5e1" stroke="#374151" stroke-width="1.3"/><circle cx="13" cy="14" r="5.5" fill="#374151"/><circle cx="32" cy="16" r="5.5" fill="#374151"/><circle cx="20" cy="30" r="5.5" fill="#374151"/><circle cx="34" cy="34" r="5.5" fill="#374151"/><circle cx="12" cy="46" r="5.5" fill="#374151"/><circle cx="29" cy="50" r="5.5" fill="#374151"/><circle cx="16" cy="64" r="5.5" fill="#374151"/><circle cx="33" cy="66" r="5.5" fill="#374151"/></svg>
+      <div class="lab" style="color:var(--warn)">D</div><div class="cap">사이가 채워짐<br>(연속체·빈 공간 부정)</div>
+    </div>
+  </div>
+  <table><thead><tr><th>이유</th></tr></thead><tbody>
+    <tr class="correct"><td><span class="ok">A: 분자의 수와 크기는 그대로이고, 분자 사이의 빈 공간(간격)만 좁아지기 때문 ✓</span></td></tr>
+    <tr><td>B: 압력이 분자를 눌러 작게 만들기 때문 <span class="bad">(입자 크기 축소 오개념)</span></td></tr>
+    <tr><td>C: 좁아진 공간에 다 들어가도록 분자 일부가 사라지기 때문 <span class="bad">(입자 수 감소 오개념)</span></td></tr>
+    <tr><td>D: 압축하면 입자 사이가 무언가로 채워져 빈틈이 없어지기 때문 <span class="bad">(연속체·빈 공간 부정 오개념)</span></td></tr>
+  </tbody></table>
+
+  <div class="ang">객관식 2 — 실제 상황(팽창 시 질량)</div>
+  <div class="stem">헬륨을 채운 풍선이 하늘로 올라가면서 점점 부풀어 커진다(헬륨은 새지 않는다). 이때 풍선 속 기체의 질량은 어떻게 되는가?</div>
+  <table><thead><tr><th>답</th><th>이유</th></tr></thead><tbody>
+    <tr class="correct"><td><span class="ok">변하지 않는다 ✓</span></td><td><span class="ok">헬륨이 새지 않으므로 분자 수와 질량은 보존되고, 변하는 것은 부피(밀도)뿐이기 때문 ✓</span></td></tr>
+    <tr><td>줄어든다 <span class="bad">(부력·질량 혼동)</span></td><td>위로 올라가 가벼워졌으니 질량도 줄기 때문 <span class="bad">(부력·질량 혼동)</span></td></tr>
+    <tr><td>늘어난다 <span class="bad">(부피·질량 혼동)</span></td><td>부풀어 커졌으니 기체의 양도 늘기 때문 <span class="bad">(부피·질량 혼동)</span></td></tr>
+    <tr><td>부피에 비례해 변한다 <span class="bad">(부피·질량 혼동)</span></td><td>부피가 변하면 질량도 따라 변하기 때문 <span class="bad">(부피·질량 혼동)</span></td></tr>
+  </tbody></table>
+
+  <h3>오개념 B3 — 진공 흡입</h3>
+  <div class="ang">객관식 1 — 직접 시나리오(주사기 당김)</div>
+  <div class="stem">끝이 막힌 주사기의 피스톤을 바깥으로 당겨 내부 부피가 팽창하였다. 이때 내부 압력은 어떻게 되는가?</div>
+  <table><thead><tr><th>답</th><th>이유</th></tr></thead><tbody>
+    <tr class="correct"><td><span class="ok">감소한다 ✓</span></td><td><span class="ok">공간이 넓어져 단위 부피당 벽에 부딪치는 횟수가 줄기 때문 ✓</span></td></tr>
+    <tr><td>증가한다 <span class="bad">(진공 흡입 오개념)</span></td><td>당길 때 생긴 진공이 입자를 바깥으로 끌어당기기 때문 <span class="bad">(진공 흡입 오개념)</span></td></tr>
+    <tr><td>변하지 않는다 <span class="bad">(압력 불변 오개념)</span></td><td>밀폐되어 있어 압력이 일정하기 때문 <span class="bad">(압력 불변 오개념)</span></td></tr>
+    <tr><td>0이 된다 <span class="bad">(진공 오개념)</span></td><td>빈 공간이 되어 압력이 없어지기 때문 <span class="bad">(진공 오개념)</span></td></tr>
+  </tbody></table>
+  <div class="ang">객관식 2 — 실제 상황(빨대)</div>
+  <div class="stem">빨대로 음료를 마실 때 음료가 위로 올라오는 이유로 가장 옳은 것은?</div>
+  <table><thead><tr><th>답</th><th>이유</th></tr></thead><tbody>
+    <tr class="correct"><td><span class="ok">입 안의 압력이 낮아져 바깥 대기압이 음료를 밀어 올린다 ✓</span></td><td><span class="ok">입 안 압력이 대기압보다 낮아진 압력 차가 음료를 밀어 올리기 때문 ✓</span></td></tr>
+    <tr><td>입 안에 생긴 진공이 음료를 빨아올린다 <span class="bad">(진공 흡입 오개념)</span></td><td>진공이 액체를 끌어당기는 힘을 내기 때문 <span class="bad">(진공 흡입 오개념)</span></td></tr>
+    <tr><td>빨대 속 빈 공간이 음료를 끌어당긴다 <span class="bad">(빈 공간 인력 오개념)</span></td><td>빈 공간 자체가 힘의 원천이기 때문 <span class="bad">(빈 공간 인력 오개념)</span></td></tr>
+    <tr><td>빨대가 음료를 끌어올린다 <span class="bad">(비압력 오개념)</span></td><td>빨대 재질이 액체를 당기기 때문 <span class="bad">(비압력 오개념)</span></td></tr>
+  </tbody></table>
+</section>
+
+<section id="dalton">
+  <h2>돌턴 영역 — 분압의 합·분포, 분자량과 압력</h2>
+
+  <h3>오개념 D1 — 돌턴 법칙 기본(분포와 독립성)</h3>
+  <div class="note">전체 압력 = 부분 압력의 합(가법성)은 진위형에서 측정. 여기서는 혼합 분포와 분압의 독립성을 다룬다.</div>
+  <div class="ang">객관식 1 — 혼합 기체 분포 그림 고르기</div>
+  <div class="stem">헬륨(○)과 이산화탄소(●)를 같은 양으로 한 용기에 넣고 충분히 둔 뒤(흔들지 않음)의 분포로 가장 옳은 그림은?</div>
+  <div class="note" style="margin:2px 0 4px;">○ = 헬륨(가벼움), ● = 이산화탄소(무거움), 각 6개씩.</div>
+  <div class="pics">
+    <div class="pic ok">
+      <svg width="76" height="84" viewBox="0 0 76 84"><rect x="3" y="3" width="70" height="78" fill="none" stroke="#374151" stroke-width="1.3"/><circle cx="14" cy="16" r="5" fill="#6b7280"/><circle cx="38" cy="14" r="5" fill="none" stroke="#2563eb" stroke-width="1.6"/><circle cx="60" cy="18" r="5" fill="#6b7280"/><circle cx="24" cy="32" r="5" fill="none" stroke="#2563eb" stroke-width="1.6"/><circle cx="48" cy="34" r="5" fill="#6b7280"/><circle cx="66" cy="40" r="5" fill="none" stroke="#2563eb" stroke-width="1.6"/><circle cx="16" cy="50" r="5" fill="#6b7280"/><circle cx="40" cy="54" r="5" fill="none" stroke="#2563eb" stroke-width="1.6"/><circle cx="64" cy="58" r="5" fill="#6b7280"/><circle cx="20" cy="70" r="5" fill="none" stroke="#2563eb" stroke-width="1.6"/><circle cx="44" cy="72" r="5" fill="#6b7280"/><circle cx="64" cy="74" r="5" fill="none" stroke="#2563eb" stroke-width="1.6"/></svg>
+      <div class="lab" style="color:var(--ok)">A ✓</div><div class="cap">전체에 고르게 섞임</div>
+    </div>
+    <div class="pic">
+      <svg width="76" height="84" viewBox="0 0 76 84"><rect x="3" y="3" width="70" height="78" fill="none" stroke="#374151" stroke-width="1.3"/><circle cx="14" cy="14" r="5" fill="none" stroke="#2563eb" stroke-width="1.6"/><circle cx="32" cy="12" r="5" fill="none" stroke="#2563eb" stroke-width="1.6"/><circle cx="50" cy="14" r="5" fill="none" stroke="#2563eb" stroke-width="1.6"/><circle cx="66" cy="16" r="5" fill="none" stroke="#2563eb" stroke-width="1.6"/><circle cx="22" cy="28" r="5" fill="none" stroke="#2563eb" stroke-width="1.6"/><circle cx="44" cy="28" r="5" fill="none" stroke="#2563eb" stroke-width="1.6"/><circle cx="14" cy="56" r="5" fill="#6b7280"/><circle cx="32" cy="58" r="5" fill="#6b7280"/><circle cx="50" cy="56" r="5" fill="#6b7280"/><circle cx="66" cy="58" r="5" fill="#6b7280"/><circle cx="22" cy="72" r="5" fill="#6b7280"/><circle cx="44" cy="72" r="5" fill="#6b7280"/></svg>
+      <div class="lab" style="color:var(--warn)">B</div><div class="cap">위·아래로 분리<br>(완전 층화 오개념)</div>
+    </div>
+    <div class="pic">
+      <svg width="76" height="84" viewBox="0 0 76 84"><rect x="3" y="3" width="70" height="78" fill="none" stroke="#374151" stroke-width="1.3"/><line x1="39" y1="6" x2="39" y2="78" stroke="#9ca3af" stroke-width="1" stroke-dasharray="3 3"/><circle cx="14" cy="16" r="5" fill="none" stroke="#2563eb" stroke-width="1.6"/><circle cx="30" cy="16" r="5" fill="none" stroke="#2563eb" stroke-width="1.6"/><circle cx="16" cy="36" r="5" fill="none" stroke="#2563eb" stroke-width="1.6"/><circle cx="30" cy="40" r="5" fill="none" stroke="#2563eb" stroke-width="1.6"/><circle cx="14" cy="60" r="5" fill="none" stroke="#2563eb" stroke-width="1.6"/><circle cx="30" cy="62" r="5" fill="none" stroke="#2563eb" stroke-width="1.6"/><circle cx="48" cy="16" r="5" fill="#6b7280"/><circle cx="64" cy="16" r="5" fill="#6b7280"/><circle cx="48" cy="38" r="5" fill="#6b7280"/><circle cx="64" cy="40" r="5" fill="#6b7280"/><circle cx="48" cy="60" r="5" fill="#6b7280"/><circle cx="64" cy="62" r="5" fill="#6b7280"/></svg>
+      <div class="lab" style="color:var(--warn)">C</div><div class="cap">좌·우 영역으로 나뉨<br>(부피 분할 오개념)</div>
+    </div>
+    <div class="pic">
+      <svg width="76" height="84" viewBox="0 0 76 84"><rect x="3" y="3" width="70" height="78" fill="none" stroke="#374151" stroke-width="1.3"/><circle cx="18" cy="18" r="5" fill="none" stroke="#2563eb" stroke-width="1.6"/><circle cx="30" cy="16" r="5" fill="none" stroke="#2563eb" stroke-width="1.6"/><circle cx="22" cy="28" r="5" fill="none" stroke="#2563eb" stroke-width="1.6"/><circle cx="34" cy="28" r="5" fill="none" stroke="#2563eb" stroke-width="1.6"/><circle cx="18" cy="38" r="5" fill="none" stroke="#2563eb" stroke-width="1.6"/><circle cx="30" cy="38" r="5" fill="none" stroke="#2563eb" stroke-width="1.6"/><circle cx="48" cy="52" r="5" fill="#6b7280"/><circle cx="60" cy="50" r="5" fill="#6b7280"/><circle cx="52" cy="62" r="5" fill="#6b7280"/><circle cx="64" cy="62" r="5" fill="#6b7280"/><circle cx="50" cy="74" r="5" fill="#6b7280"/><circle cx="62" cy="74" r="5" fill="#6b7280"/></svg>
+      <div class="lab" style="color:var(--warn)">D</div><div class="cap">같은 기체끼리 뭉침<br>(동종 인력 오개념)</div>
+    </div>
+  </div>
+  <table><thead><tr><th>이유</th></tr></thead><tbody>
+    <tr class="correct"><td><span class="ok">A: 분자가 끊임없이 무작위로 운동·확산하여 무게나 종류와 상관없이 고르게 섞이기 때문 ✓</span></td></tr>
+    <tr><td>B: 무거운 기체는 가라앉고 가벼운 기체는 떠올라 위·아래로 갈리기 때문 <span class="bad">(완전 층화 오개념)</span></td></tr>
+    <tr><td>C: 두 기체가 용기를 영역으로 나누어 따로 차지하기 때문 <span class="bad">(부피 분할 오개념)</span></td></tr>
+    <tr><td>D: 같은 종류의 분자끼리 서로 끌어당겨 뭉치기 때문 <span class="bad">(동종 인력 오개념)</span></td></tr>
+  </tbody></table>
+
+  <div class="ang">객관식 2 — 다른 기체를 더 넣었을 때(분압의 독립성)</div>
+  <div class="stem">산소만 들어 있어 산소의 부분 압력이 1기압인 통에, 질소 기체를 추가로 더 넣었다. 산소의 부분 압력은 어떻게 되는가?</div>
+  <table><thead><tr><th>답</th><th>이유</th></tr></thead><tbody>
+    <tr class="correct"><td><span class="ok">변하지 않고 1기압 그대로이다 ✓</span></td><td><span class="ok">각 기체는 다른 기체가 있든 없든 자기 부분 압력을 그대로 유지하기 때문 ✓</span></td></tr>
+    <tr><td>줄어든다 <span class="bad">(분압 분산 오개념)</span></td><td>질소가 들어와 산소가 차지할 몫이 줄기 때문 <span class="bad">(분압 분산 오개념)</span></td></tr>
+    <tr><td>늘어난다 <span class="bad">(전체압 혼동)</span></td><td>전체 압력이 올라가니 산소 압력도 따라 오르기 때문 <span class="bad">(전체압 혼동)</span></td></tr>
+    <tr><td>절반으로 줄어든다 <span class="bad">(압력 분할 오개념)</span></td><td>두 기체가 압력을 똑같이 나누어 가지기 때문 <span class="bad">(압력 분할 오개념)</span></td></tr>
+  </tbody></table>
+
+  <h3>오개념 D2 — 압력과 분자량의 관계</h3>
+  <div class="ang">객관식 1 — 직접 판단(분자량과 부분 압력)</div>
+  <div class="stem">수소 1몰과 이산화탄소 1몰을 같은 용기에 넣어 섞었다(이산화탄소가 약 22배 무겁다). 두 기체의 부분 압력을 비교하면?</div>
+  <table><thead><tr><th>답</th><th>이유</th></tr></thead><tbody>
+    <tr class="correct"><td><span class="ok">두 기체의 부분 압력이 같다 ✓</span></td><td><span class="ok">압력은 분자의 무게가 아니라 분자의 수(몰수)로 정해지기 때문 ✓</span></td></tr>
+    <tr><td>이산화탄소가 훨씬 크다 <span class="bad">(분자량 오개념)</span></td><td>무거운 분자가 벽에 더 강하게 충돌하기 때문 <span class="bad">(분자량 오개념)</span></td></tr>
+    <tr><td>수소가 더 크다 <span class="bad">(분자량·속도 혼동)</span></td><td>가벼워서 더 빠르고 자주 충돌하기 때문 <span class="bad">(분자량·속도 혼동)</span></td></tr>
+    <tr><td>비교할 수 없다 <span class="bad">(비교 불가 오개념)</span></td><td>두 기체의 압력은 종류가 다르기 때문 <span class="bad">(비교 불가 오개념)</span></td></tr>
+  </tbody></table>
+
+  <div class="ang">객관식 2 — 충돌·시간 경과 후 부분 압력</div>
+  <div class="stem">수소와 이산화탄소를 한 용기에 섞었다. 분자들이 서로 충돌하며 충분한 시간이 지난 뒤, 각 기체의 부분 압력은 어떻게 되는가?</div>
+  <table><thead><tr><th>답</th><th>이유</th></tr></thead><tbody>
+    <tr class="correct"><td><span class="ok">충돌 전과 똑같이 각자 그대로 유지된다 ✓</span></td><td><span class="ok">충돌은 분자끼리 에너지를 주고받을 뿐, 각 기체의 부분 압력은 제 몰수와 온도로 정해져 변하지 않기 때문 ✓</span></td></tr>
+    <tr><td>무거운 이산화탄소의 부분 압력이 더 커진다 <span class="bad">(분자량 오개념)</span></td><td>무거운 분자가 충돌로 압력을 더 많이 차지하기 때문 <span class="bad">(분자량 오개념)</span></td></tr>
+    <tr><td>두 기체의 부분 압력이 같은 값으로 같아진다 <span class="bad">(압력 평준화 오개념)</span></td><td>충돌하면서 압력이 고르게 나누어지기 때문 <span class="bad">(압력 평준화 오개념)</span></td></tr>
+    <tr><td>가벼운 수소의 부분 압력이 더 커진다 <span class="bad">(속도·압력 혼동)</span></td><td>가볍고 빨라 벽에 더 자주 부딪치기 때문 <span class="bad">(속도·압력 혼동)</span></td></tr>
+  </tbody></table>
+</section>
+
+<section id="gas">
+  <h2>기체 일반 — 압력의 본질, 무관한 변수</h2>
+
+  <h3>오개념 G1 — 압력의 본질</h3>
+  <div class="ang">객관식 1 — 현상 설명</div>
+  <div class="stem">일정한 온도의 밀폐된 강철 통 속 기체가 벽을 누르는 가장 근본적인 이유는?</div>
+  <table><thead><tr><th>답</th><th>이유</th></tr></thead><tbody>
+    <tr class="correct"><td><span class="ok">분자가 끊임없이 무작위로 움직이며 벽에 충돌하기 때문 ✓</span></td><td><span class="ok">충돌할 때마다 운동량이 전달되고, 그 힘의 총합이 압력이기 때문 ✓</span></td></tr>
+    <tr><td>기체가 부풀어 오르려는 힘 때문 <span class="bad">(내재적 팽창력 오개념)</span></td><td>기체에는 넓어지려는 성질이 들어 있기 때문 <span class="bad">(내재적 팽창력 오개념)</span></td></tr>
+    <tr><td>기체의 무게가 벽을 누르기 때문 <span class="bad">(압력=무게 오개념)</span></td><td>무거울수록 강하게 눌러 압력이 곧 무게이기 때문 <span class="bad">(압력=무게 오개념)</span></td></tr>
+    <tr><td>분자끼리 밀어내 벽까지 밀리기 때문 <span class="bad">(입자 반발 오개념)</span></td><td>분자 사이의 미는 힘이 벽으로 전달되기 때문 <span class="bad">(입자 반발 오개념)</span></td></tr>
+  </tbody></table>
+
+  <div class="ang">객관식 2 — 실제 상황(무중력)</div>
+  <div class="stem">지구의 실험실과 무중력 상태의 우주 정거장에 같은 용기·온도·양의 기체가 있다. 두 곳에서 벽이 받는 압력을 비교하면?</div>
+  <table><thead><tr><th>답</th><th>이유</th></tr></thead><tbody>
+    <tr class="correct"><td><span class="ok">두 곳이 사실상 같다 ✓</span></td><td><span class="ok">압력은 분자의 무작위 운동에서 나오고 그 운동은 온도가 정하므로, 중력과 무관하기 때문 ✓</span></td></tr>
+    <tr><td>무중력에서는 거의 0이 된다 <span class="bad">(압력=무게 오개념)</span></td><td>압력의 근원이 무게라서 중력이 없으면 사라지기 때문 <span class="bad">(압력=무게 오개념)</span></td></tr>
+    <tr><td>무중력에서 더 높다 <span class="bad">(운동 오인 오개념)</span></td><td>중력이 없으면 분자가 더 자유로워 세게 밀기 때문 <span class="bad">(운동 오인 오개념)</span></td></tr>
+    <tr><td>지구에서 더 높다 <span class="bad">(압력=무게 오개념)</span></td><td>기체의 무게가 압력에 더해지기 때문 <span class="bad">(압력=무게 오개념)</span></td></tr>
+  </tbody></table>
+
+  <h3>오개념 G2 — 압력과 무관한 변수(시간·중력·재질)</h3>
+  <div class="ang">객관식 1 — 직접 판단(변수: 시간)</div>
+  <div class="stem">온도가 일정한 방에 놓인 밀폐 용기를 건드리지 않고 사흘이 지났다. 내부 압력은 어떻게 되는가?</div>
+  <table><thead><tr><th>답</th><th>이유</th></tr></thead><tbody>
+    <tr class="correct"><td><span class="ok">변하지 않는다 ✓</span></td><td><span class="ok">온도·부피·기체의 양이 그대로이면 분자의 평균 운동이 유지되어 압력이 일정하기 때문 ✓</span></td></tr>
+    <tr><td>분자가 가라앉아 낮아진다 <span class="bad">(중력 침강 오개념)</span></td><td>가만히 두면 무거운 분자가 바닥에 가라앉기 때문 <span class="bad">(중력 침강 오개념)</span></td></tr>
+    <tr><td>분자가 지쳐 느려져 낮아진다 <span class="bad">(입자 운동 소멸 오개념)</span></td><td>시간이 흐르면 분자가 운동 에너지를 잃기 때문 <span class="bad">(입자 운동 소멸 오개념)</span></td></tr>
+    <tr><td>충돌이 쌓여 높아진다 <span class="bad">(충돌 누적 오개념)</span></td><td>충돌이 거듭될수록 미는 힘이 커지기 때문 <span class="bad">(충돌 누적 오개념)</span></td></tr>
+  </tbody></table>
+
+  <div class="ang">객관식 2 — 실제 상황(변수: 중력·방향, 등방성)</div>
+  <div class="stem">보통 크기의 밀폐 용기 속 기체가 있다. 용기의 윗면과 아랫면이 받는 압력을 비교하면?</div>
+  <table><thead><tr><th>답</th><th>이유</th></tr></thead><tbody>
+    <tr class="correct"><td><span class="ok">사실상 같다 ✓</span></td><td><span class="ok">분자가 모든 방향으로 무작위 운동하여 모든 면에 같은 크기로 작용하기 때문 ✓</span></td></tr>
+    <tr><td>아랫면이 뚜렷이 크다 <span class="bad">(중력 쏠림 오개념)</span></td><td>기체의 무게가 아래로 눌리기 때문 <span class="bad">(중력 쏠림 오개념)</span></td></tr>
+    <tr><td>윗면이 크다 <span class="bad">(부력 오개념)</span></td><td>가벼운 분자가 위로 떠오르기 때문 <span class="bad">(부력 오개념)</span></td></tr>
+    <tr><td>위·아래에는 압력이 없다 <span class="bad">(작용면 오개념)</span></td><td>압력은 옆으로 미는 힘이기 때문 <span class="bad">(작용면 오개념)</span></td></tr>
+  </tbody></table>
+</section>
+
+</div></main>
+<footer style="text-align:center;font-size:12px;color:var(--muted);padding:22px 0;border-top:1px solid var(--line)">기체 개념 진단 검사지 · 핵심 오개념 7개(진위형 7 + 객관식 14) · 2026-05-21</footer>
+</body></html>

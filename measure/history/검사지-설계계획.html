@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>기체 개념 검사지 — 종합 설계·분석 계획</title>
+<style>
+* { box-sizing:border-box; }
+html { scroll-behavior:smooth; }
+body { margin:0; font-family:"Pretendard Variable","Pretendard","Apple SD Gothic Neo","Noto Sans KR",system-ui,sans-serif; background:#f7f7f5; color:#1f2937; line-height:1.62; font-size:15px; -webkit-font-smoothing:antialiased; }
+:root{ --primary:#1e3a8a; --primary-soft:#3b82f6; --accent:#d97706; --ok:#059669; --warn:#dc2626; --muted:#6b7280; --line:#e5e7eb; --bg:#fff; --bg-soft:#f3f4f6; }
+.wrap{ max-width:1080px; margin:0 auto; padding:0 24px; }
+header.top{ background:linear-gradient(135deg,#1e3a8a,#1e40af 50%,#312e81); color:#fff; padding:38px 0 46px; border-bottom:6px solid var(--accent); }
+header .badge{ display:inline-block; background:rgba(255,255,255,.18); padding:4px 10px; border-radius:999px; font-size:12px; margin-bottom:10px; }
+header h1{ margin:0 0 6px; font-size:25px; font-weight:700; }
+header .sub{ opacity:.88; font-size:14px; max-width:820px; }
+header .links{ margin-top:13px; font-size:13px; }
+header .links a{ color:#fff; opacity:.85; margin-right:14px; }
+nav.sticky{ position:sticky; top:0; z-index:50; background:rgba(255,255,255,.95); backdrop-filter:blur(8px); border-bottom:1px solid var(--line); }
+nav.sticky .navbar{ display:flex; gap:2px; overflow-x:auto; padding:8px 0; }
+nav.sticky a{ flex:0 0 auto; padding:8px 13px; border-radius:6px; font-size:13px; color:var(--muted); font-weight:500; white-space:nowrap; text-decoration:none; }
+nav.sticky a:hover{ background:var(--bg-soft); color:var(--primary); }
+main{ padding:34px 0 80px; }
+section{ background:var(--bg); border-radius:12px; padding:24px 28px; margin-bottom:22px; box-shadow:0 1px 3px rgba(0,0,0,.06),0 6px 24px rgba(0,0,0,.04); border:1px solid var(--line); }
+section h2{ margin:0 0 4px; font-size:20px; font-weight:700; color:var(--primary); border-bottom:2px solid var(--accent); padding-bottom:9px; display:flex; align-items:center; gap:9px; }
+section h2 .num{ background:var(--accent); color:#fff; font-size:12.5px; padding:2px 9px; border-radius:999px; font-weight:600; }
+section h3{ font-size:15.5px; font-weight:700; margin:20px 0 7px; color:#111; border-left:4px solid var(--accent); padding-left:9px; }
+.lede{ margin:13px 0 16px; color:var(--muted); font-size:13.5px; }
+table{ width:100%; border-collapse:collapse; margin:11px 0; font-size:13px; }
+th,td{ border:1px solid var(--line); padding:7px 9px; text-align:left; vertical-align:top; }
+th{ background:var(--bg-soft); font-weight:600; color:var(--primary); }
+tr:nth-child(even) td{ background:#fafafa; }
+code{ background:#fef3c7; padding:1px 5px; border-radius:3px; font-family:ui-monospace,monospace; font-size:12px; }
+.callout{ background:#f0f9ff; border-left:4px solid var(--primary-soft); padding:12px 16px; margin:13px 0; border-radius:4px; font-size:13px; }
+.callout.warn{ background:#fef2f2; border-left-color:var(--warn); } .callout.ok{ background:#f0fdf4; border-left-color:var(--ok); } .callout.note{ background:#fffbeb; border-left-color:var(--accent); }
+.callout strong{ color:var(--primary); } .callout.warn strong{ color:var(--warn); }
+.pill{ display:inline-block; padding:1px 7px; border-radius:999px; font-size:11px; font-weight:600; }
+.p-direct{ background:#d1fae5; color:#065f46; } .p-transfer{ background:#fef3c7; color:#92400e; } .p-common{ background:#e5e7eb; color:#374151; }
+.code{ font-weight:700; color:var(--primary); }
+footer{ text-align:center; font-size:12px; color:var(--muted); padding:24px 0; border-top:1px solid var(--line); margin-top:34px; }
+@media print{ body{background:#fff;} nav.sticky{display:none;} section{box-shadow:none;border:1px solid #ccc;page-break-inside:avoid;} header.top{background:#1e3a8a !important;-webkit-print-color-adjust:exact;print-color-adjust:exact;} }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <span class="badge">MASTER DESIGN &amp; ANALYSIS PLAN · 연구자용</span>
+    <h1>기체 개념 검사지 — 종합 설계·분석 계획</h1>
+    <p class="sub">보일·돌턴 기체 개념 진단검사(대학생/예비교사, 시뮬반 vs 비교반, 사전·사후)의 전체 설계.
+       오개념 11개(보일 B·돌턴 D·기체일반 G) 정의·근거 · 코드 재정비 · 문항 구성(진위1+객관식2) · 그림 문항 계획 · 학습효과 분석 · 대외비 어포던스 분류.
+       정답키·범주 분류는 <strong>연구자용</strong>(배포본·교사 비공개).</p>
+    <div class="links">
+      관련: <a href="검사지-신규문항.html">전체 문항 초안(B/D/G 11코드)</a> · <a href="검사지-개정판.html">개정판(구)</a> · <a href="검사지-전체문항.html">현재 폼 스냅샷</a> · <a href="검사지-수정방향.html">수정 방향</a>
+    </div>
+  </div>
+</header>
+
+<nav class="sticky"><div class="wrap"><div class="navbar">
+  <a href="#structure">0. 구조</a>
+  <a href="#misc">1. 오개념 정의·근거</a>
+  <a href="#codes">2. 코드 재정비</a>
+  <a href="#items">3. 문항 구성</a>
+  <a href="#drawing">4. 그림 문항</a>
+  <a href="#analysis">5. 학습효과 분석</a>
+  <a href="#afford">6. 어포던스(대외비)</a>
+  <a href="#next">7. 다음 단계</a>
+</div></div></nav>
+
+<main>
+<div class="wrap">
+
+<!-- 0 STRUCTURE -->
+<section id="structure">
+  <h2><span class="num">0</span> 검사지 구조</h2>
+  <p class="lede">핵심 오개념 <strong>11개</strong>(보일 B1~4 · 돌턴 D1~4 · 기체일반 G1~3), 각 오개념을 <strong>진위형 1 + 3단계 객관식 2</strong>로 측정 + 입자 그리기 2. 신뢰도(α)는 <strong>전체(보일+돌턴 합산)</strong> 단위로 보고(개별 오개념은 분류 단위).</p>
+  <table>
+    <thead><tr><th style="width:20%">블록</th><th style="width:16%">문항</th><th>역할</th></tr></thead>
+    <tbody>
+      <tr><td>응답자 정보</td><td>메타 4</td><td>이메일·소속·성별·학년</td></tr>
+      <tr><td>참·거짓형(진위)</td><td>오개념당 1 (총 11)</td><td>빠른 1차 스크리닝 — 오개념 보유 여부</td></tr>
+      <tr><td>객관식(3단계: 답·이유·확신)</td><td>오개념당 2 (총 22)</td><td>심층 진단 — 왜·얼마나 확신</td></tr>
+      <tr><td>입자 그리기</td><td>2</td><td>미시 표상 자유 산출(폐쇄형이 못 잡는 모델)</td></tr>
+    </tbody>
+  </table>
+  <div class="callout note"><strong>용어</strong>: 진위형(T/F)=참·거짓 판단 · 객관식(MC)=보기 선택 · 3단계(3-tier)=답+이유+확신도 · 문두(stem) · 오답지(distractor).</div>
+</section>
+
+<!-- 1 MISCONCEPTIONS -->
+<section id="misc">
+  <h2><span class="num">1</span> 핵심 오개념 11개 — 정의·과학개념·문헌 근거</h2>
+  <p class="lede">각 오개념의 (a) 오개념 진술 (b) 올바른 과학 개념 (c) 검사 포함 근거(문헌). 서브에이전트 문헌조사 종합.</p>
+  <table>
+    <thead><tr><th style="width:6%">코드</th><th style="width:24%">오개념(학생이 잘못 믿는 것)</th><th style="width:28%">올바른 과학 개념</th><th>문헌 근거</th></tr></thead>
+    <tbody>
+      <tr><td class="code">B1</td><td>압력-부피가 정비례·무관, 또는 "부피 절반→압력도 절반" 등 수학적 비례 오류</td><td>일정 T·n에서 PV=일정(반비례). 부피 1/2 → 압력 2배</td><td>Lin &amp; Cheng (2000, JCE); de Berg (1995, JRST)</td></tr>
+      <tr><td class="code">B2</td><td>압축하면 입자 자체가 작아지고, 팽창하면 입자 자체가 커진다</td><td>변하는 것은 입자 사이 간격(빈 공간)뿐, 입자 크기는 불변</td><td>Novick &amp; Nussbaum (1981, Sci. Educ.); de Berg (1995)</td></tr>
+      <tr><td class="code">B3</td><td>압축하면 입자 개수·질량이 줄어든다</td><td>닫힌 계에서 입자 수·질량 보존, 변하는 건 밀도뿐</td><td>de Berg (1995); Mas et al. (1987)</td></tr>
+      <tr><td class="code">B4</td><td>진공(빈 공간)이 기체를 끌어당기는 힘을 가진다</td><td>진공은 힘이 없음. 기체 이동은 압력차(고압 쪽 입자 충돌)의 결과</td><td>Séré (1982, EJSE)</td></tr>
+      <tr><td class="code">D1</td><td>기체 추가 시 기존 기체 분압이 변한다 / 각 기체가 부피를 나눠 차지</td><td>각 기체는 전체 부피를 독립 점유, 분압은 타 기체와 무관</td><td>조인영·박현주·최병순 (1999, 대한화학회지); Dalton 연구</td></tr>
+      <tr><td class="code">D2</td><td>전체압 = 부분압들의 평균</td><td>전체압 = 부분압의 합 (P_total = ΣP_i)</td><td>Kemp (2005, JCE); EJMSTE(2025) KMT</td></tr>
+      <tr><td class="code">D3</td><td>무거운(분자량 큰) 기체가 압력 대부분을 차지</td><td>동일 T·V에서 분압은 몰수에만 의존, 분자량과 무관</td><td>Lin &amp; Cheng (2000)</td></tr>
+      <tr><td class="code">D4</td><td>기체를 섞으면 무거운 기체가 아래로 가라앉아 두 기체가 분리된다</td><td>무작위 운동·확산으로 균질하게 섞인 상태 유지, 일상 규모서 분리 안 됨</td><td>Lin &amp; Cheng (2000); 대기 조성 연구</td></tr>
+      <tr><td class="code">G1</td><td>압력은 기체 무게 또는 내재적 팽창력 때문에 생긴다</td><td>압력 = 입자가 벽에 충돌하며 가하는 힘의 총합(무작위 운동의 결과)</td><td>Séré (1982); 조인영 외 (1999)</td></tr>
+      <tr><td class="code">G2</td><td>입자 사이가 공기·다른 물질로 채워져 있다</td><td>입자 사이는 아무것도 없는 빈 공간(진공)</td><td>Novick &amp; Nussbaum (1981, Sci. Educ.)</td></tr>
+      <tr><td class="code">G3</td><td>용기 모양·중력·재질·시간이 압력에 영향을 준다 <span class="pill p-transfer">전이</span></td><td>T·V·n 같으면 모양·재질 무관(압력은 등방), 방 규모 중력 효과 무시 가능</td><td>Séré (1982); 조인영 외 (1999)</td></tr>
+    </tbody>
+  </table>
+  <div class="callout warn"><strong>검증 필요</strong>: 일부 출처는 페이월로 정확한 응답률 미확인 — 인용 전 원문 대조. "강훈식(2008) 기체 입자" 논문은 특정 실패(RISS/KCI 재확인 필요). Mas et al.(1987) 서지 철자 확인 요.</div>
+</section>
+
+<!-- 2 CODES -->
+<section id="codes">
+  <h2><span class="num">2</span> 코드 재정비 (옛 → 새)</h2>
+  <p class="lede">옛 BL/PN/DL/MA/DLV는 듬성·중복이라, 영역 3구분(<strong>보일 B · 돌턴 D · 기체일반 G</strong>) + 일련번호의 <strong>11개</strong> 새 코드로 통일. (입자성 P·진공 V는 보일 영역에, 압력본질 K는 기체일반 G에 흡수)</p>
+  <table>
+    <thead><tr><th style="width:10%">새 코드</th><th style="width:26%">오개념</th><th style="width:16%">영역</th><th>흡수한 옛 코드</th></tr></thead>
+    <tbody>
+      <tr><td class="code">B1</td><td>압력-부피 관계</td><td>보일(B)</td><td>BL1 + MA1(수학)</td></tr>
+      <tr><td class="code">B2</td><td>입자 크기 변형</td><td>보일(B)</td><td>BL2 + PN3 (옛 P1)</td></tr>
+      <tr><td class="code">B3</td><td>입자 수·질량 보존</td><td>보일(B)</td><td>BL3 (옛 P2)</td></tr>
+      <tr><td class="code">B4</td><td>진공 흡입</td><td>보일(B)</td><td>BL7 (옛 V1)</td></tr>
+      <tr><td class="code">D1</td><td>분압 독립성·부피 점유</td><td>돌턴(D)</td><td>DL1 + DLV</td></tr>
+      <tr><td class="code">D2</td><td>전체압 = 합</td><td>돌턴(D)</td><td>DL2</td></tr>
+      <tr><td class="code">D3</td><td>압력 ∝ 분자량</td><td>돌턴(D)</td><td>DL4</td></tr>
+      <tr><td class="code">D4</td><td>혼합 분리/층화</td><td>돌턴(D)</td><td>(신설)</td></tr>
+      <tr><td class="code">G1</td><td>압력의 본질(운동·충돌)</td><td>기체일반(G)</td><td>(신설 — 옛 K1/Q13)</td></tr>
+      <tr><td class="code">G2</td><td>빈 공간</td><td>기체일반(G)</td><td>(신설)</td></tr>
+      <tr><td class="code">G3</td><td>무관 변수(모양·중력 등)</td><td>기체일반(G)</td><td>옛 T1 (Q5·Q11·N계열)</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- 3 ITEMS -->
+<section id="items">
+  <h2><span class="num">3</span> 문항 구성 — 오개념당 진위1 + 객관식2</h2>
+  <p class="lede">오개념당 <strong>진위형 1 + 객관식 2</strong>(서로 다른 인지 각도) + 그리기. 전 문항 초안은 <a href="검사지-신규문항.html"><strong>검사지-신규문항.html</strong></a>에 완성.</p>
+  <table>
+    <thead><tr><th style="width:6%">코드</th><th style="width:16%">오개념</th><th style="width:8%">진위</th><th style="width:30%">객관식 2 (각도)</th><th>그리기</th></tr></thead>
+    <tbody>
+      <tr><td class="code">B1</td><td>압력-부피</td><td>1</td><td>직접판단 · 실제비교(풍선)</td><td>–</td></tr>
+      <tr><td class="code">B2</td><td>입자 크기 변형</td><td>1</td><td>변화구분 · 표상비판</td><td>그리기1</td></tr>
+      <tr><td class="code">B3</td><td>입자 수·질량</td><td>1</td><td>변화구분 · 새맥락(저울)</td><td>그리기1</td></tr>
+      <tr><td class="code">B4</td><td>진공 흡입</td><td>1</td><td>현상설명 · 실제비교(빨대)</td><td>–</td></tr>
+      <tr><td class="code">D1</td><td>분압 독립·부피점유</td><td>1</td><td>실제상황(스쿠버) · 표상비판</td><td>그리기2</td></tr>
+      <tr><td class="code">D2</td><td>전체압=합</td><td>1</td><td>정량 · 현상설명(잠수함)</td><td>–</td></tr>
+      <tr><td class="code">D3</td><td>압력∝분자량</td><td>1</td><td>직접판단 · 실제비교(대기조성)</td><td>–</td></tr>
+      <tr><td class="code">D4</td><td>혼합 분리/층화</td><td>1</td><td>현상설명(풍선) · 그림선택형</td><td>그리기2</td></tr>
+      <tr><td class="code">G1</td><td>압력 본질</td><td>1</td><td>현상설명 · 실제상황(무중력)</td><td>–</td></tr>
+      <tr><td class="code">G2</td><td>빈 공간</td><td>1</td><td>표상비판 · 변화구분(압축)</td><td>–</td></tr>
+      <tr><td class="code">G3</td><td>무관 변수</td><td>1</td><td>직접(시간) · 등방성(윗/아랫면)</td><td>–</td></tr>
+    </tbody>
+  </table>
+  <div class="callout ok"><strong>완성: 진위 11 + 객관식 22 + 그리기 2.</strong> 모든 객관식은 같은 오개념도 서로 다른 인지 각도(쌍둥이 금지), 오답은 실제 오개념 매핑, 정답 길이 평행화.</div>
+  <div class="callout note">옛 Q1~Q13·N계열·BL/PN/DL/MA/DLV는 새 11코드(B/D/G)로 흡수·재배치됨. 배포본은 정답·코드 숨김.</div>
+</section>
+
+<!-- 4 DRAWING -->
+<section id="drawing">
+  <h2><span class="num">4</span> 그림(입자 표상) 문항 — 채점·분석·확장</h2>
+  <p class="lede">그리기1(보일 압축)·그리기2(돌턴 혼합) 자유 산출. 폐쇄형이 못 잡는 미시 모델을 진단. 서브에이전트 조사 종합. (※ 그림 코드는 돌턴 코드 D1·D2와 혼동 피하려 '그리기1·2'로 명명)</p>
+
+  <h3>채점 — 분석적 루브릭 (Nyachwaya 2011 / Sanger 2000 / AP)</h3>
+  <p>단일 정오가 아니라 개념 차원별 가산. 예 그리기1(보일): ① 입자 개수 보존 ② 압축 후 간격 감소 ③ 크기 불변(비팽창) ④ 무작위 분포 = 4점. 그리기2(돌턴): ① 두 기체 구분 ② 혼합 후 균질 ③ 개수 보존 ④ 비팽창. "채점자는 마음을 못 읽는다" — 색·기호·라벨로 명시 요구.</p>
+
+  <h3>채점자 신뢰도</h3>
+  <p>Cohen's κ, Landis &amp; Koch(1977) 기준 — 목표 <strong>κ ≥ 0.70~0.80</strong>. 절차: 코드북+앵커 예시 → 2인 합동 훈련(10~20장) → 전체 20~25% 독립 이중 채점으로 κ 산출 → 불일치 토의·코드북 개정 → 단독 채점.</p>
+
+  <h3>학습효과 분석(사전→사후)</h3>
+  <p>그림을 <strong>코드 벡터로 변환</strong> → 학생별 사전→사후 전이 추적(오개념→과학모델) → <strong>시뮬반 vs 비교반</strong>은 사전 동등성 확인 후 ANCOVA(사전 통제) 또는 정규화 이득 g. 오개념 코드별 잔존율 집단 비교.</p>
+
+  <h3>확장 — 몇 개, 무엇을</h3>
+  <p>현재 2개가 핵심(압축·혼합)을 잘 덮음. <strong>상한 2~3개</strong> 권장. 추가 후보 1개: 분압 표상. (온도/속력은 정적 그림으로 표현·채점 불안정 → 범위 밖) 그림↑ = 진단력↑ 이나 채점부담·피로·κ 비용 선형 증가.</p>
+  <div class="callout note"><strong>권고</strong>: 그림 2~3으로 깊이 진단, 나머지 개념은 진위+객관식으로 폭 커버하는 <strong>혼합 설계</strong>. 그림은 무한정 늘리지 말 것.</div>
+</section>
+
+<!-- 5 ANALYSIS -->
+<section id="analysis">
+  <h2><span class="num">5</span> 학습효과 분석 계획 (학생 개념 변화 중심)</h2>
+  <p class="lede">관심 = 교육이 학생 개념을 바꿨나. 도구 품질(타당도·신뢰도·κ)이 아니라 <strong>학습 효과</strong>. 서브에이전트 종합.</p>
+
+  <h3>① 오개념 교정률</h3>
+  <p>오개념별: 교정률 = (사전 오개념 → 사후 과학개념) ÷ (사전 오개념 보유자). 잔존율·신규발생(퇴행)도 함께. 사전×사후 교차표 + McNemar.</p>
+
+  <h3>② 향상 정도 — Hake's g · Cohen's d</h3>
+  <p><code>g = (post − pre) / (max − pre)</code> (Hake 1998; &lt;0.3 낮음 / 0.3–0.7 중간 / &gt;0.7 높음). <code>d</code> = 대응표본 효과크기(Cohen 1988). <strong>주의(Bao 2006)</strong>: 사전점수 낮은 집단에 g가 유리하게 편향 → 단순 g 비교 말고 ④ ANCOVA 병행.</p>
+
+  <h3>③ 표면 변화 vs 깊은 변화 — 핵심(진위↔객관식 연결의 쓸모)</h3>
+  <table>
+    <thead><tr><th>구분</th><th>지표</th><th>해석</th></tr></thead>
+    <tbody>
+      <tr><td>표면 변화</td><td>진위형 교정 / 객관식 '답'만 정답</td><td>정답만 바뀜 (위장 정답 가능)</td></tr>
+      <tr><td><strong>깊은 변화</strong></td><td>객관식 '답+이유' 동시 정답</td><td>추론까지 바뀜 = 진짜 이해</td></tr>
+    </tbody>
+  </table>
+  <p>핵심 종속변수 = <strong>"답+이유 동시 정답" 점수</strong>. 표면 점수와 별도 산출. 향상이 답에만 있고 이유엔 없으면 → 표면 학습.</p>
+
+  <h3>④ 집단 비교 (시뮬 vs 비교반)</h3>
+  <p>혼합 ANOVA: between=집단, within=시점(사전/사후) × 깊이(표면/깊이). 핵심 = <strong>집단 × 시점 × 깊이 삼원 상호작용</strong>(시뮬 우위가 깊은 변화에서 더 큰가). 이분 결과(이중 정답)는 <strong>GLMM 로지스틱</strong>(고정 집단×시점, 임의 학생·문항). 사전차 있으면 ANCOVA.</p>
+
+  <h3>⑤ 변화 유형 + McNemar</h3>
+  <p>학생·오개념별 4유형: 교정(오→과학) / 퇴행(과학→오) / 유지 / 지속(오 유지). 대응 이분에 McNemar. 집단 간 분포 χ².</p>
+
+  <h3>⑥ 확신도 변화 (메타인지)</h3>
+  <p>4유형(Hasan 1999 CRI): 정답+고확신=지식 / 정답+저확신=추측 / 오답+고확신=확신 오개념 / 오답+저확신=지식부족. 핵심 전이 = <strong>"오답+고확신 → 정답+고확신"</strong>(확신 오개념이 근거 있는 정답으로). 집단차는 혼합 ANOVA.</p>
+
+  <div class="callout ok"><strong>요약</strong>: 진위↔객관식 연결의 학습효과 측면 핵심 가치 = <strong>③ 표면이냐 진짜 이해냐</strong>. 나머지(교정률·g·d·집단비교)는 그 위에서 나옴. 신뢰도 α는 전체(보일+돌턴) 단위.</div>
+</section>
+
+<!-- 6 AFFORDANCE -->
+<section id="afford">
+  <h2><span class="num">6</span> 대외비 — 입자 이해 증진 가능 분류 (직접/전이/공통)</h2>
+  <div class="callout warn"><strong>연구자 전용.</strong> 응답자·양 반 교사 비공개. 데이터 수집 전 <strong>사전 등록</strong>(직접=주 가설). 사후 짜맞추기·teaching-to-the-test 차단.</div>
+  <p class="lede">시뮬이 입자 거동을 직접 보여줘 이해를 증진시킬 수 있는가로 태깅 (Johnstone 삼중표상; Williamson &amp; Abraham 1995; Wu 2001; Mayer).</p>
+  <table>
+    <thead><tr><th style="width:6%">코드</th><th style="width:18%">오개념</th><th style="width:12%">태그</th><th>근거 (시뮬이 무엇을 보여주기에)</th></tr></thead>
+    <tbody>
+      <tr><td class="code">B2</td><td>입자 크기 변형</td><td><span class="pill p-direct">직접</span></td><td>압축 시 크기 불변·간격만 좁아짐을 직접 반증</td></tr>
+      <tr><td class="code">B3</td><td>입자 수·질량 보존</td><td><span class="pill p-direct">직접</span></td><td>부피 변해도 입자 개수 일정 — 셀 수 있게 시각화</td></tr>
+      <tr><td class="code">D1</td><td>분압 독립·부피점유</td><td><span class="pill p-direct">직접</span></td><td>혼합 시 각 기체가 전 부피에 독립 분산(색 구분)</td></tr>
+      <tr><td class="code">D3</td><td>압력∝분자량</td><td><span class="pill p-direct">직접</span></td><td>질량 다른 입자의 속도·충돌 빈도 동시 대비</td></tr>
+      <tr><td class="code">D4</td><td>혼합 분리/층화</td><td><span class="pill p-direct">직접</span></td><td>무작위 운동으로 무게 무관 균질 혼합됨을 시각화</td></tr>
+      <tr><td class="code">G1</td><td>압력 본질(운동·충돌)</td><td><span class="pill p-direct">직접</span></td><td>벽 충돌로 압력 발생을 직접 묘사 — 핵심 어포던스</td></tr>
+      <tr><td class="code">G2</td><td>빈 공간</td><td><span class="pill p-direct">직접</span></td><td>입자 사이가 비어 있음을 직접 시각화(압축=간격 감소)</td></tr>
+      <tr><td class="code">B4</td><td>진공 흡입</td><td><span class="pill p-transfer">전이</span></td><td>"흡입력 없음"은 직접 안 그림 → 충돌 빈도서 추론</td></tr>
+      <tr><td class="code">D2</td><td>전체압=합</td><td><span class="pill p-transfer">전이</span></td><td>분압 시각화+게이지 합산을 연결해야 성립</td></tr>
+      <tr><td class="code">G3</td><td>무관 변수(모양·중력)</td><td><span class="pill p-transfer">전이</span></td><td>중력·재질 무관성을 능동적으로 안 보여줌 → 일반화</td></tr>
+      <tr><td class="code">B1</td><td>압력-부피(수식)</td><td><span class="pill p-common">공통</span></td><td>P∝1/V 수식은 상징층 — 어떤 매체든 별도 교수</td></tr>
+    </tbody>
+  </table>
+  <p style="font-size:12.5px;color:var(--muted)">패턴: 시뮬은 입자의 가시적 거동(크기·수·분포·속도)에 강하고, 상징 수식(B1)·부재 논증(B4 흡입없음, G3 중력무관)에는 약함 → 후자는 명시적 교수 보강 필요.</p>
+  <div class="callout note"><strong>가설</strong>: 시뮬반은 <span class="pill p-direct">직접</span>(B2·B3·D1·D3·D4·G1·G2)에서 비교반보다 크게·깊게 향상. <span class="pill p-transfer">전이</span>(B4·D2·G3)는 깊은 학습 시 일반화 여부 검증. <span class="pill p-common">공통</span>(B1)은 두 반 비슷 → 효과 특이성 증거.</div>
+</section>
+
+<!-- 7 NEXT -->
+<section id="next">
+  <h2><span class="num">7</span> 다음 단계</h2>
+  <ol>
+    <li><span class="pill p-direct">완료</span> <strong>전 문항 초안</strong>: 11 오개념 × (진위1+객관식2, 다른 각도) + 그리기 2 → <code>검사지-신규문항.html</code></li>
+    <li><span class="pill p-direct">완료</span> <strong>코드 통일</strong>: 본 문서를 새 11코드(B1~4·D1~4·G1~3)로 정리</li>
+    <li><strong>문항 검토·수정</strong>: 각도·오답·문구 점검 (사용자 검토 예정)</li>
+    <li><strong>전문가 CVI + 파일럿</strong>: 핵심성·빈발률·난이도 확인</li>
+    <li><strong>사전 등록</strong>(OSF): 직접 7개(B2·B3·D1·D3·D4·G1·G2) = 주 가설, 나머지 = 부 가설, 11개 전부 보고, 다중비교 보정</li>
+    <li><strong>잔여 문서 동기화</strong>: 개정판·수정방향·전체문항·보강안의 옛 코드를 새 11코드로(또는 historical로 표시)</li>
+  </ol>
+  <div class="callout warn"><strong>인용 검증</strong>: 페이월 출처 응답률은 원문 대조 후 인용. 강훈식(2008)·Mas et al.(1987) 서지 재확인.</div>
+</section>
+
+</div>
+</main>
+<footer><div class="wrap">
+  기체 개념 검사지 종합 설계·분석 계획 v1 · 2026-05-21 · 연구자용(정답키·범주 대외비) ·
+  근거: Novick &amp; Nussbaum 1981 · de Berg 1995 · Lin &amp; Cheng 2000 · Séré 1982 · 조인영 외 1999 · Nyachwaya 2011 · Sanger 2000 · Landis &amp; Koch 1977 · Hake 1998 · Cohen 1988 · Bao 2006 · Caleon &amp; Subramaniam 2010 · Hasan 1999 · Williamson &amp; Abraham 1995 · Johnstone · Wu 2001 · Mayer
+</div></footer>
+</body>
+</html>

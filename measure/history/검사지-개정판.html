@@ -1,0 +1,595 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>기체 개념 검사지 — 개정판 (전부 반영)</title>
+<style>
+* { box-sizing:border-box; }
+html { scroll-behavior:smooth; }
+body { margin:0; font-family:"Pretendard Variable","Pretendard","Apple SD Gothic Neo","Noto Sans KR",system-ui,sans-serif; background:#f7f7f5; color:#1f2937; line-height:1.62; font-size:15.5px; -webkit-font-smoothing:antialiased; }
+:root{ --primary:#1e3a8a; --primary-soft:#3b82f6; --accent:#d97706; --ok:#059669; --warn:#dc2626; --muted:#6b7280; --line:#e5e7eb; --bg:#fff; --bg-soft:#f3f4f6; }
+.wrap{ max-width:1060px; margin:0 auto; padding:0 24px; }
+header.top{ background:linear-gradient(135deg,#1e3a8a 0%,#1e40af 50%,#312e81 100%); color:#fff; padding:40px 0 48px; border-bottom:6px solid var(--accent); }
+header .badge{ display:inline-block; background:rgba(255,255,255,.18); padding:4px 10px; border-radius:999px; font-size:12px; margin-bottom:10px; }
+header h1{ margin:0 0 6px; font-size:26px; font-weight:700; }
+header .sub{ opacity:.88; font-size:14px; max-width:800px; }
+header .links{ margin-top:14px; font-size:13px; }
+header .links a{ color:#fff; opacity:.85; margin-right:14px; }
+nav.sticky{ position:sticky; top:0; z-index:50; background:rgba(255,255,255,.95); backdrop-filter:blur(8px); border-bottom:1px solid var(--line); }
+nav.sticky .navbar{ display:flex; gap:2px; overflow-x:auto; padding:8px 0; }
+nav.sticky a{ flex:0 0 auto; padding:8px 14px; border-radius:6px; font-size:13px; color:var(--muted); font-weight:500; white-space:nowrap; text-decoration:none; }
+nav.sticky a:hover{ background:var(--bg-soft); color:var(--primary); }
+main{ padding:36px 0 80px; }
+section{ background:var(--bg); border-radius:12px; padding:26px 30px; margin-bottom:24px; box-shadow:0 1px 3px rgba(0,0,0,.06),0 6px 24px rgba(0,0,0,.04); border:1px solid var(--line); }
+section h2{ margin:0 0 4px; font-size:21px; font-weight:700; color:var(--primary); border-bottom:2px solid var(--accent); padding-bottom:10px; display:flex; align-items:center; gap:10px; }
+section h2 .num{ background:var(--accent); color:#fff; font-size:13px; padding:2px 9px; border-radius:999px; font-weight:600; }
+.lede{ margin:14px 0 18px; color:var(--muted); font-size:14px; }
+table{ width:100%; border-collapse:collapse; margin:12px 0; font-size:13.5px; }
+th,td{ border:1px solid var(--line); padding:7px 10px; text-align:left; vertical-align:top; }
+th{ background:var(--bg-soft); font-weight:600; color:var(--primary); }
+tr:nth-child(even) td{ background:#fafafa; }
+.item{ border:1px solid var(--line); border-radius:10px; padding:16px 20px; margin:16px 0; }
+.item .qhead{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:6px; }
+.item .qno{ font-weight:700; color:var(--primary); font-size:16px; }
+.badge2{ font-size:11px; font-weight:600; padding:1px 8px; border-radius:999px; }
+.b-4tier{ background:#ede9fe; color:#5b21b6; } .b-transfer{ background:#fef3c7; color:#92400e; }
+.b-new{ background:#d1fae5; color:#065f46; } .b-fix{ background:#fee2e2; color:#991b1b; }
+.item .stem{ font-size:14.5px; margin:2px 0 10px; }
+.tierlabel{ font-size:12px; font-weight:700; color:var(--accent); margin:12px 0 4px; }
+.choices{ list-style:none; padding:0; margin:0; }
+.choices li{ display:flex; gap:8px; padding:6px 10px; border-radius:6px; font-size:13.5px; border:1px solid transparent; }
+.choices li .lab{ font-weight:700; color:var(--primary); flex:0 0 18px; }
+.choices li .txt{ flex:1; }
+.choices li .mc-code{ flex:0 0 auto; font-size:11px; padding:1px 7px; border-radius:999px; font-weight:600; align-self:center; }
+.choices li.correct{ background:rgba(5,150,105,.08); border-color:rgba(5,150,105,.3); }
+.choices li.correct .lab{ color:var(--ok); }
+.code-mis{ background:#fee2e2; color:#991b1b; } .code-ok{ background:#d1fae5; color:#065f46; }
+.tiernote{ font-size:12.5px; color:var(--muted); margin-top:10px; padding-top:8px; border-top:1px dashed var(--line); }
+.tf-ans{ font-weight:700; }
+.tf-true{ color:var(--ok); } .tf-false{ color:var(--warn); }
+.callout{ background:#f0f9ff; border-left:4px solid var(--primary-soft); padding:13px 17px; margin:14px 0; border-radius:4px; font-size:13.5px; }
+.callout.warn{ background:#fef2f2; border-left-color:var(--warn); } .callout.ok{ background:#f0fdf4; border-left-color:var(--ok); } .callout.note{ background:#fffbeb; border-left-color:var(--accent); }
+.callout strong{ color:var(--primary); }
+ins{ color:var(--ok); text-decoration:none; background:rgba(5,150,105,.12); padding:0 3px; border-radius:3px; }
+del{ color:var(--warn); }
+footer{ text-align:center; font-size:12.5px; color:var(--muted); padding:26px 0; border-top:1px solid var(--line); margin-top:36px; }
+svg{ background:#fafafa; border-radius:4px; }
+@media print{ body{background:#fff;} nav.sticky{display:none;} section{box-shadow:none;border:1px solid #ccc;page-break-inside:avoid;} .item{page-break-inside:avoid;} header.top{background:#1e3a8a !important;-webkit-print-color-adjust:exact;print-color-adjust:exact;} }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <span class="badge">REVISED INSTRUMENT · 개정판 (수정 방향 전부 반영)</span>
+    <h1>기체 개념 검사지 — 개정판</h1>
+    <p class="sub">현재 폼(전체 22문항)에 통합 수정 방향을 모두 적용한 배포용 문항지.
+       참·거짓형 균형화 · 사층(4-tier) 4문항 · 압력 본질 신설(Q13) · 입자 그리기 2문항(D1·D2) · 문항 결함 수정 포함.
+       정답·오개념 코드는 작성자 검토용(실제 배포본에는 숨김).</p>
+    <div class="links">
+      관련: <a href="검사지-전체문항.html">현재 폼 스냅샷</a>
+      <a href="검사지-수정방향.html">수정 방향 + 용어 정의</a>
+      <a href="검사지-보강안.html">보강안</a>
+    </div>
+  </div>
+</header>
+
+<nav class="sticky"><div class="wrap"><div class="navbar">
+  <a href="#changes">변경 요약</a>
+  <a href="#meta">응답자 정보</a>
+  <a href="#tf">참·거짓형 10</a>
+  <a href="#mc">객관식 12</a>
+  <a href="#control">통제 소척도</a>
+  <a href="#q13">Q13 압력 본질</a>
+  <a href="#draw">그리기 D1·D2</a>
+  <a href="#score">채점</a>
+</div></div></nav>
+
+<main>
+<div class="wrap">
+
+<!-- ===== CHANGES ===== -->
+<section id="changes">
+  <h2><span class="num">0</span> 현재 폼 대비 변경 요약</h2>
+  <p class="lede">용어: <strong>객관식</strong>=보기 중 하나 고르기(Q1~Q13) · <strong>참·거짓형</strong>=참/거짓 판단(10개) · <strong>삼층(3-tier)</strong>=답+이유+확신도 · <strong>사층(4-tier)</strong>=거기에 '이유 확신도'까지.</p>
+  <table>
+    <thead><tr><th style="width:24%">변경</th><th>내용</th></tr></thead>
+    <tbody>
+      <tr><td><span class="badge2 b-fix">결함수정</span> 참·거짓형 균형화</td><td>전부 '거짓'이던 정답 → BL1·BL3·DL2·DL4 <strong>4개를 옳은 진술(정답 참)로 전환</strong> → 참 4 / 거짓 6. 출제 순서 무작위화.</td></tr>
+      <tr><td><span class="badge2 b-fix">결함수정</span> Q7 문두 정리</td><td>문두 앞 <del>[1단계: 답]</del> 잔여 라벨 삭제.</td></tr>
+      <tr><td><span class="badge2 b-4tier">사층</span> 4-tier 부분 적용</td><td><strong>Q3·Q4·Q7·Q11</strong> 4문항에 '이유 확신도(1~5)' 추가 → 위장 정답 정밀 검출.</td></tr>
+      <tr><td><span class="badge2 b-new">신설</span> Q13 압력의 본질(기전)</td><td>"입자가 정지하면 압력?" → 압력은 입자 운동·충돌에서 생김. "압력=무게/내재력" 심상 변별. 기존 미커버 KMT 토대 개념(계산·시뮬 언급 없음).</td></tr>
+      <tr><td><span class="badge2 b-new">신설</span> D1·D2 입자 그리기</td><td>압축(보일)·혼합(돌턴) 입자 표상 자유 산출 2문항. 이미지 업로드 또는 별지. 5점 루브릭.</td></tr>
+      <tr><td><span class="badge2 b-transfer">통제</span> 통제 소척도 5문항</td><td>Q5·Q11 + 신설 N1(재질)·N2(시간)·N3(자세) = "압력 무관 변수 식별" 단일 구인. 시뮬 효과 특이성 확인용. 신뢰도(α) 산출 가능.</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ===== META ===== -->
+<section id="meta">
+  <h2><span class="num">1</span> 응답자 정보</h2>
+  <p class="lede">변경 없음. 본 검사는 보일·돌턴 법칙 오개념을 진단하는 삼층/사층 도구.</p>
+  <table>
+    <tbody>
+      <tr><td style="width:30%">이메일</td><td>필수</td></tr>
+      <tr><td>소속</td><td>필수 (서술)</td></tr>
+      <tr><td>성별</td><td>남 / 여</td></tr>
+      <tr><td>학년</td><td>1학년 / 2학년 / 3학년 / 4학년 이상</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ===== T/F ===== -->
+<section id="tf">
+  <h2><span class="num">2</span> 참·거짓형 10문항 (균형화)</h2>
+  <p class="lede">진술이 과학적으로 맞으면 '참', 틀리면 '거짓'. <strong>참 4 / 거짓 6</strong>으로 균형. (실제 배포 시 순서 무작위화 — 아래는 코드순)</p>
+  <table>
+    <thead><tr><th style="width:8%">코드</th><th>진술</th><th style="width:12%">정답</th><th style="width:24%">측정 오개념</th></tr></thead>
+    <tbody>
+      <tr><td><strong>BL1</strong></td><td><ins>압력과 부피는 반비례 관계이다.</ins> <span style="color:var(--muted);font-size:12px">(전환: 정비례→반비례)</span></td><td class="tf-ans tf-true">참</td><td>보일 정비례 오개념</td></tr>
+      <tr><td><strong>BL2</strong></td><td>압력이 증가하면 기체 입자의 크기가 작아진다.</td><td class="tf-ans tf-false">거짓</td><td>입자 압축 오개념</td></tr>
+      <tr><td><strong>BL3</strong></td><td><ins>밀폐 용기의 부피를 줄여도 기체 입자의 수는 변하지 않는다.</ins> <span style="color:var(--muted);font-size:12px">(전환)</span></td><td class="tf-ans tf-true">참</td><td>입자 수 보존</td></tr>
+      <tr><td><strong>BL7</strong></td><td>진공(빈 공간)은 기체 입자를 끌어당기는 힘을 가지고 있다.</td><td class="tf-ans tf-false">거짓</td><td>진공 흡입 오개념</td></tr>
+      <tr><td><strong>PN3</strong></td><td>기체가 팽창할 때 입자 자체가 팽창한다.</td><td class="tf-ans tf-false">거짓</td><td>입자성 오개념</td></tr>
+      <tr><td><strong>DL1</strong></td><td>혼합 기체에서 한 기체를 추가하면 기존 기체의 부분 압력이 변한다.</td><td class="tf-ans tf-false">거짓</td><td>분압 독립성</td></tr>
+      <tr><td><strong>DL2</strong></td><td><ins>혼합 기체의 전체 압력은 각 기체 부분 압력의 합이다.</ins> <span style="color:var(--muted);font-size:12px">(전환: 평균→합)</span></td><td class="tf-ans tf-true">참</td><td>분압의 합(평균 오개념)</td></tr>
+      <tr><td><strong>DL4</strong></td><td><ins>같은 온도·부피에서 기체의 압력은 분자의 무게가 아니라 입자 수로 결정된다.</ins> <span style="color:var(--muted);font-size:12px">(전환)</span></td><td class="tf-ans tf-true">참</td><td>분자량 오개념</td></tr>
+      <tr><td><strong>DLV</strong></td><td>같은 양(몰수)의 기체 A와 B를 1 L 용기에 함께 넣으면, 두 기체는 부피를 나눠 각각 0.5 L씩 차지한다.</td><td class="tf-ans tf-false">거짓</td><td>부피 분할 오개념</td></tr>
+      <tr><td><strong>MA1</strong></td><td>부피가 2배 증가하면 압력은 2만큼 감소한다.</td><td class="tf-ans tf-false">거짓</td><td>수학적 혼동</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ===== MC ===== -->
+<section id="mc">
+  <h2><span class="num">3</span> 객관식 12문항</h2>
+  <p class="lede">각 문항 = 답 + 이유 + 확신도. ✅=정답, 오답 옆 칩=진단 오개념. <span class="badge2 b-4tier">사층</span>은 '이유 확신도'를 추가로 묻는 문항.</p>
+
+  <!-- Q1 -->
+  <div class="item">
+    <div class="qhead"><span class="qno">Q1</span></div>
+    <div class="stem">일정한 온도에서 밀폐된 실린더의 부피를 반으로 줄였습니다. 실린더 내부의 기체 압력은?</div>
+    <div class="tierlabel">답</div>
+    <ul class="choices">
+      <li class="correct"><span class="lab">A</span><span class="txt">2배 증가한다</span><span class="mc-code code-ok">정답</span></li>
+      <li><span class="lab">B</span><span class="txt">변하지 않는다</span><span class="mc-code code-mis">압력 보존</span></li>
+      <li><span class="lab">C</span><span class="txt">절반으로 감소한다</span><span class="mc-code code-mis">BL1 정비례</span></li>
+      <li><span class="lab">D</span><span class="txt">4배 증가한다</span><span class="mc-code code-mis">과대추론</span></li>
+    </ul>
+    <div class="tierlabel">이유</div>
+    <ul class="choices">
+      <li><span class="lab">A</span><span class="txt">부피가 줄면 입자 크기도 함께 수축</span><span class="mc-code code-mis">BL2/PN3</span></li>
+      <li class="correct"><span class="lab">B</span><span class="txt">단위 부피당 입자 수 증가 → 벽 충돌 빈도 증가</span><span class="mc-code code-ok">정답</span></li>
+      <li><span class="lab">C</span><span class="txt">부피·압력 정비례 → 부피 줄면 압력도 감소</span><span class="mc-code code-mis">BL1</span></li>
+      <li><span class="lab">D</span><span class="txt">밀폐 용기라 압력 항상 일정</span><span class="mc-code code-mis">압력 보존</span></li>
+    </ul>
+    <div class="tiernote">확신도: 답 확신(1~5)</div>
+  </div>
+
+  <!-- Q2 -->
+  <div class="item">
+    <div class="qhead"><span class="qno">Q2</span></div>
+    <div class="stem">1기압에서 부피 10 L 기체를 일정 온도에서 5 L로 압축했습니다. 새로운 압력은?</div>
+    <div class="tierlabel">답</div>
+    <ul class="choices">
+      <li><span class="lab">A</span><span class="txt">0.5기압</span><span class="mc-code code-mis">BL1</span></li>
+      <li><span class="lab">B</span><span class="txt">1기압</span><span class="mc-code code-mis">압력 보존</span></li>
+      <li class="correct"><span class="lab">C</span><span class="txt">2기압</span><span class="mc-code code-ok">정답</span></li>
+      <li><span class="lab">D</span><span class="txt">5기압</span><span class="mc-code code-mis">MA1 (10−5)</span></li>
+    </ul>
+    <div class="tierlabel">이유</div>
+    <ul class="choices">
+      <li><span class="lab">A</span><span class="txt">부피가 5 L 줄었으니 압력도 5만큼 빼서 계산</span><span class="mc-code code-mis">MA1</span></li>
+      <li><span class="lab">B</span><span class="txt">밀폐 용기는 부피 변화와 무관하게 압력 유지</span><span class="mc-code code-mis">압력 보존</span></li>
+      <li><span class="lab">C</span><span class="txt">정비례 → 부피 절반이면 압력도 절반</span><span class="mc-code code-mis">BL1</span></li>
+      <li class="correct"><span class="lab">D</span><span class="txt">반비례 → 부피 절반이면 압력은 2배</span><span class="mc-code code-ok">정답</span></li>
+    </ul>
+    <div class="tiernote">확신도: 답 확신(1~5)</div>
+  </div>
+
+  <!-- Q3 -->
+  <div class="item">
+    <div class="qhead"><span class="qno">Q3</span><span class="badge2 b-4tier">사층 4-tier</span></div>
+    <div class="stem">밀폐된 주사기 안의 공기를 압축해 부피를 줄였습니다. 공기의 질량과 입자 수는?</div>
+    <div class="tierlabel">답</div>
+    <ul class="choices">
+      <li><span class="lab">A</span><span class="txt">질량 감소, 입자 수도 감소</span><span class="mc-code code-mis">질량·수 오개념</span></li>
+      <li><span class="lab">B</span><span class="txt">질량 증가, 입자 수 일정</span><span class="mc-code code-mis">질량 오개념</span></li>
+      <li class="correct"><span class="lab">C</span><span class="txt">질량·입자 수 모두 변하지 않는다</span><span class="mc-code code-ok">정답</span></li>
+      <li><span class="lab">D</span><span class="txt">질량 일정, 입자 수 감소</span><span class="mc-code code-mis">BL3</span></li>
+    </ul>
+    <div class="tierlabel">이유</div>
+    <ul class="choices">
+      <li><span class="lab">A</span><span class="txt">부피 줄면 물질의 양(질량) 자체 감소</span><span class="mc-code code-mis">질량 오개념</span></li>
+      <li class="correct"><span class="lab">B</span><span class="txt">밀폐 공간이라 입자가 못 빠져나가 총량·개수 보존</span><span class="mc-code code-ok">정답</span></li>
+      <li><span class="lab">C</span><span class="txt">압축되면 입자들이 뭉쳐 큰 입자가 되어 개수 감소</span><span class="mc-code code-mis">입자성</span></li>
+      <li><span class="lab">D</span><span class="txt">압력 증가로 기체가 액체로 변해 질량 무거워짐</span><span class="mc-code code-mis">상변화 오개념</span></li>
+    </ul>
+    <div class="tiernote">확신도: 답 확신(1~5) + <strong style="color:#5b21b6">이유 확신(1~5) ← 사층 추가</strong></div>
+  </div>
+
+  <!-- Q4 -->
+  <div class="item">
+    <div class="qhead"><span class="qno">Q4</span><span class="badge2 b-4tier">사층 4-tier</span></div>
+    <div class="stem">끝이 막힌 주사기 피스톤을 바깥으로 당기면 부피가 팽창합니다. 내부 압력은?</div>
+    <div class="tierlabel">답</div>
+    <ul class="choices">
+      <li class="correct"><span class="lab">A</span><span class="txt">감소한다</span><span class="mc-code code-ok">정답</span></li>
+      <li><span class="lab">B</span><span class="txt">증가한다</span><span class="mc-code code-mis">BL7</span></li>
+      <li><span class="lab">C</span><span class="txt">변하지 않는다</span><span class="mc-code code-mis">압력 보존</span></li>
+      <li><span class="lab">D</span><span class="txt">0이 된다</span><span class="mc-code code-mis">진공 오개념</span></li>
+    </ul>
+    <div class="tierlabel">이유</div>
+    <ul class="choices">
+      <li><span class="lab">A</span><span class="txt">당길 때 생긴 진공이 입자를 바깥으로 강하게 당김</span><span class="mc-code code-mis">BL7</span></li>
+      <li class="correct"><span class="lab">B</span><span class="txt">공간이 넓어져 단위 부피당 충돌 횟수 감소</span><span class="mc-code code-ok">정답</span></li>
+      <li><span class="lab">C</span><span class="txt">부피 커지면 입자 자체도 팽창해 동일 압력 유지</span><span class="mc-code code-mis">PN3</span></li>
+      <li><span class="lab">D</span><span class="txt">피스톤 당기는 힘이 압력으로 전달되어 비례 증가</span><span class="mc-code code-mis">힘 전달</span></li>
+    </ul>
+    <div class="tiernote">확신도: 답 확신(1~5) + <strong style="color:#5b21b6">이유 확신(1~5) ← 사층 추가</strong></div>
+  </div>
+
+  <!-- Q5 -->
+  <div class="item">
+    <div class="qhead"><span class="qno">Q5</span><span class="badge2 b-transfer">통제 소척도</span></div>
+    <div class="stem">동일 온도·양(몰수)의 기체가 둥근 플라스크(5 L)와 길쭉한 원통형 용기(5 L)에 각각 들어 있습니다. 두 용기의 압력은?</div>
+    <div class="tierlabel">답</div>
+    <ul class="choices">
+      <li><span class="lab">A</span><span class="txt">둥근 플라스크의 압력이 더 높다</span><span class="mc-code code-mis">모양 의존</span></li>
+      <li class="correct"><span class="lab">B</span><span class="txt">두 용기의 압력은 같다</span><span class="mc-code code-ok">정답</span></li>
+      <li><span class="lab">C</span><span class="txt">원통형 용기의 압력이 더 높다</span><span class="mc-code code-mis">모양 의존</span></li>
+      <li><span class="lab">D</span><span class="txt">모양에 따라 달라져 예측 불가</span><span class="mc-code code-mis">모양 의존</span></li>
+    </ul>
+    <div class="tierlabel">이유</div>
+    <ul class="choices">
+      <li><span class="lab">A</span><span class="txt">기체는 용기 모양 영향 받아 좁은 공간서 큰 압력</span><span class="mc-code code-mis">모양 의존</span></li>
+      <li><span class="lab">B</span><span class="txt">둥근 용기가 입자 골고루 충돌하기 좋은 형태</span><span class="mc-code code-mis">모양 의존</span></li>
+      <li class="correct"><span class="lab">C</span><span class="txt">온도·부피·양 같으면 용기 형태는 압력에 영향 없음</span><span class="mc-code code-ok">정답</span></li>
+      <li><span class="lab">D</span><span class="txt">원통형은 벽면 많아 입자가 붙어 압력 낮아짐</span><span class="mc-code code-mis">벽 흡착</span></li>
+    </ul>
+    <div class="tiernote">확신도: 답 확신(1~5) · <strong style="color:#92400e">통제 소척도(5문항)</strong> 포함 — 시뮬이 직접 안 보여줌, 분리 채점</div>
+  </div>
+
+  <!-- Q6 -->
+  <div class="item">
+    <div class="qhead"><span class="qno">Q6</span></div>
+    <div class="stem">일정 온도에서 부피(V)에 따른 압력(P) 변화 그래프의 가장 알맞은 형태는?</div>
+    <div class="tierlabel">답</div>
+    <ul class="choices">
+      <li><span class="lab">A</span><span class="txt">원점 지나는 우상향 직선</span><span class="mc-code code-mis">BL1 정비례</span></li>
+      <li><span class="lab">B</span><span class="txt">부피 축에 평행한 수평선</span><span class="mc-code code-mis">압력 보존</span></li>
+      <li><span class="lab">C</span><span class="txt">우하향하는 직선</span><span class="mc-code code-mis">MA1 선형</span></li>
+      <li class="correct"><span class="lab">D</span><span class="txt">우하향하는 곡선 (반비례 곡선)</span><span class="mc-code code-ok">정답</span></li>
+    </ul>
+    <div class="tierlabel">이유</div>
+    <ul class="choices">
+      <li><span class="lab">A</span><span class="txt">부피 2·3배 → 압력도 2·3배 (정비례)</span><span class="mc-code code-mis">BL1</span></li>
+      <li class="correct"><span class="lab">B</span><span class="txt">P×V가 항상 일정한 반비례 관계</span><span class="mc-code code-ok">정답</span></li>
+      <li><span class="lab">C</span><span class="txt">부피 1 늘 때마다 압력 1씩 감소 (선형)</span><span class="mc-code code-mis">MA1</span></li>
+      <li><span class="lab">D</span><span class="txt">밀폐 상태라 부피 변해도 압력 일정</span><span class="mc-code code-mis">압력 보존</span></li>
+    </ul>
+    <div class="tiernote">확신도: 답 확신(1~5)</div>
+  </div>
+
+  <!-- Q7 -->
+  <div class="item">
+    <div class="qhead"><span class="qno">Q7</span><span class="badge2 b-4tier">사층 4-tier</span><span class="badge2 b-fix">문두 정리</span></div>
+    <div class="stem"><del style="color:var(--warn)">[1단계: 답]</del> 질소(N₂) 기체가 2기압, 산소(O₂) 기체가 1기압인 동일한 용기 둘. 온도를 유지한 채 산소를 질소 용기로 모두 옮겨 혼합했습니다. 전체 압력은?</div>
+    <div class="tierlabel">답</div>
+    <ul class="choices">
+      <li><span class="lab">A</span><span class="txt">1기압</span><span class="mc-code code-mis">—</span></li>
+      <li><span class="lab">B</span><span class="txt">1.5기압</span><span class="mc-code code-mis">DL2 평균</span></li>
+      <li><span class="lab">C</span><span class="txt">2기압</span><span class="mc-code code-mis">DL4 최대</span></li>
+      <li class="correct"><span class="lab">D</span><span class="txt">3기압</span><span class="mc-code code-ok">정답</span></li>
+    </ul>
+    <div class="tierlabel">이유</div>
+    <ul class="choices">
+      <li class="correct"><span class="lab">A</span><span class="txt">전체압은 각 기체 부분압들의 합</span><span class="mc-code code-ok">정답</span></li>
+      <li><span class="lab">B</span><span class="txt">전체압은 두 기체 압력의 평균</span><span class="mc-code code-mis">DL2</span></li>
+      <li><span class="lab">C</span><span class="txt">혼합되며 부피 합쳐져 압력 상쇄</span><span class="mc-code code-mis">상쇄</span></li>
+      <li><span class="lab">D</span><span class="txt">더 압력 큰 기체가 전체압 결정</span><span class="mc-code code-mis">DL4</span></li>
+    </ul>
+    <div class="tiernote">확신도: 답 확신(1~5) + <strong style="color:#5b21b6">이유 확신(1~5) ← 사층 추가</strong></div>
+  </div>
+
+  <!-- Q8 -->
+  <div class="item">
+    <div class="qhead"><span class="qno">Q8</span></div>
+    <div class="stem">산소가 1기압 든 밀폐 강철 용기에 온도를 유지하며 헬륨을 추가했습니다. 산소의 '부분 압력'은?</div>
+    <div class="tierlabel">답</div>
+    <ul class="choices">
+      <li><span class="lab">A</span><span class="txt">증가한다</span><span class="mc-code code-mis">전체압 혼동</span></li>
+      <li><span class="lab">B</span><span class="txt">감소한다</span><span class="mc-code code-mis">DL1</span></li>
+      <li class="correct"><span class="lab">C</span><span class="txt">변하지 않는다</span><span class="mc-code code-ok">정답</span></li>
+      <li><span class="lab">D</span><span class="txt">0이 된다</span><span class="mc-code code-mis">—</span></li>
+    </ul>
+    <div class="tierlabel">이유</div>
+    <ul class="choices">
+      <li><span class="lab">A</span><span class="txt">헬륨 추가로 용기 내부 전체 압력 증가</span><span class="mc-code code-mis">전체압 혼동</span></li>
+      <li class="correct"><span class="lab">B</span><span class="txt">산소의 몰수·부피·온도 불변 → 산소 압력 독립 유지</span><span class="mc-code code-ok">정답</span></li>
+      <li><span class="lab">C</span><span class="txt">헬륨 입자가 산소 입자와 상호작용해 산소 압력 억누름</span><span class="mc-code code-mis">DL1</span></li>
+      <li><span class="lab">D</span><span class="txt">새 기체가 공간 차지 → 산소 부피 줄어듦</span><span class="mc-code code-mis">부피 분할</span></li>
+    </ul>
+    <div class="tiernote">확신도: 답 확신(1~5)</div>
+  </div>
+
+  <!-- Q9 -->
+  <div class="item">
+    <div class="qhead"><span class="qno">Q9</span></div>
+    <div class="stem">수소(H₂) 1몰과 이산화탄소(CO₂) 1몰이 같은 용기에 혼합. CO₂가 훨씬 무거움. 두 기체의 부분 압력 비교는?</div>
+    <div class="tierlabel">답</div>
+    <ul class="choices">
+      <li><span class="lab">A</span><span class="txt">CO₂의 부분압이 H₂보다 크다</span><span class="mc-code code-mis">DL4</span></li>
+      <li><span class="lab">B</span><span class="txt">H₂의 부분압이 CO₂보다 크다</span><span class="mc-code code-mis">속도 혼동</span></li>
+      <li class="correct"><span class="lab">C</span><span class="txt">두 기체의 부분압은 동일하다</span><span class="mc-code code-ok">정답</span></li>
+      <li><span class="lab">D</span><span class="txt">혼합 기체에서는 비교 불가</span><span class="mc-code code-mis">—</span></li>
+    </ul>
+    <div class="tierlabel">이유</div>
+    <ul class="choices">
+      <li><span class="lab">A</span><span class="txt">무거운 입자가 벽에 더 강하게 충돌해 큰 압력</span><span class="mc-code code-mis">DL4</span></li>
+      <li><span class="lab">B</span><span class="txt">가벼운 입자가 더 빠르게 움직여 더 자주 충돌</span><span class="mc-code code-mis">속도 혼동</span></li>
+      <li><span class="lab">C</span><span class="txt">혼합 기체는 완전히 섞여 단일 기체처럼 행동</span><span class="mc-code code-mis">단일화</span></li>
+      <li class="correct"><span class="lab">D</span><span class="txt">같은 온도·부피서 압력은 질량 아닌 입자 수(몰수)로 결정</span><span class="mc-code code-ok">정답</span></li>
+    </ul>
+    <div class="tiernote">확신도: 답 확신(1~5)</div>
+  </div>
+
+  <!-- Q10 -->
+  <div class="item">
+    <div class="qhead"><span class="qno">Q10</span></div>
+    <div class="stem">1기압 공기 = 질소(78%)+산소(21%)+미량 기체(1%). 미량 기체의 부분 압력은?</div>
+    <div class="tierlabel">답</div>
+    <ul class="choices">
+      <li><span class="lab">A</span><span class="txt">1기압</span><span class="mc-code code-mis">—</span></li>
+      <li><span class="lab">B</span><span class="txt">0기압 (무시할 수 있으므로)</span><span class="mc-code code-mis">DL9</span></li>
+      <li class="correct"><span class="lab">C</span><span class="txt">약 0.01기압</span><span class="mc-code code-ok">정답</span></li>
+      <li><span class="lab">D</span><span class="txt">약 0.5기압</span><span class="mc-code code-mis">—</span></li>
+    </ul>
+    <div class="tierlabel">이유</div>
+    <ul class="choices">
+      <li><span class="lab">A</span><span class="txt">양이 매우 적으면 압력 못 내 0으로 간주</span><span class="mc-code code-mis">DL9</span></li>
+      <li class="correct"><span class="lab">B</span><span class="txt">전체압 중 몰분율(비율)만큼 부분압을 가짐</span><span class="mc-code code-ok">정답</span></li>
+      <li><span class="lab">C</span><span class="txt">공기는 질소·산소 혼합물이라 나머지는 기여 안 함</span><span class="mc-code code-mis">기여 무시</span></li>
+      <li><span class="lab">D</span><span class="txt">모든 성분이 비율 무관하게 평균 압력</span><span class="mc-code code-mis">평균</span></li>
+    </ul>
+    <div class="tiernote">확신도: 답 확신(1~5)</div>
+  </div>
+
+  <!-- Q11 -->
+  <div class="item">
+    <div class="qhead"><span class="qno">Q11</span><span class="badge2 b-4tier">사층 4-tier</span><span class="badge2 b-transfer">통제 소척도</span></div>
+    <div class="stem">방 안 공기(질소·산소 혼합)가 안정 상태입니다. 천장 근처와 바닥 근처에서 산소의 부분 압력은? (단, 온도와 거시적 대기 흐름은 없다고 가정)</div>
+    <div class="tierlabel">답</div>
+    <ul class="choices">
+      <li><span class="lab">A</span><span class="txt">천장 근처가 더 높다</span><span class="mc-code code-mis">—</span></li>
+      <li><span class="lab">B</span><span class="txt">바닥 근처가 더 높다</span><span class="mc-code code-mis">중력 침강</span></li>
+      <li class="correct"><span class="lab">C</span><span class="txt">위치에 상관없이 동일하다</span><span class="mc-code code-ok">정답</span></li>
+      <li><span class="lab">D</span><span class="txt">위치에 따라 무작위로 변한다</span><span class="mc-code code-mis">무작위</span></li>
+    </ul>
+    <div class="tierlabel">이유</div>
+    <ul class="choices">
+      <li><span class="lab">A</span><span class="txt">산소는 무거워 중력으로 바닥에 가라앉아 압력 높아짐</span><span class="mc-code code-mis">중력 침강</span></li>
+      <li><span class="lab">B</span><span class="txt">산소는 가벼워 위로 떠오르려는 성질</span><span class="mc-code code-mis">부력</span></li>
+      <li class="correct"><span class="lab">C</span><span class="txt">입자가 끊임없이 운동하며 공간 전체에 고르게 퍼져 평형</span><span class="mc-code code-ok">정답</span></li>
+      <li><span class="lab">D</span><span class="txt">위치 따라 전체압 변하면 부분압도 평균 변함</span><span class="mc-code code-mis">연동</span></li>
+    </ul>
+    <div class="tiernote">확신도: 답 확신(1~5) + <strong style="color:#5b21b6">이유 확신(1~5) ← 사층</strong> · <strong style="color:#92400e">통제 소척도(5문항)</strong> 포함</div>
+  </div>
+
+  <!-- Q12 -->
+  <div class="item">
+    <div class="qhead"><span class="qno">Q12</span></div>
+    <div class="stem">밀폐 잠수함 공기 필터가 이산화탄소(CO₂)를 완전히 제거했습니다. 내부 공기의 전체 압력은?</div>
+    <div class="tierlabel">답</div>
+    <ul class="choices">
+      <li><span class="lab">A</span><span class="txt">변하지 않는다</span><span class="mc-code code-mis">연속체</span></li>
+      <li class="correct"><span class="lab">B</span><span class="txt">CO₂의 부분 압력만큼 감소한다</span><span class="mc-code code-ok">정답</span></li>
+      <li><span class="lab">C</span><span class="txt">오히려 증가한다</span><span class="mc-code code-mis">상호작용</span></li>
+      <li><span class="lab">D</span><span class="txt">0이 된다</span><span class="mc-code code-mis">—</span></li>
+    </ul>
+    <div class="tierlabel">이유</div>
+    <ul class="choices">
+      <li><span class="lab">A</span><span class="txt">공기는 단일 덩어리라 CO₂ 사라져도 다른 기체가 즉시 채워 압력 유지</span><span class="mc-code code-mis">연속체</span></li>
+      <li class="correct"><span class="lab">B</span><span class="txt">CO₂ 입자가 제거되면 그 입자들이 만들던 부분압 사라짐</span><span class="mc-code code-ok">정답</span></li>
+      <li><span class="lab">C</span><span class="txt">CO₂ 제거로 남은 질소·산소 상호작용 강해져 전체압 증가</span><span class="mc-code code-mis">상호작용</span></li>
+      <li><span class="lab">D</span><span class="txt">한 성분 사라지면 혼합물 화학적 성질 변해 압력 평균화</span><span class="mc-code code-mis">평균</span></li>
+    </ul>
+    <div class="tiernote">확신도: 답 확신(1~5)</div>
+  </div>
+</section>
+
+<!-- ===== CONTROL SUBSCALE ===== -->
+<section id="control">
+  <h2><span class="num">통제</span> 통제 문항 세트 — 시뮬 미연결 보일·돌턴 (5문항)</h2>
+  <p class="lede">정의 = <strong>이 시뮬레이션이 직접 보여주지 않는 보일·돌턴 개념</strong> 문항. (좁은 단일 구인으로 제한하지 않음 — '시뮬 미연결'이 유일 기준.) 시뮬 효과의 <strong>특이성(specificity) 확인용 통제 세트</strong>: 사후에도 변화가 없어야 "효과가 시뮬이 보여준 것에 한정됨"을 입증. 분석은 <strong>합산 점수 + 문항별</strong> 병행, 내적 일관성(α)은 참고 지표로만(통제 세트는 단일 구인보다 내용 대표성이 우선).</p>
+  <table>
+    <thead><tr><th style="width:18%">문항</th><th>변수</th><th>정답</th></tr></thead>
+    <tbody>
+      <tr><td>Q5 (기존)</td><td>용기 모양 (둥근 vs 원통)</td><td>같다</td></tr>
+      <tr><td>Q11 (기존)</td><td>높이/중력 (천장 vs 바닥)</td><td>동일</td></tr>
+      <tr><td>N1 (신설)</td><td>용기 재질 (유리 vs 강철)</td><td>같다</td></tr>
+      <tr><td>N2 (신설)</td><td>시간 경과 (1시간 후)</td><td>동일</td></tr>
+      <tr><td>N3 (신설)</td><td>용기 자세 (세움 vs 눕힘)</td><td>같다</td></tr>
+    </tbody>
+  </table>
+  <div class="callout warn"><strong>반응 편향 방지</strong>: 5문항 정답이 모두 "동일/같다"라 무조건 "같다" 찍으면 만점 위험 → ① <strong>이유 단계까지 맞아야 득점</strong>(핵심 방어) · ② 선지 정답 위치 섞기(B·C·B·C·C) · ③ 실제 폼에서 본 문항들 사이에 흩어 배치(연속 출제 금지) · ④ 채점 시 "답만 맞고 이유 틀림"을 별도 집계해 단순 패턴 응답 탐지.</div>
+
+  <!-- N1 -->
+  <div class="item">
+    <div class="qhead"><span class="qno">N1</span><span class="badge2 b-new">신설</span><span class="badge2 b-transfer">통제</span> <span style="font-weight:600;color:var(--primary)">용기 재질</span></div>
+    <div class="stem">같은 부피·온도·몰수의 기체가 하나는 유리 용기(5 L)에, 다른 하나는 강철 용기(5 L)에 들어 있습니다. 두 용기의 압력은?</div>
+    <div class="tierlabel">답</div>
+    <ul class="choices">
+      <li><span class="lab">A</span><span class="txt">강철 용기의 압력이 더 높다</span><span class="mc-code code-mis">재질 의존</span></li>
+      <li class="correct"><span class="lab">B</span><span class="txt">두 용기의 압력은 같다</span><span class="mc-code code-ok">정답</span></li>
+      <li><span class="lab">C</span><span class="txt">유리 용기의 압력이 더 높다</span><span class="mc-code code-mis">재질 의존</span></li>
+      <li><span class="lab">D</span><span class="txt">재질에 따라 달라져 예측 불가</span><span class="mc-code code-mis">재질 의존</span></li>
+    </ul>
+    <div class="tierlabel">이유</div>
+    <ul class="choices">
+      <li><span class="lab">A</span><span class="txt">단단한 강철이 기체를 더 강하게 압박하기 때문</span><span class="mc-code code-mis">재질</span></li>
+      <li class="correct"><span class="lab">B</span><span class="txt">압력은 입자 수·온도·부피로 결정되며 용기 재질과 무관</span><span class="mc-code code-ok">정답</span></li>
+      <li><span class="lab">C</span><span class="txt">유리는 잘 팽창해 기체가 더 큰 압력을 내기 때문</span><span class="mc-code code-mis">재질</span></li>
+      <li><span class="lab">D</span><span class="txt">재질마다 기체와의 상호작용이 다르기 때문</span><span class="mc-code code-mis">재질 상호작용</span></li>
+    </ul>
+    <div class="tiernote">확신도: 답 확신(1~5) · <strong style="color:#92400e">통제 소척도</strong></div>
+  </div>
+
+  <!-- N2 -->
+  <div class="item">
+    <div class="qhead"><span class="qno">N2</span><span class="badge2 b-new">신설</span><span class="badge2 b-transfer">통제</span> <span style="font-weight:600;color:var(--primary)">시간 경과</span></div>
+    <div class="stem">밀폐된 용기에 기체를 넣고, 온도 변화와 기체 누출이 전혀 없는 상태로 1시간 두었습니다. 1시간 후 내부 압력은 처음과 비교해 어떻습니까?</div>
+    <div class="tierlabel">답</div>
+    <ul class="choices">
+      <li><span class="lab">A</span><span class="txt">점점 감소한다</span><span class="mc-code code-mis">운동 소멸</span></li>
+      <li><span class="lab">B</span><span class="txt">점점 증가한다</span><span class="mc-code code-mis">시간 오개념</span></li>
+      <li class="correct"><span class="lab">C</span><span class="txt">처음과 동일하게 유지된다</span><span class="mc-code code-ok">정답</span></li>
+      <li><span class="lab">D</span><span class="txt">오르내리다가 결국 0이 된다</span><span class="mc-code code-mis">시간 오개념</span></li>
+    </ul>
+    <div class="tierlabel">이유</div>
+    <ul class="choices">
+      <li><span class="lab">A</span><span class="txt">시간이 지나면 입자 운동이 점차 잦아들기 때문</span><span class="mc-code code-mis">운동 소멸</span></li>
+      <li class="correct"><span class="lab">B</span><span class="txt">조건(몰수·부피·온도) 변화가 없으면 압력은 일정하게 유지</span><span class="mc-code code-ok">정답</span></li>
+      <li><span class="lab">C</span><span class="txt">시간이 지나면 입자들이 바닥으로 가라앉기 때문</span><span class="mc-code code-mis">침강</span></li>
+      <li><span class="lab">D</span><span class="txt">기체가 미세하게 새어 나가 압력이 줄기 때문</span><span class="mc-code code-mis">누출 가정 위반</span></li>
+    </ul>
+    <div class="tiernote">확신도: 답 확신(1~5) · <strong style="color:#92400e">통제 소척도</strong></div>
+  </div>
+
+  <!-- N3 -->
+  <div class="item">
+    <div class="qhead"><span class="qno">N3</span><span class="badge2 b-new">신설</span><span class="badge2 b-transfer">통제</span> <span style="font-weight:600;color:var(--primary)">용기 자세</span></div>
+    <div class="stem">같은 기체가 든 밀폐 용기를 똑바로 세워 두었을 때와 옆으로 눕혀 두었을 때, 용기 내부의 전체 압력은?</div>
+    <div class="tierlabel">답</div>
+    <ul class="choices">
+      <li><span class="lab">A</span><span class="txt">세웠을 때가 더 높다</span><span class="mc-code code-mis">자세 의존</span></li>
+      <li><span class="lab">B</span><span class="txt">눕혔을 때가 더 높다</span><span class="mc-code code-mis">자세 의존</span></li>
+      <li class="correct"><span class="lab">C</span><span class="txt">두 경우의 압력은 같다</span><span class="mc-code code-ok">정답</span></li>
+      <li><span class="lab">D</span><span class="txt">놓는 방향에 따라 달라진다</span><span class="mc-code code-mis">자세 의존</span></li>
+    </ul>
+    <div class="tierlabel">이유</div>
+    <ul class="choices">
+      <li><span class="lab">A</span><span class="txt">세우면 기체가 중력으로 아래로 눌려 압력이 커지기 때문</span><span class="mc-code code-mis">중력</span></li>
+      <li><span class="lab">B</span><span class="txt">눕히면 기체가 넓게 퍼져 벽을 더 많이 누르기 때문</span><span class="mc-code code-mis">표면적 오개념</span></li>
+      <li class="correct"><span class="lab">C</span><span class="txt">입자는 모든 방향으로 무작위 운동하므로 용기 방향과 무관</span><span class="mc-code code-ok">정답</span></li>
+      <li><span class="lab">D</span><span class="txt">용기를 놓는 방향이 입자 운동 방향을 결정하기 때문</span><span class="mc-code code-mis">방향 결정 오개념</span></li>
+    </ul>
+    <div class="tiernote">확신도: 답 확신(1~5) · <strong style="color:#92400e">통제 소척도</strong></div>
+  </div>
+</section>
+
+<!-- ===== Q13 ===== -->
+<section id="q13">
+  <h2><span class="num">4</span> Q13 — 압력의 본질 / 발생 기전 (신설)</h2>
+  <p class="lede">기체 압력이 <strong>어디서 생기는가</strong>(입자 운동·충돌)를 묻는 개념 문항. 보일·돌턴 양쪽의 토대인데 기존 문항이 standalone으로 안 다룸. "압력 = 기체 무게/내재적 힘" 심상을 끄집어냄. 계산·시뮬 언급 없음.</p>
+  <div class="item">
+    <div class="qhead"><span class="qno">Q13</span><span class="badge2 b-new">신설</span></div>
+    <div class="stem">어떤 기체의 입자들이 (가상으로) 모두 정지했다고 하자. 이 기체가 밀폐 용기 벽에 작용하는 압력은 어떻게 되는가?</div>
+    <div class="tierlabel">답</div>
+    <ul class="choices">
+      <li class="correct"><span class="lab">A</span><span class="txt">0이 된다</span><span class="mc-code code-ok">정답</span></li>
+      <li><span class="lab">B</span><span class="txt">변하지 않는다</span><span class="mc-code code-mis">압력=무게/존재</span></li>
+      <li><span class="lab">C</span><span class="txt">오히려 커진다</span><span class="mc-code code-mis">밀집 오개념</span></li>
+      <li><span class="lab">D</span><span class="txt">절반이 된다</span><span class="mc-code code-mis">부분 기여</span></li>
+    </ul>
+    <div class="tierlabel">이유</div>
+    <ul class="choices">
+      <li class="correct"><span class="lab">A</span><span class="txt">압력은 운동하는 입자가 벽에 충돌하며 생기므로, 충돌이 없으면 압력도 없다</span><span class="mc-code code-ok">정답</span></li>
+      <li><span class="lab">B</span><span class="txt">기체도 무게가 있어 정지해도 벽을 누르기 때문</span><span class="mc-code code-mis">압력=무게</span></li>
+      <li><span class="lab">C</span><span class="txt">입자가 멈추면 바닥에 쌓여 밀도가 커지기 때문</span><span class="mc-code code-mis">침강·밀도</span></li>
+      <li><span class="lab">D</span><span class="txt">입자 운동은 압력의 일부에만 기여하기 때문</span><span class="mc-code code-mis">부분 기여</span></li>
+    </ul>
+    <div class="tiernote">확신도: 답 확신(1~5) · 압력의 KMT 기전(운동→충돌→압력)을 직접 진단. 다른 문항과 묻는 바가 완전히 다른 토대 개념.</div>
+  </div>
+</section>
+
+<!-- ===== DRAWING ===== -->
+<section id="draw">
+  <h2><span class="num">5</span> 입자 그리기 D1·D2 (신설)</h2>
+  <p class="lede">학생이 미시 표상을 직접 산출하도록 요구. Google Form은 자유 그리기 미지원 → <strong>이미지 업로드 문항</strong> 또는 <strong>별지(종이)</strong> 병행. 채점은 각 5점 루브릭(채점자 2명 이상, 일치도 점검).</p>
+
+  <div class="item">
+    <div class="qhead"><span class="qno">D1</span><span class="badge2 b-new">신설</span> <span style="font-weight:600;color:var(--primary)">보일 압축 입자 표상</span></div>
+    <div class="stem"><strong>지시문</strong>: 부피 V인 주사기에 기체 분자 8개가 흩어져 있다. 손잡이를 눌러 부피를 V/2로 줄였다.<br/>
+      (1) 압축 직후 분자의 분포·운동을 빈 상자에 그려라 (분자 개수·크기·간격·운동 화살표 포함).<br/>
+      (2) 그렇게 그린 이유를 2~3문장으로 적어라.</div>
+    <table>
+      <thead><tr><th style="width:60%">채점 기준 (각 1점, 총 5점)</th><th>핵심</th></tr></thead>
+      <tbody>
+        <tr><td>① 입자 개수 보존 (압축 전과 동일 8개)</td><td>BL3 반대</td></tr>
+        <tr><td>② 입자 크기 불변 (분자 자체는 압축 안 됨)</td><td>BL2/PN3 반대</td></tr>
+        <tr><td>③ 분포 균일성 (한쪽 쏠림·바닥 쌓임 없음)</td><td>중력/상태 오개념 반대</td></tr>
+        <tr><td>④ 운동 표시 (일부 분자에 화살표/운동 묘사)</td><td>입자 운동성</td></tr>
+        <tr><td>⑤ 이유 진술 정합성 (변화를 충돌·간격으로 설명)</td><td>기전 이해</td></tr>
+      </tbody>
+    </table>
+    <div class="svg-row" style="display:flex;gap:14px;flex-wrap:wrap;margin-top:10px">
+      <div style="text-align:center">
+        <svg width="80" height="100" viewBox="0 0 80 100"><rect x="5" y="5" width="70" height="90" fill="none" stroke="#374151" stroke-width="1.5"/>
+        <circle cx="18" cy="20" r="5" fill="#059669"/><circle cx="42" cy="18" r="5" fill="#059669"/><circle cx="62" cy="32" r="5" fill="#059669"/><circle cx="28" cy="42" r="5" fill="#059669"/><circle cx="55" cy="55" r="5" fill="#059669"/><circle cx="22" cy="68" r="5" fill="#059669"/><circle cx="50" cy="78" r="5" fill="#059669"/><circle cx="18" cy="88" r="5" fill="#059669"/></svg>
+        <div style="font-size:12px;color:var(--ok);font-weight:600">✓ 정답 모델</div>
+        <div style="font-size:11px;color:var(--muted)">개수 8·크기 동일·균일</div>
+      </div>
+      <div style="text-align:center">
+        <svg width="80" height="100" viewBox="0 0 80 100"><rect x="5" y="5" width="70" height="90" fill="none" stroke="#374151" stroke-width="1.5"/>
+        <circle cx="18" cy="20" r="2.5" fill="#dc2626"/><circle cx="42" cy="18" r="2.5" fill="#dc2626"/><circle cx="62" cy="32" r="2.5" fill="#dc2626"/><circle cx="28" cy="42" r="2.5" fill="#dc2626"/><circle cx="55" cy="55" r="2.5" fill="#dc2626"/><circle cx="22" cy="68" r="2.5" fill="#dc2626"/><circle cx="50" cy="78" r="2.5" fill="#dc2626"/><circle cx="18" cy="88" r="2.5" fill="#dc2626"/></svg>
+        <div style="font-size:12px;color:var(--warn);font-weight:600">✗ BL2</div>
+        <div style="font-size:11px;color:var(--muted)">입자 크기 작아짐</div>
+      </div>
+      <div style="text-align:center">
+        <svg width="80" height="100" viewBox="0 0 80 100"><rect x="5" y="5" width="70" height="90" fill="none" stroke="#374151" stroke-width="1.5"/>
+        <circle cx="22" cy="22" r="5" fill="#dc2626"/><circle cx="55" cy="32" r="5" fill="#dc2626"/><circle cx="30" cy="60" r="5" fill="#dc2626"/><circle cx="50" cy="78" r="5" fill="#dc2626"/></svg>
+        <div style="font-size:12px;color:var(--warn);font-weight:600">✗ BL3</div>
+        <div style="font-size:11px;color:var(--muted)">입자 수 감소</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="item">
+    <div class="qhead"><span class="qno">D2</span><span class="badge2 b-new">신설</span> <span style="font-weight:600;color:var(--primary)">돌턴 분압 입자 표상</span></div>
+    <div class="stem"><strong>지시문</strong>: 같은 부피·온도의 용기 A, B. A에 He(○) 6개, B에 Ne(●) 6개. B의 입자를 모두 A로 옮겨 혼합했다.<br/>
+      (1) 혼합 후 용기 A의 입자 상태를 그려라.<br/>
+      (2) 혼합 전후 He 분압, Ne 분압, 전체 압력의 관계를 한 문장으로 적어라.</div>
+    <table>
+      <thead><tr><th style="width:60%">채점 기준 (각 1점, 총 5점)</th><th>핵심</th></tr></thead>
+      <tbody>
+        <tr><td>① 입자 총 수 보존 (12개 모두 표현)</td><td>보존</td></tr>
+        <tr><td>② 종 구분 표시 (He·Ne 시각적 구분)</td><td>혼합 표상</td></tr>
+        <tr><td>③ 혼합 균일성 (층화·분리 없음)</td><td>DL4 반대</td></tr>
+        <tr><td>④ 분압 독립성 진술 (P<sub>He</sub>·P<sub>Ne</sub> 각 1기압 유지)</td><td>DL1 반대</td></tr>
+        <tr><td>⑤ 총압 가법성 진술 (P<sub>전체</sub> = P<sub>He</sub> + P<sub>Ne</sub> = 2기압)</td><td>DL2 반대</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ===== SCORING ===== -->
+<section id="score">
+  <h2><span class="num">6</span> 채점 요약 (개정판)</h2>
+  <table>
+    <thead><tr><th>유형</th><th>문항</th><th>채점</th><th>소계</th></tr></thead>
+    <tbody>
+      <tr><td>참·거짓형</td><td>10개</td><td>정답 1점</td><td>10</td></tr>
+      <tr><td>객관식 삼층</td><td>Q1·Q2·Q5·Q6·Q8·Q9·Q10·Q12·Q13 + N1·N2·N3 (12개)</td><td>답 1 + 이유 1</td><td>24</td></tr>
+      <tr><td>객관식 사층</td><td>Q3·Q4·Q7·Q11 (4개)</td><td>답 1 + 이유 1 (+ 이유 확신도로 판별)</td><td>8</td></tr>
+      <tr><td>입자 그리기</td><td>D1·D2</td><td>각 5점 루브릭</td><td>10</td></tr>
+      <tr style="background:rgba(217,119,6,.1)"><td><strong>합계</strong></td><td><strong>총 28 stem</strong></td><td></td><td><strong>52점</strong></td></tr>
+    </tbody>
+  </table>
+  <div class="callout note"><strong>분리 보고</strong>: 전체 점수와 별도로 — ① 시뮬 직접효과 점수(통제 5문항 제외) ② 통제 소척도 점수(Q5·Q11·N1·N2·N3 — 신뢰도 α 산출) ③ 확신도 기반 위장정답·견고한 오개념 분류. 사전→사후 효과는 ①에서 Hake's g·Cohen's d 산출하고, ②는 변화가 없어야(시뮬 효과의 특이성 입증) 정상.</div>
+  <div class="callout warn"><strong>주의</strong>: 정답·오개념 코드 표시는 작성자 검토용입니다. 실제 응답자 배포본에서는 제거하세요.</div>
+</section>
+
+</div>
+</main>
+
+<footer>
+  <div class="wrap">
+    개정판 v1 · 2026-05-21 · 통합 수정 방향 전부 반영 (참·거짓 균형화 · 사층 4문항 · Q13 신설 · D1·D2 · Q7 정리 · Q11 단서 · 전이 분리) ·
+    파일럿·전문가 검토(CVI) 후 확정
+  </div>
+</footer>
+
+</body>
+</html>

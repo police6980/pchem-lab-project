@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>기체 개념 검사지 — 종합 문서 (구조·용어·분석)</title>
+<style>
+*{box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{margin:0;font-family:"Pretendard","Apple SD Gothic Neo","Noto Sans KR",system-ui,sans-serif;background:#f7f7f5;color:#1f2937;line-height:1.6;font-size:15px;}
+:root{--primary:#1e3a8a;--accent:#d97706;--ok:#059669;--warn:#dc2626;--muted:#6b7280;--line:#e5e7eb;}
+.wrap{max-width:1060px;margin:0 auto;padding:0 24px;}
+header.top{background:linear-gradient(135deg,#1e3a8a,#1e40af 50%,#312e81);color:#fff;padding:38px 0 46px;border-bottom:6px solid var(--accent);}
+header .badge{display:inline-block;background:rgba(255,255,255,.18);padding:4px 10px;border-radius:999px;font-size:12px;margin-bottom:10px;}
+header h1{margin:0 0 6px;font-size:25px;}
+header .sub{opacity:.88;font-size:14px;max-width:820px;}
+header .links{margin-top:13px;font-size:13px;}header .links a{color:#fff;opacity:.85;margin-right:14px;}
+nav.sticky{position:sticky;top:0;z-index:50;background:rgba(255,255,255,.95);backdrop-filter:blur(8px);border-bottom:1px solid var(--line);}
+nav.sticky .navbar{display:flex;gap:2px;overflow-x:auto;padding:8px 0;}
+nav.sticky a{flex:0 0 auto;padding:8px 13px;border-radius:6px;font-size:13px;color:var(--muted);font-weight:500;white-space:nowrap;text-decoration:none;}
+main{padding:34px 0 80px;}
+section{background:#fff;border-radius:12px;padding:24px 28px;margin-bottom:22px;box-shadow:0 1px 3px rgba(0,0,0,.06),0 6px 24px rgba(0,0,0,.04);border:1px solid var(--line);}
+section h2{margin:0 0 4px;font-size:20px;color:var(--primary);border-bottom:2px solid var(--accent);padding-bottom:9px;display:flex;align-items:center;gap:9px;}
+section h2 .num{background:var(--accent);color:#fff;font-size:12.5px;padding:2px 9px;border-radius:999px;font-weight:600;}
+h3{font-size:15.5px;margin:20px 0 7px;color:#111;border-left:4px solid var(--accent);padding-left:9px;}
+.lede{margin:13px 0 16px;color:var(--muted);font-size:13.5px;}
+table{width:100%;border-collapse:collapse;margin:11px 0;font-size:13px;}
+th,td{border:1px solid var(--line);padding:7px 9px;text-align:left;vertical-align:top;}
+th{background:#f3f4f6;color:var(--primary);}
+tr:nth-child(even) td{background:#fafafa;}
+code{background:#fef3c7;padding:1px 5px;border-radius:3px;font-family:ui-monospace,monospace;font-size:12px;}
+.callout{background:#f0f9ff;border-left:4px solid #3b82f6;padding:12px 16px;margin:13px 0;border-radius:4px;font-size:13px;}
+.callout.warn{background:#fef2f2;border-left-color:var(--warn);}.callout.ok{background:#f0fdf4;border-left-color:var(--ok);}.callout.note{background:#fffbeb;border-left-color:var(--accent);}
+.code{font-weight:700;color:var(--primary);}
+.pill{display:inline-block;padding:1px 7px;border-radius:999px;font-size:11px;font-weight:600;}
+.p-direct{background:#d1fae5;color:#065f46;}.p-transfer{background:#fef3c7;color:#92400e;}
+.tf-true{color:var(--ok);font-weight:700;}.tf-false{color:var(--warn);font-weight:700;}
+footer{text-align:center;font-size:12px;color:var(--muted);padding:24px 0;border-top:1px solid var(--line);margin-top:34px;}
+@media print{body{background:#fff;}nav.sticky{display:none;}section{box-shadow:none;border:1px solid #ccc;page-break-inside:avoid;}header.top{background:#1e3a8a !important;-webkit-print-color-adjust:exact;print-color-adjust:exact;}}
+</style>
+</head>
+<body>
+<header class="top"><div class="wrap">
+  <span class="badge">MASTER · 구조 · 용어 · 분석</span>
+  <h1>기체 개념 삼층 진단 검사지 — 종합 문서</h1>
+  <p class="sub">보일·돌턴 기체 개념 진단검사(대학생/예비교사, 시뮬레이션반 vs 비교반, 사전·사후). 핵심 오개념 7개 × (진위형 1 + 객관식 2). 구조·용어·문항 구성·진위↔객관식 연결·분석 방법을 한 문서에. 정답·코드는 연구자용(배포본 비공개).</p>
+  <div class="links">관련: <a href="검사지-최종문항.html">전체 문항(정본, 작성자용)</a> · <a href="검사지-배포본.html">배포용 설문</a> · <a href="검사지-수정메모.md">수정 메모</a></div>
+</div></header>
+<nav class="sticky"><div class="wrap"><div class="navbar">
+  <a href="#terms">용어</a><a href="#structure">구조</a><a href="#items">문항 구성</a><a href="#link">진위↔객관식 연결</a><a href="#analysis">분석 방법</a><a href="#next">다음 단계</a>
+</div></div></nav>
+<main><div class="wrap">
+
+<section id="terms">
+  <h2><span class="num">용어</span> 용어·약어</h2>
+  <table>
+    <thead><tr><th style="width:22%">용어</th><th>뜻</th></tr></thead>
+    <tbody>
+      <tr><td><strong>진위형 문항</strong></td><td>진술이 과학적으로 맞는지 참·거짓으로 답하는 문항. 오개념을 빠르게 가려내는 1차 선별용. 오개념마다 1문항.</td></tr>
+      <tr><td><strong>객관식 문항(선다형)</strong></td><td>여러 보기 중에서 고르는 문항. 오개념마다 2문항(서로 다른 측면·형식).</td></tr>
+      <tr><td><strong>삼층 진단 문항</strong></td><td>객관식 한 문항을 ① 답 ② 그렇게 답한 이유 ③ 확신 정도(1~5점)의 세 층으로 구성. 우연히 맞힌 답과 확신에 찬 오개념을 구별한다.</td></tr>
+      <tr><td><strong>그림 선택형 문항</strong></td><td>보기가 글이 아니라 그림(입자 배치·그래프)인 객관식. 시각적 표상으로 이해를 측정.</td></tr>
+      <tr><td><strong>오답 보기</strong></td><td>정답이 아닌 보기. 각 오답 보기는 특정 오개념에 대응하도록 설계한다.</td></tr>
+      <tr><td><strong>인지적 측면</strong></td><td>같은 오개념을 묻는 방식: 직접 판단 / 변화 구분 / 실제 상황 / 현상 설명 / 표상 비판 / 그림 선택 등. 한 오개념의 두 객관식은 서로 다른 측면으로 만든다(거의 같은 쌍둥이 문항 금지).</td></tr>
+      <tr><td><strong>오개념 교정률</strong></td><td>사전에 오개념을 가졌던 학생 중 사후에 과학 개념으로 바뀐 비율.</td></tr>
+      <tr><td><strong>정규화 이득 / 효과크기</strong></td><td>향상 정도를 나타내는 지표 — 정규화 이득(Hake's g)과 효과크기(Cohen's d).</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section id="structure">
+  <h2><span class="num">0</span> 검사지 구조</h2>
+  <p class="lede">핵심 오개념 <strong>7개</strong>(보일 3·돌턴 2·기체 일반 2). 각 오개념 = 진위형 1문항 + 객관식 2문항. 진위형은 객관식과 <strong>서로 다른 측면</strong>을 물어 중복과 정답 단서 노출을 피한다. 구조는 <strong>3개 상위 영역(보일·돌턴·기체 일반) × 하위 오개념</strong>의 위계이며, 확증 비교와 신뢰도는 영역 단위로 본다.</p>
+  <table>
+    <thead><tr><th style="width:20%">블록</th><th style="width:14%">문항</th><th>역할</th></tr></thead>
+    <tbody>
+      <tr><td>응답자 정보</td><td>메타 4</td><td>이메일·소속·성별·학년</td></tr>
+      <tr><td>진위형</td><td>7 (오개념당 1)</td><td>빠른 스크리닝(보유 여부). 참 3 / 거짓 4</td></tr>
+      <tr><td>객관식(삼층 진단)</td><td>14 (오개념당 2)</td><td>심층 진단(답·이유·확신 정도, 서로 다른 측면)</td></tr>
+    </tbody>
+  </table>
+  <div class="callout note">대상(고3/대학생/예비교사) 차이로 문항이 달라지지 않음(보일·돌턴 개념 공통). 자유 그리기는 미포함. <strong>온도 관련 오개념(샤를·게이뤼삭)은 처치 도구(시뮬레이션)가 온도를 다루지 않으므로 구인 범위 밖</strong>으로 의도적으로 제외한다.</div>
+</section>
+
+<section id="items">
+  <h2><span class="num">1</span> 오개념 7개 · 문항 구성</h2>
+  <table>
+    <thead><tr><th style="width:6%">코드</th><th style="width:16%">오개념</th><th style="width:34%">진위형 (정답)</th><th>객관식 2 (각도/형식)</th></tr></thead>
+    <tbody>
+      <tr><td class="code">B1</td><td>압력과 부피의 관계</td><td>기체의 부피를 늘리면 압력도 함께 커진다. <span class="tf-false">(거짓)</span></td><td>주사기를 압축할 때 압력이 어떻게 변하는지 묻는 직접 판단 문항, 그리고 압력과 부피의 관계를 나타낸 그래프를 고르는 그림 선택형 문항.</td></tr>
+      <tr><td class="code">B2</td><td>압축·팽창 시 입자 보존</td><td>기체를 압축하면 분자들이 서로 합쳐져 더 큰 분자가 된다. <span class="tf-false">(거짓)</span></td><td>압축한 뒤 입자의 모습을 고르는 그림 선택형 문항(크기·개수와 '입자 사이가 빈 공간인지'를 함께 진단), 그리고 팽창하는 헬륨 풍선 속 기체의 질량을 묻는 문항.</td></tr>
+      <tr><td class="code">B3</td><td>진공 흡입</td><td>진공은 주변 기체를 빨아들이는 힘을 가진다. <span class="tf-false">(거짓)</span></td><td>끝이 막힌 주사기를 당겨 부피를 늘릴 때 압력이 어떻게 되는지 묻는 문항, 그리고 빨대로 음료가 올라오는 이유를 묻는 문항.</td></tr>
+      <tr><td class="code">D1</td><td>돌턴 법칙 기본(분포와 독립성)</td><td>혼합 기체의 전체 압력은 각 부분 압력의 합이다. <span class="tf-true">(참)</span></td><td>혼합한 두 기체가 어떻게 분포하는지 묻는 문항(분리되지 않고 고르게 섞임), 그리고 다른 기체를 더 넣어도 각 기체의 부분 압력이 변하지 않는지(독립성)를 묻는 문항.</td></tr>
+      <tr><td class="code">D2</td><td>압력과 분자량의 관계</td><td>혼합 기체에서는 무거운 기체가 압력의 대부분을 차지한다. <span class="tf-false">(거짓)</span></td><td>무게가 다른 두 기체의 부분 압력을 비교하는 문항(압력은 분자량과 무관), 그리고 충돌하며 시간이 지나도 각 기체의 부분 압력이 변하지 않는지 묻는 문항.</td></tr>
+      <tr><td class="code">G1</td><td>압력의 본질</td><td>기체의 압력은 분자들이 용기 벽에 충돌하기 때문에 생긴다. <span class="tf-true">(참)</span></td><td>기체가 벽을 누르는 근본 원인을 묻는 문항, 그리고 무중력 상태에서의 압력을 비교하는 문항.</td></tr>
+      <tr><td class="code">G2</td><td>압력과 무관한 변수</td><td>용기의 모양이나 재질이 달라도 온도·부피·기체의 양이 같으면 압력은 같다. <span class="tf-true">(참)</span></td><td>시간이 지난 뒤 압력이 어떻게 되는지 묻는 문항, 그리고 용기의 윗면과 아랫면이 받는 압력을 비교하는 문항(등방성).</td></tr>
+    </tbody>
+  </table>
+  <p class="lede">합계: 진위형 7 + 객관식 14. 각 오개념의 두 객관식은 서로 다른 인지적 측면·형식으로(쌍둥이 금지), 진위형은 또 다른 측면을 물어 중복과 정답 단서 노출을 피한다.</p>
+</section>
+
+<section id="link">
+  <h2><span class="num">2</span> 진위↔객관식 연결 (중복 회피 설계)</h2>
+  <p class="lede">같은 오개념을 두 형식으로 측정하되, <strong>진위형은 객관식과 서로 다른 측면·맥락</strong>으로 만들어 정답 단서 노출과 쌍둥이 문항을 피한다.</p>
+  <table>
+    <thead><tr><th style="width:6%">코드</th><th style="width:24%">진위형 (다른 측면)</th><th>객관식 1 / 객관식 2 (측면)</th><th style="width:14%">차이</th></tr></thead>
+    <tbody>
+      <tr><td class="code">B1</td><td>기체를 팽창시킬 때 압력이 함께 커진다고 보는지(정비례 오개념)를 묻는다.</td><td>압축할 때의 정량적 압력 변화를 묻는 문항과, 압력–부피 관계 그래프를 고르는 문항.</td><td>진위형은 팽창, 객관식은 압축으로 방향이 다르고 글과 그래프로 형식도 다르다.</td></tr>
+      <tr><td class="code">B2</td><td>압축하면 분자가 서로 합쳐진다고 보는지(입자 융합)를 묻는다.</td><td>압축 후 입자의 크기·개수와 '사이가 빈 공간인지'를 묻는 문항과, 팽창 시 질량을 묻는 문항.</td><td>융합이라는, 객관식이 다루지 않는 다른 측면을 묻는다.</td></tr>
+      <tr><td class="code">B3</td><td>진공이 주변 기체를 빨아들이는 힘을 가진다고 보는지(진공 흡입)를 묻는다.</td><td>막힌 주사기를 당길 때 압력이 어떻게 되는지 묻는 문항과, 빨대로 음료가 올라오는 이유를 묻는 문항.</td><td>진위형은 '진공의 힘' 일반 진술을, 객관식은 압력 차로 밀려나는 실제 상황을 묻는다.</td></tr>
+      <tr><td class="code">D1</td><td>전체 압력이 부분 압력의 합인지(가법성)를 묻는다.</td><td>혼합 기체의 분포를 묻는 문항과, 다른 기체를 더 넣었을 때 분압이 변하지 않는지(독립성)를 묻는 문항.</td><td>전체 압력의 합(진위형)과 분포·독립성(객관식)으로 측면이 다르다.</td></tr>
+      <tr><td class="code">D2</td><td>무거운 기체가 압력의 대부분을 차지한다는 오개념 진술의 참·거짓을 묻는다.</td><td>두 기체의 부분 압력을 비교하는 문항과, 충돌·시간이 지난 뒤 부분 압력이 변하는지 묻는 문항.</td><td>진위형은 오개념을 그대로 진술하므로 객관식 정답의 단서가 되지 않는다.</td></tr>
+      <tr><td class="code">G1</td><td>압력이 분자의 벽 충돌에서 생긴다는 올바른 원리를 참·거짓으로 묻는다.</td><td>압력의 근본 원인을 묻는 문항과, 무중력 상태의 압력을 비교하는 문항.</td><td>진위형은 원리를 일반 진술로, 객관식은 구체적 상황으로 묻는다.</td></tr>
+      <tr><td class="code">G2</td><td>모양·재질이 압력과 무관하다는 올바른 원리를 묻는다.</td><td>시간 경과에 따른 압력을 묻는 문항과, 윗면·아랫면의 압력을 비교하는 문항.</td><td>모양·재질이라는, 객관식(시간·등방성)이 다루지 않는 무관 변수를 묻는다.</td></tr>
+    </tbody>
+  </table>
+  <div class="callout"><strong>연결의 쓸모</strong>: ① 교차 검증(두 형식이 같은 오개념을 잡아내는가) ② <strong>표면 변화 vs 깊은 변화</strong> — 진위형·객관식의 답은 표면, 객관식의 이유는 깊은 이해. ※ 참인 진위형(D1 합)은 객관식이 다루지 않는 측면이라 정답 단서가 되지 않는다. 실제 배포 시 진위형과 객관식을 떨어뜨려 무작위 배치한다.</div>
+</section>
+
+<section id="analysis">
+  <h2><span class="num">3</span> 분석 방법 (학생 이해도 변화 중심)</h2>
+  <p class="lede">관심은 "수업이 학생의 개념을 실제로 바꿨는가". 핵심 통계 네 가지만 — 무리하게 늘리지 않는다.</p>
+
+  <h3>데이터에서 분석까지 — 한눈에 보는 흐름</h3>
+  <div style="display:flex;flex-wrap:wrap;align-items:stretch;gap:6px;margin:12px 0;font-size:12.5px;">
+    <div style="flex:1;min-width:138px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:10px;"><strong>① 원자료</strong><br>학생별 사전·사후 응답<br>(진위형 정·오, 객관식 답·이유·확신 정도)</div>
+    <div style="align-self:center;font-size:22px;color:var(--accent);">→</div>
+    <div style="flex:1;min-width:138px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:10px;"><strong>② 코딩</strong><br>오개념마다 "과학 개념 / 오개념"으로 분류.<br>'답만' 과 '답+이유' 를 따로 표시</div>
+    <div style="align-self:center;font-size:22px;color:var(--accent);">→</div>
+    <div style="flex:1;min-width:138px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:10px;"><strong>③ 지표 산출</strong><br>교정률 · 정규화 이득 · 표면/깊이 점수</div>
+    <div style="align-self:center;font-size:22px;color:var(--accent);">→</div>
+    <div style="flex:1;min-width:138px;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:10px;"><strong>④ 집단 비교</strong><br>시뮬레이션반 vs 비교반<br>(그래프·통계 검정)</div>
+  </div>
+
+  <h3>① 오개념 교정률 — 가장 직관적</h3>
+  <p>오개념마다, 사전에 그 오개념을 가졌던 학생 중 사후에 과학 개념으로 바뀐 비율. '그대로 유지(잔존)'·'새로 생김(퇴행)'도 함께 본다. 아래는 한 오개념의 사전·사후 교차표 예시(시뮬레이션반 30명).</p>
+  <table style="max-width:440px;">
+    <thead><tr><th></th><th>사후: 과학 개념</th><th>사후: 오개념</th></tr></thead>
+    <tbody>
+      <tr><td><strong>사전: 과학 개념</strong></td><td>10명 (유지)</td><td>2명 (퇴행)</td></tr>
+      <tr><td><strong>사전: 오개념</strong></td><td>14명 (교정)</td><td>4명 (잔존)</td></tr>
+    </tbody>
+  </table>
+  <p class="note">교정률 = 교정 14명 ÷ 사전 오개념 18명 ≈ 78%.</p>
+
+  <h3>② 향상 정도 — 정규화 이득 / 효과크기</h3>
+  <p>정규화 이득(Hake's g) = (사후 점수 − 사전 점수) ÷ (만점 − 사전 점수). 0~1 사이로, 클수록 많이 향상한 것. 변화의 크기는 효과크기(Cohen's d)로도 함께 보고한다.</p>
+
+  <h3>③ 표면 변화 vs 깊은 변화 — 가장 중요</h3>
+  <p>답만 맞으면 '표면'(찍기·암기로도 가능), 답과 이유가 함께 맞아야 '깊은 이해'. 두 점수를 따로 내어, 향상이 표면에 그쳤는지 진짜 이해까지 갔는지 가른다. 핵심 비교 대상은 '답+이유 동시 정답' 점수.</p>
+
+  <h3>④ 집단 비교 — 시뮬레이션반 vs 비교반</h3>
+  <p>두 집단의 사전→사후 변화를 비교한다. 출발점(사전 점수)이 다르면 이를 통제하는 공분산분석(ANCOVA)으로 사후를 비교. 아래는 오개념별 교정률을 두 집단으로 나란히 본 예시.</p>
+  <div style="margin:10px 0;overflow-x:auto;">
+    <svg width="420" height="178" viewBox="0 0 420 178">
+      <rect x="135" y="4" width="13" height="11" fill="#059669"/><text x="152" y="14" font-size="12">시뮬레이션반</text>
+      <rect x="245" y="4" width="13" height="11" fill="#9ca3af"/><text x="262" y="14" font-size="12">비교반</text>
+      <line x1="40" y1="140" x2="408" y2="140" stroke="#374151"/><line x1="40" y1="22" x2="40" y2="140" stroke="#374151"/>
+      <text x="35" y="25" font-size="10" text-anchor="end" fill="#6b7280">100</text>
+      <text x="35" y="81" font-size="10" text-anchor="end" fill="#6b7280">50</text>
+      <text x="35" y="143" font-size="10" text-anchor="end" fill="#6b7280">0</text>
+      <text x="8" y="86" font-size="10" fill="#6b7280" transform="rotate(-90 8 86)">교정률(%)</text>
+      <rect x="51" y="42" width="12" height="98" fill="#059669"/><rect x="67" y="71" width="12" height="69" fill="#9ca3af"/>
+      <rect x="111" y="37" width="12" height="103" fill="#059669"/><rect x="127" y="77" width="12" height="63" fill="#9ca3af"/>
+      <rect x="171" y="52" width="12" height="88" fill="#059669"/><rect x="187" y="80" width="12" height="60" fill="#9ca3af"/>
+      <rect x="231" y="59" width="12" height="81" fill="#059669"/><rect x="247" y="75" width="12" height="65" fill="#9ca3af"/>
+      <rect x="291" y="40" width="12" height="100" fill="#059669"/><rect x="307" y="84" width="12" height="56" fill="#9ca3af"/>
+      <rect x="351" y="65" width="12" height="75" fill="#059669"/><rect x="367" y="77" width="12" height="63" fill="#9ca3af"/>
+      <text x="65" y="153" font-size="11" text-anchor="middle">B1</text>
+      <text x="125" y="153" font-size="11" text-anchor="middle">B2</text>
+      <text x="185" y="153" font-size="11" text-anchor="middle">D1</text>
+      <text x="245" y="153" font-size="11" text-anchor="middle">D2</text>
+      <text x="305" y="153" font-size="11" text-anchor="middle">G1</text>
+      <text x="365" y="153" font-size="11" text-anchor="middle">G2</text>
+      <text x="224" y="172" font-size="10" text-anchor="middle" fill="#6b7280">(예시 데이터)</text>
+    </svg>
+  </div>
+  <h3>분석 층위 — 확증 vs 탐색</h3>
+  <p>오개념 하나당 문항이 적으므로(진위형 1 + 객관식 2), <strong>확증 비교는 영역(보일·돌턴·기체 일반) 합성 점수</strong>로 하여 검정력을 확보한다. <strong>오개념별 교정률(앞의 막대그래프 등)은 탐색적 보조 분석</strong>으로만 보고하고, 여러 오개념을 동시에 비교할 때는 다중 비교를 보정한다.</p>
+  <div class="callout ok"><strong>요약</strong>: 학습 효과의 핵심은 ③ — 표면적 변화인지 진짜 이해인지. 신뢰도(내적 일관성)와 확증 비교는 전체·영역 단위로 보고, 오개념별 결과는 탐색으로 본다.</div>
+</section>
+
+<section id="next">
+  <h2><span class="num">4</span> 다음 단계</h2>
+  <ol>
+    <li><strong>문항 검토·확정</strong>: <code>검사지-신규문항.html</code> v3(6 오개념). 그림선택형 SVG·오답 매핑 점검.</li>
+    <li><strong>전문가 CVI + 파일럿</strong>(독립 표본): 핵심성·빈발률·난이도·선지 분포.</li>
+    <li><strong>사전 등록</strong>(OSF): 가설과 분석 방법을 데이터 수집 전에 공개 등록. 6개 오개념을 모두 보고하고 다중 비교를 보정.</li>
+    <li><strong>구버전 문서 정리</strong>: 설계계획·개정판·전체문항·보강안은 옛 코드 → historical 표시 또는 본 종합 문서로 대체.</li>
+  </ol>
+  <div class="callout warn"><strong>인용 검증</strong>: 문헌 응답률은 원문 대조 후 인용. (Novick &amp; Nussbaum 1981 · de Berg 1995 · Lin &amp; Cheng 2000 · Séré 1982 · 조인영 외 1999 · Hake 1998 · Cohen 1988 · Bao 2006 · Caleon &amp; Subramaniam 2010 · Hasan 1999 · Williamson &amp; Abraham 1995 · Johnstone · Mayer)</div>
+</section>
+
+</div></main>
+<footer><div class="wrap">기체 개념 검사지 종합 문서 · 6 오개념 v3 · 2026-05-21 · 연구자용</div></footer>
+</body></html>

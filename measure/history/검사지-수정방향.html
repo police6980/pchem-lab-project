@@ -1,0 +1,308 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>기체 개념 검사지 — 통합 수정 방향</title>
+<style>
+* { box-sizing:border-box; }
+html { scroll-behavior:smooth; }
+body { margin:0; font-family:"Pretendard Variable","Pretendard","Apple SD Gothic Neo","Noto Sans KR",system-ui,sans-serif; background:#f7f7f5; color:#1f2937; line-height:1.62; font-size:15.5px; -webkit-font-smoothing:antialiased; }
+:root{ --primary:#1e3a8a; --primary-soft:#3b82f6; --accent:#d97706; --ok:#059669; --warn:#dc2626; --muted:#6b7280; --line:#e5e7eb; --bg:#fff; --bg-soft:#f3f4f6; }
+.wrap{ max-width:1060px; margin:0 auto; padding:0 24px; }
+header.top{ background:linear-gradient(135deg,#1e3a8a 0%,#1e40af 50%,#312e81 100%); color:#fff; padding:40px 0 48px; border-bottom:6px solid var(--accent); }
+header .badge{ display:inline-block; background:rgba(255,255,255,.18); padding:4px 10px; border-radius:999px; font-size:12px; margin-bottom:10px; }
+header h1{ margin:0 0 6px; font-size:26px; font-weight:700; }
+header .sub{ opacity:.88; font-size:14px; max-width:800px; }
+header .links{ margin-top:14px; font-size:13px; }
+header .links a{ color:#fff; opacity:.85; margin-right:14px; }
+nav.sticky{ position:sticky; top:0; z-index:50; background:rgba(255,255,255,.95); backdrop-filter:blur(8px); border-bottom:1px solid var(--line); }
+nav.sticky .navbar{ display:flex; gap:2px; overflow-x:auto; padding:8px 0; }
+nav.sticky a{ flex:0 0 auto; padding:8px 14px; border-radius:6px; font-size:13px; color:var(--muted); font-weight:500; white-space:nowrap; text-decoration:none; }
+nav.sticky a:hover{ background:var(--bg-soft); color:var(--primary); }
+main{ padding:36px 0 80px; }
+section{ background:var(--bg); border-radius:12px; padding:26px 30px; margin-bottom:24px; box-shadow:0 1px 3px rgba(0,0,0,.06),0 6px 24px rgba(0,0,0,.04); border:1px solid var(--line); }
+section h2{ margin:0 0 4px; font-size:21px; font-weight:700; color:var(--primary); border-bottom:2px solid var(--accent); padding-bottom:10px; display:flex; align-items:center; gap:10px; }
+section h2 .num{ background:var(--accent); color:#fff; font-size:13px; padding:2px 9px; border-radius:999px; font-weight:600; }
+section h3{ font-size:16px; font-weight:700; margin:22px 0 8px; color:#111; border-left:4px solid var(--accent); padding-left:10px; }
+.lede{ margin:14px 0 18px; color:var(--muted); font-size:14px; }
+table{ width:100%; border-collapse:collapse; margin:12px 0; font-size:13.5px; }
+th,td{ border:1px solid var(--line); padding:7px 10px; text-align:left; vertical-align:top; }
+th{ background:var(--bg-soft); font-weight:600; color:var(--primary); }
+tr:nth-child(even) td{ background:#fafafa; }
+.pri{ font-weight:700; border-radius:999px; padding:1px 9px; font-size:12px; color:#fff; }
+.p1{ background:#dc2626; } .p2{ background:#d97706; } .p3{ background:#2563eb; } .p4{ background:#6b7280; }
+.tag{ display:inline-block; font-size:11px; font-weight:600; padding:1px 8px; border-radius:999px; }
+.tag.keep{ background:#dbeafe; color:#1e40af; } .tag.new{ background:#d1fae5; color:#065f46; }
+.callout{ background:#f0f9ff; border-left:4px solid var(--primary-soft); padding:13px 17px; margin:14px 0; border-radius:4px; font-size:13.5px; }
+.callout.warn{ background:#fef2f2; border-left-color:var(--warn); } .callout.ok{ background:#f0fdf4; border-left-color:var(--ok); } .callout.note{ background:#fffbeb; border-left-color:var(--accent); }
+.callout strong{ color:var(--primary); } .callout.warn strong{ color:var(--warn); }
+code{ background:#fef3c7; padding:1px 5px; border-radius:3px; font-family:ui-monospace,monospace; font-size:12.5px; }
+del{ color:var(--warn); } ins{ color:var(--ok); text-decoration:none; background:rgba(5,150,105,.1); padding:0 3px; border-radius:3px; }
+footer{ text-align:center; font-size:12.5px; color:var(--muted); padding:26px 0; border-top:1px solid var(--line); margin-top:36px; }
+@media print{ body{background:#fff;} nav.sticky{display:none;} section{box-shadow:none;border:1px solid #ccc;page-break-inside:avoid;} header.top{background:#1e3a8a !important;-webkit-print-color-adjust:exact;print-color-adjust:exact;} }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <span class="badge">REVISION ROADMAP · 통합 수정 방향</span>
+    <h1>기체 개념 3-tier 검사지 — 통합 수정 방향</h1>
+    <p class="sub">실제 배포 폼(전체 22문항)에 대한 검토 결과 + 기존 보강안 5개 방향 + 신규 아이디어를 하나로 합친 수정 로드맵.
+       대상은 대학생/예비교사이나 보일·돌턴 개념 특성상 문항 내용은 학교급과 무관(대상 차이로 인한 문항 변경 없음).</p>
+    <div class="links">
+      관련 문서:
+      <a href="검사지-전체문항.html">전체 문항 + 정답키</a>
+      <a href="검사지-보강안.html">기존 보강안</a>
+    </div>
+  </div>
+</header>
+
+<nav class="sticky"><div class="wrap"><div class="navbar">
+  <a href="#terms">용어 정의</a>
+  <a href="#summary">우선순위 요약</a>
+  <a href="#fix">A. 즉시 수정</a>
+  <a href="#enhance">B. 구조 보강</a>
+  <a href="#structure">검사지 구조도</a>
+  <a href="#analysis">C. 분석 설계</a>
+  <a href="#roadmap">D. 로드맵</a>
+</div></div></nav>
+
+<main>
+<div class="wrap">
+
+<!-- ========== TERMS ========== -->
+<section id="terms">
+  <h2><span class="num">용어</span> 약어·용어 정의</h2>
+  <p class="lede">이 문서와 관련 문서에서 쓰는 용어. 처음 보는 약어는 여기서 확인.</p>
+  <table>
+    <thead><tr><th style="width:20%">용어 (약어)</th><th>뜻</th></tr></thead>
+    <tbody>
+      <tr><td><strong>객관식 (MC, Multiple Choice)</strong></td><td>보기 중 하나를 고르는 선다형 문항. 이 검사의 <strong>12문항(Q1~Q12)</strong>.</td></tr>
+      <tr><td><strong>참·거짓형 (T/F, True/False)</strong></td><td>진술이 맞는지 참/거짓으로 답하는 문항. <strong>10개(BL1~MA1)</strong>.</td></tr>
+      <tr><td><strong>삼층 진단 (3-tier)</strong></td><td>한 문항을 ① 답 → ② 이유 → ③ 확신도(1~5) 세 단계로 물음.</td></tr>
+      <tr><td><strong>사층 진단 (4-tier)</strong></td><td>삼층에 ④ '이유에 대한 확신도'까지 더한 것.</td></tr>
+      <tr><td><strong>문두 (stem)</strong></td><td>문항의 질문 본문(보기 제외).</td></tr>
+      <tr><td><strong>오답지 (distractor)</strong></td><td>정답이 아닌 보기. 특히 특정 오개념을 노린 '매력적 오답'.</td></tr>
+      <tr><td><strong>오개념 코드 (BL·PN·DL·MA)</strong></td><td>오개념 분류: BL=보일(Boyle) · PN=입자성(Particle Nature) · DL=돌턴(Dalton) · MA=수학(Math).</td></tr>
+      <tr><td><strong>위장 정답 (false positive)</strong></td><td>답은 우연히 맞았지만 이유는 틀린 경우. 가장 놓치기 쉬운 오개념.</td></tr>
+      <tr><td><strong>전이 문항 (transfer)</strong></td><td>배운 내용을 직접 안 다룬 새 상황에 적용하는지 보는 문항.</td></tr>
+      <tr><td><strong>정규화 이득 (Hake's g)</strong></td><td>(사후−사전)÷(만점−사전). 사전 점수를 감안한 향상도.</td></tr>
+      <tr><td><strong>효과크기 (Cohen's d)</strong></td><td>사전·사후 평균 차이를 표준편차로 나눈 값. 효과의 크기.</td></tr>
+      <tr><td><strong>내적 일관성 (Cronbach α / KR-20)</strong></td><td>문항들이 같은 것을 일관되게 재는지의 신뢰도 지표.</td></tr>
+      <tr><td><strong>내용타당도 지수 (CVI)</strong></td><td>전문가가 "이 문항이 재려는 걸 잘 재는가"를 평가한 지수.</td></tr>
+      <tr><td><strong>변별도 (point-biserial)</strong></td><td>잘하는 응답자와 못하는 응답자를 문항이 얼마나 갈라내는지.</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ========== SUMMARY ========== -->
+<section id="summary">
+  <h2><span class="num">0</span> 우선순위 한눈에</h2>
+  <p class="lede">결함 수정(A) → 분석 설계(C, 문항 추가 없이 가능) → 구조 보강(B) 순. 각 항목은 결정 사항.</p>
+  <table>
+    <thead><tr><th style="width:8%">우선</th><th style="width:26%">항목</th><th>내용</th><th style="width:10%">출처</th></tr></thead>
+    <tbody>
+      <tr><td><span class="pri p1">1</span></td><td>A1. T/F 참·거짓 균형화</td><td>10개 진술이 전부 오개념(정답 모두 '거짓') → 반응 편향. 일부를 옳은 진술로 전환</td><td><span class="tag new">신규</span></td></tr>
+      <tr><td><span class="pri p1">1</span></td><td>A2. Q7 stem 잔여 라벨 제거</td><td>"[1단계: 답]" 편집 잔여 문구 삭제</td><td><span class="tag new">신규</span></td></tr>
+      <tr><td><span class="pri p1">1</span></td><td>A3. Q11 stem 단서 보강</td><td>"방 높이 정도에서는 무시 가능" 명시 (중력 이상화 논쟁 차단)</td><td><span class="tag new">신규</span></td></tr>
+      <tr><td><span class="pri p2">2</span></td><td>C1. Q5·Q11 전이/통제 문항 분리</td><td>시뮬 직접효과 점수와 분리 채점·해석</td><td><span class="tag new">신규</span></td></tr>
+      <tr><td><span class="pri p2">2</span></td><td>C2. 이유 선지 오개념 코드북</td><td>모든 이유 distractor에 코드 부여(전체 문항지에 완료) → 분석 코드북으로 정식화</td><td><span class="tag new">신규</span></td></tr>
+      <tr><td><span class="pri p2">2</span></td><td>C3. 확신도 기반 3-tier 판별</td><td>답·이유·확신 조합으로 false-positive / robust 오개념 분류</td><td><span class="tag keep">보강안</span></td></tr>
+      <tr><td><span class="pri p3">3</span></td><td>B2. 4-tier 부분 적용</td><td>핵심 4문항에 '이유 확신도' 추가</td><td><span class="tag keep">보강안 ②</span></td></tr>
+      <tr><td><span class="pri p3">3</span></td><td>B3. distractor 한국화 재검토</td><td>이미 한국어 작성됨 → SERC 실응답 기반 점검</td><td><span class="tag keep">보강안 ③</span></td></tr>
+      <tr><td><span class="pri p3">3</span></td><td>B4. 거시-미시 연계 Q13 신설</td><td>시뮬 4변수 동시 예측 문항</td><td><span class="tag keep">보강안 ④</span></td></tr>
+      <tr><td><span class="pri p4">4</span></td><td>B1. 입자 그리기 anchor D1·D2</td><td>폼 형식 제약 큼(이미지 업로드/별지 필요)</td><td><span class="tag keep">보강안 ①</span></td></tr>
+      <tr><td><span class="pri p4">4</span></td><td>B5. 슬림화</td><td>시간 압박 시에만. 대학생/예비교사는 시간 여유 더 큼</td><td><span class="tag keep">보강안 ⑤</span></td></tr>
+    </tbody>
+  </table>
+  <div class="callout note"><strong>대상 관련</strong>: 사용자 확정 — 대상(고3/대학생/예비교사) 차이로 <strong>문항이 달라지지 않음</strong>. 따라서 기존 보강안 §5(고1·고2 분리)는 폐기, 학교급 프레이밍 수정은 우선순위에서 제외.</div>
+</section>
+
+<!-- ========== A. FIX ========== -->
+<section id="fix">
+  <h2><span class="num">A</span> 즉시 수정 — 문항 자체 결함</h2>
+
+  <h3>A1. T/F 참·거짓 균형화 (반응 편향 제거)</h3>
+  <p>현재 10개 T/F는 전부 오개념 진술이라 <strong>정답이 모두 '거짓'</strong>. 응답자가 패턴을 알아채면 내용 이해 없이 전부 '거짓'으로 점수 부풀림(특히 예비교사). 10개 중 <strong>4개를 옳은 진술로 전환</strong>(정답 '참') + 출제 순서 무작위화. 같은 오개념을 '반대편'에서 측정하므로 진단력은 유지.</p>
+  <table>
+    <thead><tr><th style="width:8%">코드</th><th>현재 (오개념·정답 거짓)</th><th>전환안 (옳은 진술·정답 참)</th></tr></thead>
+    <tbody>
+      <tr><td><strong>BL1</strong></td><td>압력과 부피는 정비례 관계이다</td><td><ins>압력과 부피는 반비례 관계이다 (정답 참)</ins></td></tr>
+      <tr><td><strong>BL3</strong></td><td>밀폐 부피를 줄이면 입자 수가 감소한다</td><td><ins>밀폐 용기의 부피를 줄여도 입자 수는 변하지 않는다 (정답 참)</ins></td></tr>
+      <tr><td><strong>DL2</strong></td><td>전체압 = 부분압들의 평균</td><td><ins>혼합 기체의 전체압은 각 부분압의 합이다 (정답 참)</ins></td></tr>
+      <tr><td><strong>DL4</strong></td><td>무거운 기체가 압력 대부분 차지</td><td><ins>같은 온도·부피에서 압력은 분자 무게가 아니라 입자 수로 결정된다 (정답 참)</ins></td></tr>
+      <tr><td>BL2·BL7·PN3·DL1·DL9·MA1</td><td colspan="2">그대로 유지 (오개념 진술, 정답 거짓) — 결과: <strong>참 4 / 거짓 6</strong> 혼합</td></tr>
+    </tbody>
+  </table>
+  <div class="callout note">대안: 진술 수를 늘려 각 오개념을 '참 버전 + 거짓 버전' 쌍으로 출제(역코딩 신뢰도 점검 가능)하되 문항 수·시간 증가. 위 4개 전환이 시간 영향 0으로 가장 경제적.</div>
+
+  <h3>A2. Q7 stem 편집 잔여 라벨 제거</h3>
+  <p>Q7 문두 앞 <code>[1단계: 답]</code> 은 작성 중 잔여 표식으로 보임 → 삭제. (다른 문항엔 없음)</p>
+
+  <h3>A3. Q11 중력 이상화 단서 보강</h3>
+  <p>엄밀히는 중력장에서 기체는 미세한 기압 기울기를 가짐(기압고도식). 화학 전공 예비교사가 "엄밀히는 차이 있음"으로 정답(C)을 비껴갈 수 있음. stem에 <ins>"방 정도의 높이차에서는 무시할 수 있다"</ins> 단서 추가하여 의도(거시 균일)를 못박음.</p>
+</section>
+
+<!-- ========== B. ENHANCE ========== -->
+<section id="enhance">
+  <h2><span class="num">B</span> 구조 보강 — 기존 보강안 + 신규</h2>
+  <p class="lede">기존 보강안 5개 방향을 <strong>실제 폼 상태에 맞춰</strong> 재정렬. 폼은 현재 full 22문항·3-tier(확신도 1개)·MC 객관식 이유까지 구현됨.</p>
+
+  <table>
+    <thead><tr><th style="width:6%">#</th><th style="width:22%">방향</th><th>실제 폼 대비 현황 · 할 일</th><th style="width:10%">난이도</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>B2</td><td><span class="tag keep">②</span> 4-tier 부분 적용</td>
+        <td>폼은 확신도 1개(답 확신)만 = 3-tier. 핵심 4문항(Q3·Q4·Q7·Q11 등)에 <strong>'이유 확신도'</strong> 추가 → false-positive 정밀 검출. 폼 항목 4개 추가로 즉시 가능.</td>
+        <td>낮음</td>
+      </tr>
+      <tr>
+        <td>B3</td><td><span class="tag keep">③</span> distractor 한국화</td>
+        <td>이유 선지가 이미 한국어로 작성됨(직역 아님). 남은 일은 SERC 고2 실응답·Kind 비율과 대조해 <strong>실제로 자주 고르는 오답인지 검증</strong> + 어휘 점검. 신규 작성보다 '점검'.</td>
+        <td>중간</td>
+      </tr>
+      <tr>
+        <td>B4</td><td><span class="tag keep">④</span> 거시-미시 연계 Q13</td>
+        <td>개정판 반영. 부피 변화 시 <strong>4변수(P·입자수·크기·속력) 동시 예측</strong>(↑/↓/= 표). <strong>시뮬을 언급하지 않는 일반 개념 문항</strong>으로 출제 — 두 반 공평. (시뮬 화면·게이지를 문두에 쓰면 비교반에 불리해 타당도 훼손)</td>
+        <td>중간</td>
+      </tr>
+      <tr>
+        <td>B1</td><td><span class="tag keep">①</span> 입자 그리기 D1·D2</td>
+        <td>미구현. Google Form은 자유 그리기 미지원 → <strong>이미지 업로드 문항</strong> 또는 <strong>별지(종이)</strong> 병행 필요. 채점은 5점 루브릭(보강안 §3-1). 형식 제약 가장 큼.</td>
+        <td>높음</td>
+      </tr>
+      <tr>
+        <td>B5</td><td><span class="tag keep">⑤</span> 슬림화</td>
+        <td>실제 폼은 full 22. 슬림화(T/F 8·MC 9)는 <strong>시간 압박 시 옵션</strong>. 대학생/예비교사는 응답 시간 여유가 커 우선순위 낮음. 적용 시 BL2·BL3, Q2 등 중복 제거 후보.</td>
+        <td>낮음</td>
+      </tr>
+      <tr>
+        <td>B6</td><td><span class="tag new">신규</span> Q5·Q11 전이/통제 분리</td>
+        <td>시뮬이 직접 안 보여주는 영역(용기 모양·중력) → 시뮬 직접효과 점수에서 분리. <strong>전이(transfer) 지표</strong>로 별도 보고. (상세 §C1)</td>
+        <td>낮음</td>
+      </tr>
+      <tr>
+        <td>B7</td><td><span class="tag new">신규</span> 온도/KMT 확장 여부 — <em>보류</em></td>
+        <td>현 도구는 보일·돌턴 한정. 프로젝트에 샤를(온도) 트랙이 있으나, 본 검사 범위는 보일·돌턴 유지(사용자 확정). 확장은 별도 검사지로 분리 권장.</td>
+        <td>—</td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ========== STRUCTURE ========== -->
+<section id="structure">
+  <h2><span class="num">구조</span> 검사지 전체 구조도 · 참·거짓형↔객관식 연결 · 분석 흐름</h2>
+  <p class="lede"><strong>※ 연구자용</strong> — 정답키·범주 분류 포함. 배포본·교사에게는 비공개.</p>
+
+  <h3>① 전체 흐름</h3>
+  <table>
+    <thead><tr><th style="width:22%">블록</th><th style="width:14%">문항</th><th>역할</th></tr></thead>
+    <tbody>
+      <tr><td>0. 응답자 정보</td><td>메타 4</td><td>이메일·소속·성별·학년 (표집·블라인드)</td></tr>
+      <tr><td>1. 참·거짓형</td><td>10 (BL/PN/DL/MA)</td><td><strong>빠른 1차 스크리닝</strong> — 오개념 진술에 참/거짓. "보유 여부"만 신속 탐지</td></tr>
+      <tr><td>2. 객관식</td><td>13 (Q1~Q13)</td><td><strong>심층 진단</strong> — 같은 오개념을 시나리오 + 이유 + 확신도로. "왜 그렇게 생각하나 + 얼마나 확신하나"</td></tr>
+      <tr><td>3. 통제 세트</td><td>5 (Q5·Q11·N1·N2·N3)</td><td>시뮬 미연결 개념 — <strong>2번 안에 분산 배치</strong>(연속 출제 금지). 효과 특이성 확인</td></tr>
+      <tr><td>4. 입자 그리기</td><td>2 (D1·D2)</td><td>미시 표상 <strong>자유 산출</strong> — 폐쇄형이 못 잡는 미시 모델</td></tr>
+    </tbody>
+  </table>
+
+  <h3>② 왜 두 형식(참·거짓형 + 객관식)을 같이 쓰나</h3>
+  <div class="callout">
+    같은 오개념을 <strong>두 각도</strong>에서 잰다 → 한 학생 안에서 교차검증:
+    <ul style="margin:6px 0">
+      <li><strong>참·거짓형</strong>: 오개념 진술에 즉답(참/거짓). 빠르지만 "왜·확신"은 모름 → <em>스크리닝</em></li>
+      <li><strong>객관식(3·4-tier)</strong>: 같은 오개념을 맥락 + 이유 선택 + 확신도로 → <em>정밀 진단</em></li>
+    </ul>
+    두 형식의 응답이 어긋나면(예: 참·거짓형은 맞고 객관식은 틀림) → 개념 불안정 또는 부주의 응답으로 플래그.
+  </div>
+
+  <h3>③ 참·거짓형 ↔ 객관식 오개념 연결표</h3>
+  <table>
+    <thead><tr><th style="width:10%">코드</th><th style="width:14%">참·거짓형</th><th style="width:20%">대응 객관식</th><th>측정 개념</th></tr></thead>
+    <tbody>
+      <tr><td><strong>BL1</strong></td><td>BL1</td><td>Q1, Q6</td><td>압력-부피 (반비례)</td></tr>
+      <tr><td><strong>BL2</strong></td><td>BL2</td><td>Q3, D1</td><td>입자 크기 불변</td></tr>
+      <tr><td><strong>BL3</strong></td><td>BL3</td><td>Q3, D1</td><td>입자 수 보존</td></tr>
+      <tr><td><strong>BL7</strong></td><td>BL7</td><td>Q4</td><td>진공 흡입</td></tr>
+      <tr><td><strong>PN3</strong></td><td>PN3</td><td>Q3, Q4</td><td>입자 자체 팽창</td></tr>
+      <tr><td><strong>DL1</strong></td><td>DL1</td><td>Q8</td><td>분압 독립성</td></tr>
+      <tr><td><strong>DL2</strong></td><td>DL2</td><td>Q7</td><td>전체압 = 합</td></tr>
+      <tr><td><strong>DL4</strong></td><td>DL4</td><td>Q9</td><td>분자량 무관</td></tr>
+      <tr><td><strong>DLV</strong></td><td>DLV</td><td>Q8(부피분할 보기), D2</td><td>부피 점유</td></tr>
+      <tr><td><strong>MA1</strong></td><td>MA1</td><td>Q2</td><td>수학적 혼동</td></tr>
+    </tbody>
+  </table>
+  <p style="font-size:13px;color:var(--muted)">대응 참·거짓형 없이 객관식 단독: Q5(용기모양·통제) · Q10(미량/몰분율) · Q11(중력·통제) · Q12(성분 제거) · Q13(압력 기전) · N1~N3(통제).</p>
+
+  <h3>④ 분석 흐름 4단계</h3>
+  <table>
+    <thead><tr><th style="width:8%">단계</th><th style="width:24%">무엇을</th><th>방법</th></tr></thead>
+    <tbody>
+      <tr><td><strong>a</strong></td><td>개인 진단 (오개념별)</td><td>참·거짓 + 객관식(답·이유) + 확신 → 5범주: 과학개념 / 위장정답 / 견고한 오개념 / 혼란 / 미학습 (§C3 매트릭스)</td></tr>
+      <tr><td><strong>b</strong></td><td>교차검증</td><td>같은 코드의 참·거짓형 ↔ 객관식 일치도 → 응답 신뢰성 (불일치 = 부주의/불안정)</td></tr>
+      <tr><td><strong>c</strong></td><td>사전→사후 (시뮬반 vs 비교반)</td><td>연구자용 ①②③ 범주별: ① 시뮬민감(시뮬↑↑>비교↑ 기대) · ② 공통(둘 다 ↑) · ③ 통제(불변). g·d·McNemar는 ①·②에서</td></tr>
+      <tr><td><strong>d</strong></td><td>문항 통계</td><td>난이도 p 0.2~0.8 · 변별도 ≥0.3 · α(영역별) ≥0.7 · 그림 채점자 κ ≥0.7</td></tr>
+    </tbody>
+  </table>
+  <div class="callout warn"><strong>대외비</strong>: ①②③ 범주 분류와 정답키는 <strong>연구자만</strong> 보유. 데이터 수집 전 사전 명세(a priori)로 봉인 → 사후 짜맞추기 비판 차단. 학생·양 반 교사 모두에게 비공개(teaching-to-the-test 방지).</div>
+</section>
+
+<!-- ========== C. ANALYSIS ========== -->
+<section id="analysis">
+  <h2><span class="num">C</span> 분석 설계 — 문항 추가 없이 즉시 가능</h2>
+
+  <h3>C1. 시뮬 직접효과 vs 전이(통제) 문항 분리</h3>
+  <table>
+    <thead><tr><th style="width:30%">구분</th><th>문항</th><th>해석</th></tr></thead>
+    <tbody>
+      <tr><td><strong>시뮬 직접효과 문항</strong></td><td>Q1·Q2·Q3·Q4·Q6·Q7·Q8·Q9·Q10·Q12 + 대응 T/F</td><td>시뮬이 화면으로 보여주는 개념 → 사후 향상 = 시뮬 효과 직접 증거</td></tr>
+      <tr><td><strong>통제 소척도 (5문항)</strong></td><td>Q5(모양)·Q11(중력) + 신설 N1(재질)·N2(시간)·N3(자세)</td><td>"압력 무관 변수 식별" 단일 구인. 2문항은 척도 불가(α 불안정·이질적) → 5문항으로 확장. 향상 없어야 시뮬 효과 특이성 입증. 개정판에 반영됨.</td></tr>
+    </tbody>
+  </table>
+  <div class="callout">총점 하나로 묶지 말고 <strong>두 하위 점수를 따로</strong> 산출. Hake's g·Cohen's d도 '직접효과 문항'에서 계산해야 시뮬 효과가 희석되지 않음.</div>
+
+  <h3>C2. 이유 선지 오개념 코드북</h3>
+  <p>전체 문항지(<code>검사지-전체문항.html</code>)에서 모든 답·이유 distractor에 오개념 코드를 이미 부여함. 이를 <strong>정식 코드북</strong>(선지→코드 매핑표)으로 고정하면, 응답 분석 시 "어떤 오개념을 몇 %가 골랐는지" 자동 집계 가능.</p>
+
+  <h3>C3. 확신도 기반 3-tier 판별 매트릭스</h3>
+  <table>
+    <thead><tr><th>답</th><th>이유</th><th>확신</th><th>판정</th></tr></thead>
+    <tbody>
+      <tr><td>정답</td><td>정답</td><td>높음</td><td>과학적 이해 (목표 상태)</td></tr>
+      <tr><td>정답</td><td>정답</td><td>낮음</td><td>미정착 / 추측 — 사후 확신↑ 확인</td></tr>
+      <tr><td>정답</td><td>오답</td><td>높음</td><td><strong>False positive (위장 정답)</strong> — 가장 위험</td></tr>
+      <tr><td>오답</td><td>오답</td><td>높음</td><td><strong>견고한 오개념</strong> — 시뮬만으론 교정 난</td></tr>
+      <tr><td>오답</td><td>오답</td><td>낮음</td><td>혼란 — 교정 가능성 가장 큼</td></tr>
+    </tbody>
+  </table>
+  <p style="font-size:13px;color:var(--muted)">현재 폼의 확신도 1개로 위 판별 가능. B2(이유 확신도 추가)를 적용하면 4-tier로 정밀도 ↑.</p>
+</section>
+
+<!-- ========== D. ROADMAP ========== -->
+<section id="roadmap">
+  <h2><span class="num">D</span> 실행 로드맵</h2>
+  <ol>
+    <li><strong>1단계 (즉시, 폼 텍스트만 수정)</strong>: A1 T/F 균형화 · A2 라벨 제거 · A3 Q11 단서. → 결함 제거된 폼 확정.</li>
+    <li><strong>2단계 (분석 설계, 데이터 수집 전)</strong>: C1 문항 분리 · C2 코드북 · C3 판별 매트릭스. → 채점·분석 프로토콜 확정.</li>
+    <li><strong>3단계 (문항 추가)</strong>: B2 4-tier 4문항 · B4 Q13 신설. → 폼 확장.</li>
+    <li><strong>4단계 (형식 보강)</strong>: B1 그리기 anchor(이미지 업로드/별지) · B3 distractor 실응답 검증.</li>
+    <li><strong>5단계 (타당화)</strong>: 파일럿(n≈30) → 변별도·난이도·α·선지 분포 → 문항 수정 → 전문가 CVI.</li>
+  </ol>
+  <div class="callout ok"><strong>다음 결정 필요</strong>: ① A1 전환 문항 4개(BL1·BL3·DL2·DL4) 이대로 갈지 · ② B2 4-tier를 어느 4문항에 적용할지 · ③ B1 그림 문항을 이번 라운드에 넣을지(폼 형식 제약 감수) 또는 별지로 뺄지.</div>
+</section>
+
+</div>
+</main>
+
+<footer>
+  <div class="wrap">
+    통합 수정 방향 v1 · 2026-05-21 · 기존 보강안 5방향 + 신규 검토 6건 종합 ·
+    정답키·코드 매핑은 작성자 검토용 — 파일럿·전문가 검토 후 확정
+  </div>
+</footer>
+
+</body>
+</html>

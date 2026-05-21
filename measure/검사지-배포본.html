@@ -1,0 +1,346 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>기체에 대한 생각 조사</title>
+<style>
+*{box-sizing:border-box;}
+body{margin:0;font-family:"Pretendard","Apple SD Gothic Neo","Noto Sans KR",system-ui,sans-serif;background:#eef1f4;color:#202124;line-height:1.6;font-size:15px;}
+.wrap{max-width:760px;margin:0 auto;padding:0 16px;}
+header.top{background:#5b21b6;color:#fff;padding:28px 0;border-top:8px solid #4c1d95;}
+header h1{margin:0 0 6px;font-size:22px;}
+header p{margin:0;opacity:.92;font-size:14px;}
+main{padding:20px 0 80px;}
+.card{background:#fff;border:1px solid #dadce0;border-radius:10px;padding:20px 22px;margin-bottom:16px;box-shadow:0 1px 2px rgba(0,0,0,.05);}
+.sec-title{background:#ede9fe;color:#4c1d95;border-radius:10px;padding:12px 18px;margin:22px 0 12px;font-weight:700;font-size:16px;}
+.qnum{display:inline-block;background:#5b21b6;color:#fff;font-size:13px;font-weight:700;border-radius:6px;padding:2px 9px;margin-bottom:8px;}
+.stem{font-size:15.5px;font-weight:600;margin:2px 0 12px;}
+.sub{font-size:12.5px;color:#5f6368;font-weight:700;margin:14px 0 6px;letter-spacing:.02em;}
+.opt{display:flex;align-items:flex-start;gap:10px;padding:9px 12px;border:1px solid #e3e3e6;border-radius:8px;margin-bottom:7px;cursor:pointer;}
+.opt:hover{background:#f8f7ff;border-color:#c4b5fd;}
+.opt input{margin-top:3px;flex:0 0 auto;}
+.opt span{flex:1;}
+.figopt{display:flex;align-items:center;gap:12px;}
+.figopt svg{flex:0 0 auto;}
+.conf{display:flex;gap:6px;flex-wrap:wrap;align-items:center;}
+.conf label{display:flex;flex-direction:column;align-items:center;gap:3px;border:1px solid #e3e3e6;border-radius:8px;padding:7px 12px;cursor:pointer;font-size:13px;min-width:54px;}
+.conf label:hover{background:#f8f7ff;border-color:#c4b5fd;}
+.conf .endlab{font-size:11px;color:#5f6368;align-self:center;border:none;padding:0 2px;min-width:0;}
+.tf .opt{display:inline-flex;width:auto;margin-right:10px;}
+.req{color:#d93025;}
+svg{background:#fafafa;border-radius:4px;}
+footer{text-align:center;color:#5f6368;font-size:12px;padding:20px 0;}
+</style>
+</head>
+<body>
+<header class="top"><div class="wrap">
+  <h1>기체에 대한 생각 조사</h1>
+  <p>정답을 맞히는 시험이 아니라, 기체에 대한 여러분의 생각을 알아보는 조사입니다. 옳고 그름을 떠나 평소 생각과 가장 가까운 것을 솔직하게 골라 주세요.</p>
+</div></header>
+<main><div class="wrap">
+
+<div class="card">
+  <div class="sub">기본 정보</div>
+  <div class="stem" style="font-weight:600">학년 / 소속 <span class="req">*</span></div>
+  <div>
+    <label class="opt"><input type="radio" name="grade"><span>고등학교 3학년</span></label>
+    <label class="opt"><input type="radio" name="grade"><span>대학 1학년</span></label>
+    <label class="opt"><input type="radio" name="grade"><span>대학 2학년 이상</span></label>
+    <label class="opt"><input type="radio" name="grade"><span>예비교사(사범대·교직)</span></label>
+    <label class="opt"><input type="radio" name="grade"><span>기타</span></label>
+  </div>
+</div>
+
+<div class="sec-title">1부. 다음 진술이 맞으면 「참」, 틀리면 「거짓」을 골라 주세요.</div>
+
+<div class="card tf"><div class="qnum">1</div><div class="stem">기체의 부피를 늘리면 압력도 함께 커진다.</div>
+  <label class="opt"><input type="radio" name="tf1"><span>참</span></label><label class="opt"><input type="radio" name="tf1"><span>거짓</span></label></div>
+<div class="card tf"><div class="qnum">2</div><div class="stem">기체를 압축하면 분자들이 서로 합쳐져 더 큰 분자가 된다.</div>
+  <label class="opt"><input type="radio" name="tf2"><span>참</span></label><label class="opt"><input type="radio" name="tf2"><span>거짓</span></label></div>
+<div class="card tf"><div class="qnum">3</div><div class="stem">진공은 주변의 기체를 빨아들이는 힘을 가진다.</div>
+  <label class="opt"><input type="radio" name="tf3"><span>참</span></label><label class="opt"><input type="radio" name="tf3"><span>거짓</span></label></div>
+<div class="card tf"><div class="qnum">4</div><div class="stem">혼합 기체의 전체 압력은 각 기체가 내는 부분 압력의 합이다.</div>
+  <label class="opt"><input type="radio" name="tf4"><span>참</span></label><label class="opt"><input type="radio" name="tf4"><span>거짓</span></label></div>
+<div class="card tf"><div class="qnum">5</div><div class="stem">혼합 기체에서는 무거운 기체가 전체 압력의 대부분을 차지한다.</div>
+  <label class="opt"><input type="radio" name="tf5"><span>참</span></label><label class="opt"><input type="radio" name="tf5"><span>거짓</span></label></div>
+<div class="card tf"><div class="qnum">6</div><div class="stem">기체의 압력은 분자들이 용기 벽에 끊임없이 충돌하기 때문에 생긴다.</div>
+  <label class="opt"><input type="radio" name="tf6"><span>참</span></label><label class="opt"><input type="radio" name="tf6"><span>거짓</span></label></div>
+<div class="card tf"><div class="qnum">7</div><div class="stem">온도·부피·기체의 양이 같아도, 용기를 금속으로 바꾸면 내부 압력이 달라진다.</div>
+  <label class="opt"><input type="radio" name="tf7"><span>참</span></label><label class="opt"><input type="radio" name="tf7"><span>거짓</span></label></div>
+
+<div class="sec-title">2부. 각 문항마다 ① 답을 고르고 ② 그렇게 생각한 이유를 고른 뒤 ③ 확신 정도를 표시해 주세요.</div>
+
+<div class="card">
+  <div class="qnum">문 1</div>
+  <div class="stem">일정한 온도에서 밀폐된 주사기의 부피를 처음의 1/3로 압축하였다. 내부 기체의 압력은 어떻게 되는가?</div>
+  <div class="sub">① 답</div>
+  <label class="opt"><input type="radio" name="q1a"><span>3배가 된다</span></label>
+  <label class="opt"><input type="radio" name="q1a"><span>1/3로 작아진다</span></label>
+  <label class="opt"><input type="radio" name="q1a"><span>변하지 않는다</span></label>
+  <label class="opt"><input type="radio" name="q1a"><span>2/3로 작아진다</span></label>
+  <div class="sub">② 그렇게 생각한 이유</div>
+  <label class="opt"><input type="radio" name="q1r"><span>같은 수의 분자가 더 좁은 공간에서 벽에 충돌하는 횟수가 늘기 때문</span></label>
+  <label class="opt"><input type="radio" name="q1r"><span>부피와 압력이 같은 비율로 함께 변하기 때문</span></label>
+  <label class="opt"><input type="radio" name="q1r"><span>압력은 기체의 고유한 성질이라 일정하기 때문</span></label>
+  <label class="opt"><input type="radio" name="q1r"><span>줄어든 부피만큼 압력이 빠져나가기 때문</span></label>
+  <div class="sub">③ 확신 정도</div>
+  <div class="conf"><span class="endlab">전혀<br>확신 없음</span>
+    <label><input type="radio" name="q1c">1</label><label><input type="radio" name="q1c">2</label><label><input type="radio" name="q1c">3</label><label><input type="radio" name="q1c">4</label><label><input type="radio" name="q1c">5</label>
+    <span class="endlab">매우<br>확신함</span></div>
+</div>
+
+<div class="card">
+  <div class="qnum">문 2</div>
+  <div class="stem">일정한 온도에서 부피(가로축)에 따른 압력(세로축)의 관계를 가장 잘 나타낸 그래프는?</div>
+  <div class="sub">① 답</div>
+  <label class="opt figopt"><input type="radio" name="q2a"><svg width="80" height="70" viewBox="0 0 80 70"><line x1="12" y1="58" x2="74" y2="58" stroke="#374151"/><line x1="12" y1="58" x2="12" y2="6" stroke="#374151"/><path d="M18 12 Q28 50 70 54" fill="none" stroke="#1f2937" stroke-width="2.2"/></svg><span>A</span></label>
+  <label class="opt figopt"><input type="radio" name="q2a"><svg width="80" height="70" viewBox="0 0 80 70"><line x1="12" y1="58" x2="74" y2="58" stroke="#374151"/><line x1="12" y1="58" x2="12" y2="6" stroke="#374151"/><line x1="12" y1="58" x2="68" y2="12" stroke="#1f2937" stroke-width="2.2"/></svg><span>B</span></label>
+  <label class="opt figopt"><input type="radio" name="q2a"><svg width="80" height="70" viewBox="0 0 80 70"><line x1="12" y1="58" x2="74" y2="58" stroke="#374151"/><line x1="12" y1="58" x2="12" y2="6" stroke="#374151"/><line x1="14" y1="30" x2="70" y2="30" stroke="#1f2937" stroke-width="2.2"/></svg><span>C</span></label>
+  <label class="opt figopt"><input type="radio" name="q2a"><svg width="80" height="70" viewBox="0 0 80 70"><line x1="12" y1="58" x2="74" y2="58" stroke="#374151"/><line x1="12" y1="58" x2="12" y2="6" stroke="#374151"/><line x1="14" y1="12" x2="68" y2="54" stroke="#1f2937" stroke-width="2.2"/></svg><span>D</span></label>
+  <div class="sub">② 그렇게 생각한 이유</div>
+  <label class="opt"><input type="radio" name="q2r"><span>압력과 부피의 곱이 일정하여, 부피가 늘면 압력이 반비례로 줄기 때문</span></label>
+  <label class="opt"><input type="radio" name="q2r"><span>부피와 압력이 같은 비율로 함께 커지기 때문</span></label>
+  <label class="opt"><input type="radio" name="q2r"><span>밀폐되어 있으면 부피가 변해도 압력이 일정하기 때문</span></label>
+  <label class="opt"><input type="radio" name="q2r"><span>부피가 일정량 늘 때마다 압력이 일정량씩 줄기 때문</span></label>
+  <div class="sub">③ 확신 정도</div>
+  <div class="conf"><span class="endlab">전혀<br>확신 없음</span>
+    <label><input type="radio" name="q2c">1</label><label><input type="radio" name="q2c">2</label><label><input type="radio" name="q2c">3</label><label><input type="radio" name="q2c">4</label><label><input type="radio" name="q2c">5</label>
+    <span class="endlab">매우<br>확신함</span></div>
+</div>
+
+<div class="card">
+  <div class="qnum">문 3</div>
+  <div class="stem">아래는 분자 8개가 든 주사기의 처음 상태(부피 V)이다. 이 기체를 절반 부피로 압축하였을 때의 모습으로 가장 옳은 그림은?</div>
+  <div style="margin:6px 0 10px;display:flex;align-items:center;gap:12px;">
+    <svg width="64" height="120" viewBox="0 0 64 120"><rect x="3" y="3" width="58" height="114" fill="none" stroke="#374151" stroke-width="1.3"/><circle cx="17" cy="18" r="5.5" fill="#374151"/><circle cx="44" cy="22" r="5.5" fill="#374151"/><circle cx="29" cy="42" r="5.5" fill="#374151"/><circle cx="49" cy="54" r="5.5" fill="#374151"/><circle cx="16" cy="68" r="5.5" fill="#374151"/><circle cx="40" cy="78" r="5.5" fill="#374151"/><circle cx="23" cy="98" r="5.5" fill="#374151"/><circle cx="47" cy="104" r="5.5" fill="#374151"/></svg>
+    <span style="font-size:13px;color:#5f6368">← 처음 상태 (부피 V, 분자 8개)</span>
+  </div>
+  <div class="sub">① 답 (압축 후 모습)</div>
+  <label class="opt figopt"><input type="radio" name="q3a"><svg width="46" height="80" viewBox="0 0 46 80"><rect x="3" y="3" width="40" height="74" fill="none" stroke="#374151" stroke-width="1.3"/><circle cx="13" cy="14" r="5.5" fill="#374151"/><circle cx="32" cy="16" r="5.5" fill="#374151"/><circle cx="20" cy="30" r="5.5" fill="#374151"/><circle cx="34" cy="34" r="5.5" fill="#374151"/><circle cx="12" cy="46" r="5.5" fill="#374151"/><circle cx="29" cy="50" r="5.5" fill="#374151"/><circle cx="16" cy="64" r="5.5" fill="#374151"/><circle cx="33" cy="66" r="5.5" fill="#374151"/></svg><span>A</span></label>
+  <label class="opt figopt"><input type="radio" name="q3a"><svg width="46" height="80" viewBox="0 0 46 80"><rect x="3" y="3" width="40" height="74" fill="none" stroke="#374151" stroke-width="1.3"/><circle cx="13" cy="14" r="2.6" fill="#374151"/><circle cx="32" cy="16" r="2.6" fill="#374151"/><circle cx="20" cy="30" r="2.6" fill="#374151"/><circle cx="34" cy="34" r="2.6" fill="#374151"/><circle cx="12" cy="46" r="2.6" fill="#374151"/><circle cx="29" cy="50" r="2.6" fill="#374151"/><circle cx="16" cy="64" r="2.6" fill="#374151"/><circle cx="33" cy="66" r="2.6" fill="#374151"/></svg><span>B</span></label>
+  <label class="opt figopt"><input type="radio" name="q3a"><svg width="46" height="80" viewBox="0 0 46 80"><rect x="3" y="3" width="40" height="74" fill="none" stroke="#374151" stroke-width="1.3"/><circle cx="16" cy="20" r="5.5" fill="#374151"/><circle cx="31" cy="34" r="5.5" fill="#374151"/><circle cx="15" cy="52" r="5.5" fill="#374151"/><circle cx="31" cy="64" r="5.5" fill="#374151"/></svg><span>C</span></label>
+  <label class="opt figopt"><input type="radio" name="q3a"><svg width="46" height="80" viewBox="0 0 46 80"><rect x="3" y="3" width="40" height="74" fill="#cbd5e1" stroke="#374151" stroke-width="1.3"/><circle cx="13" cy="14" r="5.5" fill="#374151"/><circle cx="32" cy="16" r="5.5" fill="#374151"/><circle cx="20" cy="30" r="5.5" fill="#374151"/><circle cx="34" cy="34" r="5.5" fill="#374151"/><circle cx="12" cy="46" r="5.5" fill="#374151"/><circle cx="29" cy="50" r="5.5" fill="#374151"/><circle cx="16" cy="64" r="5.5" fill="#374151"/><circle cx="33" cy="66" r="5.5" fill="#374151"/></svg><span>D</span></label>
+  <div class="sub">② 그렇게 생각한 이유</div>
+  <label class="opt"><input type="radio" name="q3r"><span>분자의 수와 크기는 그대로이고, 분자 사이의 빈 공간(간격)만 좁아지기 때문</span></label>
+  <label class="opt"><input type="radio" name="q3r"><span>압력이 분자를 눌러 작게 만들기 때문</span></label>
+  <label class="opt"><input type="radio" name="q3r"><span>좁아진 공간에 다 들어가도록 분자 일부가 사라지기 때문</span></label>
+  <label class="opt"><input type="radio" name="q3r"><span>압축하면 입자 사이가 무언가로 채워져 빈틈이 없어지기 때문</span></label>
+  <div class="sub">③ 확신 정도</div>
+  <div class="conf"><span class="endlab">전혀<br>확신 없음</span>
+    <label><input type="radio" name="q3c">1</label><label><input type="radio" name="q3c">2</label><label><input type="radio" name="q3c">3</label><label><input type="radio" name="q3c">4</label><label><input type="radio" name="q3c">5</label>
+    <span class="endlab">매우<br>확신함</span></div>
+</div>
+
+<div class="card">
+  <div class="qnum">문 4</div>
+  <div class="stem">헬륨을 채운 풍선이 하늘로 올라가면서 점점 부풀어 커진다(헬륨은 새지 않는다). 이때 풍선 속 기체의 질량은 어떻게 되는가?</div>
+  <div class="sub">① 답</div>
+  <label class="opt"><input type="radio" name="q4a"><span>변하지 않는다</span></label>
+  <label class="opt"><input type="radio" name="q4a"><span>줄어든다</span></label>
+  <label class="opt"><input type="radio" name="q4a"><span>늘어난다</span></label>
+  <label class="opt"><input type="radio" name="q4a"><span>부피에 비례해 변한다</span></label>
+  <div class="sub">② 그렇게 생각한 이유</div>
+  <label class="opt"><input type="radio" name="q4r"><span>헬륨이 새지 않으므로 분자 수와 질량은 보존되고, 변하는 것은 부피(밀도)뿐이기 때문</span></label>
+  <label class="opt"><input type="radio" name="q4r"><span>위로 올라가 가벼워졌으니 질량도 줄기 때문</span></label>
+  <label class="opt"><input type="radio" name="q4r"><span>부풀어 커졌으니 기체의 양도 늘기 때문</span></label>
+  <label class="opt"><input type="radio" name="q4r"><span>부피가 변하면 질량도 따라 변하기 때문</span></label>
+  <div class="sub">③ 확신 정도</div>
+  <div class="conf"><span class="endlab">전혀<br>확신 없음</span>
+    <label><input type="radio" name="q4c">1</label><label><input type="radio" name="q4c">2</label><label><input type="radio" name="q4c">3</label><label><input type="radio" name="q4c">4</label><label><input type="radio" name="q4c">5</label>
+    <span class="endlab">매우<br>확신함</span></div>
+</div>
+
+<div class="card">
+  <div class="qnum">문 5</div>
+  <div class="stem">끝이 막힌 주사기의 피스톤을 바깥으로 당겨 내부 부피가 팽창하였다. 이때 내부 압력은 어떻게 되는가?</div>
+  <div class="sub">① 답</div>
+  <label class="opt"><input type="radio" name="q5a"><span>감소한다</span></label>
+  <label class="opt"><input type="radio" name="q5a"><span>증가한다</span></label>
+  <label class="opt"><input type="radio" name="q5a"><span>변하지 않는다</span></label>
+  <label class="opt"><input type="radio" name="q5a"><span>0이 된다</span></label>
+  <div class="sub">② 그렇게 생각한 이유</div>
+  <label class="opt"><input type="radio" name="q5r"><span>공간이 넓어져 단위 부피당 벽에 부딪치는 횟수가 줄기 때문</span></label>
+  <label class="opt"><input type="radio" name="q5r"><span>당길 때 생긴 진공이 입자를 바깥으로 끌어당기기 때문</span></label>
+  <label class="opt"><input type="radio" name="q5r"><span>밀폐되어 있어 압력이 일정하기 때문</span></label>
+  <label class="opt"><input type="radio" name="q5r"><span>빈 공간이 되어 압력이 없어지기 때문</span></label>
+  <div class="sub">③ 확신 정도</div>
+  <div class="conf"><span class="endlab">전혀<br>확신 없음</span>
+    <label><input type="radio" name="q5c">1</label><label><input type="radio" name="q5c">2</label><label><input type="radio" name="q5c">3</label><label><input type="radio" name="q5c">4</label><label><input type="radio" name="q5c">5</label>
+    <span class="endlab">매우<br>확신함</span></div>
+</div>
+
+<div class="card">
+  <div class="qnum">문 6</div>
+  <div class="stem">빨대로 음료를 마실 때 음료가 위로 올라오는 이유로 가장 옳은 것은?</div>
+  <div class="sub">① 답</div>
+  <label class="opt"><input type="radio" name="q6a"><span>입 안의 압력이 낮아져, 바깥 대기압이 음료를 밀어 올린다</span></label>
+  <label class="opt"><input type="radio" name="q6a"><span>입 안에 생긴 진공이 음료를 빨아올린다</span></label>
+  <label class="opt"><input type="radio" name="q6a"><span>빨대 속 빈 공간이 음료를 끌어당긴다</span></label>
+  <label class="opt"><input type="radio" name="q6a"><span>빨대가 음료를 끌어올린다</span></label>
+  <div class="sub">② 그렇게 생각한 이유</div>
+  <label class="opt"><input type="radio" name="q6r"><span>입 안 압력이 대기압보다 낮아진 압력 차가 음료를 밀어 올리기 때문</span></label>
+  <label class="opt"><input type="radio" name="q6r"><span>진공이 액체를 끌어당기는 힘을 내기 때문</span></label>
+  <label class="opt"><input type="radio" name="q6r"><span>빈 공간 자체가 힘의 원천이기 때문</span></label>
+  <label class="opt"><input type="radio" name="q6r"><span>빨대 재질이 액체를 당기기 때문</span></label>
+  <div class="sub">③ 확신 정도</div>
+  <div class="conf"><span class="endlab">전혀<br>확신 없음</span>
+    <label><input type="radio" name="q6c">1</label><label><input type="radio" name="q6c">2</label><label><input type="radio" name="q6c">3</label><label><input type="radio" name="q6c">4</label><label><input type="radio" name="q6c">5</label>
+    <span class="endlab">매우<br>확신함</span></div>
+</div>
+
+<div class="card">
+  <div class="qnum">문 7</div>
+  <div class="stem">헬륨(○)과 이산화탄소(●)를 같은 양으로 한 용기에 넣고 충분히 둔 뒤의 분포로 가장 옳은 그림은? (○ = 가벼운 헬륨, ● = 무거운 이산화탄소, 각 6개)</div>
+  <div class="sub">① 답</div>
+  <label class="opt figopt"><input type="radio" name="q7a"><svg width="76" height="84" viewBox="0 0 76 84"><rect x="3" y="3" width="70" height="78" fill="none" stroke="#374151" stroke-width="1.3"/><circle cx="14" cy="16" r="5" fill="#6b7280"/><circle cx="38" cy="14" r="5" fill="none" stroke="#2563eb" stroke-width="1.6"/><circle cx="60" cy="18" r="5" fill="#6b7280"/><circle cx="24" cy="32" r="5" fill="none" stroke="#2563eb" stroke-width="1.6"/><circle cx="48" cy="34" r="5" fill="#6b7280"/><circle cx="66" cy="40" r="5" fill="none" stroke="#2563eb" stroke-width="1.6"/><circle cx="16" cy="50" r="5" fill="#6b7280"/><circle cx="40" cy="54" r="5" fill="none" stroke="#2563eb" stroke-width="1.6"/><circle cx="64" cy="58" r="5" fill="#6b7280"/><circle cx="20" cy="70" r="5" fill="none" stroke="#2563eb" stroke-width="1.6"/><circle cx="44" cy="72" r="5" fill="#6b7280"/><circle cx="64" cy="74" r="5" fill="none" stroke="#2563eb" stroke-width="1.6"/></svg><span>A</span></label>
+  <label class="opt figopt"><input type="radio" name="q7a"><svg width="76" height="84" viewBox="0 0 76 84"><rect x="3" y="3" width="70" height="78" fill="none" stroke="#374151" stroke-width="1.3"/><circle cx="14" cy="14" r="5" fill="none" stroke="#2563eb" stroke-width="1.6"/><circle cx="32" cy="12" r="5" fill="none" stroke="#2563eb" stroke-width="1.6"/><circle cx="50" cy="14" r="5" fill="none" stroke="#2563eb" stroke-width="1.6"/><circle cx="66" cy="16" r="5" fill="none" stroke="#2563eb" stroke-width="1.6"/><circle cx="22" cy="28" r="5" fill="none" stroke="#2563eb" stroke-width="1.6"/><circle cx="44" cy="28" r="5" fill="none" stroke="#2563eb" stroke-width="1.6"/><circle cx="14" cy="56" r="5" fill="#6b7280"/><circle cx="32" cy="58" r="5" fill="#6b7280"/><circle cx="50" cy="56" r="5" fill="#6b7280"/><circle cx="66" cy="58" r="5" fill="#6b7280"/><circle cx="22" cy="72" r="5" fill="#6b7280"/><circle cx="44" cy="72" r="5" fill="#6b7280"/></svg><span>B</span></label>
+  <label class="opt figopt"><input type="radio" name="q7a"><svg width="76" height="84" viewBox="0 0 76 84"><rect x="3" y="3" width="70" height="78" fill="none" stroke="#374151" stroke-width="1.3"/><line x1="39" y1="6" x2="39" y2="78" stroke="#9ca3af" stroke-width="1" stroke-dasharray="3 3"/><circle cx="14" cy="16" r="5" fill="none" stroke="#2563eb" stroke-width="1.6"/><circle cx="30" cy="16" r="5" fill="none" stroke="#2563eb" stroke-width="1.6"/><circle cx="16" cy="36" r="5" fill="none" stroke="#2563eb" stroke-width="1.6"/><circle cx="30" cy="40" r="5" fill="none" stroke="#2563eb" stroke-width="1.6"/><circle cx="14" cy="60" r="5" fill="none" stroke="#2563eb" stroke-width="1.6"/><circle cx="30" cy="62" r="5" fill="none" stroke="#2563eb" stroke-width="1.6"/><circle cx="48" cy="16" r="5" fill="#6b7280"/><circle cx="64" cy="16" r="5" fill="#6b7280"/><circle cx="48" cy="38" r="5" fill="#6b7280"/><circle cx="64" cy="40" r="5" fill="#6b7280"/><circle cx="48" cy="60" r="5" fill="#6b7280"/><circle cx="64" cy="62" r="5" fill="#6b7280"/></svg><span>C</span></label>
+  <label class="opt figopt"><input type="radio" name="q7a"><svg width="76" height="84" viewBox="0 0 76 84"><rect x="3" y="3" width="70" height="78" fill="none" stroke="#374151" stroke-width="1.3"/><circle cx="18" cy="18" r="5" fill="none" stroke="#2563eb" stroke-width="1.6"/><circle cx="30" cy="16" r="5" fill="none" stroke="#2563eb" stroke-width="1.6"/><circle cx="22" cy="28" r="5" fill="none" stroke="#2563eb" stroke-width="1.6"/><circle cx="34" cy="28" r="5" fill="none" stroke="#2563eb" stroke-width="1.6"/><circle cx="18" cy="38" r="5" fill="none" stroke="#2563eb" stroke-width="1.6"/><circle cx="30" cy="38" r="5" fill="none" stroke="#2563eb" stroke-width="1.6"/><circle cx="48" cy="52" r="5" fill="#6b7280"/><circle cx="60" cy="50" r="5" fill="#6b7280"/><circle cx="52" cy="62" r="5" fill="#6b7280"/><circle cx="64" cy="62" r="5" fill="#6b7280"/><circle cx="50" cy="74" r="5" fill="#6b7280"/><circle cx="62" cy="74" r="5" fill="#6b7280"/></svg><span>D</span></label>
+  <div class="sub">② 그렇게 생각한 이유</div>
+  <label class="opt"><input type="radio" name="q7r"><span>분자가 끊임없이 무작위로 운동·확산하여 무게나 종류와 상관없이 고르게 섞이기 때문</span></label>
+  <label class="opt"><input type="radio" name="q7r"><span>무거운 기체는 가라앉고 가벼운 기체는 떠올라 위·아래로 갈리기 때문</span></label>
+  <label class="opt"><input type="radio" name="q7r"><span>두 기체가 용기를 영역으로 나누어 따로 차지하기 때문</span></label>
+  <label class="opt"><input type="radio" name="q7r"><span>같은 종류의 분자끼리 서로 끌어당겨 뭉치기 때문</span></label>
+  <div class="sub">③ 확신 정도</div>
+  <div class="conf"><span class="endlab">전혀<br>확신 없음</span>
+    <label><input type="radio" name="q7c">1</label><label><input type="radio" name="q7c">2</label><label><input type="radio" name="q7c">3</label><label><input type="radio" name="q7c">4</label><label><input type="radio" name="q7c">5</label>
+    <span class="endlab">매우<br>확신함</span></div>
+</div>
+
+<div class="card">
+  <div class="qnum">문 8</div>
+  <div class="stem">산소만 들어 있어 산소의 부분 압력이 1기압인 통에, 질소 기체를 추가로 더 넣었다. 산소의 부분 압력은 어떻게 되는가?</div>
+  <div class="sub">① 답</div>
+  <label class="opt"><input type="radio" name="q8a"><span>변하지 않고 1기압 그대로이다</span></label>
+  <label class="opt"><input type="radio" name="q8a"><span>줄어든다</span></label>
+  <label class="opt"><input type="radio" name="q8a"><span>늘어난다</span></label>
+  <label class="opt"><input type="radio" name="q8a"><span>절반으로 줄어든다</span></label>
+  <div class="sub">② 그렇게 생각한 이유</div>
+  <label class="opt"><input type="radio" name="q8r"><span>각 기체는 다른 기체가 있든 없든 자기 부분 압력을 그대로 유지하기 때문</span></label>
+  <label class="opt"><input type="radio" name="q8r"><span>질소가 들어와 산소가 차지할 몫이 줄기 때문</span></label>
+  <label class="opt"><input type="radio" name="q8r"><span>전체 압력이 올라가니 산소 압력도 따라 오르기 때문</span></label>
+  <label class="opt"><input type="radio" name="q8r"><span>두 기체가 압력을 똑같이 나누어 가지기 때문</span></label>
+  <div class="sub">③ 확신 정도</div>
+  <div class="conf"><span class="endlab">전혀<br>확신 없음</span>
+    <label><input type="radio" name="q8c">1</label><label><input type="radio" name="q8c">2</label><label><input type="radio" name="q8c">3</label><label><input type="radio" name="q8c">4</label><label><input type="radio" name="q8c">5</label>
+    <span class="endlab">매우<br>확신함</span></div>
+</div>
+
+<div class="card">
+  <div class="qnum">문 9</div>
+  <div class="stem">수소 1몰과 이산화탄소 1몰을 같은 용기에 넣어 섞었다(이산화탄소가 약 22배 무겁다). 두 기체의 부분 압력을 비교하면?</div>
+  <div class="sub">① 답</div>
+  <label class="opt"><input type="radio" name="q9a"><span>두 기체의 부분 압력이 같다</span></label>
+  <label class="opt"><input type="radio" name="q9a"><span>이산화탄소가 훨씬 크다</span></label>
+  <label class="opt"><input type="radio" name="q9a"><span>수소가 더 크다</span></label>
+  <label class="opt"><input type="radio" name="q9a"><span>비교할 수 없다</span></label>
+  <div class="sub">② 그렇게 생각한 이유</div>
+  <label class="opt"><input type="radio" name="q9r"><span>압력은 분자의 무게가 아니라 분자의 수(몰수)로 정해지기 때문</span></label>
+  <label class="opt"><input type="radio" name="q9r"><span>무거운 분자가 벽에 더 강하게 충돌하기 때문</span></label>
+  <label class="opt"><input type="radio" name="q9r"><span>가벼워서 더 빠르고 자주 충돌하기 때문</span></label>
+  <label class="opt"><input type="radio" name="q9r"><span>두 기체의 압력은 종류가 다르기 때문</span></label>
+  <div class="sub">③ 확신 정도</div>
+  <div class="conf"><span class="endlab">전혀<br>확신 없음</span>
+    <label><input type="radio" name="q9c">1</label><label><input type="radio" name="q9c">2</label><label><input type="radio" name="q9c">3</label><label><input type="radio" name="q9c">4</label><label><input type="radio" name="q9c">5</label>
+    <span class="endlab">매우<br>확신함</span></div>
+</div>
+
+<div class="card">
+  <div class="qnum">문 10</div>
+  <div class="stem">수소와 이산화탄소를 한 용기에 섞었다. 분자들이 서로 충돌하며 충분한 시간이 지난 뒤, 각 기체의 부분 압력은 어떻게 되는가?</div>
+  <div class="sub">① 답</div>
+  <label class="opt"><input type="radio" name="q10a"><span>충돌 전과 똑같이 각자 그대로 유지된다</span></label>
+  <label class="opt"><input type="radio" name="q10a"><span>무거운 이산화탄소의 부분 압력이 더 커진다</span></label>
+  <label class="opt"><input type="radio" name="q10a"><span>두 기체의 부분 압력이 같은 값으로 같아진다</span></label>
+  <label class="opt"><input type="radio" name="q10a"><span>가벼운 수소의 부분 압력이 더 커진다</span></label>
+  <div class="sub">② 그렇게 생각한 이유</div>
+  <label class="opt"><input type="radio" name="q10r"><span>충돌은 분자끼리 에너지를 주고받을 뿐, 각 기체의 부분 압력은 몰수와 온도로 정해져 변하지 않기 때문</span></label>
+  <label class="opt"><input type="radio" name="q10r"><span>무거운 분자가 충돌로 압력을 더 많이 차지하기 때문</span></label>
+  <label class="opt"><input type="radio" name="q10r"><span>충돌하면서 압력이 고르게 나누어지기 때문</span></label>
+  <label class="opt"><input type="radio" name="q10r"><span>가볍고 빨라 벽에 더 자주 부딪치기 때문</span></label>
+  <div class="sub">③ 확신 정도</div>
+  <div class="conf"><span class="endlab">전혀<br>확신 없음</span>
+    <label><input type="radio" name="q10c">1</label><label><input type="radio" name="q10c">2</label><label><input type="radio" name="q10c">3</label><label><input type="radio" name="q10c">4</label><label><input type="radio" name="q10c">5</label>
+    <span class="endlab">매우<br>확신함</span></div>
+</div>
+
+<div class="card">
+  <div class="qnum">문 11</div>
+  <div class="stem">일정한 온도의 밀폐된 강철 통 속 기체가 벽을 누르는 가장 근본적인 이유는?</div>
+  <div class="sub">① 답</div>
+  <label class="opt"><input type="radio" name="q11a"><span>분자가 끊임없이 무작위로 움직이며 벽에 충돌하기 때문</span></label>
+  <label class="opt"><input type="radio" name="q11a"><span>기체가 부풀어 오르려는 힘 때문</span></label>
+  <label class="opt"><input type="radio" name="q11a"><span>기체의 무게가 벽을 누르기 때문</span></label>
+  <label class="opt"><input type="radio" name="q11a"><span>분자끼리 밀어내 벽까지 밀리기 때문</span></label>
+  <div class="sub">② 그렇게 생각한 이유</div>
+  <label class="opt"><input type="radio" name="q11r"><span>충돌할 때마다 운동량이 전달되고, 그 힘의 총합이 압력이기 때문</span></label>
+  <label class="opt"><input type="radio" name="q11r"><span>기체에는 넓어지려는 성질이 들어 있기 때문</span></label>
+  <label class="opt"><input type="radio" name="q11r"><span>무거울수록 강하게 눌러 압력이 곧 무게이기 때문</span></label>
+  <label class="opt"><input type="radio" name="q11r"><span>분자 사이의 미는 힘이 벽으로 전달되기 때문</span></label>
+  <div class="sub">③ 확신 정도</div>
+  <div class="conf"><span class="endlab">전혀<br>확신 없음</span>
+    <label><input type="radio" name="q11c">1</label><label><input type="radio" name="q11c">2</label><label><input type="radio" name="q11c">3</label><label><input type="radio" name="q11c">4</label><label><input type="radio" name="q11c">5</label>
+    <span class="endlab">매우<br>확신함</span></div>
+</div>
+
+<div class="card">
+  <div class="qnum">문 12</div>
+  <div class="stem">지구의 실험실과 무중력 상태의 우주 정거장에 같은 용기·온도·양의 기체가 있다. 두 곳에서 벽이 받는 압력을 비교하면?</div>
+  <div class="sub">① 답</div>
+  <label class="opt"><input type="radio" name="q12a"><span>두 곳이 사실상 같다</span></label>
+  <label class="opt"><input type="radio" name="q12a"><span>무중력에서는 거의 0이 된다</span></label>
+  <label class="opt"><input type="radio" name="q12a"><span>무중력에서 더 높다</span></label>
+  <label class="opt"><input type="radio" name="q12a"><span>지구에서 더 높다</span></label>
+  <div class="sub">② 그렇게 생각한 이유</div>
+  <label class="opt"><input type="radio" name="q12r"><span>압력은 분자의 무작위 운동에서 나오고 그 운동은 온도가 정하므로 중력과 무관하기 때문</span></label>
+  <label class="opt"><input type="radio" name="q12r"><span>압력의 근원이 무게라서 중력이 없으면 사라지기 때문</span></label>
+  <label class="opt"><input type="radio" name="q12r"><span>중력이 없으면 분자가 더 자유로워 세게 밀기 때문</span></label>
+  <label class="opt"><input type="radio" name="q12r"><span>기체의 무게가 압력에 더해지기 때문</span></label>
+  <div class="sub">③ 확신 정도</div>
+  <div class="conf"><span class="endlab">전혀<br>확신 없음</span>
+    <label><input type="radio" name="q12c">1</label><label><input type="radio" name="q12c">2</label><label><input type="radio" name="q12c">3</label><label><input type="radio" name="q12c">4</label><label><input type="radio" name="q12c">5</label>
+    <span class="endlab">매우<br>확신함</span></div>
+</div>
+
+<div class="card">
+  <div class="qnum">문 13</div>
+  <div class="stem">온도가 일정한 방에 놓인 밀폐 용기를 건드리지 않고 사흘이 지났다. 내부 압력은 어떻게 되는가?</div>
+  <div class="sub">① 답</div>
+  <label class="opt"><input type="radio" name="q13a"><span>변하지 않는다</span></label>
+  <label class="opt"><input type="radio" name="q13a"><span>분자가 가라앉아 낮아진다</span></label>
+  <label class="opt"><input type="radio" name="q13a"><span>분자가 지쳐 느려져 낮아진다</span></label>
+  <label class="opt"><input type="radio" name="q13a"><span>충돌이 쌓여 높아진다</span></label>
+  <div class="sub">② 그렇게 생각한 이유</div>
+  <label class="opt"><input type="radio" name="q13r"><span>온도·부피·기체의 양이 그대로이면 분자의 평균 운동이 유지되어 압력이 일정하기 때문</span></label>
+  <label class="opt"><input type="radio" name="q13r"><span>가만히 두면 무거운 분자가 바닥에 가라앉기 때문</span></label>
+  <label class="opt"><input type="radio" name="q13r"><span>시간이 흐르면 분자가 운동 에너지를 잃기 때문</span></label>
+  <label class="opt"><input type="radio" name="q13r"><span>충돌이 거듭될수록 미는 힘이 커지기 때문</span></label>
+  <div class="sub">③ 확신 정도</div>
+  <div class="conf"><span class="endlab">전혀<br>확신 없음</span>
+    <label><input type="radio" name="q13c">1</label><label><input type="radio" name="q13c">2</label><label><input type="radio" name="q13c">3</label><label><input type="radio" name="q13c">4</label><label><input type="radio" name="q13c">5</label>
+    <span class="endlab">매우<br>확신함</span></div>
+</div>
+
+<div class="card">
+  <div class="qnum">문 14</div>
+  <div class="stem">보통 크기의 밀폐 용기 속 기체가 있다. 용기의 윗면과 아랫면이 받는 압력을 비교하면?</div>
+  <div class="sub">① 답</div>
+  <label class="opt"><input type="radio" name="q14a"><span>사실상 같다</span></label>
+  <label class="opt"><input type="radio" name="q14a"><span>아랫면이 뚜렷이 크다</span></label>
+  <label class="opt"><input type="radio" name="q14a"><span>윗면이 크다</span></label>
+  <label class="opt"><input type="radio" name="q14a"><span>위·아래에는 압력이 없다</span></label>
+  <div class="sub">② 그렇게 생각한 이유</div>
+  <label class="opt"><input type="radio" name="q14r"><span>분자가 모든 방향으로 무작위 운동하여 모든 면에 같은 크기로 작용하기 때문</span></label>
+  <label class="opt"><input type="radio" name="q14r"><span>기체의 무게가 아래로 눌리기 때문</span></label>
+  <label class="opt"><input type="radio" name="q14r"><span>가벼운 분자가 위로 떠오르기 때문</span></label>
+  <label class="opt"><input type="radio" name="q14r"><span>압력은 옆으로 미는 힘이기 때문</span></label>
+  <div class="sub">③ 확신 정도</div>
+  <div class="conf"><span class="endlab">전혀<br>확신 없음</span>
+    <label><input type="radio" name="q14c">1</label><label><input type="radio" name="q14c">2</label><label><input type="radio" name="q14c">3</label><label><input type="radio" name="q14c">4</label><label><input type="radio" name="q14c">5</label>
+    <span class="endlab">매우<br>확신함</span></div>
+</div>
+
+</div></main>
+<footer><div class="wrap">기체에 대한 생각 조사 · 응답해 주셔서 감사합니다.</div></footer>
+</body></html>
