@@ -2,6 +2,9 @@
 .DS_Store
 Thumbs.db
 
+# MS Office 잠금/임시 파일
+~$*
+
 # Editor
 .vscode/
 .idea/
@@ -19,6 +22,9 @@ build/
 *.csv
 data/
 data-logs/*.csv
+
+# 설문 응답 시트 (응답자 이메일 등 개인정보 — 공개 레포 노출 금지)
+*(응답).xlsx
 
 # Claude Code 로컬 설정
 .claude/settings.local.json
