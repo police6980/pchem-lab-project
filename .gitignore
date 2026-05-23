@@ -33,3 +33,7 @@ data-logs/*.csv
 tools/firmware-emulator/node
 tools/firmware-emulator/npm
 tools/firmware-emulator/pchem-firmware-emulator@*
+
+# 브라우저 자동화(Playwright MCP) 산출물 — 디버그 로그/스냅샷, 레포 대상 아님
+.playwright-mcp/
+site-landing.png
