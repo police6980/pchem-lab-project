@@ -5,13 +5,15 @@
 실험(압력 센서)·탐구(AI 튜터 대화)의 연속성을 제공한다.
 
 현재 **보일의 법칙**·**입자운동론**·**돌턴의 부분압력** 3 실험 모듈.
-보일·입자운동은 완성, 돌턴은 Phase 5.5 완료 (학습 기능 + 충돌 시뮬 +
-AI 튜터 + 실센서 인프라). **Phase 5.4 / 5.5 완료** — 실센서 사전 준비
-(멀티채널 protocol v1.2 + multi-channel SensorSource + outlier 가드
-5 단계 + A-1 노이즈 시나리오 + baseline.js + 시나리오 회귀 + sequence
-replay + outlier 가드 unit test + 보일 측정 통계 + 입자운동 가스 비교
-+ AI 설정 패널 기본 열림 + CI workflow). **실물 도착 후 Step I 본편**
-(`docs/19-real-sensor-integration-checklist.md`).
+보일·입자운동은 완성, 돌턴은 측정 cycle·Vernier 통합·AI 튜터까지 완성.
+**Phase 5.4~5.10 완료** (실센서 인프라 — 멀티채널 protocol v1.2 +
+multi-channel SensorSource + outlier 가드 5 단계 + 시나리오 회귀 +
+sequence replay + unit test + Vernier GDX-GP 편입 + 펌웨어 ESP32-S3
+v1.1 RX, firmware-esp32 main 머지), **Phase 6.4 완료** (Dalton Vernier
+측정 cycle 통합 안정화), **Phase 7 진행 중** (교육 평가 검사지 — 사전·사후
+검사지 보강 + 7 핵심 오개념 + 구글폼 배포). 작업 코드는 단일 `main`에 통합.
+**다음**: 실물 도착 후 Step I 본편 (`docs/19-real-sensor-integration-checklist.md`),
+검사지 응답 분석. 진행 상태 마스터: `docs/06-project-status.md`.
 
 > 저장소 이름(`pchem-lab-project`)과 내부 식별자는 개발 초기 명칭을 유지한다.
 > UI·공개 문서에서는 정식 브랜드명 **CAST** 로 표기.
@@ -120,7 +122,7 @@ CLI 에서 `↑↓` (±10 kPa) / `←→` (±1 kPa) / `r` (리셋) / `q` (종료
   - ✅ Phase 5.1: HTML·CSS·이벤트·이론값·상태 머신 (Step A·B)
   - ✅ Phase 5.2: p5.js `DaltonScene` 시뮬 엔진 (Step C-1~C-3) — 5 region 물리 + 피스톤 동기 분출 + 게이지 P_B 매 frame 동기 + 부분 압력 list
   - ✅ Phase 5.3: stacked bar 그래프 + CSV (11 컬럼) + 분자 수 표시 + 비교 모드 + 입자간 탄성 충돌 (직접 구현, 7 검증) + AI 튜터 (돌턴 특화) + 측정 기록 정리 (토글 폐기·행 삭제) + 끼임 정정 v5
-- **Phase 5.4 진행 중** — 실센서 사전 준비 (`phase5-real-sensor` 브랜치)
+- **Phase 5.4 완료** — 실센서 사전 준비 (`phase5-real-sensor` → main)
   - ✅ Protocol v1.2 — 멀티채널 (`ch` 필드) + 호환 모드 (`ch` 부재 시 단일 채널)
   - ✅ Multi-channel SensorSource — `onChannelData(ch, p_kPa)` 단일 경로,
     채널별 EMA α=0.2 / 임계값 2 kPa / mock/ws/real 모드 일원화
@@ -132,6 +134,11 @@ CLI 에서 `↑↓` (±10 kPa) / `←→` (±1 kPa) / `r` (리셋) / `q` (종료
   - ✅ 입자 stuck patch (R1, R5) — 0.5 px epsilon (단기 patch, Matter.js 별 브랜치 후속)
   - ✅ 측정 기록 / CSV / record 데이터 키 일반화 (P_공기/P_CO₂ → P_A/P_B 위치 기반)
   - ⏳ Step I 실센서 본편 (실물 DFRobot Gravity 1.6MPa 입수 후)
+- **Phase 5.5~5.10 완료** — 회귀 인프라(sequence replay + outlier 가드 unit test 11/11) + 학습 보강 + AI 설정 패널 + CI workflow + protocol-test 12/12 + AI 튜터 통합 모듈(`tutor.js`) + Vernier GDX-GP(BLE) 4번째 SensorSource + 펌웨어 ESP32-S3 v1.1 RX(`firmware-esp32` → main 머지 2026-05-18)
+- **Phase 6.4 완료** — Dalton Vernier 측정 cycle 통합 안정화 (2026-05-10, main): D 시리즈 cherry-pick + fixup 18 시리즈 + fixup 19 (AI 튜터 P 차이 추론 강화)
+- **Phase 7 진행 중** (재정의) — 교육 평가 검사지: 사전·사후 검사지 보강안(외부 문헌 합성) + 7 핵심 오개념 + 구글폼 배포·응답 수집 + 레포 파일관리 정책·지연 동기화 도입 (2026-05-18 ~). 기존 "다른 법칙 확장(샤를·게이뤼삭)"은 이연
+- **검증 정비** (2026-05-26) — dalton 충돌 검증 7/7 PASS 정착(통계 강화) + 테스트 사본 동기화 클러스터 등록
+- **브랜치**: 작업 코드는 단일 `main`에 통합 (원격에 과거 feature 브랜치 다수 잔존, 내용은 대체로 main 반영)
 
 상세 로드맵: `docs/09-roadmap.md`, 진행 상태 마스터: `docs/06-project-status.md`.
 

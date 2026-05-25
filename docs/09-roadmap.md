@@ -2,8 +2,8 @@
 
 **문서 목적**: Phase 2-B 이후 모든 개발 단계 통합 계획. 우선순위·의존관계·예상 소요·결정 이슈 기록. **06**이 "현재 상태"라면 **09**는 "미래 방향".
 
-**마지막 업데이트**: 2026-05-08 (Phase 5.6 / 5.7 / 5.8 / 5.9 / 5.10 진행 정합)
-**기준 상태**: Phase 1 MVP 완료, Phase 2-A/2-B 완료 (v0.4-boyle-complete), **Phase 3 소프트웨어 완료** (Step 3-6 실물 대기 — `phase3-real-sensor` 브랜치), **Phase 4.5 심화 탐구 모드 완료** (`feature/particle-controls`, 병합 대기), **반응형 레이아웃 + 단위 병기 완료** (`feature/responsive-canvas`, 병합 대기), **Phase 5.1 + 5.2 + 5.3 돌턴 완료** (`feature/dalton-experiment`), **Phase 5.4 완료** (`phase5-real-sensor` — protocol v1.2 + multi-channel SensorSource + outlier 가드 + A-1 노이즈 + baseline.js + 시나리오 회귀 + docs 권위 정합화), **Phase 5.5 완료** (회귀 인프라 6 트랙 + 학습 보강 + AI 설정 패널 기본 열림). **Phase 5.6 완료** (CI workflow + 5 docs 정합 + protocol-test 12/12). **Phase 5.7 완료** (`phase5-tutor-unify`, AI 튜터 통합 모듈 14 commits). **Phase 5.8 완료** (`phase5-real-sensor`, Vernier GDX-GP 4번째 SensorSource 정식 편입). **Phase 5.9 진행 중** (`phase5.9-stabilization` + `tutor-D-series`, Vernier Dalton 작업 1~5 + AI 튜터 D 트랙 D-(2)(3)(4)(5) — 작업 4·5 실측 검증 보류, 작업 6 폐기). **Phase 5.10 진행 중** (`firmware-esp32`, 펌웨어 ESP32-S3 환경 셋업 + 가짜 sin 모드 + v1.1 RX 처리 — WebSerial 검증 통과). **Step I 실물 대기**.
+**마지막 업데이트**: 2026-05-26 (Phase 6.4 Dalton Vernier 통합 + Phase 7 **교육 평가 검사지로 재정의**(샤를·게이뤼삭 이연) + firmware-esp32 main 머지 + dalton 검증 정비 7/7 반영). 이전: 2026-05-08 (Phase 5.6 / 5.7 / 5.8 / 5.9 / 5.10 진행 정합)
+**기준 상태**: Phase 1 MVP 완료, Phase 2-A/2-B 완료 (v0.4-boyle-complete), **Phase 3 소프트웨어 완료** (Step 3-6 실물 대기 — `phase3-real-sensor` 브랜치), **Phase 4.5 심화 탐구 모드 완료** (`feature/particle-controls`, 병합 대기), **반응형 레이아웃 + 단위 병기 완료** (`feature/responsive-canvas`, 병합 대기), **Phase 5.1 + 5.2 + 5.3 돌턴 완료** (`feature/dalton-experiment`), **Phase 5.4 완료** (`phase5-real-sensor` — protocol v1.2 + multi-channel SensorSource + outlier 가드 + A-1 노이즈 + baseline.js + 시나리오 회귀 + docs 권위 정합화), **Phase 5.5 완료** (회귀 인프라 6 트랙 + 학습 보강 + AI 설정 패널 기본 열림). **Phase 5.6 완료** (CI workflow + 5 docs 정합 + protocol-test 12/12). **Phase 5.7 완료** (`phase5-tutor-unify`, AI 튜터 통합 모듈 14 commits). **Phase 5.8 완료** (`phase5-real-sensor`, Vernier GDX-GP 4번째 SensorSource 정식 편입). **Phase 5.9 진행 중** (`phase5.9-stabilization` + `tutor-D-series`, Vernier Dalton 작업 1~5 + AI 튜터 D 트랙 D-(2)(3)(4)(5) — 작업 4·5 실측 검증 보류, 작업 6 폐기). **Phase 5.10 완료** (`firmware-esp32` → **main 머지 2026-05-18**, 0e5a831, 펌웨어 ESP32-S3 환경 셋업 + 가짜 sin 모드 + v1.1 RX 처리 — WebSerial 검증 통과). **Phase 6.4 완료** (Dalton Vernier 측정 cycle 통합 안정화, 2026-05-10, D 시리즈 cherry-pick + fixup 18 시리즈 11건 + fixup 19 — main). **Phase 7 진행 중** (교육 평가 검사지, 2026-05-18 ~ — 사전·사후 검사지 보강안 + 7 핵심 오개념 확정 + 구글폼 배포·응답 수집 + 레포 파일관리 정책·지연 동기화 도입; **Phase 7 = 검사지 평가도구로 재정의**, 샤를·게이뤼삭 확장은 이연). **검증 정비** (2026-05-26): dalton 충돌 검증 3·4 평형 미도달 해소 → 7/7 PASS, 테스트 사본 동기화 클러스터 등록. **Step I 실물 대기**.
 
 ---
 
@@ -27,9 +27,11 @@
 - [폐기] ~~Phase 5.x Matter.js 별 브랜치~~ — Phase 5.5 결정: 직접 구현 + patch fix 정책 확정 (`docs/10` Matter.js 결정)
 - [폐기] ~~Phase 5.9 작업 6 시린지 60mL 가드~~ — 가스 압축성으로 V_A=60·V_B=60도 물리 가능, 시린지 한도 무관 (`docs/10` Phase 5.9 D 트랙 결정)
 - [완료] **Phase 5.7 AI 튜터 통합** — `phase5-tutor-unify` 완료 (D-(2)(3)(4)(5) 진행 시 활용)
-- [계획] **Phase 6**: 교사 도구 (대시보드, 다중 사용자)
-- [계획] **Phase 7**: 다른 법칙 확장 (샤를, 게이뤼삭) — 기존 Phase 5 에서 이연
-- [장기] **Phase 8+**: 배포·상용화·연구 발표
+- [완료] **Phase 6.4**: Dalton Vernier 측정 cycle 통합 안정화 (2026-05-10, main)
+- [진행 중] **Phase 7 (재정의)**: 교육 평가 검사지 — 사전·사후 검사지 보강 + 7 핵심 오개념 + 구글폼 배포 (2026-05-18 ~). 기존 계획의 "다른 법칙 확장(샤를·게이뤼삭)"은 **이연**
+- [이연] **다른 법칙 확장** (샤를·게이뤼삭) — Phase 7 재정의로 후순위 이연
+- [계획] **교사 도구** (대시보드, 다중 사용자)
+- [장기] **배포·상용화·연구 발표**
 
 ---
 
@@ -220,9 +222,14 @@
 
 ## 5. Phase 5: 돌턴의 부분압력 (진행 중)
 
-**재정의 이력**: 2026-04-24 이전 Phase 5 계획은 "다른 법칙 확장 (샤를, 게이뤼삭)".
-돌턴 부분압력의 실험 확장성·보일과의 병행 학습 효과가 더 크다고 판단되어
-Phase 5 목표를 **돌턴 부분압력** 으로 재정의. 샤를·게이뤼삭은 **Phase 7** 로 이연.
+**재정의 이력**:
+- 2026-04-24: 이전 Phase 5 계획 "다른 법칙 확장 (샤를, 게이뤼삭)" → 돌턴 부분압력의
+  실험 확장성·보일과의 병행 학습 효과가 더 크다고 판단되어 Phase 5 목표를
+  **돌턴 부분압력** 으로 재정의. 샤를·게이뤼삭은 후속 Phase 로 이연.
+- 2026-05-18: **Phase 7 = 교육 평가 검사지(사전·사후)로 재정의** (사용자 확정 2026-05-26).
+  샤를·게이뤼삭 "다른 법칙 확장"은 **이연**(후순위). 이 문서 하단의 일부 절(§ 6 교사 도구,
+  ASCII 다이어그램 등)은 Phase 7을 옛 의미(교사 도구/샤를)로 혼용한 **선행 taxonomy 잔재**이며,
+  현행 권위는 본 블록 + 상단 "기준 상태" 표기를 따른다(하단 절 전면 재번호는 별도 정리 과제).
 
 상세 설계는 `docs/11-dalton-design.md` 참조 (1570줄).
 
