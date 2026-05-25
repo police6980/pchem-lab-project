@@ -80,9 +80,10 @@ function resolveCollision(p1, p2) {
 const BOX_W = 1000;
 const BOX_H = 1000;
 const DT = 0.005;          // main.js physicsSubstepMaxDtSec
-const STEPS = 10000;
-const N_HE = 50;
-const N_CO2 = 50;
+const STEPS = 15000;
+const EQ_WINDOW = 5000;    // 평형 측정창 — 마지막 EQ_WINDOW step 평균 (분산 ↓)
+const N_HE = 200;
+const N_CO2 = 200;
 const M_HE = 4;
 const M_CO2 = 44;
 const SPEED_BASE = 100;
@@ -249,7 +250,7 @@ for (let s = 0; s < STEPS; s++) {
         totalOverlaps += countOverlaps(particles);
     }
 
-    if (s >= STEPS - 1000) {
+    if (s >= STEPS - EQ_WINDOW) {
         avgKE_He_eq  += avgKEPerParticle(particles, true);
         avgKE_CO2_eq += avgKEPerParticle(particles, false);
         avgV_He_eq   += avgSpeed(particles, true);
@@ -357,8 +358,11 @@ console.log(`  KE 평균: ${keMean.toFixed(2)}, 표준편차: ${keStd.toFixed(4)
 console.log(`  CV: ${keCV.toFixed(4)}%  →  ${test7 ? "PASS" : "FAIL"}`);
 console.log(`  KE 처음 5 step: ${keHistory.slice(0, 5).map(h => h.ke.toFixed(0)).join(", ")}`);
 console.log(`  KE 마지막 5 step: ${keHistory.slice(-5).map(h => h.ke.toFixed(0)).join(", ")}`);
+if (test7) passCount++;
 console.log("");
 
 console.log("============================================");
 console.log(`[최종 판정] ${passCount}/7 PASS`);
 console.log("============================================");
+
+process.exit(passCount === 7 ? 0 : 1);
