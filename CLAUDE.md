@@ -186,12 +186,13 @@
 ### 동기화 클러스터 표
 
 > 범례: `→` = 소스에서 빌드(생성물), `↔` = 상호 동기화 필요. ✅=참조 검증됨,
-> ◻=명명·구조로 추론(작업 시 확인). 최종 갱신: 2026-05-23.
+> ◻=명명·구조로 추론(작업 시 확인). 최종 갱신: 2026-05-26.
 
 | 클러스터 | 함께 움직이는 파일 | 동기화 트리거 |
 |---|---|---|
 | ✅ 검사지(measure) | `measure/검사지-최종문항.html`(정본) → `make_docx.py` → `검사지-최종문항.docx`(생성물); `검사지-배포본.html`(학생용) → `google-form-script.gs`(구글폼); `검사지-종합.html`(설계·링크 허브); `검사지-수정메모.md`(이력·대상 포인터); `docs/10-dev-journal.md`(Phase 7) | 문항이 바뀌면: 정본 수정 → `make_docx.py` 재실행으로 docx 갱신 → 배포본·gs 스크립트·종합문서 링크/문항 동기화 → 수정메모·일지 기록 |
 | ✅ 검사지 history | `measure/history/검사지-{설계계획·보강안·전체문항·개정판·수정방향}.html`(동결 보존) | 정본이 새 버전으로 대체될 때만 옛 버전을 이리로 이동(내용 수정 금지) |
-| ◻ 펌웨어 프로토콜 | `firmware/boyle/boyle.ino` ↔ `web/js/protocol.js` ↔ `web/js/serial.js` ↔ `tools/firmware-emulator/{emulator,baseline}.js` ↔ `docs/12-protocol-v1.2.md` · `docs/05-data-format.md` | 프로토콜 버전/프레임 포맷 변경 시 펌웨어·웹 파서·에뮬레이터·문서 전부 동시 갱신 |
+| ◻ 펌웨어 프로토콜 | `firmware/boyle/boyle.ino` ↔ `web/js/protocol.js` ↔ `web/js/serial.js` ↔ `tools/firmware-emulator/{emulator,baseline}.js` ↔ `docs/12-protocol-v1.2.md` · `docs/05-data-format.md`; **테스트 사본**: `tests/protocol-test.js`(↔`protocol.js` `parseV11Line`), `tests/sensor-guard-test.js`(↔`serial.js` outlier 가드·`median3`) | 프로토콜 버전/프레임 포맷 변경 시 펌웨어·웹 파서·에뮬레이터·문서 전부 동시 갱신; 파서·가드 로직 변경 시 해당 테스트 사본도 재복사(import 아닌 복사 패턴 — 자동 드리프트 미검출) |
+| ✅ 입자 충돌 물리 | `web/js/main.js`(충돌 함수 `buildSpatialHash`·`getNearbyParticles`·`resolveCollision`) ↔ `tests/dalton-collision-test.js`(자립형 사본 — region/박스 클램프 제외) | 충돌 속도-충격량 식 변경 시 dalton 테스트 사본도 재복사. 위치 보정·박스 클램프는 테스트 무관(KE·속도 불변) |
 | ◻ web 파라미터 | `web/config/params.json` ↔ `docs/15-params-config-guide.md` ↔ 소비처(`web/js/main.js` 등) | params 키 추가/변경 시 가이드 문서·소비 코드 동시 갱신 |
 | ◻ 프로젝트 인덱스 | `README.md`(페이지 구성·기능) ↔ `docs/00-project-overview.md` ↔ `docs/06-project-status.md` ↔ `docs/09-roadmap.md` | Phase 전환·기능 추가 시 README와 상태/로드맵 문서 동시 갱신 |
